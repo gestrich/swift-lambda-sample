@@ -1,0 +1,25 @@
+name: Dev Deploy
+
+on:
+  push:
+    branches:
+      - "main"
+      - "dev"
+  workflow_call:
+jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+    if: true 
+    secrets: inherit
+  deploy:
+    name: Dev Deploy
+    needs: test
+    if: success()
+    uses: ./.github/workflows/deploy.yml
+    with:
+      awsIAMRoleName: arn:aws:iam::123456789:role/swift-lambda-sample_Github_OpenOIDC_Role
+      environment: dev 
+      productName: SwiftLambda
+      lambdaName: swift-lambda-sample
+    secrets: inherit

@@ -1,0 +1,53 @@
+# This workflow will build a Swift project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
+
+name: DeployLinux 
+
+on:
+  push:
+    branches: 
+      - "none"
+
+jobs:
+  deploy:
+    if: false 
+    name: Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      repository-projects: read
+    steps:
+    - uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
+      with:
+          swift-version: "5.7"
+    - uses: actions/checkout@v3
+    - uses: extractions/netrc@v1
+      with:
+        machine: github.com
+        username: user
+        password: ${{ secrets.SWIFT_PACKAGE_MANAGER_PAT }}
+    - uses: extractions/netrc@v1
+      with:
+        machine: api.github.com
+        username: user
+        password: ${{ secrets.SWIFT_PACKAGE_MANAGER_PAT }}
+    - name: Build Release AppCenterClone
+      run: |
+        mkdir -p build-target/lambda
+
+        # Compile application
+        echo "Compile Application"
+        swift build --product AppCenterCloneLambda -c release --build-path build-target --skip-update --disable-automatic-resolution 
+
+        # Copy swift dependencies
+        echo "Copying Swift dependencies"
+        ldd 'build-target/release/AppCenterCloneLambda' | grep swift | cut -d' ' -f3 | xargs cp -Lv -t build-target/lambda
+
+        # Copy Binary to Stage
+        echo "Copying Binary to Stage"
+        cp build-target/release/AppCenterCloneLambda build-target/lambda/bootstrap
+        ls build-target/lambda
+
+        # Zipping File
+        echo "Zipping File"
+        zip --symlinks lambda.zip build-target/lambda/*

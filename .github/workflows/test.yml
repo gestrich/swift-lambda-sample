@@ -1,0 +1,34 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - "*"
+      - "!main"
+      - "!dev"
+  workflow_call:
+jobs:
+  test:
+    if: true
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      repository-projects: read
+    steps:
+    - uses: swift-actions/setup-swift@v1.25.0
+      with:
+          swift-version: "5.9"
+    - uses: actions/checkout@v3
+    - uses: extractions/netrc@v1
+      with:
+        machine: github.com
+        username: user
+        password: ${{ secrets.SWIFT_PACKAGE_MANAGER_PAT }}
+    - uses: extractions/netrc@v1
+      with:
+        machine: api.github.com
+        username: user
+        password: ${{ secrets.SWIFT_PACKAGE_MANAGER_PAT }}
+    - name: Run Tests
+      run: swift test
