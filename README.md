@@ -85,8 +85,6 @@ While running your services locally is the preferred method of development, ther
 
 ## GitHub Action Setup
 
-iOS DevOps will handle these steps:
-
 1. **deploy_dev.yml**: Update these variables.
     - awsIAMRoleName: OIDC Role string. Ex: arn:aws:iam::123456789:role/name-of-created-role
     - productName: Lambda Swift Package product
@@ -98,8 +96,10 @@ iOS DevOps will handle these steps:
             * Deployment branches and tags
                 * Dropdown: Selected branches and tags
                 * Add the branch "dev"
+        * Environment Secret
+            * AWS_ROLE_NAME: <AWS Role Name>
         * Environment Variables
-            * AWS_REGION: us-east-1
+            * AWS_REGION: us-east-1 TODO: Consider making this a secret.
     * Secrets & Variables
         * Actions
             * Repository Secrets

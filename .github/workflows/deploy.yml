@@ -30,6 +30,7 @@ jobs:
       SWIFT_PACKAGE_MANAGER_PAT: ${{ secrets.SWIFT_PACKAGE_MANAGER_PAT }}
       PRODUCT_NAME: ${{ inputs.productName }}
       LAMBDA_NAME: ${{ inputs.lambdaName }}
+      AWS_ROLE_NAME: ${{ secrets.AWS_ROLE_NAME }}
     permissions:
       contents: write
       id-token: write
@@ -39,7 +40,7 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v3
       with:
-        role-to-assume: ${{ inputs.awsIAMRoleName }}
+        role-to-assume: ${{ secrets.AWS_ROLE_NAME }}
         role-session-name: LamdaRoleSession
         aws-region: ${{ vars.AWS_REGION }}
     - name: Build
