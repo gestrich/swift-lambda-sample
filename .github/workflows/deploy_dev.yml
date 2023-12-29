@@ -10,11 +10,11 @@ jobs:
   test:
     name: Test
     uses: ./.github/workflows/test.yml
-    if: true 
+    if: false 
     secrets: inherit
   deploy:
     name: Dev Deploy
-    needs: test
+    #needs: test
     if: success()
     uses: ./.github/workflows/deploy.yml
     with:

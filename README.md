@@ -89,7 +89,10 @@ While running your services locally is the preferred method of development, ther
     - awsIAMRoleName: OIDC Role string. Ex: arn:aws:iam::123456789:role/name-of-created-role
     - productName: Lambda Swift Package product
     - lambdaName: Name of the Lambda
-2. **GitHub Settings Configuration**:
+2. **GitHub Settings Configuration**
+    * Actions
+        * General
+            * Select "Read and write permissions"
     * Environments
         * Create New 
             * Name: dev
