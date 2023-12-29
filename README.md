@@ -100,7 +100,7 @@ While running your services locally is the preferred method of development, ther
                 * Dropdown: Selected branches and tags
                 * Add the branch "dev"
         * Environment Secret
-            * AWS_ROLE_NAME: <AWS Role Name>
+            * AWS_ROLE_NAME: <AWS Role Name> TODO: This should probably be the role arn.
         * Environment Variables
             * AWS_REGION: us-east-1 TODO: Consider making this a secret.
     * Secrets & Variables
