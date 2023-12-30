@@ -86,8 +86,7 @@ While running your services locally is the preferred method of development, ther
 ## GitHub Action Setup
 
 1. **deploy_dev.yml**: Update these variables.
-    - awsIAMRoleName: OIDC Role string. Ex: arn:aws:iam::123456789:role/name-of-created-role
-    - productName: Lambda Swift Package product
+    - productName: Swift Package product name
     - lambdaName: Name of the Lambda
 2. **GitHub Settings Configuration**
     * Actions

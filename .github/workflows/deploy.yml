@@ -7,16 +7,16 @@ on:
         description: 'Environment to deploy against'
         type: string
         required: true
+      dockerPlatformName:
+        description: 'Docker Platform Name (linux/amd64, linux/arm64, etc)'
+        type: string
+        required: true
       productName:
         description: 'Product Name to build'
         type: string
         required: true
       lambdaName:
         description: 'Lambda Name to deploy'
-        type: string
-        required: true
-      awsIAMRoleName:
-        description: 'AWS IAM Role Name'
         type: string
         required: true
 jobs:
@@ -28,9 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SWIFT_PACKAGE_MANAGER_PAT: ${{ secrets.SWIFT_PACKAGE_MANAGER_PAT }}
+      DOCKER_PLATFORM_NAME: ${{ inputs.dockerPlatformName }}
       PRODUCT_NAME: ${{ inputs.productName }}
       LAMBDA_NAME: ${{ inputs.lambdaName }}
-      AWS_ROLE_NAME: ${{ secrets.AWS_ROLE_NAME }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
     permissions:
       contents: write
       id-token: write
@@ -40,12 +41,12 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v3
       with:
-        role-to-assume: ${{ secrets.AWS_ROLE_NAME }}
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         role-session-name: LamdaRoleSession
         aws-region: ${{ vars.AWS_REGION }}
     - name: Build
       run: |
-        ./build.sh $PRODUCT_NAME "${SWIFT_PACKAGE_MANAGER_PAT}"
+        ./build.sh "${PRODUCT_NAME}" "${DOCKER_PLATFORM_NAME}" "${SWIFT_PACKAGE_MANAGER_PAT}"
     - name: Deploy to AWS
       run: |
         aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://lambda.zip

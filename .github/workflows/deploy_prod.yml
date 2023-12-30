@@ -1,24 +1,24 @@
-name: Dev Deploy
+name: Prod Deploy
 
 on:
   push:
     branches:
       - "main"
-      - "dev"
   workflow_call:
 jobs:
   test:
     name: Test
     uses: ./.github/workflows/test.yml
-    if: false 
+    if: true 
     secrets: inherit
   deploy:
-    name: Dev Deploy
-    #needs: test
+    name: Prod Deploy
+    needs: test
     if: success()
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: dev 
-      productName: SwiftLambda
-      lambdaName: swift-lambda-sample
+      environment: prod
+      dockerPlatformName: linux/amd64 
+      productName: SugarMonitorLambda 
+      lambdaName: SugarMonitor 
     secrets: inherit
