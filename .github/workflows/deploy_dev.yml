@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: dev 
+      dockerPlatformName: linux/amd64
       productName: SwiftLambda
       lambdaName: swift-lambda-sample
     secrets: inherit

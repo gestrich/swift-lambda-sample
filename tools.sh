@@ -17,7 +17,6 @@ function copyConfig() {
 function stopServices() {
   stopS3
   stopDatabase
-  killServers
 }
 
 function startServices() {

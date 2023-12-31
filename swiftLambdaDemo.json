@@ -10,6 +10,6 @@
   },
   "s3": {
     "bucketName": "org.gestrich.sandbox",
-    "endpoint": "http://172.17.0.2:9000"
+    "endpoint": "http://127.0.0.1:9000"
   }
 }

@@ -4,11 +4,7 @@
 
 This repository offers a sample AWS Lambda, written in Swift. The aim is to provide a solid foundation that adheres to good server development practices. This is an open work-in-progress.
 
-The samples assume using GitHub and Terraform for tooling. Other deployment tools can be considered later (SAM, Serverless, etc.).
-
 ## Server Principles
-
-The aim is to track the state of each of these principles in the sample implementation.
 
 ### CI / CD
 
@@ -61,16 +57,17 @@ The aim is to track the state of each of these principles in the sample implemen
 Begin by running the Lambda locally to familiarize yourself with the local development environment. Docker is utilized for running services locally.
 
 1. **Configuration File**: Copy the JSON configuration for local services.
-    - `./tools copyConfig`
+    - `./tools.sh copyConfig`
 2. **Xcode Configuration**: 
     - Set environment variables in Xcode:
         - `LOCAL_LAMBDA_SERVER_ENABLED: true`
         - `MOCK_AWS_CREDENTIALS: true`
 3. **Docker Desktop**: Install and start Docker Desktop.
     - [Mac Installation Guide](https://docs.docker.com/desktop/install/mac-install).
+    - Open Docker Desktop (to run Docker server)
 4. **Run Local Services**: Start local versions of Postgres and S3.
     - `./tools.sh startServices` command.
-5. **Run Xcode**: Choose the "SwiftLambda" target in Xcode and run.
+5. **Run Xcode**: Choose the "SwiftLambda" target -> "My Mac" -> Run button.
 6. **Trigger API**: Use Postman to store and execute API calls.
     - Download from [Postman](https://www.postman.com/downloads).
     - TODO: Need to share some sample calls or even the full collection.
@@ -99,9 +96,10 @@ While running your services locally is the preferred method of development, ther
                 * Dropdown: Selected branches and tags
                 * Add the branch "dev"
         * Environment Secret
-            * AWS_ROLE_NAME: <AWS Role Name> TODO: This should probably be the role arn.
+            * AWS_ROLE_ARN: <AWS OIDC Role ARN>
         * Environment Variables
-            * AWS_REGION: us-east-1 TODO: Consider making this a secret.
+            * AWS_REGION: us-east-1 
+            * TODO: Consider making this a secret.
     * Secrets & Variables
         * Actions
             * Repository Secrets
