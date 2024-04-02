@@ -90,7 +90,7 @@ While running your services locally is the preferred method of development, ther
         * General
             * Select "Read and write permissions"
     * Environments
-        * Create New 
+        * New Environment 
             * Name: dev
             * Deployment branches and tags
                 * Dropdown: Selected branches and tags
