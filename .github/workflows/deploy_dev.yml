@@ -18,6 +18,7 @@ jobs:
     if: success()
     uses: ./.github/workflows/deploy.yml
     with:
+      awsRegion: us-east-1
       environment: dev 
       dockerPlatformName: linux/amd64
       productName: SwiftLambda

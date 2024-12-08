@@ -3,6 +3,10 @@ name: Deploy
 on:
   workflow_call:
     inputs:
+      awsRegion:
+        description: 'AWS Region'
+        type: string
+        required: true
       environment:
         description: 'Environment to deploy against'
         type: string
@@ -43,7 +47,7 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         role-session-name: LamdaRoleSession
-        aws-region: ${{ vars.AWS_REGION }}
+        aws-region: ${{ inputs.AWS_REGION }}
     - name: Build
       run: |
         ./build.sh "${PRODUCT_NAME}" "${DOCKER_PLATFORM_NAME}" "${SWIFT_PACKAGE_MANAGER_PAT}"
