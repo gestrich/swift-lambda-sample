@@ -1,0 +1,19 @@
+{
+  "files.exclude": {
+    "**/*.js": {
+      "when": "$(basename).ts"
+    },
+    "**/*.d.ts": {
+      "when": "$(basename).ts"
+    },
+    "cdk.out": true,
+    "!jest.config.js": false
+  },
+  "search.exclude": {
+    "**/*.js": true,
+    "**/*.d.ts": true,
+    "cdk.out": true,
+    "!jest.config.js": false
+  },
+  "typescript.tsdk": "node_modules/typescript/lib"
+}
