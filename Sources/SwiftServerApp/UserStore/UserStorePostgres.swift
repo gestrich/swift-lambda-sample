@@ -9,6 +9,7 @@ import FluentKit
 import FluentPostgresDriver
 import FluentSQLiteDriver
 import Foundation
+import NIOSSL
 
 public actor UserStorePostgres: UserStore {
 
@@ -28,8 +29,8 @@ public actor UserStorePostgres: UserStore {
         let threadPool: NIOThreadPool = NIOThreadPool(numberOfThreads: System.coreCount)
         let databases: Databases = Databases(threadPool: threadPool, on: eventLoop)
 
-        //let sslContext = try NIOSSLContext(configuration: .clientDefault)
-        let tls = PostgresConnection.Configuration.TLS.disable //FAILS Locally: .prefer(sslContext)
+        let sslContext = try NIOSSLContext(configuration: .clientDefault)
+        let tls = PostgresConnection.Configuration.TLS.prefer(try .init(configuration: sslContext))
 
         let postGresConfiguration = SQLPostgresConfiguration(
             hostname: configuration.host,

@@ -1,0 +1,6 @@
+machine github.com
+  login user
+  password dummy
+machine api.github.com
+  login user
+  password dummy
