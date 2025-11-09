@@ -43,8 +43,41 @@ docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):
 # Copy binary to stage
 sudo cp $BUILD_DIR/release/$PRODUCT $BUILD_DIR/lambda/bootstrap
 
+echo ""
+echo "Lambda package contents:"
+echo "========================"
+ls -lh $BUILD_DIR/lambda/ | awk 'NR>1 {printf "  %-50s %10s\n", $9, $5}'
+TOTAL_UNCOMPRESSED=$(du -sh $BUILD_DIR/lambda/ | awk '{print $1}')
+echo "  ------------------------------------------------"
+echo "  Total uncompressed size: $TOTAL_UNCOMPRESSED"
+echo ""
+
 echo "Packaging to zip"
 zip --symlinks -j lambda.zip $BUILD_DIR/lambda/*
+
+echo ""
+echo "Lambda package size:"
+echo "===================="
+LAMBDA_ZIP_SIZE=$(ls -lh lambda.zip | awk '{print $5}')
+LAMBDA_ZIP_BYTES=$(stat -c%s lambda.zip 2>/dev/null || stat -f%z lambda.zip 2>/dev/null)
+LAMBDA_LIMIT_BYTES=52428800  # 50 MB in bytes
+LAMBDA_PERCENT=$(awk "BEGIN {printf \"%.1f\", ($LAMBDA_ZIP_BYTES / $LAMBDA_LIMIT_BYTES) * 100}")
+
+echo "  lambda.zip: $LAMBDA_ZIP_SIZE ($LAMBDA_ZIP_BYTES bytes)"
+echo "  AWS Lambda limit: 50 MB (52428800 bytes)"
+echo "  Usage: ${LAMBDA_PERCENT}%"
+
+if [ "$LAMBDA_ZIP_BYTES" -gt "$LAMBDA_LIMIT_BYTES" ]; then
+    echo ""
+    echo "  ERROR: Package exceeds AWS Lambda 50MB limit!"
+    echo "  Consider using Lambda layers or S3 deployment."
+    exit 1
+elif [ "$LAMBDA_ZIP_BYTES" -gt $((LAMBDA_LIMIT_BYTES * 80 / 100)) ]; then
+    echo "  WARNING: Package is over 80% of AWS Lambda limit"
+else
+    echo "  Package size is within AWS Lambda limits"
+fi
+echo ""
 
 echo "Copy build directory to directory for Github action artifacts to upload"
 cp -r $BUILD_DIR/lambda lambda
