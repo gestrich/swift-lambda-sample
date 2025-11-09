@@ -66,11 +66,9 @@ export class SwiftLambdaStack extends Stack {
       'Allow Lambda to connect to database'
     );
 
-    // API Gateway - Phase 5
+    // API Gateway - Phase 5 (PUBLIC endpoint)
     const apiGateway = new ApiGatewayConstruct(this, 'ApiGateway', {
-      vpc: vpc.vpc,
-      lambdaFunction: lambdaFunc.function,
-      allowedCidrs: ['10.0.0.0/8']
+      lambdaFunction: lambdaFunc.function
     });
 
     // Monitoring - Phase 5
@@ -149,10 +147,6 @@ export class SwiftLambdaStack extends Stack {
     new CfnOutput(this, 'ApiGatewayId', {
       value: apiGateway.api.restApiId,
       description: 'API Gateway ID'
-    });
-    new CfnOutput(this, 'VpcEndpointId', {
-      value: apiGateway.vpcEndpoint.vpcEndpointId,
-      description: 'VPC Endpoint ID for API Gateway'
     });
     new CfnOutput(this, 'EventRuleName', {
       value: monitoring.eventRule.ruleName,

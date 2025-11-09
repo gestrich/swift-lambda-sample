@@ -49,11 +49,11 @@ struct APIGWHandler: EventLoopLambdaHandler {
 
     func route(event: In, app: SwiftServerApp) async throws -> APIGateway.Response {
 
-        let leadingPathPart = "" // Use this if you there a leading part in your path, like "api" or "stage"
+        let leadingPathPart = "api" // Use this if you there a leading part in your path, like "api" or "stage"
 
         let urlComponents: [String]
         if !leadingPathPart.isEmpty {
-            urlComponents = event.path.urlComponentsAfter(targetComponent: "stage")
+            urlComponents = event.path.urlComponentsAfter(targetComponent: leadingPathPart)
         } else {
             urlComponents = event.path.split(separator: "/").map(String.init)
         }
