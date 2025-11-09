@@ -11,5 +11,5 @@ new SwiftLambdaStack(app, 'SwiftLambdaSampleStack', {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION || 'us-east-1'
   },
-  description: 'Swift Lambda Sample infrastructure - Phase 1: VPC'
+  description: 'Swift Lambda Sample infrastructure - Phase 2: VPC, S3, SQS'
 });

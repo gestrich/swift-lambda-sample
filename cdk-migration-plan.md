@@ -1,5 +1,7 @@
 # CDK Migration Plan: Terraform to AWS CDK
 
+**AWS Profile to use: `production`**
+
 ## Overview
 
 This document outlines the plan to migrate the `swift-lambda-sample` infrastructure from Terraform/Terragrunt to AWS CDK (Cloud Development Kit) using TypeScript.
@@ -23,8 +25,8 @@ This iterative approach ensures:
 
 ## Major Migration Steps
 
-- [ ] **Step 1**: Set up project structure, config, and VPC (networking foundation)
-- [ ] **Step 2**: Add S3 bucket and SQS queues (simple stateless resources)
+- [x] **Step 1**: Set up project structure, config, and VPC (networking foundation)
+- [x] **Step 2**: Add S3 bucket and SQS queues (simple stateless resources)
 - [ ] **Step 3**: Add RDS Postgres database with Secrets Manager
 - [ ] **Step 4**: Add Lambda function with all integrations
 - [ ] **Step 5**: Add API Gateway and CloudWatch monitoring (complete the stack)
