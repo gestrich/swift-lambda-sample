@@ -10,7 +10,13 @@ import Foundation
 public final class ConfigurationService: Sendable {
 
     private let configFileURL = Configuration.localConfigFileURL()
-    private static let postgresUserPasswordIdentifierKey = "mops/swift-lambda-sample/password" //TODO: Pass this key from environment
+    private static var postgresUserPasswordIdentifierKey: String {
+        // Read from environment, fallback to hardcoded value for backwards compatibility
+        guard let rawVal = getenv("POSTGRES_PASSWORD_SECRET_ID") else {
+            return "mops/swift-lambda-sample/password"
+        }
+        return String(utf8String: rawVal) ?? "mops/swift-lambda-sample/password"
+    }
     private let secretsService: SecretsService
 
     public init(secretsService: SecretsService) {
