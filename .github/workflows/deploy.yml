@@ -47,7 +47,7 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         role-session-name: LamdaRoleSession
-        aws-region: ${{ inputs.AWS_REGION }}
+        aws-region: ${{ inputs.awsRegion }}
     - name: Build
       run: |
         ./build.sh "${PRODUCT_NAME}" "${DOCKER_PLATFORM_NAME}" "${SWIFT_PACKAGE_MANAGER_PAT}"
