@@ -59,7 +59,16 @@ public final class ConfigurationService: Sendable {
         }
         let tableName = "swift-sample-app" // try getEnvironmentVariable(key: "POSTGRES_TABLE_NAME")
         let databaseUserName = try getEnvironmentVariable(key: "POSTGRES_USER_NAME")
-        let databasePassword = try await secretsService.getSecret(identifier: Self.postgresUserPasswordIdentifierKey)
+        let secretString = try await secretsService.getSecret(identifier: Self.postgresUserPasswordIdentifierKey)
+
+        // Parse the secret as JSON to extract the password
+        guard let secretData = secretString.data(using: .utf8),
+              let secretJson = try? JSONSerialization.jsonObject(with: secretData) as? [String: Any],
+              let databasePassword = secretJson["password"] as? String else {
+            // Fallback: if secret is just a plain string (not JSON), use it directly
+            return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: secretString)
+        }
+
         return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: databasePassword)
     }
 
