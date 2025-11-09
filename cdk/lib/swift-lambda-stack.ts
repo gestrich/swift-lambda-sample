@@ -1,9 +1,14 @@
 import { Stack, StackProps, Tags, CfnOutput, Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { SwiftLambdaConfig } from './config/types';
 import { VpcConstruct } from './constructs/vpc-construct';
 import { StorageConstruct } from './constructs/storage-construct';
 import { QueueConstruct } from './constructs/queue-construct';
+import { DatabaseConstruct } from './constructs/database-construct';
+import { LambdaConstruct } from './constructs/lambda-construct';
+import { ApiGatewayConstruct } from './constructs/api-gateway-construct';
+import { MonitoringConstruct } from './constructs/monitoring-construct';
 
 export interface SwiftLambdaStackProps extends StackProps {
   config: SwiftLambdaConfig;
@@ -30,6 +35,50 @@ export class SwiftLambdaStack extends Stack {
       visibilityTimeout: Duration.seconds(4500),
       messageRetention: Duration.days(1),
       maxReceiveCount: 5
+    });
+
+    // Database - Phase 3
+    const database = new DatabaseConstruct(this, 'Database', {
+      vpc: vpc.vpc,
+      instanceType: config.database.instanceType,
+      allocatedStorage: config.database.allocatedStorage,
+      backupRetention: config.database.backupRetention,
+      multiAz: config.database.multiAz,
+      databaseName: 'FFMSampleLambdaDB'
+    });
+
+    // Lambda - Phase 4
+    const lambdaFunc = new LambdaConstruct(this, 'Lambda', {
+      vpc: vpc.vpc,
+      database: database.instance,
+      queue: queue.queue,
+      dataBucket: storage.dataBucket,
+      dbSecret: database.secret,
+      memorySize: config.lambda.memorySize,
+      timeout: config.lambda.timeout,
+      reservedConcurrentExecutions: config.lambda.reservedConcurrentExecutions
+    });
+
+    // Allow Lambda to connect to database
+    database.securityGroup.addIngressRule(
+      lambdaFunc.securityGroup,
+      ec2.Port.tcp(5432),
+      'Allow Lambda to connect to database'
+    );
+
+    // API Gateway - Phase 5
+    const apiGateway = new ApiGatewayConstruct(this, 'ApiGateway', {
+      vpc: vpc.vpc,
+      lambdaFunction: lambdaFunc.function,
+      allowedCidrs: ['10.0.0.0/8']
+    });
+
+    // Monitoring - Phase 5
+    const monitoring = new MonitoringConstruct(this, 'Monitoring', {
+      lambdaFunction: lambdaFunc.function,
+      scheduleExpression: config.monitoring.scheduleExpression,
+      appName: 'Alpha',
+      releaseLookbackHours: config.monitoring.releaseLookbackHours
     });
 
     // Add tags
@@ -68,6 +117,46 @@ export class SwiftLambdaStack extends Stack {
     new CfnOutput(this, 'DLQArn', {
       value: queue.deadLetterQueue.queueArn,
       description: 'Dead Letter Queue ARN'
+    });
+    new CfnOutput(this, 'DatabaseEndpoint', {
+      value: database.instance.dbInstanceEndpointAddress,
+      description: 'RDS Database Endpoint'
+    });
+    new CfnOutput(this, 'DatabasePort', {
+      value: database.instance.dbInstanceEndpointPort,
+      description: 'RDS Database Port'
+    });
+    new CfnOutput(this, 'DatabaseName', {
+      value: database.instance.instanceIdentifier,
+      description: 'RDS Database Name'
+    });
+    new CfnOutput(this, 'DatabaseSecretArn', {
+      value: database.secret.secretArn,
+      description: 'RDS Database Secret ARN (contains credentials)'
+    });
+    new CfnOutput(this, 'LambdaFunctionArn', {
+      value: lambdaFunc.function.functionArn,
+      description: 'Lambda Function ARN'
+    });
+    new CfnOutput(this, 'LambdaFunctionName', {
+      value: lambdaFunc.function.functionName,
+      description: 'Lambda Function Name'
+    });
+    new CfnOutput(this, 'ApiGatewayUrl', {
+      value: apiGateway.api.url,
+      description: 'API Gateway URL'
+    });
+    new CfnOutput(this, 'ApiGatewayId', {
+      value: apiGateway.api.restApiId,
+      description: 'API Gateway ID'
+    });
+    new CfnOutput(this, 'VpcEndpointId', {
+      value: apiGateway.vpcEndpoint.vpcEndpointId,
+      description: 'VPC Endpoint ID for API Gateway'
+    });
+    new CfnOutput(this, 'EventRuleName', {
+      value: monitoring.eventRule.ruleName,
+      description: 'CloudWatch Event Rule Name'
     });
   }
 }

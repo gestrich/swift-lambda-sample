@@ -12,7 +12,7 @@ export const devConfig: SwiftLambdaConfig = {
     timeout: 900
   },
   database: {
-    instanceType: 'db.t3.micro',
+    instanceType: 't3.micro',
     allocatedStorage: 10,
     backupRetention: 1,
     multiAz: false  // Single AZ for dev

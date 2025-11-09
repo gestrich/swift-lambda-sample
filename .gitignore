@@ -8,4 +8,5 @@ DerivedData/
 .netrc
 lambda/
 lambda.zip
+lambda_function_payload.zip
 .aws-sam/

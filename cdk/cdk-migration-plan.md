@@ -27,9 +27,9 @@ This iterative approach ensures:
 
 - [x] **Step 1**: Set up project structure, config, and VPC (networking foundation)
 - [x] **Step 2**: Add S3 bucket and SQS queues (simple stateless resources)
-- [ ] **Step 3**: Add RDS Postgres database with Secrets Manager
-- [ ] **Step 4**: Add Lambda function with all integrations
-- [ ] **Step 5**: Add API Gateway and CloudWatch monitoring (complete the stack)
+- [x] **Step 3**: Add RDS Postgres database with Secrets Manager
+- [x] **Step 4**: Add Lambda function with all integrations
+- [x] **Step 5**: Add API Gateway and CloudWatch monitoring (complete the stack)
 
 Each step builds on the previous one. **Do not skip the verification process between steps!**
 
