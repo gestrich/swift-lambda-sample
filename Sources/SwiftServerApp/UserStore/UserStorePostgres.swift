@@ -30,7 +30,7 @@ public actor UserStorePostgres: UserStore {
         let databases: Databases = Databases(threadPool: threadPool, on: eventLoop)
 
         let sslContext = try NIOSSLContext(configuration: .clientDefault)
-        let tls = PostgresConnection.Configuration.TLS.prefer(try .init(configuration: sslContext))
+        let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)
 
         let postGresConfiguration = SQLPostgresConfiguration(
             hostname: configuration.host,
