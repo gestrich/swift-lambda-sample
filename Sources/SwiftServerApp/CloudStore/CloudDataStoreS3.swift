@@ -8,7 +8,7 @@
 import Foundation
 import SotoS3
 
-public class CloudDataStoreS3: CloudDataStore {
+public final class CloudDataStoreS3: CloudDataStore {
 
     private let s3: SotoS3.S3
     private let bucketName: String

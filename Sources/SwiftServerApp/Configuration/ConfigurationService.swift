@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class ConfigurationService {
+public final class ConfigurationService: Sendable {
 
     private let configFileURL = Configuration.localConfigFileURL()
     private static let postgresUserPasswordIdentifierKey = "mops/swift-lambda-sample/password" //TODO: Pass this key from environment

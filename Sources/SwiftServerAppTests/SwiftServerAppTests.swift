@@ -36,7 +36,7 @@ final class SwiftServerAppTests: XCTestCase {
     }
 }
 
-class MockCloudDataStore: CloudDataStore {
+final class MockCloudDataStore: CloudDataStore, @unchecked Sendable {
     var keysToData = [String: Data]()
     
     func getData(key: String) async throws -> Data? {

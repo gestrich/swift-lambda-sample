@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol UserStore {
+public protocol UserStore: Sendable {
     func getUser(id: UUID) async throws -> User?
     func getUsers() async throws -> [User]
     func createUser(_ user: User) async throws

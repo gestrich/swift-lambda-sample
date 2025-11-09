@@ -32,7 +32,7 @@ struct APIGWHandler: EventLoopLambdaHandler {
 
         //TODO: The Lambda.InitializationContext can hold resources that can be reused on every request.
         //It may be more performant to use that to hold onto our database connections.
-        let services = ServiceComposer(eventLoop: context.eventLoop)
+        let services = try await ServiceComposer(eventLoop: context.eventLoop)
 
         do {
             let response = try await route(event: event, app: services.app)

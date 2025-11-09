@@ -32,7 +32,7 @@ public struct CreateUserHandler: EventLoopLambdaHandler {
 
         context.logger.log(level: .critical, "Cloud Watch (CreateAnalysisRequest) event received")
 
-        let services = ServiceComposer(eventLoop: context.eventLoop)
+        let services = try await ServiceComposer(eventLoop: context.eventLoop)
         let app = services.app
 
         do {

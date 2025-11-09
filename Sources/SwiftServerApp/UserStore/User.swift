@@ -8,7 +8,7 @@
 import FluentKit
 import Foundation
 
-final public class User: Model, Equatable {
+final public class User: Model, Equatable, @unchecked Sendable {
     public static let schema = "user_schema" //"user" would conflict with reserved table name.
     
     @ID(key: .id)

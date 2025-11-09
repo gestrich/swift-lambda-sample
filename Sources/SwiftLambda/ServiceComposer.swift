@@ -35,7 +35,7 @@ class ServiceComposer {
         return result
     }
 
-    init(eventLoop: EventLoop) {
+    init(eventLoop: EventLoop) async throws {
 
         let awsClient: AWSClient
         let value = Self.getEnvironmentVariable(key: "MOCK_AWS_CREDENTIALS")
@@ -68,7 +68,7 @@ class ServiceComposer {
     }
 }
 
-struct CloudStoreFactory {
+struct CloudStoreFactory: Sendable {
 
     let configurationService: ConfigurationService
     let awsClient: AWSClient

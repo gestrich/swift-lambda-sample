@@ -77,7 +77,7 @@ public actor UserStorePostgres: UserStore {
     }
 
     public func shutdown() async throws {
-        databases.shutdown()
+        await databases.shutdownAsync()
         let _ = try? await threadPool.shutdownGracefully()
     }
     

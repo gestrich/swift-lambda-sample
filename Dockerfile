@@ -3,7 +3,7 @@
 # Build image
 # ================================
 
-FROM swift:5.9.2-amazonlinux2 as build
+FROM swift:6.2.0-amazonlinux2 as build
   
  RUN yum -y install \
      git \

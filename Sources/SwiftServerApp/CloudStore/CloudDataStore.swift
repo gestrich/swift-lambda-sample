@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol CloudDataStore {
+public protocol CloudDataStore: Sendable {
     func getData(key: String) async throws -> Data?
     func uploadData(_ data: Data, key: String) async throws
 }

@@ -7,6 +7,6 @@
 
 import Foundation
 
-public protocol SecretsService {
+public protocol SecretsService: Sendable {
     func getSecret(identifier: String) async throws -> String
 }

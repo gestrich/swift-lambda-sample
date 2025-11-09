@@ -8,7 +8,7 @@
 import Foundation
 import SotoSecretsManager
 
-public class SecretsServiceAWS: SecretsService {
+public final class SecretsServiceAWS: SecretsService {
 
     let secretsManager: SecretsManager
 

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public actor CloudDataStoreProduction: CloudDataStore {
+public actor CloudDataStoreProduction: CloudDataStore, Sendable {
 
     private var cloudStore: CloudDataStore? = nil
     private let cloudStoreFactory: () async throws -> CloudDataStore
