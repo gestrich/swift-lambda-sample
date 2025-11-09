@@ -36,6 +36,7 @@ export class LambdaConstruct extends Construct {
 
     // Lambda function
     this.function = new lambda.Function(this, 'Function', {
+      functionName: 'swift-lambda-sample',
       runtime: lambda.Runtime.PROVIDED_AL2,
       handler: 'lambda_function.main',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../..', 'lambda_function_payload.zip')),
