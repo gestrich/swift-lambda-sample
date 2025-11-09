@@ -55,7 +55,7 @@ jobs:
       run: |
         aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://lambda.zip
     - name: Upload Lambda Github Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: lambda
         path: lambda
