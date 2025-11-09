@@ -40,6 +40,10 @@ docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):
 # Copy swift dependencies
 docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "ldd '/build-target/release/$PRODUCT' | grep swift | cut -d' ' -f3 | xargs cp -Lv -t /build-target/lambda"
 
+# Strip debug symbols from binary
+echo "Stripping debug symbols from binary..."
+docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target builder bash -c "strip /build-target/release/$PRODUCT"
+
 # Copy binary to stage
 sudo cp $BUILD_DIR/release/$PRODUCT $BUILD_DIR/lambda/bootstrap
 

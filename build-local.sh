@@ -69,8 +69,9 @@ rm -rf $BUILD_DIR 2>/dev/null || true
 
 # Copy from Docker to build directory
 echo "Copying dependencies from Docker..."
-# Remove -p flag to avoid permission issues on Mac, and exclude .git directories
-docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -w /build-src builder bash -c "rsync -a --exclude='.git' /stage/.build/ /build-target/ 2>/dev/null || cp -R /stage/.build/* /build-target/ 2>/dev/null || echo 'Copy completed with some warnings'"
+# Use cp without -p flag to avoid permission issues on Mac
+# The || true allows continuing even if some files have permission warnings
+docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -w /build-src builder bash -c "cp -R -n /stage/.build/* /build-target/ || true"
 
 # Prep local directories (no sudo needed on Mac)
 echo "Preparing lambda directory..."
@@ -83,6 +84,10 @@ docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):
 # Copy swift dependencies
 echo "Copying Swift dependencies..."
 docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "ldd '/build-target/release/$PRODUCT' | grep swift | cut -d' ' -f3 | xargs cp -Lv -t /build-target/lambda"
+
+# Strip debug symbols from binary
+echo "Stripping debug symbols from binary..."
+docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target builder bash -c "strip /build-target/release/$PRODUCT"
 
 # Copy binary to stage (no sudo needed on Mac)
 echo "Copying binary to lambda directory..."
