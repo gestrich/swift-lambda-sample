@@ -120,9 +120,7 @@ It may be useful to login to the local postgres instance for viewing schemas and
 
 ## TODO
 
-- [ ] Ensure a complete teardown and deploy works then document how to go from zero to full deploy and running.
-  - [ ] Delete all Github environment and passwords
-  - [ ] Destroy CDK app
+- [ ] Ensure a complete CDK teardown and deploy works then document how to go from zero to full deploy and running.
 - [ ] Remove this fallback logic: `// Read from environment, fallback to hardcoded value for backwards compatibility`
 - [ ] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
 - [ ] Ensure local postgres running still works since TLS was enabled here: `let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)`
@@ -136,3 +134,5 @@ It may be useful to login to the local postgres instance for viewing schemas and
 - [ ] Add docs regarding local docker build and deploys - include docker interactive mode
 - [ ] Upgrade to Lambda engine v2.
 - [ ] Add conditional support for private VPC vs public database (to save on NAT gateway costs)
+- [ ] Ensure a complete Github teardown
+  - [ ] Delete all Github environment and passwords
