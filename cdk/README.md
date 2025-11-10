@@ -136,10 +136,45 @@ The deployment will:
 To remove all resources:
 
 ```bash
-cdk destroy
+cdk destroy --profile production
 ```
 
 **Note**: S3 bucket has `RETAIN` removal policy and will not be deleted automatically.
+
+#### Troubleshooting Destroy Failures
+
+If `cdk destroy` fails with errors about security groups or subnets having dependencies, this is likely due to orphaned Lambda ENIs (Elastic Network Interfaces) that weren't cleaned up automatically.
+
+**Common error messages:**
+- `resource sg-XXXXXXX has a dependent object`
+- `The subnet 'subnet-XXXXXXX' has dependencies and cannot be deleted`
+
+**Solution:**
+
+1. Find orphaned ENIs in your security group:
+   ```bash
+   # Replace sg-XXXXXXX with the security group ID from the error
+   aws ec2 describe-network-interfaces \
+     --filters "Name=group-id,Values=sg-XXXXXXX" \
+     --profile production \
+     --query 'NetworkInterfaces[*].[NetworkInterfaceId,Status,Description]' \
+     --output table
+   ```
+
+2. Delete the orphaned ENIs:
+   ```bash
+   # For each ENI found (typically 2 for Lambda in VPC)
+   aws ec2 delete-network-interface \
+     --network-interface-id eni-XXXXXXX \
+     --profile production
+   ```
+
+3. Retry the destroy command:
+   ```bash
+   cdk destroy --profile production --force
+   ```
+
+**Why this happens**: Lambda functions in VPCs create ENIs that can sometimes remain in "available" status after the Lambda is deleted, preventing VPC resources (security groups, subnets) from being removed.
 
 ## Configuration
 
