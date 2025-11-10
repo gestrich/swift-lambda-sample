@@ -117,3 +117,20 @@ It may be useful to login to the local postgres instance for viewing schemas and
     - List all databases: \l
     - Connect to docker database: \c docker
     - List all tables: \dt
+
+## TODO
+
+- [ ] Ensure a complete teardown and deploy works then document how to go from zero to full deploy and running.
+  - [ ] Delete all Github environment and passwords
+  - [ ] Destroy CDK app
+- [ ] Remove this fallback logic: `// Read from environment, fallback to hardcoded value for backwards compatibility`
+- [ ] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
+- [ ] Ensure local postgres running still works since TLS was enabled here: `let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)`
+- [ ] Determine why the dynamic value was removed and it was hardcoded here:
+  ```diff
+  -        POSTGRES_DBNAME: props.database.instanceIdentifier,
+  +        POSTGRES_DBNAME: 'FFMSampleLambdaDB'
+  ```
+- [ ] For the netrc, ensure that actually works with a real private repo dependency and why we have a "dummy" one committed to repo now.
+- [ ] Upgrade to Lambda engine v2.
+- [ ] Add conditional support for private VPC vs public database (to save on NAT gateway costs)
