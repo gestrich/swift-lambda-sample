@@ -132,5 +132,7 @@ It may be useful to login to the local postgres instance for viewing schemas and
   +        POSTGRES_DBNAME: 'FFMSampleLambdaDB'
   ```
 - [ ] For the netrc, ensure that actually works with a real private repo dependency and why we have a "dummy" one committed to repo now.
+- [ ] Combine build.sh and build-local.sh into same script
+- [ ] Add docs regarding local docker build and deploys - include docker interactive mode
 - [ ] Upgrade to Lambda engine v2.
 - [ ] Add conditional support for private VPC vs public database (to save on NAT gateway costs)
