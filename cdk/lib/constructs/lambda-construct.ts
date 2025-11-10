@@ -50,7 +50,7 @@ export class LambdaConstruct extends Construct {
         POSTGRES_HOST: props.database.dbInstanceEndpointAddress,
         POSTGRES_PORT: props.database.dbInstanceEndpointPort,
         POSTGRES_USER_NAME: 'docker',
-        POSTGRES_DBNAME: props.database.instanceIdentifier,
+        POSTGRES_DBNAME: 'FFMSampleLambdaDB',
         POSTGRES_PASSWORD_SECRET_ID: props.dbSecret.secretName,
         SQS_URL: props.queue.queueUrl,
         S3_BUCKET_NAME: props.dataBucket.bucketName
