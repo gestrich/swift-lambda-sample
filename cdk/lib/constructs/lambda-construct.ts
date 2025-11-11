@@ -5,7 +5,8 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import { Duration } from 'aws-cdk-lib';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as path from 'path';
 
@@ -34,6 +35,13 @@ export class LambdaConstruct extends Construct {
       allowAllOutbound: true
     });
 
+    // CloudWatch Logs group with automatic cleanup
+    const logGroup = new logs.LogGroup(this, 'LogGroup', {
+      logGroupName: '/aws/lambda/swift-lambda-sample',
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: RemovalPolicy.DESTROY
+    });
+
     // Lambda function
     this.function = new lambda.Function(this, 'Function', {
       functionName: 'swift-lambda-sample',
@@ -46,6 +54,7 @@ export class LambdaConstruct extends Construct {
       memorySize: props.memorySize,
       timeout: Duration.seconds(props.timeout),
       reservedConcurrentExecutions: props.reservedConcurrentExecutions,
+      logGroup: logGroup,
       environment: {
         POSTGRES_HOST: props.database.dbInstanceEndpointAddress,
         POSTGRES_PORT: props.database.dbInstanceEndpointPort,

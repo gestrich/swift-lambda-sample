@@ -176,6 +176,29 @@ If `cdk destroy` fails with errors about security groups or subnets having depen
 
 **Why this happens**: Lambda functions in VPCs create ENIs that can sometimes remain in "available" status after the Lambda is deleted, preventing VPC resources (security groups, subnets) from being removed.
 
+#### Orphaned CloudWatch Log Groups
+
+If `cdk deploy` fails with an error like:
+```
+Resource of type 'AWS::Logs::LogGroup' with identifier '/aws/lambda/swift-lambda-sample' already exists.
+```
+
+This means a log group from a previous deployment wasn't cleaned up. To fix:
+
+```bash
+# List log groups
+aws logs describe-log-groups \
+  --log-group-name-prefix "/aws/lambda/swift-lambda-sample" \
+  --profile production
+
+# Delete the orphaned log group
+aws logs delete-log-group \
+  --log-group-name "/aws/lambda/swift-lambda-sample" \
+  --profile production
+```
+
+**Note**: The Lambda construct now creates log groups with `RemovalPolicy.DESTROY` to prevent this issue in future deployments.
+
 ## Configuration
 
 ### Environment Configuration
