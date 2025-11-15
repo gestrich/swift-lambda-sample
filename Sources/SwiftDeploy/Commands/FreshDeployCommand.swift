@@ -71,12 +71,16 @@ struct FreshDeployCommand: AsyncParsableCommand {
                 let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
                 if hasCommitsToPush {
+                    // Get the current latest run ID before pushing
+                    let beforeRunId = try await githubService.getLatestRunId(branch: currentBranch)
+
                     // Push commits (this will auto-trigger the workflow)
                     try await gitService.push()
 
-                    // Wait for the workflow that was triggered by the push
-                    try await githubService.waitForWorkflowCompletion(
+                    // Wait for the NEW workflow that was triggered by the push
+                    try await githubService.waitForNewWorkflowCompletion(
                         branch: currentBranch,
+                        afterRunId: beforeRunId,
                         timeoutMinutes: 10
                     )
                 } else {
