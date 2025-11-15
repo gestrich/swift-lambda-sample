@@ -313,53 +313,76 @@ swift run SwiftDeploy <command>
 
 ### Commands
 
-#### 1. Fresh Deploy (`fresh-deploy`)
+#### 1. Deploy (`deploy`)
 
-Performs a complete deployment workflow:
-- Builds and deploys CDK infrastructure
-- Polls CloudFormation until deployment completes
-- Displays stack outputs (API Gateway URL, Lambda ARN, etc.)
-- Pushes pending git commits (if any)
-- Optionally waits for GitHub Actions to complete
+Deploys CDK infrastructure and Lambda code. **Default is minimal cost** (no database, no NAT Gateway).
 
 **Basic usage:**
 ```bash
-# Using Swift directly
-swift run SwiftDeploy fresh-deploy
+# Minimal deployment (default: no Postgres, no NAT)
+swift run SwiftDeploy deploy
+./tools.sh deploy
 
-# Using tools.sh wrapper
-./tools.sh deployFresh
+# Deploy with PostgreSQL (adds cost)
+swift run SwiftDeploy deploy --with-postgres
+./tools.sh deployWithPostgres
+
+# Deploy with NAT Gateway (adds cost)
+swift run SwiftDeploy deploy --with-nat-gateway
+./tools.sh deployWithNAT
+
+# Full deployment (Postgres + NAT)
+swift run SwiftDeploy deploy --with-postgres --with-nat-gateway
+./tools.sh deployFull
 ```
 
 **Options:**
 ```bash
---skip-postgres         # Deploy without RDS PostgreSQL database
---skip-nat-gateway      # Deploy without NAT Gateway (saves cost)
---skip-github-actions   # Don't wait for GH Actions workflow
+--with-postgres         # Include PostgreSQL database (adds ~$15/month)
+--with-nat-gateway      # Include NAT Gateway (adds ~$32/month)
+--infra-only            # Deploy infrastructure only (skip Lambda code)
 --skip-push             # Don't push git commits
 --aws-profile <name>    # AWS profile to use (default: production)
 --cdk-directory <path>  # CDK directory path (default: cdk)
 ```
 
+**What it does:**
+1. Deploys/updates CDK infrastructure (API Gateway, Lambda, S3, SQS, etc.)
+2. Polls CloudFormation until complete
+3. Displays stack outputs (API URLs, resource names)
+4. Deploys Lambda code via GitHub Actions (unless `--infra-only`)
+5. Verifies deployment by testing API endpoint
+
 **Examples:**
 ```bash
-# Deploy without database (minimal cost)
-swift run SwiftDeploy fresh-deploy --skip-postgres
-./tools.sh deployFreshNoPostgres
+# Quick infrastructure-only update (no Lambda deployment)
+swift run SwiftDeploy deploy --infra-only
+./tools.sh deployInfraOnly
 
-# Deploy without NAT Gateway
-swift run SwiftDeploy fresh-deploy --skip-nat-gateway
-./tools.sh deployFreshNoNAT
-
-# Minimal deployment (no database, no NAT)
-swift run SwiftDeploy fresh-deploy --skip-postgres --skip-nat-gateway
-./tools.sh deployFreshMinimal
-
-# Deploy without waiting for GitHub Actions
-swift run SwiftDeploy fresh-deploy --skip-github-actions
+# Deploy everything with database support
+swift run SwiftDeploy deploy --with-postgres
 ```
 
-#### 2. Tear Down (`tear-down`)
+#### 2. Deploy Lambda (`deploy-lambda`)
+
+Updates Lambda code only (no infrastructure changes). Useful for quick code updates.
+
+**Usage:**
+```bash
+# Deploy Lambda code
+swift run SwiftDeploy deploy-lambda
+./tools.sh deployLambda
+
+# Deploy without pushing git commits
+swift run SwiftDeploy deploy-lambda --skip-push
+```
+
+**What it does:**
+1. Pushes git commits (if any) which triggers GitHub Actions
+2. OR manually triggers GitHub Actions workflow
+3. Waits for build and deployment to complete
+
+#### 3. Tear Down (`tear-down`)
 
 Safely destroys the entire CDK stack:
 
@@ -428,12 +451,14 @@ For convenience, `tools.sh` provides wrapper functions:
 
 | Function | Command | Description |
 |----------|---------|-------------|
-| `deployFresh` | `fresh-deploy` | Standard deployment |
-| `deployFreshNoPostgres` | `fresh-deploy --skip-postgres` | Deploy without database |
-| `deployFreshNoNAT` | `fresh-deploy --skip-nat-gateway` | Deploy without NAT Gateway |
-| `deployFreshMinimal` | `fresh-deploy --skip-postgres --skip-nat-gateway` | Minimal deployment |
-| `deployTearDown` | `tear-down` | Destroy deployment |
-| `deployStatus` | `status` | Check status |
+| `deploy` | `deploy` | Minimal deployment (default: no Postgres, no NAT) |
+| `deployWithPostgres` | `deploy --with-postgres` | Deploy with PostgreSQL database |
+| `deployWithNAT` | `deploy --with-nat-gateway` | Deploy with NAT Gateway |
+| `deployFull` | `deploy --with-postgres --with-nat-gateway` | Full infrastructure |
+| `deployInfraOnly` | `deploy --infra-only` | Deploy infrastructure only (no Lambda) |
+| `deployLambda` | `deploy-lambda` | Deploy Lambda code only |
+| `tearDown` | `tear-down` | Destroy deployment |
+| `status` | `status` | Check status |
 
 #### Testing Functions
 
@@ -451,66 +476,74 @@ For convenience, `tools.sh` provides wrapper functions:
 # List available functions
 ./tools.sh
 
+# Deploy (minimal cost by default)
+./tools.sh deploy
+
+# Deploy with database
+./tools.sh deployWithPostgres
+
+# Update Lambda code only
+./tools.sh deployLambda
+
 # Test your deployment
 ./tools.sh testDeployment
 
-# Quick API test
-./tools.sh testApiFile
-
-# Verify S3 file
-./tools.sh verifyS3File
-
-# Check Lambda logs
-./tools.sh checkLambdaLogs
-
-# Run a function
-./tools.sh deployStatus
-./tools.sh deployFreshNoPostgres
+# Check status
+./tools.sh status
 ```
 
 ### Typical Deployment Workflows
 
 #### Initial Deployment
 ```bash
-# 1. Deploy infrastructure
-./tools.sh deployFresh
+# 1. Deploy everything (minimal cost by default)
+./tools.sh deploy
 
-# 2. Check status
-./tools.sh deployStatus
+# 2. Verify deployment
+./tools.sh testDeployment
 
-# 3. Test the API
-curl https://<your-api-url>/prod/api/users
+# 3. Check status
+./tools.sh status
 ```
 
-#### Update Lambda Code
+#### Update Lambda Code Only
 ```bash
 # 1. Make changes to Swift code
 vim Sources/SwiftLambda/APIGatewayHandler.swift
 
-# 2. Commit and push
+# 2. Commit changes
 git add -A
-git commit -m "Update handler"
-git push origin dev
+git commit -m "Update API handler"
 
-# 3. GitHub Actions automatically deploys Lambda code
-gh run watch --repo gestrich/swift-lambda-sample
+# 3. Deploy Lambda code (infrastructure unchanged)
+./tools.sh deployLambda
 ```
 
-#### Update Infrastructure
+#### Update Infrastructure Only
 ```bash
 # 1. Modify CDK code
 vim cdk/lib/constructs/lambda-construct.ts
 
-# 2. Deploy changes
-./tools.sh deployFresh
+# 2. Deploy infrastructure changes only
+./tools.sh deployInfraOnly
 
-# Lambda code will be deployed via GitHub Actions afterward
+# 3. Optionally deploy Lambda code separately
+./tools.sh deployLambda
+```
+
+#### Full Deployment with Database
+```bash
+# Deploy with PostgreSQL and NAT Gateway
+./tools.sh deployFull
+
+# Or just add PostgreSQL
+./tools.sh deployWithPostgres
 ```
 
 #### Clean Up
 ```bash
 # Destroy all infrastructure
-./tools.sh deployTearDown
+./tools.sh tearDown
 ```
 
 ## Common Development Tasks

@@ -1,10 +1,10 @@
 import Foundation
 import ArgumentParser
 
-struct FreshDeployCommand: AsyncParsableCommand {
+struct DeployCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "fresh-deploy",
-        abstract: "Deploy CDK stack and wait for GitHub Actions to complete"
+        commandName: "deploy",
+        abstract: "Deploy CDK infrastructure and optionally update Lambda code"
     )
 
     @Option(name: .long, help: "AWS profile to use")
@@ -13,29 +13,37 @@ struct FreshDeployCommand: AsyncParsableCommand {
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
 
-    @Flag(name: .long, help: "Skip PostgreSQL database deployment")
-    var skipPostgres: Bool = false
+    @Flag(name: .long, help: "Include PostgreSQL database (adds cost)")
+    var withPostgres: Bool = false
 
-    @Flag(name: .long, help: "Skip NAT Gateway deployment")
-    var skipNatGateway: Bool = false
+    @Flag(name: .long, help: "Include NAT Gateway (adds cost)")
+    var withNatGateway: Bool = false
 
-    @Flag(name: .long, help: "Skip waiting for GitHub Actions workflow")
-    var skipGithubActions: Bool = false
+    @Flag(name: .long, help: "Skip Lambda code deployment (CDK infrastructure only)")
+    var infraOnly: Bool = false
 
     @Flag(name: .long, help: "Skip git push")
     var skipPush: Bool = false
 
     mutating func run() async throws {
-        print("🚀 Starting fresh deployment...\n")
+        print("🚀 Starting deployment...\n")
+
+        if !withPostgres && !withNatGateway {
+            print("💰 MINIMAL COST MODE (default)")
+            print("   - No PostgreSQL database")
+            print("   - No NAT Gateway")
+            print("   - Cost: ~$0/month (only pay for Lambda invocations, S3, SQS usage)")
+            print("")
+        }
 
         let projectRoot = FileManager.default.currentDirectoryPath
         let deploymentService = DeploymentService(projectRoot: projectRoot)
         let gitService = GitService(repoPath: projectRoot)
 
-        // 1. Deploy CDK
+        // 1. Deploy CDK infrastructure
         let options = DeploymentOptions(
-            skipPostgres: skipPostgres,
-            skipNATGateway: skipNatGateway,
+            skipPostgres: !withPostgres,  // Invert: default is to skip
+            skipNATGateway: !withNatGateway,  // Invert: default is to skip
             awsProfile: awsProfile,
             cdkDirectory: cdkDirectory
         )
@@ -61,8 +69,8 @@ struct FreshDeployCommand: AsyncParsableCommand {
             }
         }
 
-        // 4. Deploy Lambda code via GitHub Actions
-        if !skipGithubActions {
+        // 4. Deploy Lambda code via GitHub Actions (unless --infra-only)
+        if !infraOnly {
             let repoInfo = try await gitService.getRepoInfo()
             let currentBranch = try await gitService.getCurrentBranch()
             let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
@@ -104,21 +112,13 @@ struct FreshDeployCommand: AsyncParsableCommand {
                 )
             }
         } else {
-            // GitHub Actions are skipped entirely
-            if !skipPush {
-                let hasCommitsToPush = try await gitService.hasCommitsToPush()
-                if hasCommitsToPush {
-                    try await gitService.push()
-                } else {
-                    print("\n✅ No commits to push")
-                }
-            }
-            print("\n⚠️  Skipping GitHub Actions deployment (--skip-github-actions enabled)")
-            print("⚠️  Lambda code was NOT deployed. You'll need to deploy it manually.")
+            // Infrastructure-only deployment
+            print("\n⏭️  Skipping Lambda code deployment (--infra-only enabled)")
+            print("⚠️  Lambda code was NOT deployed. Use 'deploy-lambda' to update Lambda code.")
         }
 
         // 5. Verify deployment by testing the API
-        if !skipGithubActions {
+        if !infraOnly {
             print("\n🧪 Verifying deployment...")
 
             do {

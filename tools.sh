@@ -124,27 +124,43 @@ function tailLogsDev(){
 
 # SwiftDeploy CLI wrapper functions
 
-function deployFresh(){
-  swift run SwiftDeploy fresh-deploy "$@"
+# Deploy infrastructure (default: minimal cost - no Postgres, no NAT)
+function deploy(){
+  swift run SwiftDeploy deploy "$@"
 }
 
-function deployFreshNoPostgres(){
-  swift run SwiftDeploy fresh-deploy --skip-postgres "$@"
+# Deploy with PostgreSQL database (adds cost)
+function deployWithPostgres(){
+  swift run SwiftDeploy deploy --with-postgres "$@"
 }
 
-function deployFreshNoNAT(){
-  swift run SwiftDeploy fresh-deploy --skip-nat-gateway "$@"
+# Deploy with NAT Gateway (adds cost)
+function deployWithNAT(){
+  swift run SwiftDeploy deploy --with-nat-gateway "$@"
 }
 
-function deployFreshMinimal(){
-  swift run SwiftDeploy fresh-deploy --skip-postgres --skip-nat-gateway "$@"
+# Deploy with both PostgreSQL and NAT Gateway (full infrastructure)
+function deployFull(){
+  swift run SwiftDeploy deploy --with-postgres --with-nat-gateway "$@"
 }
 
-function deployTearDown(){
+# Deploy infrastructure only (no Lambda code update)
+function deployInfraOnly(){
+  swift run SwiftDeploy deploy --infra-only "$@"
+}
+
+# Deploy Lambda code only (no infrastructure changes)
+function deployLambda(){
+  swift run SwiftDeploy deploy-lambda "$@"
+}
+
+# Tear down all infrastructure
+function tearDown(){
   swift run SwiftDeploy tear-down "$@"
 }
 
-function deployStatus(){
+# Check deployment status
+function status(){
   swift run SwiftDeploy status "$@"
 }
 
