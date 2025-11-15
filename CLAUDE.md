@@ -237,11 +237,204 @@ curl -X DELETE https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/u
 curl -X POST https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/file
 ```
 
+## SwiftDeploy CLI Tool
+
+This project includes a **Swift-based CLI tool** (`SwiftDeploy`) for managing deployments. It provides a streamlined interface for deploying, destroying, and monitoring your AWS infrastructure.
+
+### Installation & Usage
+
+The CLI is built as part of the Swift package and can be run directly:
+
+```bash
+# Run commands directly
+swift run SwiftDeploy <command>
+
+# Or use the convenient tools.sh wrapper functions
+./tools.sh <function-name>
+```
+
+### Commands
+
+#### 1. Fresh Deploy (`fresh-deploy`)
+
+Performs a complete deployment workflow:
+- Builds and deploys CDK infrastructure
+- Polls CloudFormation until deployment completes
+- Displays stack outputs (API Gateway URL, Lambda ARN, etc.)
+- Pushes pending git commits (if any)
+- Optionally waits for GitHub Actions to complete
+
+**Basic usage:**
+```bash
+# Using Swift directly
+swift run SwiftDeploy fresh-deploy
+
+# Using tools.sh wrapper
+./tools.sh deployFresh
+```
+
+**Options:**
+```bash
+--skip-postgres         # Deploy without RDS PostgreSQL database
+--skip-nat-gateway      # Deploy without NAT Gateway (saves cost)
+--skip-github-actions   # Don't wait for GH Actions workflow
+--skip-push             # Don't push git commits
+--aws-profile <name>    # AWS profile to use (default: production)
+--cdk-directory <path>  # CDK directory path (default: cdk)
+```
+
+**Examples:**
+```bash
+# Deploy without database (minimal cost)
+swift run SwiftDeploy fresh-deploy --skip-postgres
+./tools.sh deployFreshNoPostgres
+
+# Deploy without NAT Gateway
+swift run SwiftDeploy fresh-deploy --skip-nat-gateway
+./tools.sh deployFreshNoNAT
+
+# Minimal deployment (no database, no NAT)
+swift run SwiftDeploy fresh-deploy --skip-postgres --skip-nat-gateway
+./tools.sh deployFreshMinimal
+
+# Deploy without waiting for GitHub Actions
+swift run SwiftDeploy fresh-deploy --skip-github-actions
+```
+
+#### 2. Tear Down (`tear-down`)
+
+Safely destroys the entire CDK stack:
+
+```bash
+# Using Swift directly (with confirmation prompt)
+swift run SwiftDeploy tear-down
+
+# Using tools.sh wrapper
+./tools.sh deployTearDown
+
+# Skip confirmation prompt
+swift run SwiftDeploy tear-down --force
+```
+
+**Warning**: This destroys ALL infrastructure including:
+- Lambda function
+- API Gateway
+- S3 bucket (must be empty first)
+- SQS queues
+- VPC and networking resources
+- RDS database (if deployed)
+- All CloudWatch resources
+
+#### 3. Status (`status`)
+
+Check the current state of your deployment:
+
+```bash
+# Using Swift directly
+swift run SwiftDeploy status
+
+# Using tools.sh wrapper
+./tools.sh deployStatus
+```
+
+**Displays:**
+- **Git status**: Uncommitted changes, commits to push, current branch
+- **GitHub Actions**: Latest workflow status and conclusion
+- **CDK Stack**: All CloudFormation outputs (API URL, Lambda ARN, bucket name, etc.)
+
+**Example output:**
+```
+📊 Checking status...
+
+📝 Git Status:
+  Uncommitted changes: NO
+  Commits to push: NO
+  Current branch: dev
+
+🔄 GitHub Actions:
+  Latest workflow status: completed
+  Conclusion: success
+
+☁️  CDK Stack:
+  ApiGatewayUrl: https://abc123.execute-api.us-east-1.amazonaws.com/prod/
+  LambdaFunctionName: swift-lambda-sample
+  BucketName: swiftlambdasamplestack-storagedatabucket-xyz
+  ...
+```
+
+### Tools.sh Wrapper Functions
+
+For convenience, `tools.sh` provides wrapper functions:
+
+| Function | Command | Description |
+|----------|---------|-------------|
+| `deployFresh` | `fresh-deploy` | Standard deployment |
+| `deployFreshNoPostgres` | `fresh-deploy --skip-postgres` | Deploy without database |
+| `deployFreshNoNAT` | `fresh-deploy --skip-nat-gateway` | Deploy without NAT Gateway |
+| `deployFreshMinimal` | `fresh-deploy --skip-postgres --skip-nat-gateway` | Minimal deployment |
+| `deployTearDown` | `tear-down` | Destroy deployment |
+| `deployStatus` | `status` | Check status |
+
+**Usage:**
+```bash
+# List available functions
+./tools.sh
+
+# Run a function
+./tools.sh deployStatus
+./tools.sh deployFreshNoPostgres
+```
+
+### Typical Deployment Workflows
+
+#### Initial Deployment
+```bash
+# 1. Deploy infrastructure
+./tools.sh deployFresh
+
+# 2. Check status
+./tools.sh deployStatus
+
+# 3. Test the API
+curl https://<your-api-url>/prod/api/users
+```
+
+#### Update Lambda Code
+```bash
+# 1. Make changes to Swift code
+vim Sources/SwiftLambda/APIGatewayHandler.swift
+
+# 2. Commit and push
+git add -A
+git commit -m "Update handler"
+git push origin dev
+
+# 3. GitHub Actions automatically deploys Lambda code
+gh run watch --repo gestrich/swift-lambda-sample
+```
+
+#### Update Infrastructure
+```bash
+# 1. Modify CDK code
+vim cdk/lib/constructs/lambda-construct.ts
+
+# 2. Deploy changes
+./tools.sh deployFresh
+
+# Lambda code will be deployed via GitHub Actions afterward
+```
+
+#### Clean Up
+```bash
+# Destroy all infrastructure
+./tools.sh deployTearDown
+```
+
 ## Common Development Tasks
 
-### Deploying Infrastructure Changes
+### Deploying Infrastructure Changes (Manual Method)
 
-When you modify the CDK infrastructure:
+If you prefer to use CDK directly instead of SwiftDeploy:
 
 ```bash
 cd cdk
@@ -258,6 +451,8 @@ cdk deploy --profile production --require-approval never
 # View outputs
 cdk deploy --profile production --outputs-file outputs.json
 ```
+
+**Note**: The `SwiftDeploy fresh-deploy` command handles all of this automatically.
 
 ### Deploying Lambda Code Changes
 
@@ -418,7 +613,29 @@ gh run view {run-id} --repo gestrich/swift-lambda-sample --log
 
 ## Quick Reference
 
-### CDK Commands
+### SwiftDeploy CLI (Recommended)
+```bash
+# Deploy infrastructure
+swift run SwiftDeploy fresh-deploy
+./tools.sh deployFresh
+
+# Deploy without database (minimal cost)
+./tools.sh deployFreshNoPostgres
+
+# Check status
+swift run SwiftDeploy status
+./tools.sh deployStatus
+
+# Destroy deployment
+swift run SwiftDeploy tear-down
+./tools.sh deployTearDown
+
+# Get help
+swift run SwiftDeploy --help
+swift run SwiftDeploy fresh-deploy --help
+```
+
+### CDK Commands (Manual Method)
 ```bash
 cd cdk
 npm run build              # Build TypeScript
