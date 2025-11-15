@@ -191,20 +191,82 @@ curl -X GET https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/user
 https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/
 ```
 
-### Available Endpoints
-
-#### Database Management
+**Note:** The API Gateway URL changes with each fresh deployment. Get the current URL from the deployment outputs or by running:
 ```bash
-# Initialize/reset database
-curl -X POST https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/database
-
-# Response: "Database Initialized"
+swift run SwiftDeploy status
 ```
 
-#### User CRUD Operations
+### Testing Your Deployment
+
+After deploying infrastructure, verify that Lambda code is deployed and working:
+
+#### Quick Test (No Database Required)
+
+The file endpoint tests S3 integration and Lambda execution:
+
+```bash
+# Test S3 file upload/download
+curl -X POST https://{your-api-gateway-id}.execute-api.us-east-1.amazonaws.com/prod/api/file
+
+# Expected response:
+"File uploaded and downloaded"
+
+# What this tests:
+# ✓ API Gateway routing
+# ✓ Lambda function execution (Swift code)
+# ✓ S3 bucket access and permissions
+# ✓ File upload to S3
+# ✓ File download from S3
+```
+
+**Verify the S3 file was created:**
+```bash
+# Get bucket name from deployment outputs
+BUCKET_NAME=$(aws cloudformation describe-stacks \
+  --stack-name SwiftLambdaSampleStack \
+  --profile production \
+  --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
+  --output text)
+
+# List files in bucket
+aws s3 ls s3://$BUCKET_NAME/ --profile production
+
+# Download and view the test file
+aws s3 cp s3://$BUCKET_NAME/hello-world.text - --profile production
+# Output: "Hello World! This data was written/read from S3."
+```
+
+**Check Lambda logs:**
+```bash
+aws logs tail /aws/lambda/swift-lambda-sample \
+  --since 5m \
+  --profile production
+```
+
+### Available Endpoints
+
+#### File Operations (No Database Required)
+```bash
+# Upload and download S3 test file
+curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/file
+
+# Response: "File uploaded and downloaded"
+# This endpoint works without PostgreSQL deployed
+```
+
+#### Database Management (Requires PostgreSQL)
+```bash
+# Initialize/reset database
+curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/database
+
+# Response: "Database Initialized"
+# Note: Only works if deployed WITH PostgreSQL (without --skip-postgres)
+```
+
+#### User CRUD Operations (Requires PostgreSQL)
 ```bash
 # Create user
-curl -X POST https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/users \
+curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -217,24 +279,20 @@ curl -X POST https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/use
   }'
 
 # Get all users
-curl -X GET https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/users
+curl -X GET https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users
 
 # Get single user
-curl -X GET https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid}
+curl -X GET https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid}
 
 # Update user
-curl -X PUT https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid} \
+curl -X PUT https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid} \
   -H "Content-Type: application/json" \
   -d '{...}'
 
 # Delete user
-curl -X DELETE https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid}
-```
+curl -X DELETE https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid}
 
-#### File Operations
-```bash
-# Upload and download S3 test file
-curl -X POST https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/file
+# Note: User endpoints require PostgreSQL to be deployed
 ```
 
 ## SwiftDeploy CLI Tool
