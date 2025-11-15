@@ -124,29 +124,14 @@ function tailLogsDev(){
 
 # SwiftDeploy CLI wrapper functions
 
-# Deploy infrastructure (default: minimal cost - no Postgres, no NAT)
+# Deploy infrastructure + Lambda code (minimal cost by default)
+# Usage:
+#   deploy                    # Minimal (no Postgres, no NAT)
+#   deploy --with-postgres    # Add database
+#   deploy --with-nat-gateway # Add NAT Gateway
+#   deploy --infra-only       # Skip Lambda code deployment
 function deploy(){
   swift run SwiftDeploy deploy "$@"
-}
-
-# Deploy with PostgreSQL database (adds cost)
-function deployWithPostgres(){
-  swift run SwiftDeploy deploy --with-postgres "$@"
-}
-
-# Deploy with NAT Gateway (adds cost)
-function deployWithNAT(){
-  swift run SwiftDeploy deploy --with-nat-gateway "$@"
-}
-
-# Deploy with both PostgreSQL and NAT Gateway (full infrastructure)
-function deployFull(){
-  swift run SwiftDeploy deploy --with-postgres --with-nat-gateway "$@"
-}
-
-# Deploy infrastructure only (no Lambda code update)
-function deployInfraOnly(){
-  swift run SwiftDeploy deploy --infra-only "$@"
 }
 
 # Deploy Lambda code only (no infrastructure changes)
@@ -155,12 +140,12 @@ function deployLambda(){
 }
 
 # Tear down all infrastructure
-function tearDown(){
+function deployTearDown(){
   swift run SwiftDeploy tear-down "$@"
 }
 
 # Check deployment status
-function status(){
+function deployStatus(){
   swift run SwiftDeploy status "$@"
 }
 

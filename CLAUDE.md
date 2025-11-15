@@ -449,16 +449,21 @@ For convenience, `tools.sh` provides wrapper functions:
 
 #### Deployment Functions
 
-| Function | Command | Description |
-|----------|---------|-------------|
-| `deploy` | `deploy` | Minimal deployment (default: no Postgres, no NAT) |
-| `deployWithPostgres` | `deploy --with-postgres` | Deploy with PostgreSQL database |
-| `deployWithNAT` | `deploy --with-nat-gateway` | Deploy with NAT Gateway |
-| `deployFull` | `deploy --with-postgres --with-nat-gateway` | Full infrastructure |
-| `deployInfraOnly` | `deploy --infra-only` | Deploy infrastructure only (no Lambda) |
-| `deployLambda` | `deploy-lambda` | Deploy Lambda code only |
-| `tearDown` | `tear-down` | Destroy deployment |
-| `status` | `status` | Check status |
+| Function | Description |
+|----------|-------------|
+| `deploy` | Deploy infrastructure + Lambda code (use flags for options) |
+| `deployLambda` | Deploy Lambda code only (no infrastructure changes) |
+| `deployTearDown` | Destroy all infrastructure |
+| `deployStatus` | Check deployment and git status |
+
+**Deploy function flags:**
+```bash
+./tools.sh deploy                    # Minimal (default: no Postgres, no NAT)
+./tools.sh deploy --with-postgres    # Add PostgreSQL database
+./tools.sh deploy --with-nat-gateway # Add NAT Gateway
+./tools.sh deploy --with-postgres --with-nat-gateway  # Full infrastructure
+./tools.sh deploy --infra-only       # CDK infrastructure only (skip Lambda)
+```
 
 #### Testing Functions
 
@@ -480,7 +485,7 @@ For convenience, `tools.sh` provides wrapper functions:
 ./tools.sh deploy
 
 # Deploy with database
-./tools.sh deployWithPostgres
+./tools.sh deploy --with-postgres
 
 # Update Lambda code only
 ./tools.sh deployLambda
@@ -489,7 +494,7 @@ For convenience, `tools.sh` provides wrapper functions:
 ./tools.sh testDeployment
 
 # Check status
-./tools.sh status
+./tools.sh deployStatus
 ```
 
 ### Typical Deployment Workflows
@@ -503,7 +508,7 @@ For convenience, `tools.sh` provides wrapper functions:
 ./tools.sh testDeployment
 
 # 3. Check status
-./tools.sh status
+./tools.sh deployStatus
 ```
 
 #### Update Lambda Code Only
@@ -524,8 +529,8 @@ git commit -m "Update API handler"
 # 1. Modify CDK code
 vim cdk/lib/constructs/lambda-construct.ts
 
-# 2. Deploy infrastructure changes only
-./tools.sh deployInfraOnly
+# 2. Deploy infrastructure changes only (skip Lambda code)
+./tools.sh deploy --infra-only
 
 # 3. Optionally deploy Lambda code separately
 ./tools.sh deployLambda
@@ -534,16 +539,16 @@ vim cdk/lib/constructs/lambda-construct.ts
 #### Full Deployment with Database
 ```bash
 # Deploy with PostgreSQL and NAT Gateway
-./tools.sh deployFull
+./tools.sh deploy --with-postgres --with-nat-gateway
 
 # Or just add PostgreSQL
-./tools.sh deployWithPostgres
+./tools.sh deploy --with-postgres
 ```
 
 #### Clean Up
 ```bash
 # Destroy all infrastructure
-./tools.sh tearDown
+./tools.sh deployTearDown
 ```
 
 ## Common Development Tasks
