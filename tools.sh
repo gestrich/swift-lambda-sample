@@ -148,6 +148,115 @@ function deployStatus(){
   swift run SwiftDeploy status "$@"
 }
 
+# API Testing functions
+
+function getApiGatewayUrl(){
+  export AWS_PROFILE="production"
+  aws cloudformation describe-stacks \
+    --stack-name SwiftLambdaSampleStack \
+    --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
+    --output text
+}
+
+function testApiFile(){
+  export AWS_PROFILE="production"
+  local api_url=$(getApiGatewayUrl)
+
+  if [ -z "$api_url" ]; then
+    echo "❌ Error: Could not get API Gateway URL. Is the stack deployed?"
+    return 1
+  fi
+
+  echo "🧪 Testing S3 file endpoint..."
+  echo "→ POST ${api_url}api/file"
+  echo ""
+
+  local response=$(curl -s -X POST "${api_url}api/file")
+  echo "Response: $response"
+
+  if [[ "$response" == *"File uploaded and downloaded"* ]]; then
+    echo "✅ File endpoint test passed!"
+    return 0
+  else
+    echo "❌ File endpoint test failed!"
+    return 1
+  fi
+}
+
+function testApiFileVerbose(){
+  export AWS_PROFILE="production"
+  local api_url=$(getApiGatewayUrl)
+
+  if [ -z "$api_url" ]; then
+    echo "❌ Error: Could not get API Gateway URL. Is the stack deployed?"
+    return 1
+  fi
+
+  echo "🧪 Testing S3 file endpoint (verbose)..."
+  echo "→ POST ${api_url}api/file"
+  echo ""
+
+  curl -v -X POST "${api_url}api/file"
+}
+
+function verifyS3File(){
+  export AWS_PROFILE="production"
+
+  echo "🔍 Verifying S3 file creation..."
+
+  local bucket_name=$(aws cloudformation describe-stacks \
+    --stack-name SwiftLambdaSampleStack \
+    --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
+    --output text)
+
+  if [ -z "$bucket_name" ]; then
+    echo "❌ Error: Could not get bucket name. Is the stack deployed?"
+    return 1
+  fi
+
+  echo "Bucket: $bucket_name"
+  echo ""
+  echo "Files in bucket:"
+  aws s3 ls "s3://${bucket_name}/"
+  echo ""
+
+  echo "Content of hello-world.text:"
+  aws s3 cp "s3://${bucket_name}/hello-world.text" -
+  echo ""
+}
+
+function checkLambdaLogs(){
+  export AWS_PROFILE="production"
+
+  echo "📋 Lambda execution logs (last 5 minutes):"
+  aws logs tail /aws/lambda/swift-lambda-sample \
+    --since 5m \
+    --format short
+}
+
+function testDeployment(){
+  echo "🚀 Running deployment verification tests..."
+  echo ""
+
+  testApiFile
+  local api_result=$?
+
+  echo ""
+  verifyS3File
+  local s3_result=$?
+
+  echo ""
+  checkLambdaLogs
+
+  echo ""
+  echo "================================"
+  if [ $api_result -eq 0 ] && [ $s3_result -eq 0 ]; then
+    echo "✅ All tests passed!"
+  else
+    echo "❌ Some tests failed"
+  fi
+}
+
 function loopLogs(){
 aws dynamodb execute-statement  --statement "SELECT * FROM \"sugar-monitor\" WHERE partitionKey='LoopLog' AND sort > '2022-12-04T16:34' AND contains(message, 'Remote Notification')" \
   | jq -r '.Items[] | "\(.sort) \(.message)"' | jq

@@ -424,6 +424,8 @@ swift run SwiftDeploy status
 
 For convenience, `tools.sh` provides wrapper functions:
 
+#### Deployment Functions
+
 | Function | Command | Description |
 |----------|---------|-------------|
 | `deployFresh` | `fresh-deploy` | Standard deployment |
@@ -433,10 +435,33 @@ For convenience, `tools.sh` provides wrapper functions:
 | `deployTearDown` | `tear-down` | Destroy deployment |
 | `deployStatus` | `status` | Check status |
 
+#### Testing Functions
+
+| Function | Description |
+|----------|-------------|
+| `testApiFile` | Test S3 file endpoint (automatically gets API Gateway URL) |
+| `testApiFileVerbose` | Test S3 file endpoint with verbose curl output |
+| `verifyS3File` | Verify S3 file was created and show content |
+| `checkLambdaLogs` | Show Lambda execution logs (last 5 minutes) |
+| `testDeployment` | Run all verification tests (API + S3 + Logs) |
+| `getApiGatewayUrl` | Get the current API Gateway URL from CloudFormation |
+
 **Usage:**
 ```bash
 # List available functions
 ./tools.sh
+
+# Test your deployment
+./tools.sh testDeployment
+
+# Quick API test
+./tools.sh testApiFile
+
+# Verify S3 file
+./tools.sh verifyS3File
+
+# Check Lambda logs
+./tools.sh checkLambdaLogs
 
 # Run a function
 ./tools.sh deployStatus

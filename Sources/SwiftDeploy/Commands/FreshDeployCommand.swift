@@ -117,6 +117,71 @@ struct FreshDeployCommand: AsyncParsableCommand {
             print("⚠️  Lambda code was NOT deployed. You'll need to deploy it manually.")
         }
 
+        // 5. Verify deployment by testing the API
+        if !skipGithubActions {
+            print("\n🧪 Verifying deployment...")
+
+            do {
+                try await verifyDeployment(
+                    stackName: "SwiftLambdaSampleStack",
+                    awsProfile: awsProfile
+                )
+                print("\n✅ Deployment verification passed!")
+            } catch {
+                print("\n⚠️  Deployment verification failed: \(error)")
+                print("⚠️  The infrastructure is deployed but the API may not be working correctly.")
+            }
+        }
+
         print("\n🎉 Deployment completed successfully!")
+    }
+
+    private func verifyDeployment(stackName: String, awsProfile: String) async throws {
+        let projectRoot = FileManager.default.currentDirectoryPath
+        let deploymentService = DeploymentService(projectRoot: projectRoot)
+        let cliService = CLIService.shared
+
+        // Get API Gateway URL
+        let outputs = try await deploymentService.getStackOutputs(
+            stackName: stackName,
+            awsProfile: awsProfile
+        )
+
+        guard let apiUrl = outputs["ApiGatewayUrl"] else {
+            throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+        }
+
+        // Test the file endpoint
+        print("  Testing S3 file endpoint...")
+        print("  → POST \(apiUrl)api/file")
+
+        let testResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                "\(apiUrl)api/file"
+            ],
+            printCommand: false
+        )
+
+        guard testResult.isSuccess else {
+            throw CLIError.executionFailed(
+                command: "curl",
+                exitCode: testResult.exitCode,
+                stderr: testResult.stderr
+            )
+        }
+
+        let response = testResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("  Response: \(response)")
+
+        if !response.contains("File uploaded and downloaded") {
+            throw CLIError.deploymentFailed(reason: "Unexpected API response: \(response)")
+        }
+
+        print("  ✓ API Gateway working")
+        print("  ✓ Lambda function executing")
+        print("  ✓ S3 integration working")
     }
 }
