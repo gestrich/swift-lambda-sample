@@ -1,0 +1,7 @@
+
+💰 MINIMAL COST MODE:
+   - No VPC (Lambda in AWS-managed VPC)
+   - No NAT Gateway
+   - No Database
+   - Cost: ~$0/month (only pay for Lambda invocations, S3, SQS usage)
+

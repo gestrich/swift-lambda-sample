@@ -84,8 +84,11 @@ struct UserStoreFactory {
     let configurationService: ConfigurationService
     let eventLoop: EventLoop
 
-    func createUserStore() async throws -> UserStore {
-        let configuration = try await configurationService.postgresConfiguration()
+    func createUserStore() async throws -> UserStore? {
+        guard let configuration = try await configurationService.postgresConfiguration() else {
+            // Database not configured - return nil (database is optional)
+            return nil
+        }
         return try await UserStorePostgres(eventLoop: eventLoop, configuration: configuration)
     }
 }

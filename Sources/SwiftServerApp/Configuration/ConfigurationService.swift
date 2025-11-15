@@ -35,7 +35,7 @@ public final class ConfigurationService: Sendable {
 
     //MARK: Postgres
 
-    public func postgresConfiguration() async throws -> PostgresConfiguration {
+    public func postgresConfiguration() async throws -> PostgresConfiguration? {
         if let configuration = try await configurationFromFile() {
             return configuration.postgres
         } else {
@@ -48,17 +48,24 @@ public final class ConfigurationService: Sendable {
         return try JSONDecoder().decode(PostgresConfiguration.self, from: data)
     }
 
-    private func postgresConfigurationFromEnvironment() async throws -> PostgresConfiguration {
+    private func postgresConfigurationFromEnvironment() async throws -> PostgresConfiguration? {
 
-        let databaseName = try getEnvironmentVariable(key: "POSTGRES_DBNAME")
+        // Return nil if required environment variables are not set (database is optional)
+        guard let databaseName = try? getEnvironmentVariable(key: "POSTGRES_DBNAME"),
+              let databaseHost = try? getEnvironmentVariable(key: "POSTGRES_HOST"),
+              let databasePortString = try? getEnvironmentVariable(key: "POSTGRES_PORT"),
+              let databaseUserName = try? getEnvironmentVariable(key: "POSTGRES_USER_NAME") else {
+            // Database environment variables not configured - database is optional
+            return nil
+        }
+
         let databaseIdentifier = "swift-sample-app" //TODO: Should this be configurable from environment?
-        let databaseHost = try getEnvironmentVariable(key: "POSTGRES_HOST")
-        let databasePortString = try getEnvironmentVariable(key: "POSTGRES_PORT")
+
         guard let port = Int(databasePortString) else {
             throw ConfigurationError.typeConversion("Could not convert port to Int: \(databasePortString)")
         }
         let tableName = "swift-sample-app" // try getEnvironmentVariable(key: "POSTGRES_TABLE_NAME")
-        let databaseUserName = try getEnvironmentVariable(key: "POSTGRES_USER_NAME")
+
         let secretString = try await secretsService.getSecret(identifier: Self.postgresUserPasswordIdentifierKey)
 
         // Parse the secret as JSON to extract the password

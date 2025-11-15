@@ -201,35 +201,191 @@ aws logs delete-log-group \
 
 ## Configuration
 
-### Environment Configuration
+### Deployment Modes
 
-Configurations are managed in `lib/config/`:
+The infrastructure supports **three deployment modes** with different cost and functionality trade-offs:
+
+| Mode | Lambda | Database | VPC/NAT | Monthly Cost* | Use Case |
+|------|--------|----------|---------|---------------|----------|
+| **Minimal Cost** | Public (AWS-managed VPC) | None | ❌ | ~$0 | S3-only features, cost optimization |
+| **Public Database** | Public (AWS-managed VPC) | Public RDS | ❌ | ~$15-30 | Database + S3 features, moderate cost |
+| **Private (Full)** | Private VPC | Private RDS | ✅ | ~$47-62 | Full isolation, production-ready |
+
+*Costs exclude Lambda invocations, S3 storage, and SQS usage (pay-per-use)
+
+### Configuration Examples
+
+Configurations are managed in `lib/config/dev.ts`:
+
+#### **Minimal Cost Mode** (Default - Currently Active)
+
+No VPC, no NAT Gateway, no database. Perfect for cost optimization and S3-only features.
 
 ```typescript
-// lib/config/dev.ts
 export const devConfig: SwiftLambdaConfig = {
   environment: 'dev',
-  vpc: {
-    cidr: '10.0.0.0/16',
-    maxAzs: 2,
-    natGateways: 1
+
+  networking: {
+    lambdaMode: 'public'  // Lambda runs in AWS-managed VPC (no cost)
   },
+
   lambda: {
     memorySize: 10240,
     timeout: 900
   },
+
   database: {
-    instanceType: 'db.t3.micro',
-    allocatedStorage: 10,
-    backupRetention: 1,
-    multiAz: false
+    mode: 'none'  // No database created
   },
+
   monitoring: {
     scheduleExpression: 'cron(0 6 * * ? *)',
     releaseLookbackHours: 2160
   }
 };
 ```
+
+**What works:**
+- ✅ `/api/file` - S3 upload/download
+- ❌ `/api/users/*` - Returns "Database not configured" error
+- ❌ `/api/database` - Returns "Database not configured" error
+
+---
+
+#### **Public Database Mode**
+
+Database accessible from internet (with security group restrictions). Lambda in AWS-managed VPC.
+
+```typescript
+export const devConfig: SwiftLambdaConfig = {
+  environment: 'dev',
+
+  networking: {
+    lambdaMode: 'public'  // No VPC created
+  },
+
+  lambda: {
+    memorySize: 10240,
+    timeout: 900
+  },
+
+  database: {
+    mode: 'public',  // RDS publicly accessible
+    instanceType: 't3.micro',
+    allocatedStorage: 10,
+    backupRetention: 1,
+    multiAz: false
+  },
+
+  monitoring: {
+    scheduleExpression: 'cron(0 6 * * ? *)',
+    releaseLookbackHours: 2160
+  }
+};
+```
+
+**What works:**
+- ✅ All endpoints work
+- ⚠️ Database accessible from internet (secured by security groups and credentials)
+
+---
+
+#### **Private Mode** (Full Isolation)
+
+Lambda and database in private VPC with NAT Gateway for internet access.
+
+```typescript
+export const devConfig: SwiftLambdaConfig = {
+  environment: 'dev',
+
+  networking: {
+    lambdaMode: 'private',
+    vpc: {
+      cidr: '10.0.0.0/16',
+      maxAzs: 2,
+      natGateways: 1
+    }
+  },
+
+  lambda: {
+    memorySize: 10240,
+    timeout: 900
+  },
+
+  database: {
+    mode: 'private',  // Database in private subnet
+    instanceType: 't3.micro',
+    allocatedStorage: 10,
+    backupRetention: 1,
+    multiAz: false
+  },
+
+  monitoring: {
+    scheduleExpression: 'cron(0 6 * * ? *)',
+    releaseLookbackHours: 2160
+  }
+};
+```
+
+**What works:**
+- ✅ All endpoints work
+- ✅ Full network isolation
+- ✅ Production-ready security
+
+---
+
+### Configuration Rules
+
+The stack validates configurations and enforces these rules:
+
+1. ✅ **Valid**: `lambdaMode: 'public'` + `database.mode: 'none'` (minimal cost)
+2. ✅ **Valid**: `lambdaMode: 'public'` + `database.mode: 'public'` (public database)
+3. ❌ **Invalid**: `lambdaMode: 'public'` + `database.mode: 'private'` (private DB needs VPC)
+4. ✅ **Valid**: `lambdaMode: 'private'` + `database.mode: 'none'` (VPC but no DB)
+5. ✅ **Valid**: `lambdaMode: 'private'` + `database.mode: 'public'` (VPC + public DB)
+6. ✅ **Valid**: `lambdaMode: 'private'` + `database.mode: 'private'` (full private)
+
+---
+
+### Switching Between Modes
+
+1. **Edit** `lib/config/dev.ts` to use desired configuration
+2. **Build**: `npm run build`
+3. **Deploy**: `cdk deploy --profile production`
+
+The deployment will automatically:
+- ✅ Create resources that don't exist
+- ✅ Delete resources no longer needed
+- ✅ Update Lambda environment variables
+
+**Example: Switching from Minimal Cost to Private Mode**
+
+```typescript
+// Before (minimal cost)
+networking: { lambdaMode: 'public' },
+database: { mode: 'none' }
+
+// After (private mode)
+networking: {
+  lambdaMode: 'private',
+  vpc: { cidr: '10.0.0.0/16', maxAzs: 2, natGateways: 1 }
+},
+database: {
+  mode: 'private',
+  instanceType: 't3.micro',
+  allocatedStorage: 10,
+  backupRetention: 1,
+  multiAz: false
+}
+```
+
+Then deploy:
+```bash
+npm run build
+cdk deploy --profile production
+```
+
+---
 
 ### Using Different Environments
 
@@ -317,32 +473,46 @@ The CDK app automatically creates minimal IAM policies using grant methods:
 
 ## Cost Estimation
 
-Approximate monthly costs for dev environment:
+### By Deployment Mode
 
-| Resource | Cost |
-|----------|------|
-| NAT Gateway | ~$32/month |
-| RDS db.t3.micro (single-AZ) | ~$15/month |
-| Lambda | Pay per use (~$0 for low traffic) |
-| API Gateway | Pay per request (~$0 for low traffic) |
-| S3 | ~$0.023/GB + requests |
-| SQS | Free tier covers most use cases |
+| Resource | Minimal Cost | Public Database | Private (Full) |
+|----------|--------------|-----------------|----------------|
+| NAT Gateway | ❌ $0 | ❌ $0 | ✅ ~$32/month |
+| RDS t3.micro (single-AZ) | ❌ $0 | ✅ ~$15-30/month | ✅ ~$15-30/month |
+| Lambda | Pay per use (~$0 for low traffic) | Pay per use (~$0 for low traffic) | Pay per use (~$0 for low traffic) |
+| API Gateway | Pay per request (~$0 for low traffic) | Pay per request (~$0 for low traffic) | Pay per request (~$0 for low traffic) |
+| S3 | ~$0.023/GB + requests | ~$0.023/GB + requests | ~$0.023/GB + requests |
+| SQS | Free tier covers most use cases | Free tier covers most use cases | Free tier covers most use cases |
+| **Monthly Total** | **~$0** 💰 | **~$15-30** | **~$47-62** |
 
-**Total**: ~$47-52/month for dev environment
+*Costs exclude Lambda invocations, S3 storage, and SQS message usage (pay-per-use)*
 
 ### Cost Optimizations
 
-**Dev Environment**:
-- Single NAT Gateway (vs multi-AZ)
-- Single-AZ RDS (vs multi-AZ)
+**Minimal Cost Mode** (~$0/month):
+- No VPC or NAT Gateway
+- No database
+- Lambda in AWS-managed VPC (free)
+- Perfect for S3-only workloads or testing
+
+**Public Database Mode** (~$15-30/month):
+- No VPC or NAT Gateway
+- Public RDS (with security groups)
+- Lambda in AWS-managed VPC (free)
+- Good balance of features and cost
+
+**Private Mode Optimizations**:
+- Single NAT Gateway (vs multi-AZ: ~$64/month)
+- Single-AZ RDS (vs multi-AZ: ~$30/month)
 - Lower backup retention periods
-- Smaller instance types
+- Smaller instance types (t3.micro vs larger)
 
 **Production Considerations**:
-- Multi-AZ NAT Gateways for high availability (~$32/month per AZ)
-- Multi-AZ RDS for database redundancy
-- Longer backup retention
+- Multi-AZ NAT Gateways for high availability (~$32/month per AZ = ~$64/month)
+- Multi-AZ RDS for database redundancy (~$60+/month)
+- Longer backup retention (7-30 days)
 - Reserved capacity for predictable workloads
+- Larger instance types for performance
 
 ## CDK Benefits
 

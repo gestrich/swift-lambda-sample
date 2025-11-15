@@ -9,13 +9,13 @@ import Foundation
 
 public actor UserStoreProduction: UserStore {
     var userStore: UserStore? = nil
-    var userStoreFactory: (() async throws -> UserStore)
+    var userStoreFactory: (() async throws -> UserStore?)
 
-    public init(userStoreFactory: @escaping () async throws -> UserStore) {
+    public init(userStoreFactory: @escaping () async throws -> UserStore?) {
         self.userStoreFactory = userStoreFactory
     }
 
-    func getOrCreateUserStore () async throws -> UserStore {
+    func getOrCreateUserStore () async throws -> UserStore? {
         if let userStore {
             return userStore
         } else {
@@ -26,32 +26,44 @@ public actor UserStoreProduction: UserStore {
     }
 
     public func getUser(id: UUID) async throws -> User? {
-        let postgresStore = try await getOrCreateUserStore()
+        guard let postgresStore = try await getOrCreateUserStore() else {
+            throw UserStoreProductionError.databaseNotConfigured
+        }
         return try await postgresStore.getUser(id: id)
     }
 
     public func getUsers() async throws -> [User] {
-        let postgresStore = try await getOrCreateUserStore()
+        guard let postgresStore = try await getOrCreateUserStore() else {
+            throw UserStoreProductionError.databaseNotConfigured
+        }
         return try await postgresStore.getUsers()
     }
-    
+
     public func createUser(_ user: User) async throws {
-        let postgresStore = try await getOrCreateUserStore()
+        guard let postgresStore = try await getOrCreateUserStore() else {
+            throw UserStoreProductionError.databaseNotConfigured
+        }
         return try await postgresStore.createUser(user)
     }
-    
+
     public func updateUser(_ user: User) async throws -> User {
-        let postgresStore = try await getOrCreateUserStore()
+        guard let postgresStore = try await getOrCreateUserStore() else {
+            throw UserStoreProductionError.databaseNotConfigured
+        }
         return try await postgresStore.updateUser(user)
     }
-    
+
     public func deleteUser(_ user: User) async throws {
-        let postgresStore = try await getOrCreateUserStore()
+        guard let postgresStore = try await getOrCreateUserStore() else {
+            throw UserStoreProductionError.databaseNotConfigured
+        }
         return try await postgresStore.deleteUser(user)
     }
-    
+
     public func wipeAndInitialize() async throws {
-        let postgresStore = try await getOrCreateUserStore()
+        guard let postgresStore = try await getOrCreateUserStore() else {
+            throw UserStoreProductionError.databaseNotConfigured
+        }
         try await postgresStore.wipeAndInitialize()
     }
     
@@ -60,5 +72,16 @@ public actor UserStoreProduction: UserStore {
             return
         }
         try await postgresStore.shutdown()
+    }
+}
+
+enum UserStoreProductionError: LocalizedError {
+    case databaseNotConfigured
+
+    var errorDescription: String? {
+        switch self {
+        case .databaseNotConfigured:
+            return "Database not configured - required environment variables (POSTGRES_HOST, POSTGRES_PORT, etc.) are missing"
+        }
     }
 }
