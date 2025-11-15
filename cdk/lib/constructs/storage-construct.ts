@@ -12,7 +12,8 @@ export class StorageConstruct extends Construct {
       versioned: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: RemovalPolicy.RETAIN  // Keep data on stack deletion
+      removalPolicy: RemovalPolicy.DESTROY,  // Delete bucket on stack deletion
+      autoDeleteObjects: true  // Automatically delete all objects before deleting bucket
     });
   }
 }
