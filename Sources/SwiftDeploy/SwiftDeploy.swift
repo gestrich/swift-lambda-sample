@@ -8,8 +8,9 @@ struct SwiftDeploy: AsyncParsableCommand {
         abstract: "CLI tool for managing Swift Lambda deployments",
         version: "1.0.0",
         subcommands: [
+            FreshDeployCommand.self,
             DeployCommand.self,
-            DeployLambdaCommand.self,
+            UpdateLambdaCommand.self,
             TearDownCommand.self,
             StatusCommand.self
         ]

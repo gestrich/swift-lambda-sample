@@ -124,19 +124,27 @@ function tailLogsDev(){
 
 # SwiftDeploy CLI wrapper functions
 
-# Deploy infrastructure + Lambda code (minimal cost by default)
+# Initial deployment: CDK infrastructure + Lambda code (minimal cost by default)
+# Usage:
+#   freshDeploy                    # Minimal (no Postgres, no NAT)
+#   freshDeploy --with-postgres    # Add database
+#   freshDeploy --with-nat-gateway # Add NAT Gateway
+function freshDeploy(){
+  swift run SwiftDeploy fresh-deploy "$@"
+}
+
+# Update CDK infrastructure only (does NOT update Lambda code)
 # Usage:
 #   deploy                    # Minimal (no Postgres, no NAT)
 #   deploy --with-postgres    # Add database
 #   deploy --with-nat-gateway # Add NAT Gateway
-#   deploy --infra-only       # Skip Lambda code deployment
 function deploy(){
   swift run SwiftDeploy deploy "$@"
 }
 
-# Deploy Lambda code only (no infrastructure changes)
-function deployLambda(){
-  swift run SwiftDeploy deploy-lambda "$@"
+# Update Lambda code only (does NOT update infrastructure)
+function updateLambda(){
+  swift run SwiftDeploy update-lambda "$@"
 }
 
 # Tear down all infrastructure

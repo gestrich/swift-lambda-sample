@@ -1,17 +1,17 @@
 import Foundation
 import ArgumentParser
 
-struct DeployLambdaCommand: AsyncParsableCommand {
+struct UpdateLambdaCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "deploy-lambda",
-        abstract: "Deploy Lambda code only (via GitHub Actions)"
+        commandName: "update-lambda",
+        abstract: "Update Lambda code only (via GitHub Actions)"
     )
 
     @Flag(name: .long, help: "Skip git push (manually trigger workflow instead)")
     var skipPush: Bool = false
 
     mutating func run() async throws {
-        print("🚀 Deploying Lambda code...\n")
+        print("🚀 Updating Lambda code...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
         let gitService = GitService(repoPath: projectRoot)
