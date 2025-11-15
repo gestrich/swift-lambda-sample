@@ -19,8 +19,15 @@ let package = Package(
         .package(url: "https://github.com/swift-server/swift-aws-lambda-runtime.git", "0.5.1"..<"1.0.0"),
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", "2.2.0"..<"3.0.0"),
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", "4.0.0"..<"5.0.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
     ],
     targets: [
+        .executableTarget(
+            name: "SwiftDeploy",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
         .executableTarget(
             name: "SwiftLambda",
             dependencies: [

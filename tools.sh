@@ -122,6 +122,32 @@ function tailLogsDev(){
   aws logs tail "$group" --follow
 }
 
+# SwiftDeploy CLI wrapper functions
+
+function deployFresh(){
+  swift run SwiftDeploy fresh-deploy "$@"
+}
+
+function deployFreshNoPostgres(){
+  swift run SwiftDeploy fresh-deploy --skip-postgres "$@"
+}
+
+function deployFreshNoNAT(){
+  swift run SwiftDeploy fresh-deploy --skip-nat-gateway "$@"
+}
+
+function deployFreshMinimal(){
+  swift run SwiftDeploy fresh-deploy --skip-postgres --skip-nat-gateway "$@"
+}
+
+function deployTearDown(){
+  swift run SwiftDeploy tear-down "$@"
+}
+
+function deployStatus(){
+  swift run SwiftDeploy status "$@"
+}
+
 function loopLogs(){
 aws dynamodb execute-statement  --statement "SELECT * FROM \"sugar-monitor\" WHERE partitionKey='LoopLog' AND sort > '2022-12-04T16:34' AND contains(message, 'Remote Notification')" \
   | jq -r '.Items[] | "\(.sort) \(.message)"' | jq
