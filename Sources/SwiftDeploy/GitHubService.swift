@@ -23,7 +23,6 @@ public actor GitHubService {
         let pollInterval: UInt64 = 10_000_000_000 // 10 seconds in nanoseconds
 
         var attempts = 0
-        var runId: String?
 
         // First, find the latest run
         while attempts < maxAttempts {
@@ -59,8 +58,6 @@ public actor GitHubService {
             guard let id = latestRun["databaseId"] as? Int else {
                 throw CLIError.invalidOutput(reason: "Could not parse workflow run ID")
             }
-
-            runId = String(id)
 
             let status = latestRun["status"] as? String ?? "unknown"
             let conclusion = latestRun["conclusion"] as? String
