@@ -10,7 +10,7 @@ public actor DeploymentService {
         self.projectRoot = projectRoot
     }
 
-    /// Deploy CDK stack
+    /// Deploy CDK stack with streaming output
     public func deploy(options: DeploymentOptions) async throws {
         print("\n📦 Starting CDK deployment...")
 
@@ -18,15 +18,12 @@ public actor DeploymentService {
 
         // Build TypeScript first
         print("\n🔨 Building CDK TypeScript...")
-        let buildResult = try await cliService.execute(
+        try await executeWithStreaming(
             command: "npm",
             arguments: ["run", "build"],
-            workingDirectory: cdkPath
+            workingDirectory: cdkPath,
+            errorMessage: "CDK build failed"
         )
-
-        guard buildResult.isSuccess else {
-            throw CLIError.deploymentFailed(reason: "CDK build failed: \(buildResult.stderr)")
-        }
 
         // Deploy with CDK
         print("\n🚀 Deploying CDK stack...")
@@ -44,16 +41,13 @@ public actor DeploymentService {
             cdkArgs.append(contentsOf: ["--context", "skipNATGateway=true"])
         }
 
-        let deployResult = try await cliService.execute(
+        try await executeWithStreaming(
             command: "cdk",
             arguments: cdkArgs,
             workingDirectory: cdkPath,
-            environment: ["AWS_PROFILE": options.awsProfile]
+            environment: ["AWS_PROFILE": options.awsProfile],
+            errorMessage: "CDK deployment failed"
         )
-
-        guard deployResult.isSuccess else {
-            throw CLIError.deploymentFailed(reason: "CDK deployment failed: \(deployResult.stderr)")
-        }
 
         print("\n✅ CDK deployment completed successfully")
     }
@@ -112,7 +106,7 @@ public actor DeploymentService {
         throw CLIError.timeout(command: "CloudFormation stack deployment", duration: Double(maxAttempts * 5))
     }
 
-    /// Tear down CDK stack
+    /// Tear down CDK stack with streaming output
     public func tearDown(awsProfile: String = "production", cdkDirectory: String = "cdk") async throws {
         print("\n🗑️  Starting CDK stack destruction...")
 
@@ -124,7 +118,7 @@ public actor DeploymentService {
             throw CLIError.invalidWorkingDirectory("CDK directory not found at: \(cdkPath)")
         }
 
-        let destroyResult = try await cliService.execute(
+        try await executeWithStreaming(
             command: "cdk",
             arguments: [
                 "destroy",
@@ -132,12 +126,9 @@ public actor DeploymentService {
                 "--force"
             ],
             workingDirectory: cdkPath,
-            environment: ["AWS_PROFILE": awsProfile]
+            environment: ["AWS_PROFILE": awsProfile],
+            errorMessage: "CDK destroy failed"
         )
-
-        guard destroyResult.isSuccess else {
-            throw CLIError.deploymentFailed(reason: "CDK destroy failed: \(destroyResult.stderr)")
-        }
 
         print("\n✅ CDK stack destroyed successfully")
     }
@@ -177,5 +168,42 @@ public actor DeploymentService {
         }
 
         return outputDict
+    }
+
+    // MARK: - Private Helpers
+
+    /// Execute a command with streaming output
+    private func executeWithStreaming(
+        command: String,
+        arguments: [String],
+        workingDirectory: String,
+        environment: [String: String]? = nil,
+        errorMessage: String
+    ) async throws {
+        let stream = await cliService.stream(
+            command: command,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            printCommand: true
+        )
+
+        var exitCode: Int32 = -1
+
+        for await output in stream {
+            switch output {
+            case .stdout, .stderr:
+                // Output is already printed in real-time by streamProcess
+                break
+            case .exit(let code):
+                exitCode = code
+            case .error(let error):
+                throw error
+            }
+        }
+
+        guard exitCode == 0 else {
+            throw CLIError.deploymentFailed(reason: "\(errorMessage) (exit code: \(exitCode))")
+        }
     }
 }

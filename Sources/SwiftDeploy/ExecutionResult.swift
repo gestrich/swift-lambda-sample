@@ -33,6 +33,16 @@ public struct ExecutionResult: Sendable {
     }
 }
 
+// MARK: - Stream Output
+
+/// Output type for streaming commands
+public enum StreamOutput: Sendable {
+    case stdout(String)
+    case stderr(String)
+    case exit(Int32)
+    case error(Error)
+}
+
 // MARK: - CustomStringConvertible
 
 extension ExecutionResult: CustomStringConvertible {

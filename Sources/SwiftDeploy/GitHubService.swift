@@ -137,4 +137,42 @@ public actor GitHubService {
 
         print(result.stdout)
     }
+
+    /// Trigger a workflow manually and wait for it to complete
+    public func triggerWorkflowAndWait(
+        workflowName: String,
+        branch: String,
+        timeoutMinutes: Int = 10
+    ) async throws {
+        print("\n🔄 Triggering GitHub Actions workflow '\(workflowName)' on branch '\(branch)'...")
+
+        // Trigger the workflow
+        let triggerResult = try await cliService.execute(
+            command: "gh",
+            arguments: [
+                "workflow", "run",
+                workflowName,
+                "--repo", "\(owner)/\(repo)",
+                "--ref", branch
+            ],
+            printCommand: true
+        )
+
+        guard triggerResult.isSuccess else {
+            throw CLIError.executionFailed(
+                command: "gh workflow run",
+                exitCode: triggerResult.exitCode,
+                stderr: triggerResult.stderr
+            )
+        }
+
+        print("✅ Workflow triggered successfully")
+
+        // Wait a bit for the workflow to start
+        print("\n⏳ Waiting for workflow to start...")
+        try await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+
+        // Now wait for it to complete
+        try await waitForWorkflowCompletion(branch: branch, timeoutMinutes: timeoutMinutes)
+    }
 }

@@ -114,6 +114,58 @@ public actor CLIService {
         return result.stdout
     }
 
+    /// Execute a command and stream its output
+    /// - Parameters:
+    ///   - command: The command to execute
+    ///   - arguments: Arguments to pass to the command
+    ///   - workingDirectory: Working directory for the command
+    ///   - environment: Custom environment variables
+    ///   - printCommand: If true, prints the formatted command before execution
+    /// - Returns: AsyncStream of output lines
+    public func stream(
+        command: String,
+        arguments: [String] = [],
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) -> AsyncStream<StreamOutput> {
+        AsyncStream { continuation in
+            Task {
+                do {
+                    let resolvedCommand = try resolveCommand(command)
+
+                    var processEnvironment = defaultEnvironment
+                    if let customEnvironment = environment {
+                        for (key, value) in customEnvironment {
+                            processEnvironment[key] = value
+                        }
+                    }
+
+                    // Print command if requested
+                    if printCommand {
+                        let formattedCommand = formatCommand(
+                            command: resolvedCommand,
+                            arguments: arguments,
+                            environment: environment
+                        )
+                        print("→ \(formattedCommand)")
+                    }
+
+                    try await streamProcess(
+                        command: resolvedCommand,
+                        arguments: arguments,
+                        workingDirectory: workingDirectory,
+                        environment: processEnvironment,
+                        continuation: continuation
+                    )
+                } catch {
+                    continuation.yield(.error(error))
+                    continuation.finish()
+                }
+            }
+        }
+    }
+
     // MARK: - Private Methods
 
     private func formatCommand(
@@ -275,5 +327,56 @@ public actor CLIService {
             stderr: stderr,
             duration: duration
         )
+    }
+
+    private func streamProcess(
+        command: String,
+        arguments: [String],
+        workingDirectory: String?,
+        environment: [String: String],
+        continuation: AsyncStream<StreamOutput>.Continuation
+    ) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: command)
+        process.arguments = arguments
+        process.environment = environment
+
+        if let workingDirectory {
+            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
+        }
+
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+
+        // Set up output handling with readability handlers
+        outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty, let text = String(data: data, encoding: .utf8) {
+                // Print stdout in real-time and yield to stream
+                print(text, terminator: "")
+                continuation.yield(.stdout(text))
+            }
+        }
+
+        errorPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty, let text = String(data: data, encoding: .utf8) {
+                // Print stderr in real-time and yield to stream
+                print(text, terminator: "")
+                continuation.yield(.stderr(text))
+            }
+        }
+
+        try process.run()
+        process.waitUntilExit()
+
+        // Clean up
+        outputPipe.fileHandleForReading.readabilityHandler = nil
+        errorPipe.fileHandleForReading.readabilityHandler = nil
+
+        continuation.yield(.exit(process.terminationStatus))
+        continuation.finish()
     }
 }

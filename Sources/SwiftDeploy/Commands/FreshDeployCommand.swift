@@ -61,37 +61,56 @@ struct FreshDeployCommand: AsyncParsableCommand {
             }
         }
 
-        // 4. Push to remote if needed
-        if !skipPush {
-            let hasCommitsToPush = try await gitService.hasCommitsToPush()
+        // 4. Deploy Lambda code via GitHub Actions
+        if !skipGithubActions {
+            let repoInfo = try await gitService.getRepoInfo()
+            let currentBranch = try await gitService.getCurrentBranch()
+            let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
 
-            if hasCommitsToPush {
-                try await gitService.push()
+            if !skipPush {
+                let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
-                // 5. Wait for GitHub Actions if we pushed
-                if !skipGithubActions {
-                    let repoInfo = try await gitService.getRepoInfo()
-                    let currentBranch = try await gitService.getCurrentBranch()
-                    let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
+                if hasCommitsToPush {
+                    // Push commits (this will auto-trigger the workflow)
+                    try await gitService.push()
 
+                    // Wait for the workflow that was triggered by the push
                     try await githubService.waitForWorkflowCompletion(
+                        branch: currentBranch,
+                        timeoutMinutes: 10
+                    )
+                } else {
+                    // No commits to push, but we still need to deploy Lambda code
+                    // Manually trigger the workflow
+                    print("\n✅ No commits to push")
+                    try await githubService.triggerWorkflowAndWait(
+                        workflowName: "Dev Deploy",
                         branch: currentBranch,
                         timeoutMinutes: 10
                     )
                 }
             } else {
-                print("\n✅ No commits to push")
-
-                if !skipGithubActions {
-                    // Check if there's already a running workflow
-                    let repoInfo = try await gitService.getRepoInfo()
-                    let currentBranch = try await gitService.getCurrentBranch()
-                    let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
-
-                    let (status, conclusion) = try await githubService.getLatestRunStatus(branch: currentBranch)
-                    print("\n📊 Latest GitHub Actions workflow: status=\(status), conclusion=\(conclusion ?? "none")")
+                // Skip push is enabled, but we still need Lambda code deployed
+                // Manually trigger the workflow
+                print("\n⏭️  Skipping git push (--skip-push enabled)")
+                try await githubService.triggerWorkflowAndWait(
+                    workflowName: "Dev Deploy",
+                    branch: currentBranch,
+                    timeoutMinutes: 10
+                )
+            }
+        } else {
+            // GitHub Actions are skipped entirely
+            if !skipPush {
+                let hasCommitsToPush = try await gitService.hasCommitsToPush()
+                if hasCommitsToPush {
+                    try await gitService.push()
+                } else {
+                    print("\n✅ No commits to push")
                 }
             }
+            print("\n⚠️  Skipping GitHub Actions deployment (--skip-github-actions enabled)")
+            print("⚠️  Lambda code was NOT deployed. You'll need to deploy it manually.")
         }
 
         print("\n🎉 Deployment completed successfully!")
