@@ -4,12 +4,26 @@ import Foundation
 public actor LocalDevelopmentService {
     private let dockerService: DockerService
     private let cliService: CLIService
+
+    // Container configuration
     private let minioImageName = "quay.io/minio/minio"
-    private let minioContainerName = "minio_lambda"
-    private let postgresImageName = "postgres_lambda"
-    private let postgresContainerName = "postgres_lambda"
+    private let minioContainerName = "minio-lambda"  // Use hyphen not underscore for valid HTTP hostname
+    private let postgresImageName = "postgres-lambda"
+    private let postgresContainerName = "postgres-lambda"
+    private let lambdaContainerName = "lambda-test-container"
+    private let lambdaSwiftImage = "swift:6.2.0-amazonlinux2"
     private let networkName = "lambda-local"
+
+    // Lambda configuration
+    private let lambdaHostPort = 8080
+    private let lambdaContainerPort = 7000
+    private let s3BucketName = "org.gestrich.sandbox"
+
+    // Working directory
     private let workingDirectory: String?
+
+    // Public accessors for configuration
+    public var port: Int { lambdaHostPort }
 
     public init(workingDirectory: String? = nil) {
         self.dockerService = DockerService()
@@ -38,9 +52,18 @@ public actor LocalDevelopmentService {
 
         // Create data directory
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let minioDataPath = "\(homeDir)/minio/data/org.gestrich.sandbox"
+        let minioRootPath = "\(homeDir)/minio"
+        let minioDataPath = "\(minioRootPath)/data"
+
+        // Clean any existing MinIO data to avoid configuration conflicts
+        if FileManager.default.fileExists(atPath: minioDataPath) {
+            print("→ Removing existing MinIO data...")
+            try FileManager.default.removeItem(atPath: minioDataPath)
+        }
+
+        // Create fresh data directory
         try FileManager.default.createDirectory(
-            atPath: minioDataPath,
+            atPath: "\(minioDataPath)/org.gestrich.sandbox",
             withIntermediateDirectories: true,
             attributes: nil
         )
@@ -57,9 +80,10 @@ public actor LocalDevelopmentService {
         options.name = minioContainerName
         options.environment = [
             "MINIO_ROOT_USER": "admin",
-            "MINIO_ROOT_PASSWORD": "password"
+            "MINIO_ROOT_PASSWORD": "password",
+            "MINIO_REGION_NAME": "us-east-1"  // Modern MinIO uses MINIO_REGION_NAME
         ]
-        options.volumes = [("\(homeDir)/minio/data", "/data")]
+        options.volumes = [("\(minioDataPath)", "/data")]
 
         try await dockerService.run(
             image: minioImageName,
@@ -71,6 +95,35 @@ public actor LocalDevelopmentService {
         print("   - S3 endpoint: http://localhost:9000")
         print("   - Console: http://localhost:9001")
         print("   - Credentials: admin/password")
+    }
+
+    /// Create S3 bucket in MinIO
+    public func createBucket(bucketName: String? = nil) async throws {
+        let bucket = bucketName ?? s3BucketName
+        print("📦 Creating S3 bucket in MinIO...")
+
+        // Run AWS CLI in a container to create the bucket
+        var options = DockerService.RunOptions()
+        options.remove = true
+        options.network = networkName
+        options.environment = [
+            "AWS_ACCESS_KEY_ID": "admin",
+            "AWS_SECRET_ACCESS_KEY": "password",
+            "AWS_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-east-1"
+        ]
+
+        do {
+            try await dockerService.run(
+                image: "amazon/aws-cli",
+                command: ["--endpoint-url", "http://\(minioContainerName):9000", "s3", "mb", "s3://\(bucket)"],
+                options: options
+            )
+            print("  ✅ S3 bucket '\(bucket)' created")
+        } catch {
+            // Bucket might already exist, which is fine
+            print("  ℹ️  Bucket might already exist (this is OK)")
+        }
     }
 
     /// Stop MinIO S3 service
@@ -117,6 +170,57 @@ public actor LocalDevelopmentService {
     /// Stop PostgreSQL database
     public func stopDatabase() async throws {
         try await stopContainer(named: postgresContainerName)
+    }
+
+    // MARK: - Lambda Build
+
+    /// Build Lambda for Linux
+    public func buildLambda(clean: Bool = false) async throws {
+        print("\n🔨 Building Lambda for Linux...")
+
+        let currentDir = FileManager.default.currentDirectoryPath
+
+        // Clean if requested
+        if clean {
+            print("🧹 Cleaning previous build artifacts...")
+            _ = try await cliService.execute(
+                command: "rm",
+                arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
+                workingDirectory: currentDir,
+                printCommand: false
+            )
+            print("  ✅ Cleaned")
+        }
+
+        // Build
+        let buildResult = try await cliService.execute(
+            command: "./build.sh",
+            arguments: ["SwiftLambda"],
+            workingDirectory: currentDir,
+            inheritIO: true  // Show build output in real-time
+        )
+
+        guard buildResult.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "build.sh SwiftLambda",
+                exitCode: buildResult.exitCode,
+                stderr: buildResult.stderr
+            )
+        }
+
+        print("✅ Build completed")
+    }
+
+    /// Check if Lambda is already built
+    public func isLambdaBuilt() -> Bool {
+        let currentDir = FileManager.default.currentDirectoryPath
+        let lambdaDir = "\(currentDir)/lambda"
+        let bootstrapPath = "\(lambdaDir)/bootstrap"
+        let zipPath = "\(currentDir)/lambda.zip"
+
+        return FileManager.default.fileExists(atPath: lambdaDir) &&
+               FileManager.default.fileExists(atPath: bootstrapPath) &&
+               FileManager.default.fileExists(atPath: zipPath)
     }
 
     // MARK: - Lambda Container Testing
@@ -173,34 +277,146 @@ public actor LocalDevelopmentService {
         options.platform = "linux/amd64"
         options.network = networkName
         options.volumes = [("\(currentDir)/lambda", "/var/task")]
-        options.ports = [(8080, 7000)]
-        options.environment = [
-            "POSTGRES_HOST": postgresContainerName,
-            "POSTGRES_PORT": "5432",
-            "POSTGRES_USER_NAME": "docker",
-            "POSTGRES_DBNAME": "docker",
-            "POSTGRES_PASSWORD": "docker",
-            "S3_BUCKET_NAME": "org.gestrich.sandbox",
-            "AWS_ENDPOINT_URL": "http://\(minioContainerName):9000",
-            "AWS_ACCESS_KEY_ID": "admin",
-            "AWS_SECRET_ACCESS_KEY": "password",
-            "MOCK_AWS_CREDENTIALS": "true",
-            "LOCAL_LAMBDA_SERVER_ENABLED": "true",
-            "LOCAL_LAMBDA_HOST": "0.0.0.0"
-        ]
+        options.ports = [(lambdaHostPort, lambdaContainerPort)]
+        options.environment = getLambdaEnvironmentVariables()
 
         try await dockerService.run(
-            image: "swift:6.2.0-amazonlinux2",
+            image: lambdaSwiftImage,
             command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"],
             options: options
         )
     }
 
-    /// Test local Lambda endpoints
-    public func testLocalLambda(port: Int = 8080) async throws {
-        let endpoint = "http://localhost:\(port)/invoke"
+    /// Run Lambda in detached mode (for automated testing)
+    public func startLambdaContainerDetached(lambdaPath: String? = nil) async throws {
+        print("🐳 Starting Lambda container in background...")
 
-        print("\n🧪 Testing local Lambda on port \(port)...")
+        // Determine lambda path
+        let currentDir = FileManager.default.currentDirectoryPath
+        let lambdaDir = lambdaPath ?? "\(currentDir)/lambda"
+
+        // Check if lambda directory exists
+        guard FileManager.default.fileExists(atPath: lambdaDir) else {
+            print("❌ Error: lambda directory not found at \(lambdaDir)!")
+            print("Build the Lambda first with: ./build.sh SwiftLambda")
+            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+        }
+
+        // Ensure network is set up
+        try await setupLambdaNetwork()
+
+        // Run detached container
+        var options = DockerService.RunOptions()
+        options.detached = true
+        options.remove = true
+        options.name = lambdaContainerName
+        options.platform = "linux/amd64"
+        options.network = networkName
+        options.ports = [(lambdaHostPort, lambdaContainerPort)]
+        options.volumes = [(lambdaDir, "/var/task")]
+        options.environment = getLambdaEnvironmentVariables()
+
+        try await dockerService.run(
+            image: lambdaSwiftImage,
+            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
+            options: options
+        )
+
+        print("  ✅ Lambda container started")
+    }
+
+    /// Stop Lambda container
+    public func stopLambdaContainer() async throws {
+        print("🛑 Stopping Lambda container...")
+        try await dockerService.stop(container: lambdaContainerName)
+        print("  ✅ Lambda container stopped")
+    }
+
+    /// Wait for Lambda to be ready on specified port
+    public func waitForLambdaReady(maxAttempts: Int = 30) async throws {
+        print("🔍 Verifying Lambda is running...")
+
+        // Check container is running
+        let isRunning = try await dockerService.containerIsRunning(name: lambdaContainerName)
+        guard isRunning else {
+            throw CLIError.testFailed(message: "Lambda container '\(lambdaContainerName)' is not running")
+        }
+
+        // Wait for Lambda to be ready on the port
+        var attempts = 0
+        var ready = false
+
+        while attempts < maxAttempts && !ready {
+            let portCheck = try await cliService.execute(
+                command: "lsof",
+                arguments: ["-i", ":\(lambdaHostPort)"],
+                printCommand: false
+            )
+
+            if portCheck.isSuccess && !portCheck.stdout.isEmpty {
+                ready = true
+                break
+            }
+
+            try await Task.sleep(for: .seconds(1))
+            attempts += 1
+
+            if attempts % 10 == 0 {
+                print("  → Still waiting for Lambda on port \(lambdaHostPort)... (\(attempts) seconds)")
+            }
+        }
+
+        if !ready {
+            // Show container logs for debugging
+            print("❌ Lambda failed to start. Checking container logs:")
+            let logsResult = try await cliService.execute(
+                command: "docker",
+                arguments: ["logs", lambdaContainerName],
+                printCommand: false
+            )
+            print(logsResult.stdout)
+            print(logsResult.stderr)
+            throw CLIError.testFailed(message: "Lambda failed to be ready on port \(lambdaHostPort) after \(maxAttempts) seconds")
+        }
+
+        print("  ✅ Lambda is running and ready")
+    }
+
+    /// Get standard Lambda environment variables for local testing
+    private func getLambdaEnvironmentVariables() -> [String: String] {
+        return [
+            // PostgreSQL configuration
+            "POSTGRES_HOST": postgresContainerName,
+            "POSTGRES_PORT": "5432",
+            "POSTGRES_USER_NAME": "docker",
+            "POSTGRES_DBNAME": "docker",
+            "POSTGRES_PASSWORD": "docker",
+            "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
+
+            // S3/MinIO configuration
+            "S3_BUCKET_NAME": s3BucketName,
+            "AWS_ENDPOINT_URL": "http://\(minioContainerName):9000",
+            "AWS_ACCESS_KEY_ID": "admin",
+            "AWS_SECRET_ACCESS_KEY": "password",
+            "AWS_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-east-1",
+
+            // Disable AWS credential chain for local testing
+            "AWS_EC2_METADATA_DISABLED": "true",
+            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",  // Disable ECS credentials
+
+            // Local Lambda server configuration
+            "MOCK_AWS_CREDENTIALS": "true",
+            "LOCAL_LAMBDA_SERVER_ENABLED": "true",
+            "LOCAL_LAMBDA_HOST": "0.0.0.0"
+        ]
+    }
+
+    /// Test local Lambda endpoints
+    public func testLocalLambda() async throws {
+        let endpoint = "http://localhost:\(lambdaHostPort)/invoke"
+
+        print("\n🧪 Testing local Lambda on port \(lambdaHostPort)...")
         print("")
 
         // Test S3 file endpoint

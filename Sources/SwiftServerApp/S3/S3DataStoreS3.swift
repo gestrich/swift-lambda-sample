@@ -15,7 +15,8 @@ public final class S3DataStoreS3: S3DataStoreInterface {
 
     public init(awsClient: AWSClient, bucketName: String, endpoint: String?) {
         if let endpoint {
-            self.s3 = SotoS3.S3(client: awsClient, endpoint: endpoint)
+            // For custom endpoints (like MinIO), explicitly set region to us-east-1
+            self.s3 = SotoS3.S3(client: awsClient, region: .useast1, endpoint: endpoint)
         } else {
             self.s3 = SotoS3.S3(client: awsClient)
         }

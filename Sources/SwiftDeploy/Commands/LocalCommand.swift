@@ -14,6 +14,7 @@ struct LocalCommand: AsyncParsableCommand {
             StartS3Command.self,
             StopS3Command.self,
             SetupNetworkCommand.self,
+            BuildLambdaCommand.self,
             RunContainerCommand.self,
             TestCommand.self,
             CopyConfigCommand.self
@@ -117,6 +118,22 @@ extension LocalCommand {
         }
     }
 
+    /// Build Lambda for Linux
+    struct BuildLambdaCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "build-lambda",
+            abstract: "Build Lambda for Linux (AMD64)"
+        )
+
+        @Flag(name: .long, help: "Clean build artifacts before building")
+        var clean: Bool = false
+
+        func run() async throws {
+            let service = LocalDevelopmentService()
+            try await service.buildLambda(clean: clean)
+        }
+    }
+
     /// Run Lambda in interactive Linux container
     struct RunContainerCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -137,12 +154,9 @@ extension LocalCommand {
             abstract: "Test local Lambda endpoints"
         )
 
-        @Option(name: .long, help: "Port to test (default: 8080)")
-        var port: Int = 8080
-
         func run() async throws {
             let service = LocalDevelopmentService()
-            try await service.testLocalLambda(port: port)
+            try await service.testLocalLambda()
         }
     }
 

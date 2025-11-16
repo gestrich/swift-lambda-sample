@@ -68,13 +68,22 @@ public final class ConfigurationService: Sendable {
         }
         let tableName = "swift-sample-app" // try getEnvironmentVariable(key: "POSTGRES_TABLE_NAME")
 
-        let secretString = try await secretsService.getSecret(identifier: try Self.postgresUserPasswordIdentifierKey)
+        // Get password - check for direct password first (local development), then fall back to Secrets Manager
+        let databasePassword: String
+        if let directPassword = try? getEnvironmentVariable(key: "POSTGRES_PASSWORD") {
+            // Local development mode - use direct password
+            databasePassword = directPassword
+        } else {
+            // Production mode - fetch from Secrets Manager
+            let secretString = try await secretsService.getSecret(identifier: try Self.postgresUserPasswordIdentifierKey)
 
-        // Parse the secret as JSON to extract the password
-        guard let secretData = secretString.data(using: .utf8),
-              let secretJson = try JSONSerialization.jsonObject(with: secretData) as? [String: Any],
-              let databasePassword = secretJson["password"] as? String else {
-            throw ConfigurationError.typeConversion("Failed to parse database password from Secrets Manager JSON. Expected JSON with 'password' field.")
+            // Parse the secret as JSON to extract the password
+            guard let secretData = secretString.data(using: .utf8),
+                  let secretJson = try JSONSerialization.jsonObject(with: secretData) as? [String: Any],
+                  let password = secretJson["password"] as? String else {
+                throw ConfigurationError.typeConversion("Failed to parse database password from Secrets Manager JSON. Expected JSON with 'password' field.")
+            }
+            databasePassword = password
         }
 
         return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: databasePassword)
@@ -92,7 +101,9 @@ public final class ConfigurationService: Sendable {
 
     private func s3ConfigurationFromEnvironment() throws -> S3Configuration {
         let bucketName = try getEnvironmentVariable(key: "S3_BUCKET_NAME")
-        return S3Configuration(bucketName: bucketName, endpoint: nil) //endpoint not yet supported from env variables.
+        // Support AWS_ENDPOINT_URL for local development (MinIO)
+        let endpoint = try? getEnvironmentVariable(key: "AWS_ENDPOINT_URL")
+        return S3Configuration(bucketName: bucketName, endpoint: endpoint)
     }
 
     //MARK: Util

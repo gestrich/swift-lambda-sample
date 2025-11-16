@@ -12,8 +12,8 @@ import Testing
 @Suite("Linux Lambda Container Integration Tests")
 struct LinuxContainerIntegrationTests {
 
-    let port = 8080
     let localService: LocalDevelopmentService
+    let cliService = CLIService.shared
 
     // Get the project root directory (assuming tests are in Tests/SwiftDeployTests/)
     var projectRoot: URL {
@@ -38,7 +38,7 @@ struct LinuxContainerIntegrationTests {
                 print("🧹 Cleanup: Stopping Lambda container and services...")
 
                 // Stop Lambda container
-                try? await stopLambdaContainer()
+                try? await localService.stopLambdaContainer()
 
                 // Stop services using LocalDevelopmentService
                 try? await localService.stopAllServices()
@@ -52,64 +52,54 @@ struct LinuxContainerIntegrationTests {
         // Give services time to fully start
         try await Task.sleep(for: .seconds(5))
 
+        // Setup Lambda network
+        print("🔧 Step 2: Setting up Docker network...")
+        try await localService.setupLambdaNetwork()
+
         // Create MinIO bucket for testing
-        print("📦 Creating S3 bucket in MinIO...")
-        _ = try await runShellCommand("""
-        docker run --rm --network lambda-local \
-          -e AWS_ACCESS_KEY_ID=admin \
-          -e AWS_SECRET_ACCESS_KEY=password \
-          amazon/aws-cli --endpoint-url http://minio_lambda:9000 \
-          s3 mb s3://org.gestrich.sandbox 2>&1 || echo "Bucket might already exist"
-        """, allowNonZeroExit: true)
-        print("  ✅ S3 bucket ready")
+        try await localService.createBucket()
 
-        // Step 2: Clean previous build artifacts
-        print("🧹 Step 2: Cleaning previous build artifacts...")
-        _ = try await runShellCommand("rm -rf .aws-sam/build-SwiftLambda lambda lambda.zip", allowNonZeroExit: true)
-
-        // Give filesystem time to sync
-        try await Task.sleep(for: .seconds(1))
-
-        // Step 3: Build Lambda for Linux
-        print("🔨 Step 3: Building Lambda for Linux...")
-        // Use simpler command execution that doesn't capture output to avoid pipe buffer issues
-        _ = try await runShellCommandWithoutCapture("./build.sh SwiftLambda")
-        print("  ✅ Build completed")
-
-        // Give filesystem time to sync after build
-        try await Task.sleep(for: .seconds(2))
+        // Step 3: Build Lambda (skip if already built)
+        print("🔨 Step 3: Checking Lambda build...")
+        let isBuilt = await localService.isLambdaBuilt()
+        if isBuilt {
+            print("  ✅ Lambda already built, skipping build step")
+        } else {
+            print("  → Lambda not built, building now...")
+            try await localService.buildLambda()
+            // Give filesystem time to sync after build
+            try await Task.sleep(for: .seconds(2))
+        }
 
         // Verify build artifacts exist
         try await verifyBuildArtifacts()
 
-        // Step 4: Setup Lambda network
-        print("🔧 Step 4: Setting up Docker network...")
-        try await localService.setupLambdaNetwork()
-
-        // Step 5: Start Lambda in container (background mode)
-        print("🚀 Step 5: Starting Lambda in Linux container...")
-        try await startLambdaContainer()
+        // Step 4: Start Lambda in container (background mode)
+        print("🚀 Step 4: Starting Lambda in Linux container...")
+        try await localService.startLambdaContainerDetached(
+            lambdaPath: "\(projectRoot.path)/lambda"
+        )
 
         // Give Lambda time to start
         try await Task.sleep(for: .seconds(5))
 
-        // Verify Lambda is running
-        try await verifyLambdaRunning()
+        // Verify Lambda is running and ready
+        try await localService.waitForLambdaReady()
 
-        // Step 6: Test S3 endpoint
-        print("🧪 Step 6: Testing S3 file upload/download...")
+        // Step 5: Test S3 endpoint
+        print("🧪 Step 5: Testing S3 file upload/download...")
         try await testS3Endpoint()
 
-        // Step 7: Test PostgreSQL endpoint
-        print("🧪 Step 7: Testing PostgreSQL database initialization...")
+        // Step 6: Test PostgreSQL endpoint
+        print("🧪 Step 6: Testing PostgreSQL database initialization...")
         try await testPostgresEndpoint()
 
-        // Step 8: Stop Lambda container
-        print("🛑 Step 8: Stopping Lambda container...")
-        try await stopLambdaContainer()
+        // Step 7: Stop Lambda container
+        print("🛑 Step 7: Stopping Lambda container...")
+        try await localService.stopLambdaContainer()
 
-        // Step 9: Stop services
-        print("🧹 Step 9: Stopping local services...")
+        // Step 8: Stop services
+        print("🧹 Step 8: Stopping local services...")
         try await localService.stopAllServices()
 
         print("✅ All Linux container integration tests passed!")
@@ -138,109 +128,9 @@ struct LinuxContainerIntegrationTests {
         print("  ✅ All build artifacts present")
     }
 
-    private func startLambdaContainer() async throws {
-        print("🐳 Starting Lambda container in background...")
-
-        let dockerService = DockerService()
-
-        var options = DockerService.RunOptions()
-        options.detached = true
-        options.remove = true
-        options.name = "lambda-test-container"
-        options.platform = "linux/amd64"
-        options.network = "lambda-local"
-        options.ports = [(port, 7000)]
-        options.volumes = [("\(projectRoot.path)/lambda", "/var/task")]
-        options.environment = [
-            // PostgreSQL configuration
-            "POSTGRES_HOST": "postgres_lambda",
-            "POSTGRES_PORT": "5432",
-            "POSTGRES_USER_NAME": "docker",
-            "POSTGRES_DBNAME": "docker",
-            "POSTGRES_PASSWORD": "docker",
-            "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
-
-            // S3/MinIO configuration
-            "S3_BUCKET_NAME": "org.gestrich.sandbox",
-            "AWS_ENDPOINT_URL": "http://minio_lambda:9000",
-            "AWS_ACCESS_KEY_ID": "admin",
-            "AWS_SECRET_ACCESS_KEY": "password",
-            "AWS_REGION": "us-east-1",
-            "AWS_DEFAULT_REGION": "us-east-1",
-
-            // Disable AWS credential chain for local testing
-            "AWS_EC2_METADATA_DISABLED": "true",
-            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",  // Disable ECS credentials
-
-            // Local Lambda server configuration
-            "MOCK_AWS_CREDENTIALS": "true",
-            "LOCAL_LAMBDA_SERVER_ENABLED": "true",
-            "LOCAL_LAMBDA_HOST": "0.0.0.0"
-        ]
-
-        // Use bash to run bootstrap and keep container alive
-        // Must match the Swift version used in Dockerfile for building
-        try await dockerService.run(
-            image: "swift:6.2.0-amazonlinux2",
-            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
-            options: options
-        )
-
-        print("  ✅ Lambda container started")
-    }
-
-    private func verifyLambdaRunning() async throws {
-        print("🔍 Verifying Lambda is running...")
-
-        let dockerService = DockerService()
-
-        // Check container is running
-        let isRunning = try await dockerService.containerIsRunning(name: "lambda-test-container")
-        #expect(isRunning, "Lambda container should be running")
-
-        // Wait for Lambda to be ready on the port
-        var attempts = 0
-        let maxAttempts = 30  // 30 seconds
-        var ready = false
-
-        while attempts < maxAttempts && !ready {
-            do {
-                let portCheck = try await runShellCommand("lsof -i :\(port)", allowNonZeroExit: true)
-                if !portCheck.isEmpty {
-                    ready = true
-                    break
-                }
-            } catch {
-                // Port not ready yet, keep trying
-            }
-
-            try await Task.sleep(for: .seconds(1))
-            attempts += 1
-
-            if attempts % 10 == 0 {
-                print("  → Still waiting for Lambda on port \(port)... (\(attempts) seconds)")
-            }
-        }
-
-        if !ready {
-            // Show container logs for debugging
-            print("❌ Lambda failed to start. Checking container logs:")
-            let logs = try await runShellCommand("docker logs lambda-test-container 2>&1 | tail -20", allowNonZeroExit: true)
-            print(logs)
-        }
-
-        #expect(ready, "Lambda should be ready on port \(port)")
-        print("  ✅ Lambda is running and ready")
-    }
-
-    private func stopLambdaContainer() async throws {
-        print("🛑 Stopping Lambda container...")
-        let dockerService = DockerService()
-        try await dockerService.stop(container: "lambda-test-container")
-        print("  ✅ Lambda container stopped")
-    }
 
     private func testS3Endpoint() async throws {
+        let port = await localService.port
         let endpoint = "http://localhost:\(port)/invoke"
 
         let payload = """
@@ -275,6 +165,7 @@ struct LinuxContainerIntegrationTests {
     }
 
     private func testPostgresEndpoint() async throws {
+        let port = await localService.port
         let endpoint = "http://localhost:\(port)/invoke"
 
         let payload = """
@@ -317,90 +208,18 @@ struct LinuxContainerIntegrationTests {
             try? FileManager.default.removeItem(atPath: tempFile)
         }
 
-        let command = """
-        curl -s -X POST '\(endpoint)' \
-          -H 'Content-Type: application/json' \
-          -d @\(tempFile)
-        """
+        let result = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                endpoint,
+                "-H", "Content-Type: application/json",
+                "-d", "@\(tempFile)"
+            ],
+            printCommand: false
+        )
 
-        return try await runShellCommand(command)
-    }
-
-    // Simple version that doesn't capture output - avoids pipe buffer deadlocks for long-running commands
-    private func runShellCommandWithoutCapture(_ command: String, allowNonZeroExit: Bool = false) async throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-c", command]
-        process.currentDirectoryURL = projectRoot
-
-        try process.run()
-        process.waitUntilExit()
-
-        if process.terminationStatus != 0 && !allowNonZeroExit {
-            throw LinuxTestError.commandFailed(
-                command: command,
-                exitCode: process.terminationStatus,
-                output: "",
-                error: "Command failed with exit code \(process.terminationStatus)"
-            )
-        }
-
-        return ""
-    }
-
-    private func runShellCommand(_ command: String, allowNonZeroExit: Bool = false) async throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-c", command]
-
-        // Set working directory to project root
-        process.currentDirectoryURL = projectRoot
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-
-        let output = String(data: outputData, encoding: .utf8) ?? ""
-        let error = String(data: errorData, encoding: .utf8) ?? ""
-
-        // Combine output and error for build commands (they often use stderr for progress)
-        let combinedOutput = output + "\n" + error
-
-        if process.terminationStatus != 0 && !allowNonZeroExit {
-            print("❌ Command failed: \(command)")
-            print("   Output: \(output)")
-            print("   Error: \(error)")
-            throw LinuxTestError.commandFailed(
-                command: command,
-                exitCode: process.terminationStatus,
-                output: output,
-                error: error
-            )
-        }
-
-        return combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-enum LinuxTestError: Error, CustomStringConvertible {
-    case commandFailed(command: String, exitCode: Int32, output: String, error: String)
-
-    var description: String {
-        switch self {
-        case .commandFailed(let command, let exitCode, let output, let error):
-            return """
-            Command failed with exit code \(exitCode):
-            Command: \(command)
-            Output: \(output)
-            Error: \(error)
-            """
-        }
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
