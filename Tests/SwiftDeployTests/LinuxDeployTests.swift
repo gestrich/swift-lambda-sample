@@ -174,13 +174,6 @@ struct LinuxContainerIntegrationTests {
         let isRunning = try await dockerService.containerIsRunning(name: "lambda-test-container")
         #expect(isRunning, "Lambda container should be running")
 
-        // Check container logs for errors
-        let logs = try await dockerService.logs(container: "lambda-test-container", tail: 50)
-        if logs.contains("error") || logs.contains("Error") {
-            print("⚠️  Warning: Container logs contain errors:")
-            print(logs)
-        }
-
         // Wait for Lambda to be ready on the port
         var attempts = 0
         let maxAttempts = 30  // 30 seconds
@@ -202,10 +195,14 @@ struct LinuxContainerIntegrationTests {
 
             if attempts % 10 == 0 {
                 print("  → Still waiting for Lambda on port \(port)... (\(attempts) seconds)")
-                // Show recent logs to debug
-                let recentLogs = try await dockerService.logs(container: "lambda-test-container", tail: 5)
-                print("  → Recent logs: \(recentLogs.split(separator: "\n").last ?? "")")
             }
+        }
+
+        if !ready {
+            // Show container logs for debugging
+            print("❌ Lambda failed to start. Checking container logs:")
+            let logs = try await runShellCommand("docker logs lambda-test-container 2>&1 | tail -20", allowNonZeroExit: true)
+            print(logs)
         }
 
         #expect(ready, "Lambda should be ready on port \(port)")
