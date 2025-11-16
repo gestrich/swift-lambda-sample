@@ -141,15 +141,22 @@ struct LinuxContainerIntegrationTests {
         options.ports = [(port, 7000)]
         options.volumes = [("\(projectRoot.path)/lambda", "/var/task")]
         options.environment = [
+            // PostgreSQL configuration
             "POSTGRES_HOST": "postgres_lambda",
             "POSTGRES_PORT": "5432",
             "POSTGRES_USER_NAME": "docker",
             "POSTGRES_DBNAME": "docker",
             "POSTGRES_PASSWORD": "docker",
+            "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
+
+            // S3/MinIO configuration
             "S3_BUCKET_NAME": "org.gestrich.sandbox",
             "AWS_ENDPOINT_URL": "http://minio_lambda:9000",
             "AWS_ACCESS_KEY_ID": "admin",
             "AWS_SECRET_ACCESS_KEY": "password",
+            "AWS_REGION": "us-east-1",  // MinIO needs a region
+
+            // Local Lambda server configuration
             "MOCK_AWS_CREDENTIALS": "true",
             "LOCAL_LAMBDA_SERVER_ENABLED": "true",
             "LOCAL_LAMBDA_HOST": "0.0.0.0"
