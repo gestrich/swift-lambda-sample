@@ -6,33 +6,20 @@
 //
 
 import AWSLambdaEvents
-import AWSLambdaHelpers
 import AWSLambdaRuntime
 import Foundation
-import NIO
-import NIOHelpers
+import HTTPTypes
 import SwiftServerApp
 
-struct APIGWHandler: EventLoopLambdaHandler {
+struct APIGWHandler {
 
-    typealias In = APIGateway.Request
-    typealias Out = APIGateway.Response
+    //MARK: Handler
 
-    //MARK: EventLoopLambdaHandler conformance
-
-    func handle(context: Lambda.Context, event: APIGateway.Request) -> EventLoopFuture<APIGateway.Response> {
-        return context.eventLoop.asyncFuture {
-            return try await handle(context: context, event: event)
-        }
-    }
-
-
-    //Async variant
-    func handle(context: Lambda.Context, event: APIGateway.Request) async throws -> APIGateway.Response {
+    func handle(context: LambdaContext, event: APIGatewayRequest) async throws -> APIGatewayResponse {
 
         //TODO: The Lambda.InitializationContext can hold resources that can be reused on every request.
         //It may be more performant to use that to hold onto our database connections.
-        let services = try await ServiceComposer(eventLoop: context.eventLoop)
+        let services = try await ServiceComposer()
 
         do {
             let response = try await route(event: event, app: services.app)
@@ -47,7 +34,7 @@ struct APIGWHandler: EventLoopLambdaHandler {
         }
     }
 
-    func route(event: In, app: SwiftServerApp) async throws -> APIGateway.Response {
+    func route(event: APIGatewayRequest, app: SwiftServerApp) async throws -> APIGatewayResponse {
 
         let leadingPathPart = "api" // Use this if you there a leading part in your path, like "api" or "stage"
 
@@ -65,10 +52,10 @@ struct APIGWHandler: EventLoopLambdaHandler {
         switch firstComponent {
         case "database":
             switch event.httpMethod {
-            case .POST:
+            case .post:
                 try await app.initializeDatabase()
                 return try "Database Initialized".apiGatewayOkResponse()
-            case .DELETE:
+            case .delete:
                 try await app.resetDatabase()
                 return try "Database Reset".apiGatewayOkResponse()
             default:
@@ -79,7 +66,7 @@ struct APIGWHandler: EventLoopLambdaHandler {
             return try "File uploaded and downloaded".apiGatewayOkResponse()
         case "users":
             switch event.httpMethod {
-            case .GET:
+            case .get:
                 
                 guard urlComponents.count > 1 else {
                     return try await app.getUsers().apiGatewayOkResponse()
@@ -91,22 +78,24 @@ struct APIGWHandler: EventLoopLambdaHandler {
                 }
                 return try user.apiGatewayOkResponse()
 
-            case .POST:
+            case .post:
 
-                guard let bodyData = event.bodyData() else {
+                guard let bodyString = event.body,
+                      let bodyData = bodyString.data(using: .utf8) else {
                     throw APIGWHandlerError.general(description: "Missing body data")
                 }
 
                 let userRequest = try JSONDecoder().decode(CreateUser.self, from: bodyData)
                 return try await app.createUser(userRequest).createAPIGatewayJSONResponse(statusCode: .created)
 
-            case .PUT:
+            case .put:
 
                 guard urlComponents.count > 1 else {
                     return try "User uuid required".createAPIGatewayJSONResponse(statusCode: .notFound)
                 }
 
-                guard let bodyData = event.bodyData() else {
+                guard let bodyString = event.body,
+                      let bodyData = bodyString.data(using: .utf8) else {
                     throw APIGWHandlerError.general(description: "Missing body data")
                 }
 
@@ -120,10 +109,10 @@ struct APIGWHandler: EventLoopLambdaHandler {
                 user.applyCreateUserRequest(userRequest)
                 return try await app.updateUser(user).createAPIGatewayJSONResponse(statusCode: .created)
 
-            case .DELETE:
+            case .delete:
 
                 guard urlComponents.count > 1 else {
-                    return APIGateway.Response(statusCode: .notFound)
+                    return APIGatewayResponse(statusCode: .notFound)
                 }
 
                 let uuid = urlComponents[1]
@@ -132,7 +121,7 @@ struct APIGWHandler: EventLoopLambdaHandler {
                 }
 
                 try await app.deleteUser(user)
-                return APIGateway.Response(statusCode: .ok, headers: ["Content-Type": "application/json"])
+                return APIGatewayResponse(statusCode: .ok, headers: ["Content-Type": "application/json"])
 
             default:
                 throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")
@@ -156,18 +145,18 @@ enum APIGWHandlerError: LocalizedError {
 
 extension Encodable {
     //TODO: There is some overlap in the swift-server-utilities method name.
-    func apiGatewayOkResponse() throws -> APIGateway.Response {
+    func apiGatewayOkResponse() throws -> APIGatewayResponse {
         return try createAPIGatewayJSONResponse(statusCode: .ok)
     }
 
-    func createAPIGatewayJSONResponse(statusCode: HTTPResponseStatus) throws -> APIGateway.Response {
+    func createAPIGatewayJSONResponse(statusCode: HTTPResponse.Status) throws -> APIGatewayResponse {
 
         guard let jsonData = try? JSONEncoder().encode(self) else {
             throw APIGWHandlerError.general(description: "Could not convert object to json data")
         }
 
         let jsonString = String(data: jsonData, encoding: .utf8)
-        return APIGateway.Response(statusCode: statusCode, headers: ["Content-Type": "application/json"], body: jsonString)
+        return APIGatewayResponse(statusCode: statusCode, headers: ["Content-Type": "application/json"], body: jsonString)
     }
 }
 

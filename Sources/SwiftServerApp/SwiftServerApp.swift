@@ -102,11 +102,21 @@ public struct SwiftServerApp {
         guard let responseData = try await cloudDataStore.getData(key: s3FileKey) else {
             throw LambdaDemoError.unexpectedError(description: "Couldn't find S3 file")
         }
-        
+
         guard let result = String(data: responseData, encoding: .utf8) else {
             throw LambdaDemoError.unexpectedError(description: "Can't convert Data to string")
         }
         return result
+    }
+
+    public func uploadToS3(key: String, content: String) async throws {
+        guard let cloudDataStore else {
+            throw LambdaDemoError.missingService(name: "s3Service")
+        }
+        guard let data = content.data(using: .utf8) else {
+            throw LambdaDemoError.unexpectedError(description: "Failed to convert string to data")
+        }
+        try await cloudDataStore.uploadData(data, key: key)
     }
     
     

@@ -7,32 +7,17 @@
 
 import AWSLambdaRuntime
 import Foundation
-import NIO
 import SwiftServerApp
 
-public struct CreateUserHandler: EventLoopLambdaHandler {
+public struct CreateUserHandler {
 
-    public typealias In = CreateUser
-    public typealias Out = String
+    //MARK: Handler
 
-    //MARK: EventLoopLambdaHandler conformance
-
-    public func handle(context: Lambda.Context, event: In) -> EventLoopFuture<Out> {
-
-        let future = context.eventLoop.asyncFuture {
-            return try await handle(context: context, event: event)
-        }
-
-        return future
-    }
-
-
-    //Async variant
-    func handle(context: Lambda.Context, event: In) async throws -> Out {
+    func handle(context: LambdaContext, event: CreateUser) async throws -> String {
 
         context.logger.log(level: .critical, "Cloud Watch (CreateAnalysisRequest) event received")
 
-        let services = try await ServiceComposer(eventLoop: context.eventLoop)
+        let services = try await ServiceComposer()
         let app = services.app
 
         do {

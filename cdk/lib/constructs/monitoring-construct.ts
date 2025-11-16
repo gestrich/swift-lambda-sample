@@ -23,14 +23,10 @@ export class MonitoringConstruct extends Construct {
       enabled: true
     });
 
-    // Add Lambda function as target with custom payload
+    // Add Lambda function as target
+    // CloudWatch will send a standard scheduled event (no custom payload)
     this.eventRule.addTarget(
-      new targets.LambdaFunction(props.lambdaFunction, {
-        event: events.RuleTargetInput.fromObject({
-          appName: props.appName,
-          releaseLookbackHours: props.releaseLookbackHours
-        })
-      })
+      new targets.LambdaFunction(props.lambdaFunction)
     );
   }
 }
