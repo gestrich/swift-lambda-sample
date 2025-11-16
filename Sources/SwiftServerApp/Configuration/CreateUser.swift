@@ -16,21 +16,10 @@ public struct CreateUser: Codable {
     public var phone: String
     public var slackID: String
 
-    /// Failable initializer for event routing
+    /// Failable factory method for event routing
     /// Returns nil if the JSON doesn't match the CreateUser structure
-    public init?(from decoder: Decoder) {
-        do {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.email = try container.decode(String.self, forKey: .email)
-            self.password = try container.decode(String.self, forKey: .password)
-            self.firstName = try container.decode(String.self, forKey: .firstName)
-            self.lastName = try container.decode(String.self, forKey: .lastName)
-            self.nickName = try container.decode(String.self, forKey: .nickName)
-            self.phone = try container.decode(String.self, forKey: .phone)
-            self.slackID = try container.decode(String.self, forKey: .slackID)
-        } catch {
-            return nil
-        }
+    public static func decode(from decoder: Decoder) -> CreateUser? {
+        return try? CreateUser(from: decoder)
     }
 }
 

@@ -13,6 +13,17 @@ import SwiftServerApp
 ///
 /// Uses failable initializers to attempt decoding each event type in order.
 /// Returns nil if the JSON doesn't match any known event structure.
+///
+/// **Framework Integration:**
+/// This initializer is NOT called directly by application code. Instead, it's automatically
+/// invoked by the swift-aws-lambda-runtime framework:
+///
+/// 1. AWS Lambda Runtime sends JSON event data
+/// 2. LambdaRuntime receives the raw event
+/// 3. LambdaCodableAdapter (configured in @main) calls JSONDecoder().decode(LambdaEvent.self, from: eventData)
+/// 4. JSONDecoder automatically calls this init(from:) method
+/// 5. This method tries to decode as each event type until one succeeds
+/// 6. The decoded LambdaEvent is passed to DynamicLambdaHandler.handle()
 public enum LambdaEvent: Decodable {
     case apiGateway(APIGatewayRequest)
     case cloudWatchScheduled(CloudwatchEvent<CloudwatchDetails.Scheduled>)

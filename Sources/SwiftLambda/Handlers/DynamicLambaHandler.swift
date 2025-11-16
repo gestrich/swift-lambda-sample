@@ -1,25 +1,14 @@
 //
-//  LambdaHandler.swift
+//  DynamicLambdaHandler.swift
+//  SwiftLambda
 //
-//
-//  Created by Bill Gestrich on 10/23/21.
+//  Created by Bill Gestrich on 11/16/25.
 //
 
 import AWSLambdaEvents
 import AWSLambdaRuntime
 import Foundation
 import SwiftServerApp
-
-@main
-struct MyLambda {
-    static func main() async throws {
-        let handler = DynamicLambdaHandler()
-        let adapter = LambdaHandlerAdapter(handler: handler)
-        let codableAdapter = LambdaCodableAdapter(encoder: JSONEncoder(), decoder: JSONDecoder(), handler: adapter)
-        let runtime = LambdaRuntime(handler: codableAdapter)
-        try await runtime.run()
-    }
-}
 
 /// Dynamic Lambda handler that routes events to specialized handlers based on event type
 ///

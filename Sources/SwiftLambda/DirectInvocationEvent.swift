@@ -31,13 +31,13 @@ public enum DirectInvocationEvent {
     /// Returns nil if the JSON doesn't match any known direct invocation type
     public init?(from decoder: Decoder) {
         // Try to decode as CreateUser
-        if let createUser = CreateUser(from: decoder) {
+        if let createUser = CreateUser.decode(from: decoder) {
             self = .createUser(createUser)
             return
         }
 
         // Future: Add more direct invocation types here
-        // if let deleteUser = DeleteUser(from: decoder) {
+        // if let deleteUser = DeleteUser.decode(from: decoder) {
         //     self = .deleteUser(deleteUser)
         //     return
         // }
