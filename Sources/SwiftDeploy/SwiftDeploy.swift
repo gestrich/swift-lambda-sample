@@ -12,7 +12,9 @@ struct SwiftDeploy: AsyncParsableCommand {
             DeployCommand.self,
             UpdateLambdaCommand.self,
             TearDownCommand.self,
-            StatusCommand.self
+            StatusCommand.self,
+            LocalCommand.self,
+            TestCommand.self
         ]
     )
 }

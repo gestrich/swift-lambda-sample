@@ -29,6 +29,12 @@ public enum CLIError: Error, LocalizedError, Sendable {
     /// Git operation failed
     case gitOperationFailed(reason: String)
 
+    /// Test failed
+    case testFailed(message: String)
+
+    /// Command failed with exit code
+    case commandFailed(command: String, exitCode: Int32, stderr: String)
+
     public var errorDescription: String? {
         switch self {
         case .commandNotFound(let command):
@@ -58,6 +64,13 @@ public enum CLIError: Error, LocalizedError, Sendable {
 
         case .gitOperationFailed(let reason):
             return "Git operation failed: \(reason)"
+
+        case .testFailed(let message):
+            return "Test failed: \(message)"
+
+        case .commandFailed(let command, let exitCode, let stderr):
+            let errorOutput = stderr.isEmpty ? "No error output" : stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "Command '\(command)' failed with exit code \(exitCode): \(errorOutput)"
         }
     }
 }

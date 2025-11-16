@@ -1,234 +1,34 @@
 #!/bin/zsh
 
-set -eu 
+set -eu
 set -o errexit
 set -o pipefail
 set -o nounset
 
-MINIO_IMAGE_NAME=quay.io/minio/minio
-MINIO_CONTAINER_NAME=minio_lambda
-POSTGRES_IMAGE_NAME=postgres_lambda
-POSTGRES_CONTAINER_NAME=postgres_lambda
+# ============================================================================
+# tools.sh - Convenience wrapper for SwiftDeploy CLI
+# ============================================================================
+#
+# This script provides short aliases for common SwiftDeploy commands.
+# All logic is implemented in the SwiftDeploy Swift CLI tool.
+#
+# Usage:
+#   ./tools.sh <function-name> [args]
+#
+# Examples:
+#   ./tools.sh deploy --with-postgres
+#   ./tools.sh startServices
+#   ./tools.sh testDeployment
+#
+# For full command reference:
+#   swift run SwiftDeploy --help
+# ============================================================================
 
-function copyConfig() {
-  mkdir -p ~/.swiftSampleDemo; cp swiftLambdaDemo.json ~/.swiftSampleDemo/swiftLambdaDemo.json
-}
+# ============================================================================
+# Deployment Commands
+# ============================================================================
 
-function stopServices() {
-  stopS3
-  stopDatabase
-}
-
-function startServices() {
-  stopServices
-  startS3
-  startDatabase
-}
-
-function stopContainerNamed() {
-
-  if [ $# -eq 0 ]; then
-    echo "Usage: stopContainerNamed <container name>"
-    exit 1
-  fi
-
-  container_name=$1 
-  
-  container=$(docker ps -a --filter "name=^/$container_name$" --format "{{.Names}}")
-  if [ "$container" = "$container_name" ]; then
-    echo "Container $container_name exists. Stopping and removing"
-    docker stop "$container_name"
-    docker rm "$container_name"
-  fi  
-}
-
-function stopS3() {
-  stopContainerNamed $MINIO_CONTAINER_NAME 
-}
-
-function startS3() {
-  mkdir -p ${HOME}/minio/data/org.gestrich.sandbox
-  docker run \
-     -d \
-     -p 9000:9000 \
-     -p 9001:9001 \
-     --user $(id -u):$(id -g) \
-     --name $MINIO_CONTAINER_NAME \
-     -e "MINIO_ROOT_USER=admin" \
-     -e "MINIO_ROOT_PASSWORD=password" \
-     -v ${HOME}/minio/data:/data \
-     quay.io/minio/minio server /data --console-address ":9001"
-}
-
-function stopDatabase() {
-  stopContainerNamed $POSTGRES_CONTAINER_NAME
-}
-
-function startDatabase() {
-
-  docker build \
-    --build-arg "EXPOSE_PORT=5432" \
-    --build-arg "USERNAME=docker" \
-    --build-arg "PASSWORD='docker'" \
-    -t $POSTGRES_IMAGE_NAME \
-    -f PostgresDockerfile .
-
-  docker run \
-    -d \
-    -P \
-    -p 5432:5432 \
-    --name $POSTGRES_IMAGE_NAME \
-    $POSTGRES_IMAGE_NAME
-}
-
-# Setup Docker network for local Lambda container testing
-function setupLambdaNetwork() {
-  local network_name="lambda-local"
-
-  echo "🔧 Setting up Docker network for local Lambda testing..."
-
-  # Create network if it doesn't exist
-  if ! docker network inspect $network_name &>/dev/null; then
-    echo "→ Creating Docker network: $network_name"
-    docker network create $network_name
-  else
-    echo "✓ Network $network_name already exists"
-  fi
-
-  # Connect PostgreSQL container to network
-  local postgres_connected=$(docker network inspect $network_name --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' | grep -c "^$POSTGRES_CONTAINER_NAME$" || true)
-  if [ "$postgres_connected" -eq 0 ]; then
-    if docker ps --filter "name=^/$POSTGRES_CONTAINER_NAME$" --format '{{.Names}}' | grep -q "^$POSTGRES_CONTAINER_NAME$"; then
-      echo "→ Connecting $POSTGRES_CONTAINER_NAME to $network_name"
-      docker network connect $network_name $POSTGRES_CONTAINER_NAME
-    else
-      echo "⚠️  Warning: $POSTGRES_CONTAINER_NAME is not running. Start it with: ./tools.sh startDatabase"
-    fi
-  else
-    echo "✓ $POSTGRES_CONTAINER_NAME already connected"
-  fi
-
-  # Connect MinIO container to network
-  local minio_connected=$(docker network inspect $network_name --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' | grep -c "^$MINIO_CONTAINER_NAME$" || true)
-  if [ "$minio_connected" -eq 0 ]; then
-    if docker ps --filter "name=^/$MINIO_CONTAINER_NAME$" --format '{{.Names}}' | grep -q "^$MINIO_CONTAINER_NAME$"; then
-      echo "→ Connecting $MINIO_CONTAINER_NAME to $network_name"
-      docker network connect $network_name $MINIO_CONTAINER_NAME
-    else
-      echo "⚠️  Warning: $MINIO_CONTAINER_NAME is not running. Start it with: ./tools.sh startS3"
-    fi
-  else
-    echo "✓ $MINIO_CONTAINER_NAME already connected"
-  fi
-
-  echo ""
-  echo "✅ Network setup complete!"
-  echo ""
-  echo "You can now run the Lambda container with:"
-  echo "  docker run -it --rm --platform linux/amd64 --network $network_name \\"
-  echo "    -v \$(pwd)/lambda:/var/task -p 8080:7000 \\"
-  echo "    -e POSTGRES_HOST=$POSTGRES_CONTAINER_NAME \\"
-  echo "    -e POSTGRES_PORT=5432 \\"
-  echo "    -e POSTGRES_USER_NAME=docker \\"
-  echo "    -e POSTGRES_DBNAME=docker \\"
-  echo "    -e POSTGRES_PASSWORD=docker \\"
-  echo "    -e S3_BUCKET_NAME=org.gestrich.sandbox \\"
-  echo "    -e AWS_ENDPOINT_URL=http://$MINIO_CONTAINER_NAME:9000 \\"
-  echo "    -e AWS_ACCESS_KEY_ID=admin \\"
-  echo "    -e AWS_SECRET_ACCESS_KEY=password \\"
-  echo "    -e MOCK_AWS_CREDENTIALS=true \\"
-  echo "    -e LOCAL_LAMBDA_SERVER_ENABLED=true \\"
-  echo "    -e LOCAL_LAMBDA_HOST=0.0.0.0 \\"
-  echo "    swift:6.2.0-amazonlinux2 bash"
-  echo ""
-  echo "Inside the container, run:"
-  echo "  cd /var/task && chmod +x bootstrap && ./bootstrap"
-}
-
-# Run Lambda in interactive Linux container
-function runLambdaContainer() {
-  echo "🚀 Starting Lambda in Linux container..."
-  echo ""
-
-  # Check if lambda directory exists
-  if [ ! -d "lambda" ]; then
-    echo "❌ Error: lambda directory not found!"
-    echo "Build the Lambda first with: ./build.sh SwiftLambda"
-    return 1
-  fi
-
-  # Ensure network is set up
-  setupLambdaNetwork
-
-  echo "Starting interactive container..."
-  echo "(Type 'exit' to leave the container)"
-  echo ""
-
-  docker run -it --rm \
-    --platform linux/amd64 \
-    --network lambda-local \
-    -v $(pwd)/lambda:/var/task \
-    -p 8080:7000 \
-    -e POSTGRES_HOST=$POSTGRES_CONTAINER_NAME \
-    -e POSTGRES_PORT=5432 \
-    -e POSTGRES_USER_NAME=docker \
-    -e POSTGRES_DBNAME=docker \
-    -e POSTGRES_PASSWORD=docker \
-    -e S3_BUCKET_NAME=org.gestrich.sandbox \
-    -e AWS_ENDPOINT_URL=http://$MINIO_CONTAINER_NAME:9000 \
-    -e AWS_ACCESS_KEY_ID=admin \
-    -e AWS_SECRET_ACCESS_KEY=password \
-    -e MOCK_AWS_CREDENTIALS=true \
-    -e LOCAL_LAMBDA_SERVER_ENABLED=true \
-    -e LOCAL_LAMBDA_HOST=0.0.0.0 \
-    swift:6.2.0-amazonlinux2 \
-    bash -c "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"
-}
-
-function killServer() {
-
-  # Use lsof to find processes that are listening on localhost port 7000
-  PIDS=$(lsof -i :7000 | grep "TCP localhost" | awk '{print $2}')
-
-  if [ -z "$PIDS" ]; then
-      echo "No processes found on localhost port 7000."
-  else
-      # Use a while loop to read each line (PID) and kill the process
-      echo "$PIDS" | while read -r PID; do
-          echo "Killing process with PID: $PID on localhost port 7000"
-          kill "$PID"
-      done
-  fi  
-
-}
-
-function startDynamoDB() {
-  docker run -p 8000:8000 amazon/dynamodb-local
-}
-
-function tailLogs(){
-
-  export AWS_PROFILE="production";
-  groupPrefix="Sugar"
-
-  group="$(aws logs  describe-log-groups --log-group-name-prefix "/aws/lambda/$groupPrefix" | jq -r  ".logGroups[0].logGroupName")";
-  #aws logs tail "$group" --since 12h
-  aws logs tail "$group" --follow
-}
-
-function tailLogsDev(){
-
-  export AWS_PROFILE="sandbox";
-  groupPrefix="SugarMonitorDev"
-
-  group="$(aws logs  describe-log-groups --log-group-name-prefix "/aws/lambda/$groupPrefix" | jq -r  ".logGroups[0].logGroupName")";
-  #aws logs tail "$group" --since 12h
-  aws logs tail "$group" --follow
-}
-
-# SwiftDeploy CLI wrapper functions
-
-# Initial deployment: CDK infrastructure + Lambda code (minimal cost by default)
+# Initial deployment: CDK infrastructure + Lambda code
 # Usage:
 #   freshDeploy                    # Minimal (no Postgres, no NAT)
 #   freshDeploy --with-postgres    # Add database
@@ -261,15 +61,108 @@ function deployStatus(){
   swift run SwiftDeploy status "$@"
 }
 
-# Local Xcode Development functions
+# ============================================================================
+# Local Development Commands
+# ============================================================================
 
+# Copy config file to home directory
+function copyConfig(){
+  swift run SwiftDeploy local copy-config
+}
+
+# Start all local services (PostgreSQL + MinIO)
+function startServices(){
+  swift run SwiftDeploy local start-services
+}
+
+# Stop all local services
+function stopServices(){
+  swift run SwiftDeploy local stop-services
+}
+
+# Start PostgreSQL database
+function startDatabase(){
+  swift run SwiftDeploy local start-database
+}
+
+# Stop PostgreSQL database
+function stopDatabase(){
+  swift run SwiftDeploy local stop-database
+}
+
+# Start MinIO S3 service
+function startS3(){
+  swift run SwiftDeploy local start-s3
+}
+
+# Stop MinIO S3 service
+function stopS3(){
+  swift run SwiftDeploy local stop-s3
+}
+
+# Setup Docker network for Lambda container testing
+function setupLambdaNetwork(){
+  swift run SwiftDeploy local setup-network
+}
+
+# Run Lambda in interactive Linux container
+function runLambdaContainer(){
+  swift run SwiftDeploy local run-container
+}
+
+# Test local Lambda endpoints
+# Usage: testLocalLambda [port]
+function testLocalLambda(){
+  swift run SwiftDeploy local test "$@"
+}
+
+# ============================================================================
+# AWS Testing Commands
+# ============================================================================
+
+# Get API Gateway URL from CloudFormation
+function getApiGatewayUrl(){
+  swift run SwiftDeploy test get-url
+}
+
+# Test S3 file endpoint on deployed Lambda
+function testApiFile(){
+  swift run SwiftDeploy test file
+}
+
+# Test S3 file endpoint with verbose curl output
+function testApiFileVerbose(){
+  swift run SwiftDeploy test file-verbose
+}
+
+# Verify S3 file was created and show content
+function verifyS3File(){
+  swift run SwiftDeploy test verify-s3
+}
+
+# Check Lambda execution logs (last 5 minutes)
+function checkLambdaLogs(){
+  swift run SwiftDeploy test logs --since 5m
+}
+
+# Run all deployment verification tests
+function testDeployment(){
+  swift run SwiftDeploy test all
+}
+
+# ============================================================================
+# Legacy Functions (Deprecated - use SwiftDeploy commands instead)
+# ============================================================================
+
+# DEPRECATED: Use swift run SwiftDeploy local run-lambda instead
 # Run Lambda locally with local server mode
 # Usage: runLocalLambda [port] [background]
-# Examples:
-#   runLocalLambda              # Run on port 8080 in foreground
-#   runLocalLambda 8081         # Run on port 8081 in foreground
-#   runLocalLambda 8080 bg      # Run on port 8080 in background
 function runLocalLambda(){
+  echo "⚠️  DEPRECATED: This function is deprecated."
+  echo "   Use: swift run SwiftLambda directly for local development"
+  echo "   Or use Xcode (⌘R) for debugging"
+  echo ""
+
   local port=${1:-8080}
   local bg_mode=${2:-}
 
@@ -367,250 +260,87 @@ function stopLocalLambda(){
   echo "✅ Lambda stopped"
 }
 
-# Test local Lambda endpoints
-function testLocalLambda(){
-  local port=${1:-8080}
-  local endpoint="http://localhost:$port/invoke"
-
-  echo "🧪 Testing local Lambda on port $port..."
+# DEPRECATED: Use AWS CLI directly
+# Tail Lambda logs (production)
+function tailLogs(){
+  echo "⚠️  DEPRECATED: Use checkLambdaLogs instead"
   echo ""
 
-  # Test S3 file endpoint
-  echo "→ Testing S3 file upload/download..."
-  local s3_response=$(curl -s -X POST "$endpoint" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "resource": "/api/file",
-      "path": "/api/file",
-      "httpMethod": "POST",
-      "headers": {},
-      "multiValueHeaders": {},
-      "requestContext": {
-        "resourceId": "test",
-        "apiId": "test",
-        "resourcePath": "/api/file",
-        "httpMethod": "POST",
-        "requestId": "test",
-        "accountId": "123456789012",
-        "stage": "local",
-        "identity": {"sourceIp": "127.0.0.1"},
-        "path": "/api/file"
-      },
-      "body": null,
-      "isBase64Encoded": false
-    }')
+  export AWS_PROFILE="production";
+  groupPrefix="Sugar"
 
-  if echo "$s3_response" | grep -q "File uploaded and downloaded"; then
-    echo "  ✅ S3 test passed"
+  group="$(aws logs  describe-log-groups --log-group-name-prefix "/aws/lambda/$groupPrefix" | jq -r  ".logGroups[0].logGroupName")";
+  aws logs tail "$group" --follow
+}
+
+# Kill local server on port 7000
+function killServer(){
+  # Use lsof to find processes that are listening on localhost port 7000
+  PIDS=$(lsof -i :7000 | grep "TCP localhost" | awk '{print $2}')
+
+  if [ -z "$PIDS" ]; then
+      echo "No processes found on localhost port 7000."
   else
-    echo "  ❌ S3 test failed: $s3_response"
-    return 1
-  fi
-
-  echo ""
-
-  # Test database initialization
-  echo "→ Testing database initialization..."
-  local db_response=$(curl -s -X POST "$endpoint" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "resource": "/api/database",
-      "path": "/api/database",
-      "httpMethod": "POST",
-      "headers": {},
-      "multiValueHeaders": {},
-      "requestContext": {
-        "resourceId": "test",
-        "apiId": "test",
-        "resourcePath": "/api/database",
-        "httpMethod": "POST",
-        "requestId": "test",
-        "accountId": "123456789012",
-        "stage": "local",
-        "identity": {"sourceIp": "127.0.0.1"},
-        "path": "/api/database"
-      },
-      "body": null,
-      "isBase64Encoded": false
-    }')
-
-  if echo "$db_response" | grep -q "Database Initialized"; then
-    echo "  ✅ Database test passed"
-  else
-    echo "  ❌ Database test failed: $db_response"
-    return 1
-  fi
-
-  echo ""
-  echo "✅ All local Lambda tests passed!"
-}
-
-# API Testing functions
-
-function getApiGatewayUrl(){
-  export AWS_PROFILE="production"
-  aws cloudformation describe-stacks \
-    --stack-name SwiftLambdaSampleStack \
-    --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
-    --output text
-}
-
-function testApiFile(){
-  export AWS_PROFILE="production"
-  local api_url=$(getApiGatewayUrl)
-
-  if [ -z "$api_url" ]; then
-    echo "❌ Error: Could not get API Gateway URL. Is the stack deployed?"
-    return 1
-  fi
-
-  echo "🧪 Testing S3 file endpoint..."
-  echo "→ POST ${api_url}api/file"
-  echo ""
-
-  local response=$(curl -s -X POST "${api_url}api/file")
-  echo "Response: $response"
-
-  if [[ "$response" == *"File uploaded and downloaded"* ]]; then
-    echo "✅ File endpoint test passed!"
-    return 0
-  else
-    echo "❌ File endpoint test failed!"
-    return 1
+      # Use a while loop to read each line (PID) and kill the process
+      echo "$PIDS" | while read -r PID; do
+          echo "Killing process with PID: $PID on localhost port 7000"
+          kill "$PID"
+      done
   fi
 }
 
-function testApiFileVerbose(){
-  export AWS_PROFILE="production"
-  local api_url=$(getApiGatewayUrl)
-
-  if [ -z "$api_url" ]; then
-    echo "❌ Error: Could not get API Gateway URL. Is the stack deployed?"
-    return 1
-  fi
-
-  echo "🧪 Testing S3 file endpoint (verbose)..."
-  echo "→ POST ${api_url}api/file"
-  echo ""
-
-  curl -v -X POST "${api_url}api/file"
+# Start DynamoDB local (not currently used)
+function startDynamoDB(){
+  docker run -p 8000:8000 amazon/dynamodb-local
 }
 
-function verifyS3File(){
-  export AWS_PROFILE="production"
+# ============================================================================
+# Main Entry Point
+# ============================================================================
 
-  echo "🔍 Verifying S3 file creation..."
-
-  local bucket_name=$(aws cloudformation describe-stacks \
-    --stack-name SwiftLambdaSampleStack \
-    --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
-    --output text)
-
-  if [ -z "$bucket_name" ]; then
-    echo "❌ Error: Could not get bucket name. Is the stack deployed?"
-    return 1
-  fi
-
-  echo "Bucket: $bucket_name"
-  echo ""
-  echo "Files in bucket:"
-  aws s3 ls "s3://${bucket_name}/"
-  echo ""
-
-  echo "Content of hello-world.text:"
-  aws s3 cp "s3://${bucket_name}/hello-world.text" -
-  echo ""
-}
-
-function checkLambdaLogs(){
-  export AWS_PROFILE="production"
-
-  echo "📋 Lambda execution logs (last 5 minutes):"
-  aws logs tail /aws/lambda/swift-lambda-sample \
-    --since 5m \
-    --format short
-}
-
-function testDeployment(){
-  echo "🚀 Running deployment verification tests..."
-  echo ""
-
-  testApiFile
-  local api_result=$?
-
-  echo ""
-  verifyS3File
-  local s3_result=$?
-
-  echo ""
-  checkLambdaLogs
-
-  echo ""
-  echo "================================"
-  if [ $api_result -eq 0 ] && [ $s3_result -eq 0 ]; then
-    echo "✅ All tests passed!"
-  else
-    echo "❌ Some tests failed"
-  fi
-}
-
-function loopLogs(){
-aws dynamodb execute-statement  --statement "SELECT * FROM \"sugar-monitor\" WHERE partitionKey='LoopLog' AND sort > '2022-12-04T16:34' AND contains(message, 'Remote Notification')" \
-  | jq -r '.Items[] | "\(.sort) \(.message)"' | jq
-}
-
-
-#function uploadLambda(){
-#  aws s3 cp lambda.zip s3://org.gestrich.sugarmonitor;
-#  aws lambda update-function-code --function-name sugarMonitor --s3-bucket org.gestrich.sugarmonitor --s3-key lambda.zip;
-#  aws lambda -- publish-version --function-name sugarMonitor --description "Updates";
-#}
-
-#function pushSugarMonitor(){
-#  description="$(git log --format=%B -n 1 HEAD)";
-#  echo "Using description: $description"
-#  ${SWIFT_SERVER_TOOLS_PATH}/lambda/custom-deploy/tools.sh buildAndPublish ~/.ssh SugarMonitor sugarMonitor "$description"
-#}
-
-#function testLocalMonitor(){
-#  curl --header "Content-Type: application/json" \
-#  --request POST   \
-#  --data '{"action": "monitor", "save": true}' \
-#  http://localhost:7000/invoke | jq
-#}
-
-#Postgres + Docker
-
-#name="postgres_lambda"
-
-#function localStartPostgresDatabase(){
-#    if [[  $(docker ps --filter "name=^/$name$" --format '{{.Names}}') == $name ]]; then
-#      echo "$name Database already running"
-#    else
-#      docker build -t $name -f postgres_docker/Dockerfile .
-#      docker run -d --rm -P -p 5436:5432 --name $name $name
-#      echo "$name Database now running"
-#    fi
-#}
-
-#function localNukePostgresDatabase(){
-#    if [[  $(docker ps --filter "name=^/$name$" --format '{{.Names}}') == $name ]]; then
-#      docker stop $name
-#      echo "$name Database Removed"
-#    else
-#      echo "$name Database not running"
-#    fi
-#}
-
-
-# Check if the function exists
-  if [ $# -gt 0 ]; then 
-#if declare -f "$1" > /dev/null
-  # call arguments verbatim
+# Check if function exists and execute it
+if [ $# -gt 0 ]; then
   "$@"
 else
-  # Show a helpful error
-  echo "Functions Available:"
-  typeset -f | awk '!/^main[ (]/ && /^[^ {}]+ *\(\)/ { gsub(/[()]/, "", $1); print $1}'
+  # Show available functions
+  echo "============================================================================"
+  echo "SwiftDeploy CLI - Convenience Wrapper"
+  echo "============================================================================"
+  echo ""
+  echo "All logic is implemented in SwiftDeploy (Swift CLI tool)."
+  echo "This script provides short aliases for common commands."
+  echo ""
+  echo "📚 Full Documentation:"
+  echo "   swift run SwiftDeploy --help"
+  echo ""
+  echo "🚀 Deployment Commands:"
+  echo "   freshDeploy [--with-postgres] [--with-nat-gateway]"
+  echo "   deploy [--with-postgres] [--with-nat-gateway]"
+  echo "   updateLambda"
+  echo "   deployStatus"
+  echo "   deployTearDown"
+  echo ""
+  echo "🔧 Local Development Commands:"
+  echo "   copyConfig              - Copy config to ~/.swiftSampleDemo/"
+  echo "   startServices           - Start PostgreSQL + MinIO"
+  echo "   stopServices            - Stop all services"
+  echo "   startDatabase           - Start PostgreSQL only"
+  echo "   stopDatabase            - Stop PostgreSQL only"
+  echo "   startS3                 - Start MinIO only"
+  echo "   stopS3                  - Stop MinIO only"
+  echo "   setupLambdaNetwork      - Setup Docker network"
+  echo "   runLambdaContainer      - Run Lambda in Linux container"
+  echo "   testLocalLambda [port]  - Test local Lambda"
+  echo ""
+  echo "☁️  AWS Testing Commands:"
+  echo "   testDeployment          - Run all verification tests"
+  echo "   testApiFile             - Test S3 file endpoint"
+  echo "   testApiFileVerbose      - Test with verbose output"
+  echo "   verifyS3File            - Verify S3 file creation"
+  echo "   checkLambdaLogs         - Show Lambda logs (5 min)"
+  echo "   getApiGatewayUrl        - Get API Gateway URL"
+  echo ""
+  echo "Available Functions:"
+  typeset -f | awk '!/^main[ (]/ && /^[^ {}]+ *\(\)/ { gsub(/[()]/, "", $1); print "  - " $1}'
   exit 1
 fi

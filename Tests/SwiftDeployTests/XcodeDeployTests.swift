@@ -7,57 +7,47 @@
 
 import Foundation
 import Testing
+@testable import SwiftDeploy
 
 @Suite("Local Xcode Lambda Integration Tests")
 struct XcodeLocalIntegrationTests {
 
     let port = 8080
 
-    // Get the project root directory (assuming tests are in Tests/SwiftDeployTests/)
-    var toolsScript: String {
-        // When running from Xcode, we need to find the project root
-        // #filePath gives absolute path at compile time
-        let projectRoot = URL(fileURLWithPath: #filePath)
+    // Get project root directory
+    var projectRoot: URL {
+        URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // Remove XcodeDeployTests.swift
             .deletingLastPathComponent()  // Remove SwiftDeployTests
             .deletingLastPathComponent()  // Remove Tests
-        return "\(projectRoot.path)/tools.sh"
+    }
+
+    var localService: LocalDevelopmentService {
+        LocalDevelopmentService(workingDirectory: projectRoot.path)
     }
 
     @Test("Full local development workflow: start services, run Lambda, test endpoints, stop services")
     func testLocalDevelopmentWorkflow() async throws {
         // Ensure cleanup happens even if test fails
         defer {
-            // Synchronous cleanup - run shell commands directly
             print("🧹 Cleanup: Stopping Lambda and services...")
-            let process1 = Process()
-            process1.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process1.arguments = ["-c", "\(toolsScript) stopLocalLambda \(port)"]
-            process1.currentDirectoryURL = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-            try? process1.run()
-            process1.waitUntilExit()
+            Task {
+                // Stop Lambda (using tools.sh since it's not in SwiftDeploy yet)
+                _ = try? await runShellCommand("./tools.sh stopLocalLambda \(port)")
 
-            let process2 = Process()
-            process2.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process2.arguments = ["-c", "\(toolsScript) stopServices"]
-            process2.currentDirectoryURL = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-            try? process2.run()
-            process2.waitUntilExit()
+                // Stop services
+                try? await localService.stopAllServices()
+            }
         }
 
         // Step 1: Copy configuration file
         print("📋 Step 1: Copying configuration file...")
-        _ = try await runShellCommand("\(toolsScript) copyConfig")
+        let configPath = projectRoot.appendingPathComponent("swiftLambdaDemo.json").path
+        try await localService.copyConfig(sourcePath: configPath)
 
         // Step 2: Start local services (PostgreSQL + MinIO)
         print("🚀 Step 2: Starting local services...")
-        _ = try await runShellCommand("\(toolsScript) startServices")
+        try await localService.startAllServices()
 
         // Give services time to fully start
         try await Task.sleep(for: .seconds(3))
@@ -67,11 +57,11 @@ struct XcodeLocalIntegrationTests {
 
         // Step 3: Start Lambda locally in background
         print("🔧 Step 3: Starting Lambda locally on port \(port)...")
-        _ = try await runShellCommand("\(toolsScript) runLocalLambda \(port) bg")
+        _ = try await runShellCommand("./tools.sh runLocalLambda \(port) bg")
 
         // Step 3b: Wait for Lambda to be ready
         print("⏳ Step 3b: Waiting for Lambda to be ready...")
-        _ = try await runShellCommand("\(toolsScript) waitForLambda \(port)")
+        _ = try await runShellCommand("./tools.sh waitForLambda \(port)")
 
         // Step 4: Test S3 endpoint
         print("🧪 Step 4: Testing S3 file upload/download...")
@@ -83,11 +73,11 @@ struct XcodeLocalIntegrationTests {
 
         // Step 6: Stop Lambda
         print("🛑 Step 6: Stopping Lambda...")
-        _ = try await runShellCommand("\(toolsScript) stopLocalLambda \(port)")
+        _ = try await runShellCommand("./tools.sh stopLocalLambda \(port)")
 
         // Step 7: Stop services
         print("🧹 Step 7: Stopping local services...")
-        _ = try await runShellCommand("\(toolsScript) stopServices")
+        try await localService.stopAllServices()
 
         print("✅ All integration tests passed!")
     }

@@ -2,6 +2,64 @@
 
 This document contains operational notes for working with this Swift Lambda application and its AWS infrastructure.
 
+## Tooling Architecture
+
+This project uses a clean separation between build, deployment, and local development:
+
+### Tools Overview
+
+```
+build.sh           → Pure build (Bash + Docker)
+                     - Compiles Swift Lambda for AWS (linux/amd64)
+                     - Creates lambda.zip deployment package
+                     - Used by GitHub Actions CI/CD
+                     - Works everywhere (Mac, Linux, CI/CD)
+
+SwiftDeploy        → Deployment + Testing + Local Dev (Swift CLI)
+                     - CDK infrastructure deployment
+                     - GitHub Actions monitoring
+                     - AWS testing (endpoints, S3, logs)
+                     - Local development services (Docker)
+                     - Type-safe, testable Swift code
+                     - Mac only (requires Swift toolchain)
+
+tools.sh           → Convenience aliases (Bash wrapper)
+                     - Optional shortcuts for SwiftDeploy commands
+                     - All logic delegates to SwiftDeploy
+                     - AWS testing helpers (curl, CloudFormation)
+```
+
+### Why This Architecture?
+
+**build.sh (Bash)**
+- ✅ No Swift required on host - uses Docker container
+- ✅ Works in GitHub Actions without setup
+- ✅ Cross-platform compatible
+- ✅ Simple, focused on one task: building
+
+**SwiftDeploy (Swift)**
+- ✅ Type-safe deployment logic
+- ✅ Testable infrastructure code
+- ✅ Great local development UX
+- ✅ Rich error handling
+- ⚠️ Requires Swift toolchain (local Mac only)
+
+**tools.sh (Bash wrapper)**
+- ✅ Optional convenience layer
+- ✅ Quick aliases: `./tools.sh deploy` vs `swift run SwiftDeploy deploy`
+- ✅ AWS testing helpers that combine multiple commands
+
+### Command Comparison
+
+| Task | SwiftDeploy (Recommended) | tools.sh (Alias) |
+|------|---------------------------|------------------|
+| Deploy infrastructure | `swift run SwiftDeploy deploy` | `./tools.sh deploy` |
+| Update Lambda code | `swift run SwiftDeploy update-lambda` | `./tools.sh updateLambda` |
+| Start local services | `swift run SwiftDeploy local start-services` | `./tools.sh startServices` |
+| Test deployment | `swift run SwiftDeploy test all` | `./tools.sh testDeployment` |
+| Check logs | `swift run SwiftDeploy test logs` | `./tools.sh checkLambdaLogs` |
+| Check status | `swift run SwiftDeploy status` | `./tools.sh deployStatus` |
+
 ## Project Structure
 
 ### Nested CDK Directory
@@ -460,6 +518,94 @@ swift run SwiftDeploy status
   ...
 ```
 
+#### 5. Test (`test`)
+
+**Test deployed AWS Lambda**: Verify endpoints, S3 files, and logs.
+
+**Available subcommands:**
+```bash
+# Endpoint Testing
+swift run SwiftDeploy test file             # Test S3 file endpoint
+swift run SwiftDeploy test file-verbose     # Test with verbose curl output
+swift run SwiftDeploy test verify-s3        # Verify S3 file creation
+swift run SwiftDeploy test get-url          # Get API Gateway URL
+
+# Monitoring
+swift run SwiftDeploy test logs             # Show Lambda logs (last 5m)
+swift run SwiftDeploy test logs --since 1h  # Show logs from last hour
+
+# Comprehensive Testing
+swift run SwiftDeploy test all              # Run all verification tests
+```
+
+**What it does:**
+- Tests deployed Lambda endpoints
+- Verifies S3 file operations
+- Displays CloudWatch logs
+- Combines multiple tests into comprehensive verification
+
+**Example workflow:**
+```bash
+# 1. Deploy Lambda
+swift run SwiftDeploy fresh-deploy
+
+# 2. Run all tests
+swift run SwiftDeploy test all
+
+# 3. Or test individual components
+swift run SwiftDeploy test file
+swift run SwiftDeploy test verify-s3
+swift run SwiftDeploy test logs
+```
+
+#### 6. Local Development (`local`)
+
+**Manage local development environment**: Start/stop Docker services, test Lambda locally.
+
+**Available subcommands:**
+```bash
+# Service Management
+swift run SwiftDeploy local start-services   # Start PostgreSQL + MinIO
+swift run SwiftDeploy local stop-services    # Stop all services
+swift run SwiftDeploy local start-database   # Start PostgreSQL only
+swift run SwiftDeploy local stop-database    # Stop PostgreSQL only
+swift run SwiftDeploy local start-s3         # Start MinIO only
+swift run SwiftDeploy local stop-s3          # Stop MinIO only
+
+# Lambda Container Testing
+swift run SwiftDeploy local setup-network    # Setup Docker network
+swift run SwiftDeploy local run-container    # Run Lambda in Linux container
+swift run SwiftDeploy local test --port 8080 # Test local Lambda endpoints
+
+# Configuration
+swift run SwiftDeploy local copy-config      # Copy config to ~/.swiftSampleDemo/
+```
+
+**What it does:**
+- Manages local PostgreSQL and MinIO (S3) Docker containers
+- Sets up Docker networking for Lambda container testing
+- Provides interactive Linux container for testing Lambda builds
+- Tests local Lambda endpoints
+
+**Example workflow:**
+```bash
+# 1. Start local services
+swift run SwiftDeploy local start-services
+
+# 2. Build Lambda for Linux
+./build.sh SwiftLambda
+
+# 3. Run in container and test
+swift run SwiftDeploy local run-container
+# Inside container: ./bootstrap
+
+# 4. In another terminal, test endpoints
+swift run SwiftDeploy local test --port 8080
+
+# 5. Stop services when done
+swift run SwiftDeploy local stop-services
+```
+
 ### Tools.sh Wrapper Functions
 
 For convenience, `tools.sh` provides wrapper functions:
@@ -484,16 +630,31 @@ For convenience, `tools.sh` provides wrapper functions:
 ./tools.sh deploy --with-postgres    # Update infrastructure with database
 ```
 
-#### Testing Functions
+#### Local Development Functions
 
 | Function | Description |
 |----------|-------------|
-| `testApiFile` | Test S3 file endpoint (automatically gets API Gateway URL) |
-| `testApiFileVerbose` | Test S3 file endpoint with verbose curl output |
-| `verifyS3File` | Verify S3 file was created and show content |
-| `checkLambdaLogs` | Show Lambda execution logs (last 5 minutes) |
-| `testDeployment` | Run all verification tests (API + S3 + Logs) |
-| `getApiGatewayUrl` | Get the current API Gateway URL from CloudFormation |
+| `copyConfig` | Copy config to ~/.swiftSampleDemo/ |
+| `startServices` | Start PostgreSQL + MinIO |
+| `stopServices` | Stop all services |
+| `startDatabase` | Start PostgreSQL only |
+| `stopDatabase` | Stop PostgreSQL only |
+| `startS3` | Start MinIO only |
+| `stopS3` | Stop MinIO only |
+| `setupLambdaNetwork` | Setup Docker network |
+| `runLambdaContainer` | Run Lambda in Linux container |
+| `testLocalLambda [port]` | Test local Lambda endpoints |
+
+#### AWS Testing Functions
+
+| Function | SwiftDeploy Equivalent |
+|----------|------------------------|
+| `testApiFile` | `swift run SwiftDeploy test file` |
+| `testApiFileVerbose` | `swift run SwiftDeploy test file-verbose` |
+| `verifyS3File` | `swift run SwiftDeploy test verify-s3` |
+| `checkLambdaLogs` | `swift run SwiftDeploy test logs` |
+| `testDeployment` | `swift run SwiftDeploy test all` |
+| `getApiGatewayUrl` | `swift run SwiftDeploy test get-url` |
 
 **Usage:**
 ```bash

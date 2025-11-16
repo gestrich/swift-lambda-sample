@@ -38,6 +38,7 @@ public actor CLIService {
     ///   - environment: Custom environment variables (merged with defaults)
     ///   - timeout: Optional timeout in seconds
     ///   - printCommand: If true, prints the formatted command before execution
+    ///   - inheritIO: If true, inherits stdin/stdout/stderr from parent process (for interactive commands)
     /// - Returns: ExecutionResult containing exit code, stdout, and stderr
     public func execute(
         command: String,
@@ -45,7 +46,8 @@ public actor CLIService {
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
         timeout: TimeInterval? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        inheritIO: Bool = false
     ) async throws -> ExecutionResult {
         let startTime = Date()
 
@@ -76,7 +78,8 @@ public actor CLIService {
             workingDirectory: workingDirectory,
             environment: processEnvironment,
             timeout: timeout,
-            startTime: startTime
+            startTime: startTime,
+            inheritIO: inheritIO
         )
     }
 
@@ -259,7 +262,8 @@ public actor CLIService {
         workingDirectory: String?,
         environment: [String: String],
         timeout: TimeInterval?,
-        startTime: Date
+        startTime: Date,
+        inheritIO: Bool
     ) async throws -> ExecutionResult {
         return try self.executeProcessInternal(
             command: command,
@@ -267,7 +271,8 @@ public actor CLIService {
             workingDirectory: workingDirectory,
             environment: environment,
             timeout: timeout,
-            startTime: startTime
+            startTime: startTime,
+            inheritIO: inheritIO
         )
     }
 
@@ -277,7 +282,8 @@ public actor CLIService {
         workingDirectory: String?,
         environment: [String: String],
         timeout: TimeInterval?,
-        startTime: Date
+        startTime: Date,
+        inheritIO: Bool
     ) throws -> ExecutionResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: command)
@@ -288,10 +294,25 @@ public actor CLIService {
             process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         }
 
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
+        let outputPipe: Pipe?
+        let errorPipe: Pipe?
+
+        if inheritIO {
+            // For interactive commands, inherit stdin/stdout/stderr
+            process.standardInput = FileHandle.standardInput
+            process.standardOutput = FileHandle.standardOutput
+            process.standardError = FileHandle.standardError
+            outputPipe = nil
+            errorPipe = nil
+        } else {
+            // For non-interactive commands, capture output
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            process.standardOutput = outPipe
+            process.standardError = errPipe
+            outputPipe = outPipe
+            errorPipe = errPipe
+        }
 
         var timeoutTask: Task<Void, Never>?
         if let timeout {
@@ -308,12 +329,19 @@ public actor CLIService {
 
         timeoutTask?.cancel()
 
-        // Read output after process completes
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        // Read output after process completes (only if not inheriting IO)
+        let stdout: String
+        let stderr: String
 
-        let stdout = String(data: outputData, encoding: .utf8) ?? ""
-        let stderr = String(data: errorData, encoding: .utf8) ?? ""
+        if inheritIO {
+            stdout = ""
+            stderr = ""
+        } else {
+            let outputData = outputPipe!.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe!.fileHandleForReading.readDataToEndOfFile()
+            stdout = String(data: outputData, encoding: .utf8) ?? ""
+            stderr = String(data: errorData, encoding: .utf8) ?? ""
+        }
 
         let duration = Date().timeIntervalSince(startTime)
 

@@ -31,10 +31,9 @@ USER postgres
 # Note: here we use ``&&\`` to run commands one after the other - the ``\``
 #       allows the RUN command to span multiple lines.
 
-#TODO: For some reason I can't use a build argument for the password like $PASSWORD. It seems to want the
-#single quotes but it will fail to compile with \'$PASSWORD\'
+# Create PostgreSQL user and database using build arguments
 RUN    /etc/init.d/postgresql start &&\
-    psql --command "CREATE USER $USERNAME WITH SUPERUSER PASSWORD $PASSWORD;" &&\
+    psql --command "CREATE USER $USERNAME WITH SUPERUSER PASSWORD '$PASSWORD';" &&\
     createdb -O docker docker
 
 # Adjust PostgreSQL configuration so that remote connections to the
