@@ -1,5 +1,5 @@
 //
-//  UserStorePostgres.swift
+//  PostgresModelStore.swift
 //
 //
 //  Created by Bill Gestrich on 12/9/23.
@@ -11,7 +11,7 @@ import FluentSQLiteDriver
 import Foundation
 import NIOSSL
 
-public actor UserStorePostgres: PostgresUserStoreInterface {
+public actor PostgresModelStore: PostgresModelStoreInterface {
 
     public let databases: Databases
     public let database: Database
@@ -101,22 +101,22 @@ public actor UserStorePostgres: PostgresUserStoreInterface {
     
     public func updateUser(_ user: User) async throws -> User {
         guard let id = user.id else {
-            throw UserStorePostgresError.updateUserError("Missing user id")
+            throw PostgresModelStoreError.updateUserError("Missing user id")
         }
         try await user.update(on: database)
         guard let result = try await getUser(id: id) else {
-            throw UserStorePostgresError.updateUserError("Could not fetch updated user")
+            throw PostgresModelStoreError.updateUserError("Could not fetch updated user")
         }
 
         return result
     }
-    
+
     public func deleteUser(_ user : User) async throws {
         try await user.delete(on: database)
     }
 }
 
-enum UserStorePostgresError: LocalizedError {
+enum PostgresModelStoreError: LocalizedError {
     case updateUserError(String)
 
     var errorDescription: String? {

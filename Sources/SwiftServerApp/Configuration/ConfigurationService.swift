@@ -17,9 +17,9 @@ public final class ConfigurationService: Sendable {
         }
         return String(utf8String: rawVal) ?? "mops/swift-lambda-sample/password"
     }
-    private let secretsService: SecretsService
+    private let secretsService: SecretsServiceInterface
 
-    public init(secretsService: SecretsService) {
+    public init(secretsService: SecretsServiceInterface) {
         self.secretsService = secretsService
     }
 

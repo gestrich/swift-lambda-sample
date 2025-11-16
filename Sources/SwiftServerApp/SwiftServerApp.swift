@@ -10,44 +10,44 @@ import Foundation
 public struct SwiftServerApp {
 
     let s3DataStore: S3DataStoreInterface?
-    let postgresUserStore: PostgresUserStoreInterface?
+    let postgresModelStore: PostgresModelStoreInterface?
     let s3FileKey = "hello-world.text"
 
-    public init(s3DataStore: S3DataStoreInterface? = nil, postgresUserStore: PostgresUserStoreInterface?) {
+    public init(s3DataStore: S3DataStoreInterface? = nil, postgresModelStore: PostgresModelStoreInterface?) {
         self.s3DataStore = s3DataStore
-        self.postgresUserStore = postgresUserStore
+        self.postgresModelStore = postgresModelStore
     }
     
     
     //MARK: Database Service
 
     public func initializeDatabase() async throws {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
         //TODO: This should not delete the database contents.
-        try await postgresUserStore.wipeAndInitialize()
+        try await postgresModelStore.wipeAndInitialize()
     }
 
     public func resetDatabase() async throws {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
 
-        try await postgresUserStore.wipeAndInitialize()
+        try await postgresModelStore.wipeAndInitialize()
     }
 
     
     //MARK: User Service
 
     public func createUser(_ createUserRequest: CreateUser) async throws -> String {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
 
-        try await postgresUserStore.createUser(createUserRequest.toUser())
+        try await postgresModelStore.createUser(createUserRequest.toUser())
 
-        guard let user = try await postgresUserStore.getUsers().first else {
+        guard let user = try await postgresModelStore.getUsers().first else {
             throw LambdaDemoError.unexpectedError(description: "Unexpected for Postgres not to return user.")
         }
 
@@ -55,36 +55,36 @@ public struct SwiftServerApp {
     }
 
     public func getUser(id: String) async throws -> User? {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
 
         guard let uuid = UUID(uuidString: id) else {
             throw LambdaDemoError.unexpectedError(description: "Invalid uuid: \(id).")
         }
-        return try await postgresUserStore.getUser(id: uuid)
+        return try await postgresModelStore.getUser(id: uuid)
     }
 
     public func getUsers() async throws -> [User] {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
-        return try await postgresUserStore.getUsers()
+        return try await postgresModelStore.getUsers()
     }
 
     public func updateUser(_ user: User) async throws -> User {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
 
-        return try await postgresUserStore.updateUser(user)
+        return try await postgresModelStore.updateUser(user)
     }
 
     public func deleteUser(_ user: User) async throws {
-        guard let postgresUserStore else {
-            throw LambdaDemoError.missingService(name: "postgresUserStore")
+        guard let postgresModelStore else {
+            throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
-        try await postgresUserStore.deleteUser(user)
+        try await postgresModelStore.deleteUser(user)
     }
 
     

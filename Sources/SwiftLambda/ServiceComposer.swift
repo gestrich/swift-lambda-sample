@@ -22,8 +22,8 @@ class ServiceComposer {
     let awsClient: AWSClient
     let configurationService: ConfigurationService
     let s3DataService: S3DataStoreInterface
-    let secretsService: SecretsService
-    let postgresUserStoreService: PostgresUserStoreProduction
+    let secretsService: SecretsServiceInterface
+    let postgresModelStoreService: PostgresModelStoreProduction
     let eventLoopGroup: MultiThreadedEventLoopGroup?
 
     private static func getEnvironmentVariable(key: String) -> String? {
@@ -68,16 +68,16 @@ class ServiceComposer {
         }
         self.eventLoopGroup = eventLoopGroup
 
-        let postgresUserStoreFactory = PostgresUserStoreFactory(configurationService: self.configurationService, eventLoopGroup: eventLoopGroup)
-        self.postgresUserStoreService = PostgresUserStoreProduction(userStoreFactory: postgresUserStoreFactory.createPostgresUserStore)
+        let postgresModelStoreFactory = PostgresModelStoreFactory(configurationService: self.configurationService, eventLoopGroup: eventLoopGroup)
+        self.postgresModelStoreService = PostgresModelStoreProduction(modelStoreFactory: postgresModelStoreFactory.createPostgresModelStore)
 
-        let app = SwiftServerApp(s3DataStore: s3DataService, postgresUserStore: postgresUserStoreService)
+        let app = SwiftServerApp(s3DataStore: s3DataService, postgresModelStore: postgresModelStoreService)
         self.app = app
     }
 
     func shutdown() async throws {
         try await awsClient.shutdown()
-        try await postgresUserStoreService.shutdown()
+        try await postgresModelStoreService.shutdown()
         try await eventLoopGroup?.shutdownGracefully()
     }
 }
@@ -93,12 +93,12 @@ struct S3StoreFactory: Sendable {
     }
 }
 
-struct PostgresUserStoreFactory {
+struct PostgresModelStoreFactory {
 
     let configurationService: ConfigurationService
     let eventLoopGroup: MultiThreadedEventLoopGroup?
 
-    func createPostgresUserStore() async throws -> PostgresUserStoreInterface? {
+    func createPostgresModelStore() async throws -> PostgresModelStoreInterface? {
         guard let configuration = try await configurationService.postgresConfiguration() else {
             // Database not configured - return nil (database is optional)
             return nil
@@ -106,7 +106,7 @@ struct PostgresUserStoreFactory {
         guard let eventLoopGroup = eventLoopGroup else {
             throw ServiceComposerError.missingEventLoopGroup
         }
-        return try await UserStorePostgres(eventLoop: eventLoopGroup.next(), configuration: configuration)
+        return try await PostgresModelStore(eventLoop: eventLoopGroup.next(), configuration: configuration)
     }
 }
 

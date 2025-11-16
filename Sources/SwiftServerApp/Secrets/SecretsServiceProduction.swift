@@ -7,7 +7,7 @@
 
 import Foundation
 
-public final class SecretsServiceProduction: SecretsService {
+public final class SecretsServiceProduction: SecretsServiceInterface {
 
     let awsSecretsService: SecretsServiceAWS
 
