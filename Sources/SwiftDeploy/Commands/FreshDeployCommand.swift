@@ -108,13 +108,29 @@ struct FreshDeployCommand: AsyncParsableCommand {
             )
         }
 
-        // 5. Verify deployment by testing the API
+        // 5. Initialize database if PostgreSQL was deployed
+        if withPostgres {
+            print("\n🗄️  Initializing database...")
+            do {
+                try await initializeDatabase(
+                    stackName: "SwiftLambdaSampleStack",
+                    awsProfile: awsProfile
+                )
+                print("  ✓ Database initialized successfully")
+            } catch {
+                print("\n⚠️  Database initialization failed: \(error)")
+                print("⚠️  You may need to initialize the database manually.")
+            }
+        }
+
+        // 6. Verify deployment by testing the API
         print("\n🧪 Verifying deployment...")
 
         do {
             try await verifyDeployment(
                 stackName: "SwiftLambdaSampleStack",
-                awsProfile: awsProfile
+                awsProfile: awsProfile,
+                withPostgres: withPostgres
             )
             print("\n✅ Deployment verification passed!")
         } catch {
@@ -125,7 +141,51 @@ struct FreshDeployCommand: AsyncParsableCommand {
         print("\n🎉 Deployment completed successfully!")
     }
 
-    private func verifyDeployment(stackName: String, awsProfile: String) async throws {
+    private func initializeDatabase(stackName: String, awsProfile: String) async throws {
+        let projectRoot = FileManager.default.currentDirectoryPath
+        let deploymentService = DeploymentService(projectRoot: projectRoot)
+        let cliService = CLIService.shared
+
+        // Get API Gateway URL
+        let outputs = try await deploymentService.getStackOutputs(
+            stackName: stackName,
+            awsProfile: awsProfile
+        )
+
+        guard let apiUrl = outputs["ApiGatewayUrl"] else {
+            throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+        }
+
+        // Initialize the database
+        print("  → POST \(apiUrl)api/database")
+
+        let result = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                "\(apiUrl)api/database"
+            ],
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw CLIError.executionFailed(
+                command: "curl",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("  Response: \(response)")
+
+        if !response.contains("Database Initialized") {
+            throw CLIError.deploymentFailed(reason: "Unexpected database init response: \(response)")
+        }
+    }
+
+    private func verifyDeployment(stackName: String, awsProfile: String, withPostgres: Bool) async throws {
         let projectRoot = FileManager.default.currentDirectoryPath
         let deploymentService = DeploymentService(projectRoot: projectRoot)
         let cliService = CLIService.shared
@@ -172,5 +232,41 @@ struct FreshDeployCommand: AsyncParsableCommand {
         print("  ✓ API Gateway working")
         print("  ✓ Lambda function executing")
         print("  ✓ S3 integration working")
+
+        // Test database endpoints if PostgreSQL is deployed
+        if withPostgres {
+            print("\n  Testing database endpoints...")
+            print("  → GET \(apiUrl)api/users")
+
+            let usersResult = try await cliService.execute(
+                command: "curl",
+                arguments: [
+                    "-s",
+                    "-X", "GET",
+                    "\(apiUrl)api/users"
+                ],
+                printCommand: false
+            )
+
+            guard usersResult.isSuccess else {
+                throw CLIError.executionFailed(
+                    command: "curl",
+                    exitCode: usersResult.exitCode,
+                    stderr: usersResult.stderr
+                )
+            }
+
+            let usersResponse = usersResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("  Response: \(usersResponse)")
+
+            // Verify it's valid JSON (empty array is expected for fresh database)
+            if let data = usersResponse.data(using: .utf8),
+               let _ = try? JSONSerialization.jsonObject(with: data) {
+                print("  ✓ Database connection working")
+                print("  ✓ User endpoint responding")
+            } else {
+                throw CLIError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
+            }
+        }
     }
 }

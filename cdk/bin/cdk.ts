@@ -48,24 +48,29 @@ if (!skipPostgres && !skipNATGateway) {
     }
   };
 } else if (!skipPostgres && skipNATGateway) {
-  // Public database only: No VPC, publicly accessible database
-  console.log('💰 PUBLIC DATABASE MODE:');
-  console.log('   - No VPC (Lambda in AWS-managed VPC)');
-  console.log('   - Public RDS PostgreSQL database');
+  // Public database mode: Lambda in AWS-managed VPC + public database
+  // No VPC needed for Lambda, database is publicly accessible
+  console.log('💰 PUBLIC DATABASE MODE (NO NAT):');
+  console.log('   - Lambda in AWS-managed VPC (public)');
+  console.log('   - Public RDS PostgreSQL database (internet accessible)');
+  console.log('   - VPC created for database only (required by RDS)');
   console.log('   - Cost: ~$15-30/month (RDS only)');
+  console.log('');
+  console.log('⚠️  WARNING: Database will be publicly accessible.');
+  console.log('   Ensure strong credentials and security groups are in place.');
   console.log('');
 
   config = {
     environment: 'dev',
     networking: {
-      lambdaMode: 'public'
+      lambdaMode: 'public'  // Lambda NOT in VPC, uses AWS-managed VPC
     },
     lambda: {
       memorySize: 10240,
       timeout: 900
     },
     database: {
-      mode: 'public',
+      mode: 'public',  // Database is publicly accessible
       instanceType: 't3.micro',
       allocatedStorage: 10,
       backupRetention: 1,

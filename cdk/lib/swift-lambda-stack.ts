@@ -23,16 +23,27 @@ export class SwiftLambdaStack extends Stack {
     // Validate configuration
     this.validateConfig(config);
 
-    // VPC - Phase 1 (only if Lambda is in private mode)
+    // VPC - Phase 1 (if Lambda is in private mode OR if we have a database)
+    // Note: RDS requires a VPC even for publicly accessible databases
     let vpc: VpcConstruct | undefined;
-    if (config.networking.lambdaMode === 'private') {
-      if (!config.networking.vpc) {
+    const needsVpc = config.networking.lambdaMode === 'private' || config.database.mode !== 'none';
+
+    if (needsVpc) {
+      if (config.networking.lambdaMode === 'private' && !config.networking.vpc) {
         throw new Error('VPC configuration is required when lambdaMode is "private"');
       }
+
+      // For public Lambda with public database, create minimal VPC for database only
+      const vpcConfig = config.networking.vpc || {
+        cidr: '10.0.0.0/16',
+        maxAzs: 2,
+        natGateways: 0
+      };
+
       vpc = new VpcConstruct(this, 'Vpc', {
-        cidr: config.networking.vpc.cidr,
-        maxAzs: config.networking.vpc.maxAzs,
-        natGateways: config.networking.vpc.natGateways
+        cidr: vpcConfig.cidr,
+        maxAzs: vpcConfig.maxAzs,
+        natGateways: vpcConfig.natGateways
       });
     }
 
@@ -54,12 +65,15 @@ export class SwiftLambdaStack extends Stack {
         throw new Error('Database configuration (instanceType, allocatedStorage, backupRetention, multiAz) is required when database.mode is not "none"');
       }
 
-      // For private database, we need VPC
-      const dbVpc = config.database.mode === 'private' ? vpc?.vpc : undefined;
+      // RDS always requires a VPC (even for publicly accessible databases)
+      if (!vpc) {
+        throw new Error('VPC is required for database deployment');
+      }
+
       const publiclyAccessible = config.database.mode === 'public';
 
       database = new DatabaseConstruct(this, 'Database', {
-        vpc: dbVpc,
+        vpc: vpc.vpc,
         instanceType: config.database.instanceType,
         allocatedStorage: config.database.allocatedStorage,
         backupRetention: config.database.backupRetention,
@@ -70,8 +84,11 @@ export class SwiftLambdaStack extends Stack {
     }
 
     // Lambda - Phase 4
+    // Only attach Lambda to VPC if in private mode
+    const lambdaVpc = config.networking.lambdaMode === 'private' ? vpc?.vpc : undefined;
+
     const lambdaFunc = new LambdaConstruct(this, 'Lambda', {
-      vpc: vpc?.vpc,
+      vpc: lambdaVpc,
       database: database?.instance,
       queue: queue.queue,
       dataBucket: storage.dataBucket,

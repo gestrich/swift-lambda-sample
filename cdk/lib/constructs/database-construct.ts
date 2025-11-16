@@ -5,7 +5,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { RemovalPolicy, Duration } from 'aws-cdk-lib';
 
 export interface DatabaseConstructProps {
-  vpc?: ec2.IVpc;  // Optional - only required for private databases
+  vpc: ec2.IVpc;  // Required - RDS always needs a VPC
   instanceType: string;
   allocatedStorage: number;
   backupRetention: number;
@@ -17,15 +17,10 @@ export interface DatabaseConstructProps {
 export class DatabaseConstruct extends Construct {
   public readonly instance: rds.DatabaseInstance;
   public readonly secret: secretsmanager.Secret;
-  public readonly securityGroup?: ec2.SecurityGroup;  // Optional - only for private databases
+  public readonly securityGroup: ec2.SecurityGroup;
 
   constructor(scope: Construct, id: string, props: DatabaseConstructProps) {
     super(scope, id);
-
-    // Validate: private database requires VPC
-    if (!props.publiclyAccessible && !props.vpc) {
-      throw new Error('VPC is required for private database (publiclyAccessible: false)');
-    }
 
     // Create secret for master password
     this.secret = new secretsmanager.Secret(this, 'DbPassword', {
@@ -38,13 +33,20 @@ export class DatabaseConstruct extends Construct {
       }
     });
 
-    // Security group for database (only for private databases in VPC)
-    if (props.vpc && !props.publiclyAccessible) {
-      this.securityGroup = new ec2.SecurityGroup(this, 'SecurityGroup', {
-        vpc: props.vpc,
-        description: 'RDS PostgreSQL Security Group',
-        allowAllOutbound: false
-      });
+    // Security group for database
+    this.securityGroup = new ec2.SecurityGroup(this, 'SecurityGroup', {
+      vpc: props.vpc,
+      description: 'RDS PostgreSQL Security Group',
+      allowAllOutbound: false
+    });
+
+    // For public databases, allow inbound connections from anywhere
+    if (props.publiclyAccessible) {
+      this.securityGroup.addIngressRule(
+        ec2.Peer.anyIpv4(),
+        ec2.Port.tcp(5432),
+        'Allow PostgreSQL access from internet (public database)'
+      );
     }
 
     // Build RDS instance configuration
@@ -63,18 +65,14 @@ export class DatabaseConstruct extends Construct {
       deletionProtection: false  // Set to true for prod
     };
 
-    // Add VPC-specific configuration if VPC is provided
-    if (props.vpc) {
-      instanceConfig.vpc = props.vpc;
-      instanceConfig.vpcSubnets = {
-        subnetType: props.publiclyAccessible
-          ? ec2.SubnetType.PUBLIC
-          : ec2.SubnetType.PRIVATE_WITH_EGRESS
-      };
-      if (this.securityGroup) {
-        instanceConfig.securityGroups = [this.securityGroup];
-      }
-    }
+    // Add VPC configuration (always required for RDS)
+    instanceConfig.vpc = props.vpc;
+    instanceConfig.vpcSubnets = {
+      subnetType: props.publiclyAccessible
+        ? ec2.SubnetType.PUBLIC
+        : ec2.SubnetType.PRIVATE_WITH_EGRESS
+    };
+    instanceConfig.securityGroups = [this.securityGroup];
 
     // RDS instance
     this.instance = new rds.DatabaseInstance(this, 'Instance', instanceConfig);
