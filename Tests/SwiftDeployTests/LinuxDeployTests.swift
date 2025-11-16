@@ -156,8 +156,9 @@ struct LinuxContainerIntegrationTests {
         ]
 
         // Use bash to run bootstrap and keep container alive
+        // Must match the Swift version used in Dockerfile for building
         try await dockerService.run(
-            image: "swift:5.9.2-amazonlinux2",
+            image: "swift:6.2.0-amazonlinux2",
             command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
             options: options
         )
