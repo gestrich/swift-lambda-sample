@@ -1,0 +1,31 @@
+{
+  "resource": "/api/file",
+  "path": "/api/file",
+  "httpMethod": "POST",
+  "headers": {},
+  "multiValueHeaders": {},
+  "requestContext": {
+    "resourceId": "test-resource",
+    "apiId": "1234567890",
+    "resourcePath": "/api/file",
+    "httpMethod": "POST",
+    "requestId": "test-request-id",
+    "accountId": "123456789012",
+    "stage": "prod",
+    "identity": {
+      "cognitoIdentityPoolId": null,
+      "apiKey": null,
+      "userArn": null,
+      "cognitoAuthenticationType": null,
+      "caller": null,
+      "userAgent": null,
+      "user": null,
+      "cognitoAuthenticationProvider": null,
+      "sourceIp": "127.0.0.1",
+      "accountId": null
+    },
+    "path": "/api/file"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}

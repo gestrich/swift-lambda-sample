@@ -86,7 +86,7 @@ fi
 
 # Compile application
 echo "Compiling application..."
-docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "swift build --product $PRODUCT -c release --build-path /build-target --skip-update --disable-automatic-resolution"
+docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "swift build --product $PRODUCT -c release --build-path /build-target --disable-automatic-resolution"
 
 # Copy swift dependencies
 echo "Copying Swift dependencies..."

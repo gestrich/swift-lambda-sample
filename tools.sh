@@ -126,7 +126,7 @@ function setupLambdaNetwork() {
   echo ""
   echo "You can now run the Lambda container with:"
   echo "  docker run -it --rm --platform linux/amd64 --network $network_name \\"
-  echo "    -v \$(pwd)/lambda:/var/task -p 8080:8080 \\"
+  echo "    -v \$(pwd)/lambda:/var/task -p 8080:7000 \\"
   echo "    -e POSTGRES_HOST=$POSTGRES_CONTAINER_NAME \\"
   echo "    -e POSTGRES_PORT=5432 \\"
   echo "    -e POSTGRES_USER_NAME=docker \\"
@@ -138,6 +138,7 @@ function setupLambdaNetwork() {
   echo "    -e AWS_SECRET_ACCESS_KEY=password \\"
   echo "    -e MOCK_AWS_CREDENTIALS=true \\"
   echo "    -e LOCAL_LAMBDA_SERVER_ENABLED=true \\"
+  echo "    -e LOCAL_LAMBDA_HOST=0.0.0.0 \\"
   echo "    swift:6.2.0-amazonlinux2 bash"
   echo ""
   echo "Inside the container, run:"
@@ -167,7 +168,7 @@ function runLambdaContainer() {
     --platform linux/amd64 \
     --network lambda-local \
     -v $(pwd)/lambda:/var/task \
-    -p 8080:8080 \
+    -p 8080:7000 \
     -e POSTGRES_HOST=$POSTGRES_CONTAINER_NAME \
     -e POSTGRES_PORT=5432 \
     -e POSTGRES_USER_NAME=docker \
@@ -179,6 +180,7 @@ function runLambdaContainer() {
     -e AWS_SECRET_ACCESS_KEY=password \
     -e MOCK_AWS_CREDENTIALS=true \
     -e LOCAL_LAMBDA_SERVER_ENABLED=true \
+    -e LOCAL_LAMBDA_HOST=0.0.0.0 \
     swift:6.2.0-amazonlinux2 \
     bash -c "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"
 }
