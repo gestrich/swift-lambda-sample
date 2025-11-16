@@ -12,6 +12,7 @@ import Testing
 struct LinuxContainerIntegrationTests {
 
     let port = 8080
+    let localService: LocalDevelopmentService
 
     // Get the project root directory (assuming tests are in Tests/SwiftDeployTests/)
     var projectRoot: URL {
@@ -23,46 +24,32 @@ struct LinuxContainerIntegrationTests {
             .deletingLastPathComponent()  // Remove Tests
     }
 
-    var toolsScript: String {
-        "\(projectRoot.path)/tools.sh"
+    init() {
+        self.localService = LocalDevelopmentService(workingDirectory: nil)
     }
 
     @Test("Full Linux container workflow: build, start services, run in container, test endpoints, cleanup")
     func testLinuxContainerWorkflow() async throws {
         // Ensure cleanup happens even if test fails
         defer {
-            // Synchronous cleanup - run shell commands directly
-            print("🧹 Cleanup: Stopping Lambda container and services...")
+            // Async cleanup
+            Task {
+                print("🧹 Cleanup: Stopping Lambda container and services...")
 
-            // Stop any running Lambda containers
-            let process1 = Process()
-            process1.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process1.arguments = ["-c", "docker ps -q --filter ancestor=swift:5.9.2-amazonlinux2 | xargs -r docker stop"]
-            process1.currentDirectoryURL = projectRoot
-            try? process1.run()
-            process1.waitUntilExit()
+                // Stop Lambda container
+                try? await stopLambdaContainer()
 
-            // Stop services
-            let process2 = Process()
-            process2.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process2.arguments = ["-c", "docker stop postgres_lambda minio_lambda 2>/dev/null || true"]
-            process2.currentDirectoryURL = projectRoot
-            try? process2.run()
-            process2.waitUntilExit()
+                // Stop services using LocalDevelopmentService
+                try? await localService.stopAllServices()
+            }
         }
 
         // Step 1: Start local services (PostgreSQL + MinIO) - do this first for debugging
         print("🚀 Step 1: Starting local services...")
-        // Start PostgreSQL
-        _ = try await runShellCommand("docker run -d --name postgres_lambda --rm -p 5432:5432 -e POSTGRES_PASSWORD=docker -e POSTGRES_USER=docker -e POSTGRES_DB=docker postgres:13", allowNonZeroExit: true)
-        // Start MinIO
-        _ = try await runShellCommand("docker run -d --name minio_lambda --rm -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=password minio/minio server /data --console-address ':9001'", allowNonZeroExit: true)
+        try await localService.startAllServices()
 
         // Give services time to fully start
         try await Task.sleep(for: .seconds(5))
-
-        // Verify services are running
-        try await verifyServicesRunning()
 
         // Step 2: Clean previous build artifacts
         print("🧹 Step 2: Cleaning previous build artifacts...")
@@ -85,9 +72,7 @@ struct LinuxContainerIntegrationTests {
 
         // Step 4: Setup Lambda network
         print("🔧 Step 4: Setting up Docker network...")
-        _ = try await runShellCommand("docker network create lambda-local 2>/dev/null || true", allowNonZeroExit: true)
-        _ = try await runShellCommand("docker network connect lambda-local postgres_lambda 2>/dev/null || true", allowNonZeroExit: true)
-        _ = try await runShellCommand("docker network connect lambda-local minio_lambda 2>/dev/null || true", allowNonZeroExit: true)
+        try await localService.setupLambdaNetwork()
 
         // Step 5: Start Lambda in container (background mode)
         print("🚀 Step 5: Starting Lambda in Linux container...")
@@ -113,7 +98,7 @@ struct LinuxContainerIntegrationTests {
 
         // Step 9: Stop services
         print("🧹 Step 9: Stopping local services...")
-        _ = try await runShellCommand("docker stop postgres_lambda minio_lambda", allowNonZeroExit: true)
+        try await localService.stopAllServices()
 
         print("✅ All Linux container integration tests passed!")
     }
@@ -139,20 +124,6 @@ struct LinuxContainerIntegrationTests {
         #expect(zipExists, "lambda.zip should exist after build")
 
         print("  ✅ All build artifacts present")
-    }
-
-    private func verifyServicesRunning() async throws {
-        print("🔍 Verifying services are running...")
-
-        // Check PostgreSQL
-        let postgresRunning = try await runShellCommand("docker ps --filter name=postgres_lambda --format '{{.Names}}'")
-        #expect(postgresRunning.contains("postgres_lambda"), "PostgreSQL container should be running")
-
-        // Check MinIO
-        let minioRunning = try await runShellCommand("docker ps --filter name=minio_lambda --format '{{.Names}}'")
-        #expect(minioRunning.contains("minio_lambda"), "MinIO container should be running")
-
-        print("  ✅ All services are running")
     }
 
     private func startLambdaContainer() async throws {
