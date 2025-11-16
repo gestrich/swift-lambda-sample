@@ -29,7 +29,9 @@ struct MyLambda {
 /// Supported event types:
 /// - API Gateway requests (HTTP requests via API Gateway)
 /// - CloudWatch scheduled events (EventBridge cron-based invocations)
-/// - Direct CreateUser invocations (direct Lambda calls with CreateUser payload)
+/// - Direct invocations (direct Lambda calls via CLI, SDK, Step Functions, etc.)
+///   - CreateUser (currently supported)
+///   - Future: DeleteUser, UpdateSettings, etc. (easily extensible)
 struct DynamicLambdaHandler: LambdaHandler {
     typealias Event = LambdaEvent
     typealias Output = LambdaResponse
@@ -43,8 +45,8 @@ struct DynamicLambdaHandler: LambdaHandler {
         case .cloudWatchScheduled(let scheduledEvent):
             return try await handleCloudWatchScheduled(event: scheduledEvent, context: context)
 
-        case .directCreateUser(let createUser):
-            return try await handleDirectCreateUser(user: createUser, context: context)
+        case .directInvocation(let directEvent):
+            return try await handleDirectInvocation(event: directEvent, context: context)
         }
     }
 
@@ -71,9 +73,9 @@ struct DynamicLambdaHandler: LambdaHandler {
         return .string(result)
     }
 
-    /// Handles direct CreateUser invocations
+    /// Handles direct Lambda invocations
     ///
-    /// Called when: Lambda is invoked directly with CreateUser JSON payload
+    /// Called when: Lambda is invoked directly (not via API Gateway or CloudWatch)
     /// Examples:
     /// - AWS CLI: `aws lambda invoke --payload '{"email":"...","firstName":"..."}'`
     /// - Another Lambda function calling this one
@@ -81,9 +83,18 @@ struct DynamicLambdaHandler: LambdaHandler {
     /// - AWS Step Functions
     ///
     /// Note: This is NOT a CloudWatch event - it's a direct function invocation
-    private func handleDirectCreateUser(user: CreateUser, context: LambdaContext) async throws -> LambdaResponse {
-        let handler = CreateUserHandler()
-        let result = try await handler.handle(context: context, event: user)
-        return .string(result)
+    private func handleDirectInvocation(event: DirectInvocationEvent, context: LambdaContext) async throws -> LambdaResponse {
+        switch event {
+        case .createUser(let user):
+            let handler = CreateUserHandler()
+            let result = try await handler.handle(context: context, event: user)
+            return .string(result)
+
+        // Future direct invocation types will be handled here:
+        // case .deleteUser(let request):
+        //     let handler = DeleteUserHandler()
+        //     let result = try await handler.handle(context: context, event: request)
+        //     return .string(result)
+        }
     }
 }

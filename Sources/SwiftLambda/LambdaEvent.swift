@@ -13,7 +13,7 @@ import SwiftServerApp
 public enum LambdaEvent: Decodable {
     case apiGateway(APIGatewayRequest)
     case cloudWatchScheduled(CloudwatchEvent<CloudwatchDetails.Scheduled>)
-    case directCreateUser(CreateUser)
+    case directInvocation(DirectInvocationEvent)
 
     public init(from decoder: Decoder) throws {
         // Try to decode as API Gateway request first (most common)
@@ -28,9 +28,9 @@ public enum LambdaEvent: Decodable {
             return
         }
 
-        // Try to decode as direct CreateUser invocation
-        if let createUser = try? CreateUser(from: decoder) {
-            self = .directCreateUser(createUser)
+        // Try to decode as direct invocation (CreateUser, etc.)
+        if let directInvocation = try? DirectInvocationEvent(from: decoder) {
+            self = .directInvocation(directInvocation)
             return
         }
 
@@ -38,7 +38,7 @@ public enum LambdaEvent: Decodable {
         throw DecodingError.dataCorrupted(
             DecodingError.Context(
                 codingPath: decoder.codingPath,
-                debugDescription: "Unable to decode event into any known Lambda event type (APIGateway, CloudWatch, or CreateUser)"
+                debugDescription: "Unable to decode event into any known Lambda event type (APIGateway, CloudWatch, or DirectInvocation)"
             )
         )
     }
