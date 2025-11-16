@@ -11,11 +11,13 @@ public final class ConfigurationService: Sendable {
 
     private let configFileURL = Configuration.localConfigFileURL()
     private static var postgresUserPasswordIdentifierKey: String {
-        // Read from environment, fallback to hardcoded value for backwards compatibility
-        guard let rawVal = getenv("POSTGRES_PASSWORD_SECRET_ID") else {
-            return "mops/swift-lambda-sample/password"
+        get throws {
+            guard let rawVal = getenv("POSTGRES_PASSWORD_SECRET_ID"),
+                  let secretId = String(utf8String: rawVal) else {
+                throw ConfigurationError.missingFromEnvVariables("POSTGRES_PASSWORD_SECRET_ID")
+            }
+            return secretId
         }
-        return String(utf8String: rawVal) ?? "mops/swift-lambda-sample/password"
     }
     private let secretsService: SecretsServiceInterface
 
@@ -66,7 +68,7 @@ public final class ConfigurationService: Sendable {
         }
         let tableName = "swift-sample-app" // try getEnvironmentVariable(key: "POSTGRES_TABLE_NAME")
 
-        let secretString = try await secretsService.getSecret(identifier: Self.postgresUserPasswordIdentifierKey)
+        let secretString = try await secretsService.getSecret(identifier: try Self.postgresUserPasswordIdentifierKey)
 
         // Parse the secret as JSON to extract the password
         guard let secretData = secretString.data(using: .utf8),
