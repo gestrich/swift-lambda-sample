@@ -6,7 +6,7 @@ This document tracks planned improvements and known issues for the Swift Lambda 
 ## Code Quality & Cleanup
 
 - [x] Remove this fallback logic: `// Read from environment, fallback to hardcoded value for backwards compatibility`
-- [ ] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
+- [x] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
 - [ ] Determine why the dynamic value was removed and it was hardcoded here:
   ```diff
   -        POSTGRES_DBNAME: props.database.instanceIdentifier,

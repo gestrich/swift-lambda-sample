@@ -72,10 +72,9 @@ public final class ConfigurationService: Sendable {
 
         // Parse the secret as JSON to extract the password
         guard let secretData = secretString.data(using: .utf8),
-              let secretJson = try? JSONSerialization.jsonObject(with: secretData) as? [String: Any],
+              let secretJson = try JSONSerialization.jsonObject(with: secretData) as? [String: Any],
               let databasePassword = secretJson["password"] as? String else {
-            // Fallback: if secret is just a plain string (not JSON), use it directly
-            return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: secretString)
+            throw ConfigurationError.typeConversion("Failed to parse database password from Secrets Manager JSON. Expected JSON with 'password' field.")
         }
 
         return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: databasePassword)
