@@ -60,11 +60,9 @@ struct LinuxContainerIntegrationTests {
 
         // Step 2: Build Lambda for Linux
         print("🔨 Step 2: Building Lambda for Linux...")
-        let buildOutput = try await runShellCommand("./build.sh SwiftLambda")
-        print("  📋 Build output (last 10 lines):")
-        buildOutput.split(separator: "\n").suffix(10).forEach { line in
-            print("    \(line)")
-        }
+        // Use simpler command execution that doesn't capture output to avoid pipe buffer issues
+        let buildOutput = try await runShellCommandWithoutCapture("./build.sh SwiftLambda")
+        print("  ✅ Build completed")
 
         // Give filesystem time to sync after build
         try await Task.sleep(for: .seconds(2))
@@ -308,6 +306,28 @@ struct LinuxContainerIntegrationTests {
         """
 
         return try await runShellCommand(command)
+    }
+
+    // Simple version that doesn't capture output - avoids pipe buffer deadlocks for long-running commands
+    private func runShellCommandWithoutCapture(_ command: String, allowNonZeroExit: Bool = false) async throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-c", command]
+        process.currentDirectoryURL = projectRoot
+
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 && !allowNonZeroExit {
+            throw LinuxTestError.commandFailed(
+                command: command,
+                exitCode: process.terminationStatus,
+                output: "",
+                error: "Command failed with exit code \(process.terminationStatus)"
+            )
+        }
+
+        return ""
     }
 
     private func runShellCommand(_ command: String, allowNonZeroExit: Bool = false) async throws -> String {
