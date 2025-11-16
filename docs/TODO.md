@@ -5,25 +5,15 @@ This document tracks planned improvements and known issues for the Swift Lambda 
 
 ## Code Quality & Cleanup
 
-- [x] Remove this fallback logic: `// Read from environment, fallback to hardcoded value for backwards compatibility`
-- [x] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
-- [x] Determine why the dynamic value was removed and it was hardcoded here:
-  ```diff
-  -        POSTGRES_DBNAME: props.database.instanceIdentifier,
-  +        POSTGRES_DBNAME: 'FFMSampleLambdaDB'
-  ```
-  **Resolution**: The hardcoded value is CORRECT. There's an important distinction:
-  - `instance.instanceIdentifier` = AWS resource name (e.g., "swiftlambdasamplestack-databaseinstance...")
-  - `databaseName` = Actual PostgreSQL database name inside the instance ('FFMSampleLambdaDB')
-
-  PostgreSQL connections require the database name, not the AWS instance identifier.
-  The value matches what's set in `swift-lambda-stack.ts:81` when creating the database.
+- [ ] Swap SOTO for AWS SDK Swift: https://github.com/awslabs/aws-sdk-swift
 
 ## Build & Docker
 
 - [ ] Combine build.sh and build-local.sh into same script
 - [ ] Add docs regarding local docker build and deploys - include docker interactive mode
+- [ ] Clarify the differences running from Xcode vs in Docker container (setup differneces?)
 - [ ] For the netrc, ensure that actually works with a real private repo dependency and why we have a "dummy" one committed to repo now.
+- [ ] Deterine why PostgresDockerfile is using this archived url: https://apt-archive.postgresql.org/pub/repos/apt
 
 ## Database
 
@@ -31,13 +21,12 @@ This document tracks planned improvements and known issues for the Swift Lambda 
   **Resolution**: The `TLS.prefer` mode is correct and works for both environments:
   - **Local Postgres** (no SSL): Attempts TLS, falls back to unencrypted connection
   - **AWS RDS** (requires SSL): Successfully uses TLS connection
-
-  Added clarifying comments in PostgresModelStore.swift to document this behavior.
+  - [ ] DynamoDB Support
 
 ## GitHub & CI/CD
 
 - [ ] Ensure a complete Github teardown
-  - [ ] Delete all Github environment and passwords
+- [ ] Delete all Github environment and passwords
 
 ## Documentation
 
