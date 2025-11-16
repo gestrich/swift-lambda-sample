@@ -45,23 +45,36 @@ struct LinuxContainerIntegrationTests {
             // Stop services
             let process2 = Process()
             process2.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process2.arguments = ["-c", "\(toolsScript) stopServices"]
+            process2.arguments = ["-c", "docker stop postgres_lambda minio_lambda 2>/dev/null || true"]
             process2.currentDirectoryURL = projectRoot
             try? process2.run()
             process2.waitUntilExit()
         }
 
-        // Step 1: Clean previous build artifacts
-        print("🧹 Step 1: Cleaning previous build artifacts...")
+        // Step 1: Start local services (PostgreSQL + MinIO) - do this first for debugging
+        print("🚀 Step 1: Starting local services...")
+        // Start PostgreSQL
+        _ = try await runShellCommand("docker run -d --name postgres_lambda --rm -p 5432:5432 -e POSTGRES_PASSWORD=docker -e POSTGRES_USER=docker -e POSTGRES_DB=docker postgres:13", allowNonZeroExit: true)
+        // Start MinIO
+        _ = try await runShellCommand("docker run -d --name minio_lambda --rm -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=password minio/minio server /data --console-address ':9001'", allowNonZeroExit: true)
+
+        // Give services time to fully start
+        try await Task.sleep(for: .seconds(5))
+
+        // Verify services are running
+        try await verifyServicesRunning()
+
+        // Step 2: Clean previous build artifacts
+        print("🧹 Step 2: Cleaning previous build artifacts...")
         _ = try await runShellCommand("rm -rf .aws-sam/build-SwiftLambda lambda lambda.zip", allowNonZeroExit: true)
 
         // Give filesystem time to sync
         try await Task.sleep(for: .seconds(1))
 
-        // Step 2: Build Lambda for Linux
-        print("🔨 Step 2: Building Lambda for Linux...")
+        // Step 3: Build Lambda for Linux
+        print("🔨 Step 3: Building Lambda for Linux...")
         // Use simpler command execution that doesn't capture output to avoid pipe buffer issues
-        let buildOutput = try await runShellCommandWithoutCapture("./build.sh SwiftLambda")
+        _ = try await runShellCommandWithoutCapture("./build.sh SwiftLambda")
         print("  ✅ Build completed")
 
         // Give filesystem time to sync after build
@@ -70,19 +83,11 @@ struct LinuxContainerIntegrationTests {
         // Verify build artifacts exist
         try await verifyBuildArtifacts()
 
-        // Step 3: Start local services (PostgreSQL + MinIO)
-        print("🚀 Step 3: Starting local services...")
-        _ = try await runShellCommand("\(toolsScript) startServices")
-
-        // Give services time to fully start
-        try await Task.sleep(for: .seconds(3))
-
-        // Verify services are running
-        try await verifyServicesRunning()
-
         // Step 4: Setup Lambda network
         print("🔧 Step 4: Setting up Docker network...")
-        _ = try await runShellCommand("\(toolsScript) setupLambdaNetwork")
+        _ = try await runShellCommand("docker network create lambda-local 2>/dev/null || true", allowNonZeroExit: true)
+        _ = try await runShellCommand("docker network connect lambda-local postgres_lambda 2>/dev/null || true", allowNonZeroExit: true)
+        _ = try await runShellCommand("docker network connect lambda-local minio_lambda 2>/dev/null || true", allowNonZeroExit: true)
 
         // Step 5: Start Lambda in container (background mode)
         print("🚀 Step 5: Starting Lambda in Linux container...")
@@ -108,7 +113,7 @@ struct LinuxContainerIntegrationTests {
 
         // Step 9: Stop services
         print("🧹 Step 9: Stopping local services...")
-        _ = try await runShellCommand("\(toolsScript) stopServices")
+        _ = try await runShellCommand("docker stop postgres_lambda minio_lambda", allowNonZeroExit: true)
 
         print("✅ All Linux container integration tests passed!")
     }
