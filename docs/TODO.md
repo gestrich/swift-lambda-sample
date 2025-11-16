@@ -27,16 +27,17 @@ This document tracks planned improvements and known issues for the Swift Lambda 
 
 ## Database
 
-- [ ] Ensure local postgres running still works since TLS was enabled here: `let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)`
+- [x] Ensure local postgres running still works since TLS was enabled here: `let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)`
+  **Resolution**: The `TLS.prefer` mode is correct and works for both environments:
+  - **Local Postgres** (no SSL): Attempts TLS, falls back to unencrypted connection
+  - **AWS RDS** (requires SSL): Successfully uses TLS connection
+
+  Added clarifying comments in PostgresModelStore.swift to document this behavior.
 
 ## GitHub & CI/CD
 
 - [ ] Ensure a complete Github teardown
   - [ ] Delete all Github environment and passwords
-
-## Upgrades
-
-- [ ] Upgrade to Lambda engine v2.
 
 ## Documentation
 

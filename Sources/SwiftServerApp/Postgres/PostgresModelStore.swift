@@ -29,6 +29,8 @@ public actor PostgresModelStore: PostgresModelStoreInterface {
         let threadPool: NIOThreadPool = NIOThreadPool(numberOfThreads: System.coreCount)
         let databases: Databases = Databases(threadPool: threadPool, on: eventLoop)
 
+        // TLS configuration: .prefer attempts TLS but falls back to unencrypted if unavailable
+        // This works for both local Postgres (no SSL) and AWS RDS (requires SSL)
         let sslContext = try NIOSSLContext(configuration: .clientDefault)
         let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)
 
