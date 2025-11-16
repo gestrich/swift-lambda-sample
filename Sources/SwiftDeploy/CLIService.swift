@@ -151,7 +151,7 @@ public actor CLIService {
                         print("→ \(formattedCommand)")
                     }
 
-                    try await streamProcess(
+                    try streamProcess(
                         command: resolvedCommand,
                         arguments: arguments,
                         workingDirectory: workingDirectory,
