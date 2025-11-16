@@ -103,33 +103,55 @@ vim cdk/lib/constructs/lambda-construct.ts
 
 For detailed deployment documentation, see [CLAUDE.md](CLAUDE.md).
 
-## Getting Started
+## Local Development
 
-Begin by running the Lambda locally to familiarize yourself with the local development environment. Docker is utilized for running services locally.
+There are three ways to run and test the Lambda locally:
 
-1. **Configuration File**: Copy the JSON configuration for local services.
-    - `./tools.sh copyConfig`
-2. **Xcode Configuration**: 
-    - Set environment variables in Xcode:
-        - `LOCAL_LAMBDA_SERVER_ENABLED: true`
-        - `MOCK_AWS_CREDENTIALS: true`
-3. **Docker Desktop**: Install and start Docker Desktop.
-    - [Mac Installation Guide](https://docs.docker.com/desktop/install/mac-install).
-    - Open Docker Desktop (to run Docker server)
-4. **Run Local Services**: Start local versions of Postgres and S3.
-    - `./tools.sh startServices` command.
-5. **Run Xcode**: Choose the "SwiftLambda" target -> "My Mac" -> Run button.
-6. **Trigger API**: Use Postman to store and execute API calls.
-    - Download from [Postman](https://www.postman.com/downloads).
-    - TODO: Need to share some sample calls or even the full collection.
+1. **Native Mac via Xcode** - Best for active development and debugging
+2. **Build for Linux** - Create deployment packages for AWS
+3. **Linux Container** - Test in production-like environment
+
+### Quick Start
+
+**For daily development (Mac/Xcode):**
+```bash
+# Start local services
+./tools.sh copyConfig
+./tools.sh startServices
+
+# Then run in Xcode (⌘R)
+```
+
+**For testing before AWS deployment:**
+```bash
+# Build and test in Linux container
+./build.sh SwiftLambda
+./tools.sh startServices
+./tools.sh runLambdaContainer
+
+# Inside container:
+./bootstrap
+```
+
+### Full Documentation
+
+For complete instructions on all three approaches, see **[Running Locally Guide](docs/RUN_LOCALLY.md)**
+
+The guide covers:
+- Xcode setup and configuration
+- Building for Linux/AWS Lambda
+- Running in Docker containers
+- Database and S3 access
+- Troubleshooting common issues
+- Switching between local and remote AWS services
     
-## Locally Access AWS Resources
+## Connecting to Remote AWS Services
 
-While running your services locally is the preferred method of development, there will be cases you may need to connect your locally running lambda to AWS remote services.
+While local services are recommended for development, you can connect to remote AWS services when needed. See the [Running Locally Guide](docs/RUN_LOCALLY.md#connecting-to-remote-aws-services) for details on:
 
-1. **AWS Authentication Setup**: Your local machine needs access to your AWS account. These instructions are outside the scope of this document and may vary by your employer. Consider following the [AWS Command Line Interface Guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html) which will also explain how to authenticate.
-2. **Configuration Update**: Adjust `~/.swiftSampleDemo/swiftLambdaDemo.json` with your AWS service parameters.
-4. **Run Xcode**: Run the SwiftLambda target in Xcode.
+- AWS CLI configuration
+- Updating local configuration for remote endpoints
+- Security considerations
 
 ## GitHub Action Setup
 
@@ -171,6 +193,7 @@ It may be useful to login to the local postgres instance for viewing schemas and
 
 ## Additional Documentation
 
-- [CLAUDE.md](CLAUDE.md) - Detailed deployment and AWS operations guide
-- [PRINCIPLES.md](docs/PRINCIPLES.md) - Server development principles and best practices
-- [TODO.md](docs/TODO.md) - Project roadmap and planned improvements
+- **[Running Locally Guide](docs/RUN_LOCALLY.md)** - Comprehensive local development guide
+- **[CLAUDE.md](CLAUDE.md)** - Detailed deployment and AWS operations guide
+- **[PRINCIPLES.md](docs/PRINCIPLES.md)** - Server development principles and best practices
+- **[TODO.md](docs/TODO.md)** - Project roadmap and planned improvements

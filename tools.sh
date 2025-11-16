@@ -81,6 +81,108 @@ function startDatabase() {
     $POSTGRES_IMAGE_NAME
 }
 
+# Setup Docker network for local Lambda container testing
+function setupLambdaNetwork() {
+  local network_name="lambda-local"
+
+  echo "🔧 Setting up Docker network for local Lambda testing..."
+
+  # Create network if it doesn't exist
+  if ! docker network inspect $network_name &>/dev/null; then
+    echo "→ Creating Docker network: $network_name"
+    docker network create $network_name
+  else
+    echo "✓ Network $network_name already exists"
+  fi
+
+  # Connect PostgreSQL container to network
+  local postgres_connected=$(docker network inspect $network_name --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' | grep -c "^$POSTGRES_CONTAINER_NAME$" || true)
+  if [ "$postgres_connected" -eq 0 ]; then
+    if docker ps --filter "name=^/$POSTGRES_CONTAINER_NAME$" --format '{{.Names}}' | grep -q "^$POSTGRES_CONTAINER_NAME$"; then
+      echo "→ Connecting $POSTGRES_CONTAINER_NAME to $network_name"
+      docker network connect $network_name $POSTGRES_CONTAINER_NAME
+    else
+      echo "⚠️  Warning: $POSTGRES_CONTAINER_NAME is not running. Start it with: ./tools.sh startDatabase"
+    fi
+  else
+    echo "✓ $POSTGRES_CONTAINER_NAME already connected"
+  fi
+
+  # Connect MinIO container to network
+  local minio_connected=$(docker network inspect $network_name --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' | grep -c "^$MINIO_CONTAINER_NAME$" || true)
+  if [ "$minio_connected" -eq 0 ]; then
+    if docker ps --filter "name=^/$MINIO_CONTAINER_NAME$" --format '{{.Names}}' | grep -q "^$MINIO_CONTAINER_NAME$"; then
+      echo "→ Connecting $MINIO_CONTAINER_NAME to $network_name"
+      docker network connect $network_name $MINIO_CONTAINER_NAME
+    else
+      echo "⚠️  Warning: $MINIO_CONTAINER_NAME is not running. Start it with: ./tools.sh startS3"
+    fi
+  else
+    echo "✓ $MINIO_CONTAINER_NAME already connected"
+  fi
+
+  echo ""
+  echo "✅ Network setup complete!"
+  echo ""
+  echo "You can now run the Lambda container with:"
+  echo "  docker run -it --rm --platform linux/amd64 --network $network_name \\"
+  echo "    -v \$(pwd)/lambda:/var/task -p 8080:8080 \\"
+  echo "    -e POSTGRES_HOST=$POSTGRES_CONTAINER_NAME \\"
+  echo "    -e POSTGRES_PORT=5432 \\"
+  echo "    -e POSTGRES_USER_NAME=docker \\"
+  echo "    -e POSTGRES_DBNAME=docker \\"
+  echo "    -e POSTGRES_PASSWORD=docker \\"
+  echo "    -e S3_BUCKET_NAME=org.gestrich.sandbox \\"
+  echo "    -e AWS_ENDPOINT_URL=http://$MINIO_CONTAINER_NAME:9000 \\"
+  echo "    -e AWS_ACCESS_KEY_ID=admin \\"
+  echo "    -e AWS_SECRET_ACCESS_KEY=password \\"
+  echo "    -e MOCK_AWS_CREDENTIALS=true \\"
+  echo "    -e LOCAL_LAMBDA_SERVER_ENABLED=true \\"
+  echo "    swift:6.2.0-amazonlinux2 bash"
+  echo ""
+  echo "Inside the container, run:"
+  echo "  cd /var/task && chmod +x bootstrap && ./bootstrap"
+}
+
+# Run Lambda in interactive Linux container
+function runLambdaContainer() {
+  echo "🚀 Starting Lambda in Linux container..."
+  echo ""
+
+  # Check if lambda directory exists
+  if [ ! -d "lambda" ]; then
+    echo "❌ Error: lambda directory not found!"
+    echo "Build the Lambda first with: ./build.sh SwiftLambda"
+    return 1
+  fi
+
+  # Ensure network is set up
+  setupLambdaNetwork
+
+  echo "Starting interactive container..."
+  echo "(Type 'exit' to leave the container)"
+  echo ""
+
+  docker run -it --rm \
+    --platform linux/amd64 \
+    --network lambda-local \
+    -v $(pwd)/lambda:/var/task \
+    -p 8080:8080 \
+    -e POSTGRES_HOST=$POSTGRES_CONTAINER_NAME \
+    -e POSTGRES_PORT=5432 \
+    -e POSTGRES_USER_NAME=docker \
+    -e POSTGRES_DBNAME=docker \
+    -e POSTGRES_PASSWORD=docker \
+    -e S3_BUCKET_NAME=org.gestrich.sandbox \
+    -e AWS_ENDPOINT_URL=http://$MINIO_CONTAINER_NAME:9000 \
+    -e AWS_ACCESS_KEY_ID=admin \
+    -e AWS_SECRET_ACCESS_KEY=password \
+    -e MOCK_AWS_CREDENTIALS=true \
+    -e LOCAL_LAMBDA_SERVER_ENABLED=true \
+    swift:6.2.0-amazonlinux2 \
+    bash -c "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"
+}
+
 function killServer() {
 
   # Use lsof to find processes that are listening on localhost port 7000
