@@ -23,9 +23,9 @@ struct MyLambda {
 
 struct SwiftLambdaHandler: LambdaHandler {
     typealias Event = LambdaEvent
-    typealias Output = String
+    typealias Output = LambdaResponse
 
-    func handle(_ event: LambdaEvent, context: LambdaContext) async throws -> String {
+    func handle(_ event: LambdaEvent, context: LambdaContext) async throws -> LambdaResponse {
 
         switch event {
         case .apiGateway(let request):
@@ -41,17 +41,13 @@ struct SwiftLambdaHandler: LambdaHandler {
 
     // MARK: - Route Handlers
 
-    private func handleAPIGateway(request: APIGatewayRequest, context: LambdaContext) async throws -> String {
+    private func handleAPIGateway(request: APIGatewayRequest, context: LambdaContext) async throws -> LambdaResponse {
         let handler = APIGWHandler()
         let response = try await handler.handle(context: context, event: request)
-
-        // Convert APIGatewayResponse to JSON string for unified return type
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(response)
-        return String(data: data, encoding: .utf8) ?? "{}"
+        return .apiGateway(response)
     }
 
-    private func handleCloudWatchScheduled(event: CloudwatchEvent<CloudwatchDetails.Scheduled>, context: LambdaContext) async throws -> String {
+    private func handleCloudWatchScheduled(event: CloudwatchEvent<CloudwatchDetails.Scheduled>, context: LambdaContext) async throws -> LambdaResponse {
         context.logger.info("CloudWatch scheduled event received", metadata: [
             "id": .string(event.id),
             "source": .string(event.source),
@@ -72,7 +68,7 @@ struct SwiftLambdaHandler: LambdaHandler {
             context.logger.info("Successfully wrote scheduled event file to S3")
 
             try await services.shutdown()
-            return "CloudWatch scheduled event processed successfully - file written to S3"
+            return .string("CloudWatch scheduled event processed successfully - file written to S3")
         } catch {
             context.logger.error("Failed to process scheduled event", metadata: [
                 "error": .string(String(describing: error))
@@ -82,8 +78,9 @@ struct SwiftLambdaHandler: LambdaHandler {
         }
     }
 
-    private func handleDirectCreateUser(user: CreateUser, context: LambdaContext) async throws -> String {
+    private func handleDirectCreateUser(user: CreateUser, context: LambdaContext) async throws -> LambdaResponse {
         let handler = CreateUserHandler()
-        return try await handler.handle(context: context, event: user)
+        let result = try await handler.handle(context: context, event: user)
+        return .string(result)
     }
 }

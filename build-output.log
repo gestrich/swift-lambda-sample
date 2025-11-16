@@ -1,0 +1,355 @@
+=========================================
+Building SwiftLambda for platform linux/amd64
+AWS Lambda Architecture: x86_64 (amd64)
+=========================================
+
+Cleaning up previous build artifacts...
+Building Docker image...
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load .dockerignore
+#1 transferring context: 2B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 943B done
+#2 DONE 0.0s
+
+#3 resolve image config for docker.io/docker/dockerfile:experimental
+#3 ...
+
+#4 [auth] docker/dockerfile:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 resolve image config for docker.io/docker/dockerfile:experimental
+#3 DONE 0.5s
+
+#5 docker-image://docker.io/docker/dockerfile:experimental@sha256:600e5c62eedff338b3f7a0850beb7c05866e0ef27b2d2e8c02aa468e78496ff5
+#5 CACHED
+
+#6 [internal] load build definition from Dockerfile
+#6 DONE 0.0s
+
+#7 [internal] load .dockerignore
+#7 DONE 0.0s
+
+#8 [auth] library/swift:pull token for registry-1.docker.io
+#8 DONE 0.0s
+
+#9 [internal] load metadata for docker.io/library/swift:6.2.0-amazonlinux2
+#9 DONE 0.2s
+
+#10 [1/7] FROM docker.io/library/swift:6.2.0-amazonlinux2@sha256:94c1c87f5d571dddeafbc6f586aaf7b0f0a575d76a4e2d031537d7e9f9c35172
+#10 DONE 0.0s
+
+#11 [internal] load build context
+#11 transferring context: 2.05kB done
+#11 DONE 0.0s
+
+#12 [2/7] RUN yum -y install      git      libuuid-devel      libicu-devel      libedit-devel      libxml2-devel      sqlite-devel      python-devel      ncurses-devel      curl-devel      openssl-devel      tzdata      libtool      jq      tar      zip
+#12 CACHED
+
+#13 [3/7] COPY ./Package.swift ./stage/Package.swift
+#13 DONE 0.0s
+
+#14 [4/7] WORKDIR /stage
+#14 DONE 0.0s
+
+#15 [5/7] RUN swift package reset
+#15 DONE 0.7s
+
+#16 [6/7] RUN --mount=type=secret,id=netrc cat /run/secrets/netrc > ~/.netrc && chmod 600 ~/.netrc
+#16 DONE 0.2s
+
+#17 [7/7] RUN swift package resolve
+#17 2.524 Fetching https://github.com/swift-server/swift-aws-lambda-runtime.git
+#17 2.525 Fetching https://github.com/vapor/fluent-sqlite-driver.git
+#17 2.525 Fetching https://github.com/vapor/fluent-postgres-driver.git
+#17 2.525 Fetching https://github.com/swift-server/swift-aws-lambda-events.git
+#17 2.525 Fetching https://github.com/soto-project/soto.git
+#17 2.525 Fetching https://github.com/apple/swift-argument-parser.git
+#17 2.907 [1/1347] Fetching fluent-sqlite-driver
+#17 2.914 [365/4155] Fetching fluent-sqlite-driver, swift-aws-lambda-events
+#17 2.914 [366/6877] Fetching fluent-sqlite-driver, swift-aws-lambda-events, fluent-postgres-driver
+#17 2.931 [1207/23563] Fetching fluent-sqlite-driver, swift-aws-lambda-events, fluent-postgres-driver, swift-argument-parser
+#17 3.001 [6751/38144] Fetching fluent-sqlite-driver, swift-aws-lambda-events, fluent-postgres-driver, swift-argument-parser, swift-aws-lambda-runtime
+#17 3.094 Fetched https://github.com/vapor/fluent-postgres-driver.git from cache (0.59s)
+#17 3.096 [7576/35422] Fetching fluent-sqlite-driver, swift-aws-lambda-events, swift-argument-parser, swift-aws-lambda-runtime
+#17 4.251 [28862/177874] Fetching fluent-sqlite-driver, swift-aws-lambda-events, swift-argument-parser, swift-aws-lambda-runtime, soto
+#17 8.873 Fetched https://github.com/swift-server/swift-aws-lambda-runtime.git from cache (6.40s)
+#17 9.234 [24434/163293] Fetching fluent-sqlite-driver, swift-aws-lambda-events, swift-argument-parser, soto
+#17 63.35 Fetched https://github.com/vapor/fluent-sqlite-driver.git from cache (60.87s)
+#17 63.35 Fetched https://github.com/swift-server/swift-aws-lambda-events.git from cache (60.87s)
+#17 63.36 Fetched https://github.com/apple/swift-argument-parser.git from cache (60.87s)
+#17 63.70 Fetched https://github.com/soto-project/soto.git from cache (61.22s)
+#17 63.73 Computing version for https://github.com/swift-server/swift-aws-lambda-events.git
+#17 65.09 Computed https://github.com/swift-server/swift-aws-lambda-events.git at 0.5.0 (62.67s)
+#17 65.11 Fetching https://github.com/apple/swift-http-types.git
+#17 65.50 [1/939] Fetching swift-http-types
+#17 65.57 Fetched https://github.com/apple/swift-http-types.git from cache (0.47s)
+#17 65.60 Computing version for https://github.com/soto-project/soto.git
+#17 68.45 Computed https://github.com/soto-project/soto.git at 6.8.0 (3.36s)
+#17 68.46 Fetching https://github.com/soto-project/soto-core.git
+#17 69.22 [1/61822] Fetching soto-core
+#17 72.22 Fetched https://github.com/soto-project/soto-core.git from cache (3.76s)
+#17 72.25 Computing version for https://github.com/soto-project/soto-core.git
+#17 73.61 Computed https://github.com/soto-project/soto-core.git at 6.5.2 (5.16s)
+#17 73.64 Fetching https://github.com/adam-fowler/jmespath.swift.git
+#17 73.64 Fetching https://github.com/apple/swift-nio-transport-services.git
+#17 73.65 Fetching https://github.com/swift-server/async-http-client.git
+#17 73.65 Fetching https://github.com/apple/swift-log.git
+#17 73.66 Fetching https://github.com/apple/swift-crypto.git
+#17 73.66 Fetching https://github.com/apple/swift-nio-ssl.git
+#17 74.03 [1/2806] Fetching swift-nio-transport-services
+#17 74.03 [2/3459] Fetching swift-nio-transport-services, jmespath.swift
+#17 74.11 [2394/7857] Fetching swift-nio-transport-services, jmespath.swift, swift-log
+#17 74.11 Fetched https://github.com/adam-fowler/jmespath.swift.git from cache (0.48s)
+#17 74.15 Fetching https://github.com/apple/swift-nio.git
+#17 74.18 Fetched https://github.com/apple/swift-nio-transport-services.git from cache (0.54s)
+#17 74.19 [396/4398] Fetching swift-log
+#17 74.20 Fetching https://github.com/apple/swift-atomics.git
+#17 74.21 [485/19686] Fetching swift-log, swift-nio-ssl
+#17 74.22 [750/37128] Fetching swift-log, swift-nio-ssl, swift-crypto
+#17 74.23 [1035/51560] Fetching swift-log, swift-nio-ssl, swift-crypto, async-http-client
+#17 74.63 [13836/53380] Fetching swift-log, swift-nio-ssl, swift-crypto, async-http-client, swift-atomics
+#17 74.83 [21650/133710] Fetching swift-log, swift-nio-ssl, swift-crypto, async-http-client, swift-atomics, swift-nio
+#17 74.90 Fetched https://github.com/apple/swift-atomics.git from cache (0.71s)
+#17 74.91 [21329/131890] Fetching swift-log, swift-nio-ssl, swift-crypto, async-http-client, swift-nio
+#17 74.93 Fetching https://github.com/apple/swift-metrics.git
+#17 75.23 Fetched https://github.com/apple/swift-log.git from cache (1.58s)
+#17 75.23 Fetched https://github.com/swift-server/async-http-client.git from cache (1.58s)
+#17 75.24 [10640/113060] Fetching swift-nio-ssl, swift-crypto, swift-nio
+#17 75.34 [12210/115547] Fetching swift-nio-ssl, swift-crypto, swift-nio, swift-metrics
+#17 75.56 Fetched https://github.com/apple/swift-metrics.git from cache (0.62s)
+#17 75.59 [16528/113060] Fetching swift-nio-ssl, swift-crypto, swift-nio
+#17 76.68 Fetched https://github.com/apple/swift-nio-ssl.git from cache (3.01s)
+#17 76.69 [21025/97772] Fetching swift-crypto, swift-nio
+#17 79.98 Fetched https://github.com/apple/swift-crypto.git from cache (6.33s)
+#17 80.12 [54625/80330] Fetching swift-nio
+#17 83.73 Fetched https://github.com/apple/swift-nio.git from cache (9.58s)
+#17 83.76 Computing version for https://github.com/adam-fowler/jmespath.swift.git
+#17 85.01 Computed https://github.com/adam-fowler/jmespath.swift.git at 1.0.3 (11.40s)
+#17 85.01 Computing version for https://github.com/apple/swift-atomics.git
+#17 86.26 Computed https://github.com/apple/swift-atomics.git at 1.3.0 (1.25s)
+#17 86.26 Computing version for https://github.com/swift-server/swift-aws-lambda-runtime.git
+#17 87.56 Computed https://github.com/swift-server/swift-aws-lambda-runtime.git at 2.3.1 (1.30s)
+#17 87.57 Fetching https://github.com/apple/swift-collections.git
+#17 87.58 Fetching https://github.com/swift-server/swift-service-lifecycle.git
+#17 87.91 [1/2562] Fetching swift-service-lifecycle
+#17 88.04 Fetched https://github.com/swift-server/swift-service-lifecycle.git from cache (0.46s)
+#17 88.12 [1/18314] Fetching swift-collections
+#17 89.46 Fetched https://github.com/apple/swift-collections.git from cache (1.88s)
+#17 89.48 Computing version for https://github.com/swift-server/swift-service-lifecycle.git
+#17 90.77 Computed https://github.com/swift-server/swift-service-lifecycle.git at 2.9.1 (3.21s)
+#17 90.78 Fetching https://github.com/apple/swift-async-algorithms.git
+#17 91.14 [1/5681] Fetching swift-async-algorithms
+#17 91.33 Fetched https://github.com/apple/swift-async-algorithms.git from cache (0.55s)
+#17 91.36 Computing version for https://github.com/apple/swift-async-algorithms.git
+#17 92.86 Computed https://github.com/apple/swift-async-algorithms.git at 1.0.4 (2.09s)
+#17 92.86 Computing version for https://github.com/apple/swift-log.git
+#17 94.15 Computed https://github.com/apple/swift-log.git at 1.6.4 (1.29s)
+#17 94.15 Computing version for https://github.com/apple/swift-collections.git
+#17 95.73 Computed https://github.com/apple/swift-collections.git at 1.3.0 (1.57s)
+#17 95.73 Computing version for https://github.com/apple/swift-http-types.git
+#17 97.03 Computed https://github.com/apple/swift-http-types.git at 1.5.1 (1.31s)
+#17 97.03 Computing version for https://github.com/apple/swift-argument-parser.git
+#17 98.32 Computed https://github.com/apple/swift-argument-parser.git at 1.6.2 (1.28s)
+#17 98.32 Computing version for https://github.com/apple/swift-nio.git
+#17 99.82 Computed https://github.com/apple/swift-nio.git at 2.89.0 (1.51s)
+#17 99.84 Fetching https://github.com/apple/swift-system.git
+#17 100.2 [1/5182] Fetching swift-system
+#17 100.4 Fetched https://github.com/apple/swift-system.git from cache (0.52s)
+#17 100.4 Computing version for https://github.com/apple/swift-system.git
+#17 101.9 Computed https://github.com/apple/swift-system.git at 1.6.3 (2.11s)
+#17 101.9 Computing version for https://github.com/vapor/fluent-sqlite-driver.git
+#17 103.2 Computed https://github.com/vapor/fluent-sqlite-driver.git at 4.8.1 (1.25s)
+#17 103.2 Fetching https://github.com/vapor/sqlite-kit.git
+#17 103.2 Fetching https://github.com/vapor/fluent-kit.git
+#17 103.5 [1/2118] Fetching sqlite-kit
+#17 103.6 [404/15441] Fetching sqlite-kit, fluent-kit
+#17 103.9 Fetched https://github.com/vapor/sqlite-kit.git from cache (0.68s)
+#17 103.9 Fetched https://github.com/vapor/fluent-kit.git from cache (0.70s)
+#17 103.9 Computing version for https://github.com/vapor/sqlite-kit.git
+#17 105.2 Computed https://github.com/vapor/sqlite-kit.git at 4.5.2 (2.03s)
+#17 105.2 Fetching https://github.com/vapor/async-kit.git
+#17 105.2 Fetching https://github.com/vapor/sql-kit.git
+#17 105.2 Fetching https://github.com/vapor/sqlite-nio.git
+#17 105.5 [1/2439] Fetching async-kit
+#17 105.6 [636/8526] Fetching async-kit, sql-kit
+#17 105.7 Fetched https://github.com/vapor/async-kit.git from cache (0.43s)
+#17 105.7 [4992/6087] Fetching sql-kit
+#17 106.2 [6088/7832] Fetching sql-kit, sqlite-nio
+#17 107.3 Fetched https://github.com/vapor/sql-kit.git from cache (2.07s)
+#17 107.3 Fetched https://github.com/vapor/sqlite-nio.git from cache (2.08s)
+#17 107.3 Computing version for https://github.com/vapor/fluent-kit.git
+#17 108.6 Computed https://github.com/vapor/fluent-kit.git at 1.52.2 (3.38s)
+#17 108.6 Computing version for https://github.com/vapor/async-kit.git
+#17 109.9 Computed https://github.com/vapor/async-kit.git at 1.21.0 (1.26s)
+#17 109.9 Fetching https://github.com/apple/swift-algorithms.git
+#17 110.2 [1/6029] Fetching swift-algorithms
+#17 110.5 Fetched https://github.com/apple/swift-algorithms.git from cache (0.61s)
+#17 110.5 Computing version for https://github.com/apple/swift-algorithms.git
+#17 111.8 Computed https://github.com/apple/swift-algorithms.git at 1.2.1 (1.91s)
+#17 111.8 Fetching https://github.com/apple/swift-numerics.git
+#17 112.1 [1/6384] Fetching swift-numerics
+#17 112.4 Fetched https://github.com/apple/swift-numerics.git from cache (0.62s)
+#17 112.4 Computing version for https://github.com/vapor/sql-kit.git
+#17 113.7 Computed https://github.com/vapor/sql-kit.git at 3.33.2 (1.91s)
+#17 113.7 Computing version for https://github.com/apple/swift-numerics.git
+#17 114.9 Computed https://github.com/apple/swift-numerics.git at 1.1.1 (1.23s)
+#17 114.9 Computing version for https://github.com/apple/swift-nio-transport-services.git
+#17 116.2 Computed https://github.com/apple/swift-nio-transport-services.git at 1.25.2 (1.32s)
+#17 116.2 Computing version for https://github.com/vapor/sqlite-nio.git
+#17 117.5 Computed https://github.com/vapor/sqlite-nio.git at 1.12.1 (1.32s)
+#17 117.5 Computing version for https://github.com/swift-server/async-http-client.git
+#17 118.9 Computed https://github.com/swift-server/async-http-client.git at 1.30.0 (1.35s)
+#17 118.9 Fetching https://github.com/apple/swift-distributed-tracing.git
+#17 118.9 Fetching https://github.com/apple/swift-nio-http2.git
+#17 118.9 Fetching https://github.com/apple/swift-nio-extras.git
+#17 119.3 [1/5566] Fetching swift-distributed-tracing
+#17 119.3 [224/11880] Fetching swift-distributed-tracing, swift-nio-extras
+#17 119.3 [3321/23598] Fetching swift-distributed-tracing, swift-nio-extras, swift-nio-http2
+#17 119.5 Fetched https://github.com/apple/swift-nio-extras.git from cache (0.60s)
+#17 119.5 [6704/17284] Fetching swift-distributed-tracing, swift-nio-http2
+#17 119.8 Fetched https://github.com/apple/swift-distributed-tracing.git from cache (0.90s)
+#17 119.8 [11601/11718] Fetching swift-nio-http2
+#17 120.1 Fetched https://github.com/apple/swift-nio-http2.git from cache (1.14s)
+#17 120.1 Computing version for https://github.com/apple/swift-distributed-tracing.git
+#17 121.4 Computed https://github.com/apple/swift-distributed-tracing.git at 1.3.1 (2.49s)
+#17 121.4 Fetching https://github.com/apple/swift-service-context.git
+#17 121.7 [1/1162] Fetching swift-service-context
+#17 121.8 Fetched https://github.com/apple/swift-service-context.git from cache (0.43s)
+#17 121.9 Computing version for https://github.com/apple/swift-service-context.git
+#17 123.2 Computed https://github.com/apple/swift-service-context.git at 1.2.1 (1.77s)
+#17 123.2 Computing version for https://github.com/apple/swift-nio-http2.git
+#17 124.5 Computed https://github.com/apple/swift-nio-http2.git at 1.39.0 (1.33s)
+#17 124.5 Computing version for https://github.com/apple/swift-nio-extras.git
+#17 125.9 Computed https://github.com/apple/swift-nio-extras.git at 1.31.0 (1.37s)
+#17 125.9 Fetching https://github.com/apple/swift-asn1.git
+#17 125.9 Fetching https://github.com/apple/swift-certificates.git
+#17 125.9 Fetching https://github.com/apple/swift-http-structured-headers.git
+#17 126.2 [1/1653] Fetching swift-asn1
+#17 126.2 [51/2857] Fetching swift-asn1, swift-http-structured-headers
+#17 126.3 [2792/9791] Fetching swift-asn1, swift-http-structured-headers, swift-certificates
+#17 126.4 Fetched https://github.com/apple/swift-http-structured-headers.git from cache (0.47s)
+#17 126.4 Fetched https://github.com/apple/swift-asn1.git from cache (0.49s)
+#17 126.4 [1457/6934] Fetching swift-certificates
+#17 126.6 Fetched https://github.com/apple/swift-certificates.git from cache (0.71s)
+#17 126.6 Computing version for https://github.com/apple/swift-nio-ssl.git
+#17 128.0 Computed https://github.com/apple/swift-nio-ssl.git at 2.36.0 (2.15s)
+#17 128.0 Computing version for https://github.com/apple/swift-asn1.git
+#17 130.2 Computed https://github.com/apple/swift-asn1.git at 1.5.0 (2.21s)
+#17 130.2 Computing version for https://github.com/apple/swift-http-structured-headers.git
+#17 131.5 Computed https://github.com/apple/swift-http-structured-headers.git at 1.6.0 (1.32s)
+#17 131.5 Computing version for https://github.com/apple/swift-certificates.git
+#17 132.9 Computed https://github.com/apple/swift-certificates.git at 1.15.1 (1.39s)
+#17 132.9 Computing version for https://github.com/apple/swift-crypto.git
+#17 134.6 Computed https://github.com/apple/swift-crypto.git at 3.15.1 (1.62s)
+#17 134.6 Computing version for https://github.com/apple/swift-metrics.git
+#17 135.9 Computed https://github.com/apple/swift-metrics.git at 2.7.1 (1.30s)
+#17 135.9 Computing version for https://github.com/vapor/fluent-postgres-driver.git
+#17 137.1 Computed https://github.com/vapor/fluent-postgres-driver.git at 2.12.0 (1.27s)
+#17 137.1 Fetching https://github.com/vapor/postgres-kit.git
+#17 137.5 [1/5436] Fetching postgres-kit
+#17 137.6 Fetched https://github.com/vapor/postgres-kit.git from cache (0.47s)
+#17 137.6 Computing version for https://github.com/vapor/postgres-kit.git
+#17 138.9 Computed https://github.com/vapor/postgres-kit.git at 2.15.0 (1.77s)
+#17 138.9 Fetching https://github.com/vapor/postgres-nio.git
+#17 139.5 [1/12901] Fetching postgres-nio
+#17 139.8 Fetched https://github.com/vapor/postgres-nio.git from cache (0.88s)
+#17 139.8 Computing version for https://github.com/vapor/postgres-nio.git
+#17 141.1 Computed https://github.com/vapor/postgres-nio.git at 1.29.0 (2.21s)
+#17 144.4 Creating working copy for https://github.com/apple/swift-certificates.git
+#17 144.5 Working copy of https://github.com/apple/swift-certificates.git resolved at 1.15.1
+#17 144.6 Creating working copy for https://github.com/apple/swift-metrics.git
+#17 144.8 Working copy of https://github.com/apple/swift-metrics.git resolved at 2.7.1
+#17 144.8 Creating working copy for https://github.com/apple/swift-nio.git
+#17 145.1 Working copy of https://github.com/apple/swift-nio.git resolved at 2.89.0
+#17 145.1 Creating working copy for https://github.com/apple/swift-numerics.git
+#17 145.3 Working copy of https://github.com/apple/swift-numerics.git resolved at 1.1.1
+#17 145.4 Creating working copy for https://github.com/apple/swift-distributed-tracing.git
+#17 145.5 Working copy of https://github.com/apple/swift-distributed-tracing.git resolved at 1.3.1
+#17 145.6 Creating working copy for https://github.com/apple/swift-argument-parser.git
+#17 145.8 Working copy of https://github.com/apple/swift-argument-parser.git resolved at 1.6.2
+#17 145.9 Creating working copy for https://github.com/vapor/sqlite-kit.git
+#17 146.0 Working copy of https://github.com/vapor/sqlite-kit.git resolved at 4.5.2
+#17 146.1 Creating working copy for https://github.com/swift-server/swift-aws-lambda-runtime.git
+#17 146.3 Working copy of https://github.com/swift-server/swift-aws-lambda-runtime.git resolved at 2.3.1
+#17 146.4 Creating working copy for https://github.com/apple/swift-http-types.git
+#17 146.5 Working copy of https://github.com/apple/swift-http-types.git resolved at 1.5.1
+#17 146.6 Creating working copy for https://github.com/vapor/postgres-kit.git
+#17 146.8 Working copy of https://github.com/vapor/postgres-kit.git resolved at 2.15.0
+#17 146.8 Creating working copy for https://github.com/apple/swift-nio-extras.git
+#17 147.0 Working copy of https://github.com/apple/swift-nio-extras.git resolved at 1.31.0
+#17 147.1 Creating working copy for https://github.com/apple/swift-service-context.git
+#17 147.2 Working copy of https://github.com/apple/swift-service-context.git resolved at 1.2.1
+#17 147.3 Creating working copy for https://github.com/vapor/sql-kit.git
+#17 147.5 Working copy of https://github.com/vapor/sql-kit.git resolved at 3.33.2
+#17 147.5 Creating working copy for https://github.com/vapor/fluent-sqlite-driver.git
+#17 147.7 Working copy of https://github.com/vapor/fluent-sqlite-driver.git resolved at 4.8.1
+#17 147.8 Creating working copy for https://github.com/apple/swift-http-structured-headers.git
+#17 147.9 Working copy of https://github.com/apple/swift-http-structured-headers.git resolved at 1.6.0
+#17 148.0 Creating working copy for https://github.com/apple/swift-asn1.git
+#17 148.1 Working copy of https://github.com/apple/swift-asn1.git resolved at 1.5.0
+#17 148.2 Creating working copy for https://github.com/apple/swift-system.git
+#17 148.4 Working copy of https://github.com/apple/swift-system.git resolved at 1.6.3
+#17 148.5 Creating working copy for https://github.com/vapor/postgres-nio.git
+#17 148.6 Working copy of https://github.com/vapor/postgres-nio.git resolved at 1.29.0
+#17 148.7 Creating working copy for https://github.com/soto-project/soto.git
+#17 149.4 Working copy of https://github.com/soto-project/soto.git resolved at 6.8.0
+#17 149.5 Creating working copy for https://github.com/soto-project/soto-core.git
+#17 149.7 Working copy of https://github.com/soto-project/soto-core.git resolved at 6.5.2
+#17 149.7 Creating working copy for https://github.com/apple/swift-nio-http2.git
+#17 150.0 Working copy of https://github.com/apple/swift-nio-http2.git resolved at 1.39.0
+#17 150.1 Creating working copy for https://github.com/apple/swift-nio-ssl.git
+#17 150.3 Working copy of https://github.com/apple/swift-nio-ssl.git resolved at 2.36.0
+#17 150.4 Creating working copy for https://github.com/swift-server/swift-service-lifecycle.git
+#17 150.5 Working copy of https://github.com/swift-server/swift-service-lifecycle.git resolved at 2.9.1
+#17 150.6 Creating working copy for https://github.com/apple/swift-log.git
+#17 150.7 Working copy of https://github.com/apple/swift-log.git resolved at 1.6.4
+#17 150.8 Creating working copy for https://github.com/vapor/fluent-postgres-driver.git
+#17 151.0 Working copy of https://github.com/vapor/fluent-postgres-driver.git resolved at 2.12.0
+#17 151.0 Creating working copy for https://github.com/apple/swift-async-algorithms.git
+#17 151.2 Working copy of https://github.com/apple/swift-async-algorithms.git resolved at 1.0.4
+#17 151.3 Creating working copy for https://github.com/apple/swift-crypto.git
+#17 151.6 Working copy of https://github.com/apple/swift-crypto.git resolved at 3.15.1
+#17 151.7 Creating working copy for https://github.com/apple/swift-algorithms.git
+#17 151.8 Working copy of https://github.com/apple/swift-algorithms.git resolved at 1.2.1
+#17 151.9 Creating working copy for https://github.com/vapor/sqlite-nio.git
+#17 152.1 Working copy of https://github.com/vapor/sqlite-nio.git resolved at 1.12.1
+#17 152.1 Creating working copy for https://github.com/swift-server/async-http-client.git
+#17 152.3 Working copy of https://github.com/swift-server/async-http-client.git resolved at 1.30.0
+#17 152.4 Creating working copy for https://github.com/swift-server/swift-aws-lambda-events.git
+#17 152.5 Working copy of https://github.com/swift-server/swift-aws-lambda-events.git resolved at 0.5.0
+#17 152.6 Creating working copy for https://github.com/apple/swift-nio-transport-services.git
+#17 152.8 Working copy of https://github.com/apple/swift-nio-transport-services.git resolved at 1.25.2
+#17 152.8 Creating working copy for https://github.com/vapor/async-kit.git
+#17 153.0 Working copy of https://github.com/vapor/async-kit.git resolved at 1.21.0
+#17 153.1 Creating working copy for https://github.com/adam-fowler/jmespath.swift.git
+#17 153.2 Working copy of https://github.com/adam-fowler/jmespath.swift.git resolved at 1.0.3
+#17 153.3 Creating working copy for https://github.com/vapor/fluent-kit.git
+#17 153.5 Working copy of https://github.com/vapor/fluent-kit.git resolved at 1.52.2
+#17 153.5 Creating working copy for https://github.com/apple/swift-collections.git
+#17 153.8 Working copy of https://github.com/apple/swift-collections.git resolved at 1.3.0
+#17 153.8 Creating working copy for https://github.com/apple/swift-atomics.git
+#17 154.0 Working copy of https://github.com/apple/swift-atomics.git resolved at 1.3.0
+#17 DONE 180.4s
+
+#18 exporting to image
+#18 exporting layers
+#18 exporting layers 2.9s done
+#18 writing image sha256:64de6fdeac0f21aee70146ac7f7783184d62702ae059c895625783640d4f524c done
+#18 naming to docker.io/library/builder done
+#18 DONE 2.9s
+
+What's Next?
+  View a summary of image vulnerabilities and recommendations → docker scout quickview
+Clearing build directory...
+Copying dependencies from Docker...
+Preparing lambda directory...
+Compiling application...
+warning: '--skip-update' option is deprecated and will be removed in a future release
+error: 'swift-nio-http2': Error Domain=NSCocoaErrorDomain Code=513 "You don’t have permission."UserInfo={NSFilePath=/build-target/checkouts/swift-nio-http2/CODE_OF_CONDUCT.md, NSURL=file:///build-target/checkouts/swift-nio-http2/CODE_OF_CONDUCT.md, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=13 "Permission denied"}
+error: 'swift-http-structured-headers': Error Domain=NSCocoaErrorDomain Code=513 "You don’t have permission."UserInfo={NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=13 "Permission denied", NSURL=file:///build-target/checkouts/swift-http-structured-headers/.licenseignore, NSFilePath=/build-target/checkouts/swift-http-structured-headers/.licenseignore}
+error: 'swift-nio': Error Domain=NSCocoaErrorDomain Code=513 "You don’t have permission."UserInfo={NSFilePath=/build-target/checkouts/swift-nio/.git-blame-ignore-revs, NSURL=file:///build-target/checkouts/swift-nio/.git-blame-ignore-revs, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=13 "Permission denied"}
+error: 'async-http-client': Error Domain=NSCocoaErrorDomain Code=513 "You don’t have permission."UserInfo={NSURL=file:///build-target/checkouts/async-http-client/CODE_OF_CONDUCT.md, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=13 "Permission denied", NSFilePath=/build-target/checkouts/async-http-client/CODE_OF_CONDUCT.md}
