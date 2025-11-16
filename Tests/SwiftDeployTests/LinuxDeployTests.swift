@@ -130,40 +130,56 @@ struct LinuxContainerIntegrationTests {
     private func startLambdaContainer() async throws {
         print("🐳 Starting Lambda container in background...")
 
-        // Start the container in detached mode
-        let startCommand = """
-        docker run -d --rm \
-          --name lambda-test-container \
-          --platform linux/amd64 \
-          --network lambda-local \
-          -p \(port):7000 \
-          -v "\(projectRoot.path)/lambda:/var/task" \
-          -e POSTGRES_HOST=postgres_lambda \
-          -e POSTGRES_PORT=5432 \
-          -e POSTGRES_USER_NAME=docker \
-          -e POSTGRES_DBNAME=docker \
-          -e POSTGRES_PASSWORD=docker \
-          -e S3_BUCKET_NAME=org.gestrich.sandbox \
-          -e AWS_ENDPOINT_URL=http://minio_lambda:9000 \
-          -e AWS_ACCESS_KEY_ID=admin \
-          -e AWS_SECRET_ACCESS_KEY=password \
-          -e MOCK_AWS_CREDENTIALS=true \
-          -e LOCAL_LAMBDA_SERVER_ENABLED=true \
-          -e LOCAL_LAMBDA_HOST=0.0.0.0 \
-          swift:5.9.2-amazonlinux2 \
-          /var/task/bootstrap
-        """
+        let dockerService = DockerService()
 
-        let containerId = try await runShellCommand(startCommand)
-        print("  → Container started with ID: \(containerId)")
+        var options = DockerService.RunOptions()
+        options.detached = true
+        options.remove = true
+        options.name = "lambda-test-container"
+        options.platform = "linux/amd64"
+        options.network = "lambda-local"
+        options.ports = [(port, 7000)]
+        options.volumes = [("\(projectRoot.path)/lambda", "/var/task")]
+        options.environment = [
+            "POSTGRES_HOST": "postgres_lambda",
+            "POSTGRES_PORT": "5432",
+            "POSTGRES_USER_NAME": "docker",
+            "POSTGRES_DBNAME": "docker",
+            "POSTGRES_PASSWORD": "docker",
+            "S3_BUCKET_NAME": "org.gestrich.sandbox",
+            "AWS_ENDPOINT_URL": "http://minio_lambda:9000",
+            "AWS_ACCESS_KEY_ID": "admin",
+            "AWS_SECRET_ACCESS_KEY": "password",
+            "MOCK_AWS_CREDENTIALS": "true",
+            "LOCAL_LAMBDA_SERVER_ENABLED": "true",
+            "LOCAL_LAMBDA_HOST": "0.0.0.0"
+        ]
+
+        // Use bash to run bootstrap and keep container alive
+        try await dockerService.run(
+            image: "swift:5.9.2-amazonlinux2",
+            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
+            options: options
+        )
+
+        print("  ✅ Lambda container started")
     }
 
     private func verifyLambdaRunning() async throws {
         print("🔍 Verifying Lambda is running...")
 
+        let dockerService = DockerService()
+
         // Check container is running
-        let containerRunning = try await runShellCommand("docker ps --filter name=lambda-test-container --format '{{.Names}}'")
-        #expect(containerRunning.contains("lambda-test-container"), "Lambda container should be running")
+        let isRunning = try await dockerService.containerIsRunning(name: "lambda-test-container")
+        #expect(isRunning, "Lambda container should be running")
+
+        // Check container logs for errors
+        let logs = try await dockerService.logs(container: "lambda-test-container", tail: 50)
+        if logs.contains("error") || logs.contains("Error") {
+            print("⚠️  Warning: Container logs contain errors:")
+            print(logs)
+        }
 
         // Wait for Lambda to be ready on the port
         var attempts = 0
@@ -172,7 +188,7 @@ struct LinuxContainerIntegrationTests {
 
         while attempts < maxAttempts && !ready {
             do {
-                let portCheck = try await runShellCommand("lsof -i :\(port)")
+                let portCheck = try await runShellCommand("lsof -i :\(port)", allowNonZeroExit: true)
                 if !portCheck.isEmpty {
                     ready = true
                     break
@@ -185,7 +201,10 @@ struct LinuxContainerIntegrationTests {
             attempts += 1
 
             if attempts % 10 == 0 {
-                print("  → Still waiting for Lambda... (\(attempts) seconds)")
+                print("  → Still waiting for Lambda on port \(port)... (\(attempts) seconds)")
+                // Show recent logs to debug
+                let recentLogs = try await dockerService.logs(container: "lambda-test-container", tail: 5)
+                print("  → Recent logs: \(recentLogs.split(separator: "\n").last ?? "")")
             }
         }
 
@@ -195,7 +214,8 @@ struct LinuxContainerIntegrationTests {
 
     private func stopLambdaContainer() async throws {
         print("🛑 Stopping Lambda container...")
-        _ = try await runShellCommand("docker stop lambda-test-container")
+        let dockerService = DockerService()
+        try await dockerService.stop(container: "lambda-test-container")
         print("  ✅ Lambda container stopped")
     }
 
