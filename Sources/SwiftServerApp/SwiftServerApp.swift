@@ -8,98 +8,98 @@
 import Foundation
 
 public struct SwiftServerApp {
-    
-    let cloudDataStore: CloudDataStore?
-    let userStore: UserStore?
+
+    let s3DataStore: S3DataStoreInterface?
+    let postgresUserStore: PostgresUserStoreInterface?
     let s3FileKey = "hello-world.text"
-    
-    public init(cloudDataStore: CloudDataStore? = nil, userStore: UserStore?) {
-        self.cloudDataStore = cloudDataStore
-        self.userStore = userStore
+
+    public init(s3DataStore: S3DataStoreInterface? = nil, postgresUserStore: PostgresUserStoreInterface?) {
+        self.s3DataStore = s3DataStore
+        self.postgresUserStore = postgresUserStore
     }
     
     
     //MARK: Database Service
 
     public func initializeDatabase() async throws {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
         //TODO: This should not delete the database contents.
-        try await userStore.wipeAndInitialize()
+        try await postgresUserStore.wipeAndInitialize()
     }
 
     public func resetDatabase() async throws {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
 
-        try await userStore.wipeAndInitialize()
+        try await postgresUserStore.wipeAndInitialize()
     }
 
     
     //MARK: User Service
 
     public func createUser(_ createUserRequest: CreateUser) async throws -> String {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
 
-        try await userStore.createUser(createUserRequest.toUser())
+        try await postgresUserStore.createUser(createUserRequest.toUser())
 
-        guard let user = try await userStore.getUsers().first else {
+        guard let user = try await postgresUserStore.getUsers().first else {
             throw LambdaDemoError.unexpectedError(description: "Unexpected for Postgres not to return user.")
         }
-        
+
         return "Inserted and Read User: \(user.firstName) \(user.lastName)"
     }
 
     public func getUser(id: String) async throws -> User? {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
 
         guard let uuid = UUID(uuidString: id) else {
             throw LambdaDemoError.unexpectedError(description: "Invalid uuid: \(id).")
         }
-        return try await userStore.getUser(id: uuid)
+        return try await postgresUserStore.getUser(id: uuid)
     }
 
     public func getUsers() async throws -> [User] {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
-        return try await userStore.getUsers()
+        return try await postgresUserStore.getUsers()
     }
 
     public func updateUser(_ user: User) async throws -> User {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
 
-        return try await userStore.updateUser(user)
+        return try await postgresUserStore.updateUser(user)
     }
 
     public func deleteUser(_ user: User) async throws {
-        guard let userStore else {
-            throw LambdaDemoError.missingService(name: "userDatabaseService")
+        guard let postgresUserStore else {
+            throw LambdaDemoError.missingService(name: "postgresUserStore")
         }
-        try await userStore.deleteUser(user)
+        try await postgresUserStore.deleteUser(user)
     }
 
     
     //MARK: S3 Service
-    
+
     public func uploadAndDownloadS3File() async throws -> String {
-        guard let cloudDataStore else {
-            throw LambdaDemoError.missingService(name: "s3Service")
+        guard let s3DataStore else {
+            throw LambdaDemoError.missingService(name: "s3DataStore")
         }
         let string = "Hello World! This data was written/read from S3."
         guard let data = string.data(using: .utf8) else {
             fatalError("Unexpected not to convert to data.")
         }
-        try await cloudDataStore.uploadData(data, key: s3FileKey)
-        guard let responseData = try await cloudDataStore.getData(key: s3FileKey) else {
+        try await s3DataStore.uploadData(data, key: s3FileKey)
+        guard let responseData = try await s3DataStore.getData(key: s3FileKey) else {
             throw LambdaDemoError.unexpectedError(description: "Couldn't find S3 file")
         }
 
@@ -110,13 +110,13 @@ public struct SwiftServerApp {
     }
 
     public func uploadToS3(key: String, content: String) async throws {
-        guard let cloudDataStore else {
-            throw LambdaDemoError.missingService(name: "s3Service")
+        guard let s3DataStore else {
+            throw LambdaDemoError.missingService(name: "s3DataStore")
         }
         guard let data = content.data(using: .utf8) else {
             throw LambdaDemoError.unexpectedError(description: "Failed to convert string to data")
         }
-        try await cloudDataStore.uploadData(data, key: key)
+        try await s3DataStore.uploadData(data, key: key)
     }
     
     

@@ -11,7 +11,7 @@ import FluentSQLiteDriver
 import Foundation
 import NIOSSL
 
-public actor UserStorePostgres: UserStore {
+public actor UserStorePostgres: PostgresUserStoreInterface {
 
     public let databases: Databases
     public let database: Database

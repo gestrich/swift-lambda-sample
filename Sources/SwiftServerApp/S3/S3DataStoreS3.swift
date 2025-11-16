@@ -1,6 +1,6 @@
 //
-//  CloudDataStoreS3.swift
-//  
+//  S3DataStoreS3.swift
+//
 //
 //  Created by Bill Gestrich on 12/17/23.
 //
@@ -8,7 +8,7 @@
 import Foundation
 import SotoS3
 
-public final class CloudDataStoreS3: CloudDataStore {
+public final class S3DataStoreS3: S3DataStoreInterface {
 
     private let s3: SotoS3.S3
     private let bucketName: String

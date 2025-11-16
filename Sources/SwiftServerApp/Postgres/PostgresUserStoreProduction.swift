@@ -1,5 +1,5 @@
 //
-//  UserStoreProduction.swift
+//  PostgresUserStoreProduction.swift
 //
 //
 //  Created by Bill Gestrich on 12/16/23.
@@ -7,15 +7,15 @@
 
 import Foundation
 
-public actor UserStoreProduction: UserStore {
-    var userStore: UserStore? = nil
-    var userStoreFactory: (() async throws -> UserStore?)
+public actor PostgresUserStoreProduction: PostgresUserStoreInterface {
+    var userStore: PostgresUserStoreInterface? = nil
+    var userStoreFactory: (() async throws -> PostgresUserStoreInterface?)
 
-    public init(userStoreFactory: @escaping () async throws -> UserStore?) {
+    public init(userStoreFactory: @escaping () async throws -> PostgresUserStoreInterface?) {
         self.userStoreFactory = userStoreFactory
     }
 
-    func getOrCreateUserStore () async throws -> UserStore? {
+    func getOrCreateUserStore () async throws -> PostgresUserStoreInterface? {
         if let userStore {
             return userStore
         } else {

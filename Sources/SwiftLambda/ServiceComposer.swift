@@ -21,9 +21,9 @@ class ServiceComposer {
     let app: SwiftServerApp
     let awsClient: AWSClient
     let configurationService: ConfigurationService
-    let cloudDataService: CloudDataStore
+    let s3DataService: S3DataStoreInterface
     let secretsService: SecretsService
-    let userStoreService: UserStoreProduction
+    let postgresUserStoreService: PostgresUserStoreProduction
     let eventLoopGroup: MultiThreadedEventLoopGroup?
 
     private static func getEnvironmentVariable(key: String) -> String? {
@@ -55,8 +55,8 @@ class ServiceComposer {
 
         self.configurationService = ConfigurationService(secretsService: secretsService)
 
-        let cloudStoreFactory = CloudStoreFactory(configurationService: configurationService, awsClient: awsClient)
-        self.cloudDataService = CloudDataStoreProduction(cloudStoreFactory: cloudStoreFactory.createCloudStore)
+        let s3StoreFactory = S3StoreFactory(configurationService: configurationService, awsClient: awsClient)
+        self.s3DataService = S3DataStoreProduction(s3StoreFactory: s3StoreFactory.createS3Store)
 
         // Create EventLoopGroup only if database is configured (Fluent requires it)
         let eventLoopGroup: MultiThreadedEventLoopGroup?
@@ -68,37 +68,37 @@ class ServiceComposer {
         }
         self.eventLoopGroup = eventLoopGroup
 
-        let userStoreFactory = UserStoreFactory(configurationService: self.configurationService, eventLoopGroup: eventLoopGroup)
-        self.userStoreService = UserStoreProduction(userStoreFactory: userStoreFactory.createUserStore)
+        let postgresUserStoreFactory = PostgresUserStoreFactory(configurationService: self.configurationService, eventLoopGroup: eventLoopGroup)
+        self.postgresUserStoreService = PostgresUserStoreProduction(userStoreFactory: postgresUserStoreFactory.createPostgresUserStore)
 
-        let app = SwiftServerApp(cloudDataStore: cloudDataService, userStore: userStoreService)
+        let app = SwiftServerApp(s3DataStore: s3DataService, postgresUserStore: postgresUserStoreService)
         self.app = app
     }
 
     func shutdown() async throws {
         try await awsClient.shutdown()
-        try await userStoreService.shutdown()
+        try await postgresUserStoreService.shutdown()
         try await eventLoopGroup?.shutdownGracefully()
     }
 }
 
-struct CloudStoreFactory: Sendable {
+struct S3StoreFactory: Sendable {
 
     let configurationService: ConfigurationService
     let awsClient: AWSClient
 
-    func createCloudStore() async throws -> CloudDataStore {
+    func createS3Store() async throws -> S3DataStoreInterface {
         let configuration = try await configurationService.s3Configuration()
-        return CloudDataStoreS3(awsClient: awsClient, bucketName: configuration.bucketName, endpoint: configuration.endpoint)
+        return S3DataStoreS3(awsClient: awsClient, bucketName: configuration.bucketName, endpoint: configuration.endpoint)
     }
 }
 
-struct UserStoreFactory {
+struct PostgresUserStoreFactory {
 
     let configurationService: ConfigurationService
     let eventLoopGroup: MultiThreadedEventLoopGroup?
 
-    func createUserStore() async throws -> UserStore? {
+    func createPostgresUserStore() async throws -> PostgresUserStoreInterface? {
         guard let configuration = try await configurationService.postgresConfiguration() else {
             // Database not configured - return nil (database is optional)
             return nil

@@ -1,5 +1,5 @@
 //
-//  UserStore.swift
+//  PostgresUserStoreInterface.swift
 //
 //
 //  Created by Bill Gestrich on 12/16/23.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol UserStore: Sendable {
+public protocol PostgresUserStoreInterface: Sendable {
     func getUser(id: UUID) async throws -> User?
     func getUsers() async throws -> [User]
     func createUser(_ user: User) async throws
