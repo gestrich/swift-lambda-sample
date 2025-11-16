@@ -20,31 +20,29 @@ import SwiftServerApp
 /// This is distinct from:
 /// - API Gateway requests (HTTP traffic)
 /// - CloudWatch scheduled events (cron-based)
-public enum DirectInvocationEvent: Decodable {
+public enum DirectInvocationEvent {
     case createUser(CreateUser)
     // Future direct invocation types can be added here:
     // case deleteUser(DeleteUser)
     // case updateUserSettings(UpdateUserSettings)
     // case processAnalytics(AnalyticsRequest)
 
-    public init(from decoder: Decoder) throws {
+    /// Attempts to decode the event as a known direct invocation type
+    /// Returns nil if the JSON doesn't match any known direct invocation type
+    public init?(from decoder: Decoder) {
         // Try to decode as CreateUser
-        if let createUser = try? CreateUser(from: decoder) {
+        if let createUser = CreateUser(from: decoder) {
             self = .createUser(createUser)
             return
         }
 
         // Future: Add more direct invocation types here
-        // if let deleteUser = try? DeleteUser(from: decoder) {
+        // if let deleteUser = DeleteUser(from: decoder) {
         //     self = .deleteUser(deleteUser)
         //     return
         // }
 
-        throw DecodingError.dataCorrupted(
-            DecodingError.Context(
-                codingPath: decoder.codingPath,
-                debugDescription: "Unable to decode direct invocation into any known type (CreateUser, ...)"
-            )
-        )
+        // No match - return nil
+        return nil
     }
 }

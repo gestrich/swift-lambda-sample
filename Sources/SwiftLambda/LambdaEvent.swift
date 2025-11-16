@@ -10,6 +10,9 @@ import Foundation
 import SwiftServerApp
 
 /// Union type that can represent multiple Lambda event sources
+///
+/// Uses failable initializers to attempt decoding each event type in order.
+/// Returns nil if the JSON doesn't match any known event structure.
 public enum LambdaEvent: Decodable {
     case apiGateway(APIGatewayRequest)
     case cloudWatchScheduled(CloudwatchEvent<CloudwatchDetails.Scheduled>)
@@ -17,19 +20,22 @@ public enum LambdaEvent: Decodable {
 
     public init(from decoder: Decoder) throws {
         // Try to decode as API Gateway request first (most common)
+        // Note: APIGatewayRequest is from AWSLambdaEvents, so we use try? since we can't add failable init
         if let apiGatewayRequest = try? APIGatewayRequest(from: decoder) {
             self = .apiGateway(apiGatewayRequest)
             return
         }
 
         // Try to decode as CloudWatch scheduled event
+        // Note: CloudwatchEvent is from AWSLambdaEvents, so we use try? since we can't add failable init
         if let scheduledEvent = try? CloudwatchEvent<CloudwatchDetails.Scheduled>(from: decoder) {
             self = .cloudWatchScheduled(scheduledEvent)
             return
         }
 
         // Try to decode as direct invocation (CreateUser, etc.)
-        if let directInvocation = try? DirectInvocationEvent(from: decoder) {
+        // Uses our custom failable initializer
+        if let directInvocation = DirectInvocationEvent(from: decoder) {
             self = .directInvocation(directInvocation)
             return
         }
