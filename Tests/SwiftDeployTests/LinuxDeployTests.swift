@@ -52,6 +52,17 @@ struct LinuxContainerIntegrationTests {
         // Give services time to fully start
         try await Task.sleep(for: .seconds(5))
 
+        // Create MinIO bucket for testing
+        print("📦 Creating S3 bucket in MinIO...")
+        _ = try await runShellCommand("""
+        docker run --rm --network lambda-local \
+          -e AWS_ACCESS_KEY_ID=admin \
+          -e AWS_SECRET_ACCESS_KEY=password \
+          amazon/aws-cli --endpoint-url http://minio_lambda:9000 \
+          s3 mb s3://org.gestrich.sandbox 2>&1 || echo "Bucket might already exist"
+        """, allowNonZeroExit: true)
+        print("  ✅ S3 bucket ready")
+
         // Step 2: Clean previous build artifacts
         print("🧹 Step 2: Cleaning previous build artifacts...")
         _ = try await runShellCommand("rm -rf .aws-sam/build-SwiftLambda lambda lambda.zip", allowNonZeroExit: true)
@@ -154,7 +165,12 @@ struct LinuxContainerIntegrationTests {
             "AWS_ENDPOINT_URL": "http://minio_lambda:9000",
             "AWS_ACCESS_KEY_ID": "admin",
             "AWS_SECRET_ACCESS_KEY": "password",
-            "AWS_REGION": "us-east-1",  // MinIO needs a region
+            "AWS_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-east-1",
+
+            // Disable AWS credential chain for local testing
+            "AWS_EC2_METADATA_DISABLED": "true",
+            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",  // Disable ECS credentials
 
             // Local Lambda server configuration
             "MOCK_AWS_CREDENTIALS": "true",
