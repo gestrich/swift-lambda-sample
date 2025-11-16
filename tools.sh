@@ -261,6 +261,190 @@ function deployStatus(){
   swift run SwiftDeploy status "$@"
 }
 
+# Local Xcode Development functions
+
+# Run Lambda locally with local server mode
+# Usage: runLocalLambda [port] [background]
+# Examples:
+#   runLocalLambda              # Run on port 8080 in foreground
+#   runLocalLambda 8081         # Run on port 8081 in foreground
+#   runLocalLambda 8080 bg      # Run on port 8080 in background
+function runLocalLambda(){
+  local port=${1:-8080}
+  local bg_mode=${2:-}
+
+  echo "🚀 Starting Lambda locally on port $port..."
+
+  if [ "$bg_mode" = "bg" ]; then
+    # Check if binary exists, if not try to build
+    if [ ! -f ./.build/debug/SwiftLambda ]; then
+      echo "→ Building Lambda..."
+      swift build --product SwiftLambda > /dev/null 2>&1 || {
+        echo "❌ Build failed. Binary not found. Try running: swift build --product SwiftLambda"
+        return 1
+      }
+    else
+      echo "→ Using existing Lambda binary"
+    fi
+
+    # Run the pre-built binary
+    LOCAL_LAMBDA_SERVER_ENABLED=true \
+    MOCK_AWS_CREDENTIALS=true \
+    LOCAL_LAMBDA_PORT=$port \
+    ./.build/debug/SwiftLambda > /tmp/lambda_local_$port.log 2>&1 &
+
+    local lambda_pid=$!
+    echo "→ Lambda started in background (PID: $lambda_pid)"
+    echo "→ Logs: /tmp/lambda_local_$port.log"
+
+    echo "✅ Lambda started in background"
+    echo "   Run './tools.sh waitForLambda $port' to wait for it to be ready"
+    return 0
+  else
+    LOCAL_LAMBDA_SERVER_ENABLED=true \
+    MOCK_AWS_CREDENTIALS=true \
+    LOCAL_LAMBDA_PORT=$port \
+    swift run SwiftLambda
+  fi
+}
+
+# Wait for local Lambda to be ready on specified port
+function waitForLambda(){
+  local port=${1:-8080}
+
+  echo "⏳ Waiting for Lambda on port $port to be ready..."
+  local max_attempts=120  # 2 minutes
+  local attempt=0
+  while [ $attempt -lt $max_attempts ]; do
+    if lsof -i :$port > /dev/null 2>&1; then
+      echo "✅ Lambda is ready on port $port"
+      return 0
+    fi
+
+    # Show progress every 10 seconds
+    if [ $((attempt % 10)) -eq 0 ] && [ $attempt -gt 0 ]; then
+      echo "   Still waiting... ($attempt seconds elapsed)"
+    fi
+
+    sleep 1
+    attempt=$((attempt + 1))
+  done
+
+  echo "❌ Lambda failed to start within $max_attempts seconds"
+  echo "   Check logs: /tmp/lambda_local_$port.log"
+  return 1
+}
+
+# Stop local Lambda running on specified port
+function stopLocalLambda(){
+  local port=${1:-8080}
+
+  echo "🛑 Stopping Lambda on port $port..."
+
+  local pids=$(lsof -t -i :$port 2>/dev/null || true)
+
+  if [ -z "$pids" ]; then
+    echo "→ No Lambda process found on port $port"
+    return 0
+  fi
+
+  echo "$pids" | while read -r pid; do
+    echo "→ Killing process $pid"
+    kill "$pid" 2>/dev/null || true
+  done
+
+  sleep 2
+
+  # Force kill if still running
+  pids=$(lsof -t -i :$port 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "→ Force killing remaining processes..."
+    echo "$pids" | while read -r pid; do
+      kill -9 "$pid" 2>/dev/null || true
+    done
+  fi
+
+  echo "✅ Lambda stopped"
+}
+
+# Test local Lambda endpoints
+function testLocalLambda(){
+  local port=${1:-8080}
+  local endpoint="http://localhost:$port/invoke"
+
+  echo "🧪 Testing local Lambda on port $port..."
+  echo ""
+
+  # Test S3 file endpoint
+  echo "→ Testing S3 file upload/download..."
+  local s3_response=$(curl -s -X POST "$endpoint" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "resource": "/api/file",
+      "path": "/api/file",
+      "httpMethod": "POST",
+      "headers": {},
+      "multiValueHeaders": {},
+      "requestContext": {
+        "resourceId": "test",
+        "apiId": "test",
+        "resourcePath": "/api/file",
+        "httpMethod": "POST",
+        "requestId": "test",
+        "accountId": "123456789012",
+        "stage": "local",
+        "identity": {"sourceIp": "127.0.0.1"},
+        "path": "/api/file"
+      },
+      "body": null,
+      "isBase64Encoded": false
+    }')
+
+  if echo "$s3_response" | grep -q "File uploaded and downloaded"; then
+    echo "  ✅ S3 test passed"
+  else
+    echo "  ❌ S3 test failed: $s3_response"
+    return 1
+  fi
+
+  echo ""
+
+  # Test database initialization
+  echo "→ Testing database initialization..."
+  local db_response=$(curl -s -X POST "$endpoint" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "resource": "/api/database",
+      "path": "/api/database",
+      "httpMethod": "POST",
+      "headers": {},
+      "multiValueHeaders": {},
+      "requestContext": {
+        "resourceId": "test",
+        "apiId": "test",
+        "resourcePath": "/api/database",
+        "httpMethod": "POST",
+        "requestId": "test",
+        "accountId": "123456789012",
+        "stage": "local",
+        "identity": {"sourceIp": "127.0.0.1"},
+        "path": "/api/database"
+      },
+      "body": null,
+      "isBase64Encoded": false
+    }')
+
+  if echo "$db_response" | grep -q "Database Initialized"; then
+    echo "  ✅ Database test passed"
+  else
+    echo "  ❌ Database test failed: $db_response"
+    return 1
+  fi
+
+  echo ""
+  echo "✅ All local Lambda tests passed!"
+}
+
 # API Testing functions
 
 function getApiGatewayUrl(){

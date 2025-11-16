@@ -58,10 +58,13 @@ Edit the scheme for the **SwiftLambda** target:
 3. Click "Arguments" tab
 4. Add these environment variables:
 
-| Variable | Value |
-|----------|-------|
-| `LOCAL_LAMBDA_SERVER_ENABLED` | `true` |
-| `MOCK_AWS_CREDENTIALS` | `true` |
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `LOCAL_LAMBDA_SERVER_ENABLED` | `true` | Enables local HTTP server mode |
+| `MOCK_AWS_CREDENTIALS` | `true` | Uses mock AWS credentials |
+| `LOCAL_LAMBDA_PORT` | `8080` | Port for local Lambda server (avoids macOS port 7000 conflict) |
+
+**Note**: Port 7000 is often occupied by macOS Control Center (AirPlay). We use port 8080 to avoid conflicts.
 
 ### 4. Run in Xcode
 
@@ -69,17 +72,23 @@ Edit the scheme for the **SwiftLambda** target:
 2. Select **My Mac** as the destination
 3. Click the **Run** button (or press ⌘R)
 
-The Lambda will start a local HTTP server on port 7000.
+The Lambda will start a local HTTP server on port 8080.
+
+You should see in the Xcode console:
+```
+info LambdaRuntime: host="127.0.0.1" port=8080 [AWSLambdaRuntime] Server started and listening
+```
 
 ### 5. Test the API
 
 ```bash
 # Test S3 file upload/download (no database required)
-curl -X POST http://localhost:7000/invoke \
+curl -X POST http://localhost:8080/invoke \
   -H "Content-Type: application/json" \
   -d @test-api-gateway-event.json
 
-# Expected: Success response with S3 file operations
+# Expected response:
+# {"headers":{"Content-Type":"application/json"},"body":"\"File uploaded and downloaded\"","statusCode":200}
 ```
 
 **Note**: The local Lambda server uses the `/invoke` endpoint and expects API Gateway event payloads. See `test-api-gateway-event.json` for example format.
@@ -121,7 +130,7 @@ cat > test-file.json << 'EOF'
 }
 EOF
 
-curl -X POST http://localhost:7000/invoke \
+curl -X POST http://localhost:8080/invoke \
   -H "Content-Type: application/json" \
   -d @test-file.json
 ```
@@ -155,7 +164,7 @@ cat > test-database.json << 'EOF'
 }
 EOF
 
-curl -X POST http://localhost:7000/invoke \
+curl -X POST http://localhost:8080/invoke \
   -H "Content-Type: application/json" \
   -d @test-database.json
 ```
@@ -219,13 +228,26 @@ docker exec minio_lambda ls -la /data/
 
 ### Port already in use
 
-```bash
-# Check what's using port 7000
-lsof -i :7000
+If you see the Lambda starting on port 7000 instead of 8080:
 
-# Kill the process if needed
-kill -9 <PID>
+1. **Verify environment variable in Xcode**:
+   - Product → Scheme → Edit Scheme → Run → Arguments
+   - Check that `LOCAL_LAMBDA_PORT = 8080` is present and enabled
+
+2. **Restart Xcode completely**:
+   - Close Xcode (⌘Q)
+   - Reopen and run again
+
+3. **Check for port conflicts**:
+```bash
+# Check what's using port 8080
+lsof -i :8080
+
+# If port 7000 is showing up, it's likely macOS Control Center
+lsof -i :7000
 ```
+
+**Common Issue - Port 7000**: macOS Control Center (AirPlay Receiver) uses port 7000 by default. This is why we configure the Lambda to use port 8080 instead.
 
 ## Connecting to Remote AWS Services
 
@@ -257,6 +279,8 @@ To test against real AWS services instead of local Docker containers:
 
 ## Daily Development Workflow
 
+### Option 1: Using Xcode UI
+
 ```bash
 # 1. Start services (if not already running)
 ./tools.sh startServices
@@ -273,6 +297,56 @@ To test against real AWS services instead of local Docker containers:
 # 6. Stop services when done
 ./tools.sh stopServices
 ```
+
+### Option 2: Using Command Line
+
+```bash
+# 1. Start services
+./tools.sh startServices
+
+# 2. Copy configuration
+./tools.sh copyConfig
+
+# 3. Run Lambda locally (foreground - will block terminal)
+./tools.sh runLocalLambda 8080
+
+# OR run in background
+./tools.sh runLocalLambda 8080 bg
+
+# 4. Test endpoints
+./tools.sh testLocalLambda 8080
+
+# 5. Stop Lambda (if running in background)
+./tools.sh stopLocalLambda 8080
+
+# 6. Stop services
+./tools.sh stopServices
+```
+
+## Integration Testing
+
+An automated integration test is available that tests the full local development workflow:
+
+```bash
+# Run the integration test
+swift test --filter XcodeLocalIntegrationTests
+
+# The test will:
+# 1. Start local services (PostgreSQL + MinIO)
+# 2. Start Lambda locally
+# 3. Test S3 file upload/download
+# 4. Test PostgreSQL database initialization
+# 5. Stop Lambda
+# 6. Stop services
+```
+
+**Note**: The integration test takes several minutes to complete because it:
+- Builds the Lambda executable
+- Starts Docker containers
+- Waits for services to be ready
+- Runs end-to-end API tests
+
+See `/Users/bill/Developer/personal/swift-lambda-sample/Tests/SwiftDeployTests/XcodeDeployTests.swift` for the test implementation.
 
 ## Next Steps
 

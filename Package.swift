@@ -46,6 +46,12 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "SwiftDeployTests",
+            dependencies: [
+                .target(name: "SwiftDeploy")
+            ]
+        ),
+        .testTarget(
             name: "SwiftServerAppTests",
             dependencies: [
                 .target(name: "SwiftServerApp")
