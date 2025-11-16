@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+@testable import SwiftDeploy
 
 @Suite("Linux Lambda Container Integration Tests")
 struct LinuxContainerIntegrationTests {
