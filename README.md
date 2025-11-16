@@ -2,55 +2,106 @@
 
 ## Summary
 
-This repository offers a sample AWS Lambda, written in Swift. The aim is to provide a solid foundation that adheres to good server development practices. This is an open work-in-progress.
+This repository demonstrates how to build and deploy a complete serverless application using **Swift on AWS Lambda**. It showcases best practices for Swift server development and provides a production-ready foundation for building scalable serverless APIs.
 
-## Server Principles
+The project demonstrates integration with various AWS services:
 
-### CI / CD
+* **API Gateway** - HTTP/S REST API endpoints
+* **Lambda** - Swift-based serverless compute
+* **RDS (PostgreSQL)** - Managed relational database with SSL/TLS
+* **S3** - Object storage for file operations
+* **SQS** - Message queuing with Dead Letter Queue
+* **CloudWatch** - Scheduled invocations and logging
+* **Secrets Manager** - Secure credential storage
+* **VPC** - Network isolation with public/private subnets
 
-| State | Principle | Details |
-|:---:|---|---|
-|❌| Published Documentation | Explore GitHub actions for the [Open API Generator](https://www.swift.org/blog/introducing-swift-openapi-generator) and [DocC](https://developer.apple.com/documentation/docc). Publish as GitHub pages. |
-|✅| Automatic Builds | Using GitHub Actions |
-|✅| Automatic Tests | Using GitHub Actions |
-|✅| Automatic Deploys | Using GitHub Actions |
-|❌| Dev Staging Environment | Explore terraform workspaces |
-|❌| CI/CD Failure Alerts | Explore GitHub email/Slack alerting |
-|❌| Dependency Version Reporting | Explore GitHub Dependabot |
+The repository includes infrastructure-as-code using **AWS CDK (TypeScript)**, automated CI/CD via **GitHub Actions**, and a custom **SwiftDeploy CLI** for streamlined deployment management.
 
-### Local Development
+## Deployment
 
-| State | Principle | Details |
-|:---:|---|---|
-|⚠️| Local Dev Environment | Local Docker containers to run local services (S3, DynamoDB, Postgres, etc.). Forming API GW bodies is tricky. Using Postman is useful but I'd like things to be accessible without a 3rd party tool (i.e., Command line app may be best). |
-|⚠️| Trigger Remote APIs Locally | Lambdas can be triggered from the AWS CLI with proper permissions. API GW can be hit as REST endpoints. Consider using the [Open API Generator](https://www.swift.org/blog/introducing-swift-openapi-generator) and [DocC](https://developer.apple.com/documentation/docc) to create a client API GW that runs as a local command line tool. |
-|✅| Select Local Dependencies | Use local Swift Package dependencies by providing a local package path in Package.swift. |
-|✅| Unit Tests Have No Environment Restrictions | Dependency injection is used to hide AWS services from testable code. |
-|⚠️| Dev Environment Documentation | This README has most relevant documentation but it needs improvement. |
-|❌| Option to Build Product Locally | Need instructions for how to build the Docker image locally and how to log in to the Docker container for troubleshooting. |
+This project uses the **SwiftDeploy** CLI tool for managing AWS deployments. The tool handles both infrastructure (via CDK) and Lambda code deployment.
 
-### Production Monitoring
+### Quick Start
 
-| State | Principle | Details |
-|:---:|---|---|
-|⚠️| Remote Logs | CloudWatch is used for logging. The search capabilities are not ideal though. |
-|❌| Failure Alerts | Use CloudWatch Alarms. Need to show the error in the alert somehow. Also, need to support crash logs. |
-|❌| Remote Performance | Look into CloudWatch. |
+Deploy with minimal AWS costs (no database, no NAT Gateway):
 
-### Security 
+```bash
+# Initial deployment
+swift run SwiftDeploy fresh-deploy
+```
 
-| State | Principle | Details |
-|:---:|---|---|
-|✅| No secrets in the repository | AWS Secrets Manager is used to store any required secrets. |
-|⚠️| No plain-text secrets in server logs | This needs to be audited. Look at the security of environment variables and what is in build logs. |
+### Deployment Commands
 
-## Features
+| Command | Description |
+|---------|-------------|
+| `swift run SwiftDeploy fresh-deploy` | Initial deployment: CDK infrastructure + Lambda code |
+| `swift run SwiftDeploy deploy` | Update CDK infrastructure only |
+| `swift run SwiftDeploy update-lambda` | Update Lambda code only |
+| `swift run SwiftDeploy status` | Check deployment status and outputs |
+| `swift run SwiftDeploy tear-down` | Destroy all infrastructure |
 
-* **API Gateway**: Leverage Amazon's service for creating HTTP/S APIs.
-* **CI/CD**: Automated testing, building, and deployment of your lambda to AWS using GitHub Actions.
-* **RDS**: Utilize Amazon's managed database services, specifically Postgres in this example, including sample CRUD operations.
-* **S3**: Basic operations demonstrated, including file upload and download.
-* **Secrets Manager**: Secure retrieval of service secrets from AWS.
+### Deployment Options
+
+Control costs by choosing which resources to deploy:
+
+```bash
+# Minimal deployment (default: no Postgres, no NAT Gateway)
+swift run SwiftDeploy fresh-deploy
+
+# Include PostgreSQL database (~$15/month)
+swift run SwiftDeploy fresh-deploy --with-postgres
+
+# Full deployment with PostgreSQL and NAT Gateway (~$47/month)
+swift run SwiftDeploy fresh-deploy --with-postgres --with-nat-gateway
+```
+
+### Using tools.sh Wrapper
+
+For convenience, use the `tools.sh` wrapper functions:
+
+```bash
+# Deployment
+./tools.sh freshDeploy                                    # Initial deployment
+./tools.sh freshDeploy --with-postgres                    # With database
+./tools.sh deploy                                         # Update infrastructure
+./tools.sh updateLambda                                   # Update Lambda code
+./tools.sh deployStatus                                   # Check status
+./tools.sh deployTearDown                                 # Destroy everything
+
+# Testing
+./tools.sh testDeployment                                 # Run all tests
+./tools.sh testApiFile                                    # Test S3 endpoint
+./tools.sh checkLambdaLogs                                # View logs
+```
+
+### Typical Workflows
+
+**Initial Setup:**
+```bash
+./tools.sh freshDeploy
+./tools.sh testDeployment
+```
+
+**Update Lambda Code:**
+```bash
+# Make changes to Swift code
+vim Sources/SwiftLambda/APIGatewayHandler.swift
+
+# Commit and deploy
+git add -A && git commit -m "Update handler"
+./tools.sh updateLambda
+```
+
+**Update Infrastructure:**
+```bash
+# Modify CDK code
+vim cdk/lib/constructs/lambda-construct.ts
+
+# Deploy infrastructure changes
+./tools.sh deploy
+```
+
+For detailed deployment documentation, see [CLAUDE.md](CLAUDE.md).
 
 ## Getting Started
 
@@ -118,21 +169,8 @@ It may be useful to login to the local postgres instance for viewing schemas and
     - Connect to docker database: \c docker
     - List all tables: \dt
 
-## TODO
+## Additional Documentation
 
-- [ ] Ensure a complete CDK teardown and deploy works then document how to go from zero to full deploy and running.
-- [ ] Remove this fallback logic: `// Read from environment, fallback to hardcoded value for backwards compatibility`
-- [ ] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
-- [ ] Ensure local postgres running still works since TLS was enabled here: `let tls = PostgresConnection.Configuration.TLS.prefer(sslContext)`
-- [ ] Determine why the dynamic value was removed and it was hardcoded here:
-  ```diff
-  -        POSTGRES_DBNAME: props.database.instanceIdentifier,
-  +        POSTGRES_DBNAME: 'FFMSampleLambdaDB'
-  ```
-- [ ] For the netrc, ensure that actually works with a real private repo dependency and why we have a "dummy" one committed to repo now.
-- [ ] Combine build.sh and build-local.sh into same script
-- [ ] Add docs regarding local docker build and deploys - include docker interactive mode
-- [ ] Upgrade to Lambda engine v2.
-- [ ] Add conditional support for private VPC vs public database (to save on NAT gateway costs)
-- [ ] Ensure a complete Github teardown
-  - [ ] Delete all Github environment and passwords
+- [CLAUDE.md](CLAUDE.md) - Detailed deployment and AWS operations guide
+- [PRINCIPLES.md](docs/PRINCIPLES.md) - Server development principles and best practices
+- [TODO.md](docs/TODO.md) - Project roadmap and planned improvements
