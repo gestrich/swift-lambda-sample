@@ -7,11 +7,17 @@ This document tracks planned improvements and known issues for the Swift Lambda 
 
 - [x] Remove this fallback logic: `// Read from environment, fallback to hardcoded value for backwards compatibility`
 - [x] Remove this fallback if not needed: `// Fallback: if secret is just a plain string (not JSON), use it directly`
-- [ ] Determine why the dynamic value was removed and it was hardcoded here:
+- [x] Determine why the dynamic value was removed and it was hardcoded here:
   ```diff
   -        POSTGRES_DBNAME: props.database.instanceIdentifier,
   +        POSTGRES_DBNAME: 'FFMSampleLambdaDB'
   ```
+  **Resolution**: The hardcoded value is CORRECT. There's an important distinction:
+  - `instance.instanceIdentifier` = AWS resource name (e.g., "swiftlambdasamplestack-databaseinstance...")
+  - `databaseName` = Actual PostgreSQL database name inside the instance ('FFMSampleLambdaDB')
+
+  PostgreSQL connections require the database name, not the AWS instance identifier.
+  The value matches what's set in `swift-lambda-stack.ts:81` when creating the database.
 
 ## Build & Docker
 
