@@ -11,6 +11,10 @@ let package = Package(
         .executable(
             name: "SwiftLambda",
             targets: ["SwiftLambda"]
+        ),
+        .executable(
+            name: "MacApp",
+            targets: ["MacApp"]
         )
     ],
     dependencies: [
@@ -22,6 +26,13 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
     ],
     targets: [
+        .executableTarget(
+            name: "MacApp",
+            dependencies: [],
+            swiftSettings: [
+                .unsafeFlags(["-parse-as-library"])
+            ]
+        ),
         .executableTarget(
             name: "SwiftDeploy",
             dependencies: [
