@@ -14,24 +14,18 @@ struct LinuxContainerIntegrationTests {
 
     let localService: LocalDevelopmentService
     let cliService = CLIService.shared
-
-    // Get the project root directory (assuming tests are in Tests/SwiftDeployTests/)
-    var projectRoot: URL {
-        // When running from Xcode, we need to find the project root
-        // #filePath gives absolute path at compile time
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // Remove LinuxDeployTests.swift
-            .deletingLastPathComponent()  // Remove SwiftDeployTests
-            .deletingLastPathComponent()  // Remove Tests
-    }
+    let projectRoot: URL
 
     init() {
-        // Calculate project root at init time for localService
+        // Calculate project root at init time (assuming tests are in Tests/SwiftDeployTests/)
+        // When running from Xcode, we need to find the project root
+        // #filePath gives absolute path at compile time
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // Remove LinuxDeployTests.swift
             .deletingLastPathComponent()  // Remove SwiftDeployTests
             .deletingLastPathComponent()  // Remove Tests
 
+        self.projectRoot = root
         self.localService = LocalDevelopmentService(workingDirectory: root.path)
     }
 
