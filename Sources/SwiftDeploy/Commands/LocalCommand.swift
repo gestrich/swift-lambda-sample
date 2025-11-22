@@ -1,34 +1,46 @@
 import ArgumentParser
 import Foundation
 
-/// Command for managing local development environment
+/// Top-level command for local development operations
 struct LocalCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "local",
-        abstract: "Manage local development environment (Docker services, testing)",
+        abstract: "Local development environment management",
         subcommands: [
-            StartServicesCommand.self,
-            StopServicesCommand.self,
-            StartDatabaseCommand.self,
-            StopDatabaseCommand.self,
-            StartS3Command.self,
-            StopS3Command.self,
-            SetupNetworkCommand.self,
-            BuildLambdaCommand.self,
-            RunContainerCommand.self,
-            TestCommand.self,
+            ServicesCommand.self,
+            LambdaCommand.self,
             CopyConfigCommand.self
         ]
     )
 }
 
-// MARK: - Service Management Commands
+// MARK: - Services Management
 
 extension LocalCommand {
-    /// Start all local services (PostgreSQL + MinIO)
-    struct StartServicesCommand: AsyncParsableCommand {
+    /// Manage local development services (PostgreSQL + MinIO)
+    struct ServicesCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "start-services",
+            commandName: "services",
+            abstract: "Manage local development services (PostgreSQL + MinIO)",
+            subcommands: [
+                StartAllCommand.self,
+                StopAllCommand.self,
+                StartDatabaseCommand.self,
+                StopDatabaseCommand.self,
+                StartS3Command.self,
+                StopS3Command.self
+            ]
+        )
+    }
+}
+
+// MARK: - Services Subcommands
+
+extension LocalCommand.ServicesCommand {
+    /// Start all local services (PostgreSQL + MinIO)
+    struct StartAllCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-all",
             abstract: "Start all local services (PostgreSQL + MinIO)"
         )
 
@@ -41,9 +53,9 @@ extension LocalCommand {
     }
 
     /// Stop all local services
-    struct StopServicesCommand: AsyncParsableCommand {
+    struct StopAllCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "stop-services",
+            commandName: "stop-all",
             abstract: "Stop all local services (PostgreSQL + MinIO)"
         )
 
@@ -104,7 +116,29 @@ extension LocalCommand {
             try await service.stopS3()
         }
     }
+}
 
+// MARK: - Lambda Container Testing
+
+extension LocalCommand {
+    /// Lambda container testing and management
+    struct LambdaCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "lambda",
+            abstract: "Lambda container testing and management",
+            subcommands: [
+                SetupNetworkCommand.self,
+                BuildCommand.self,
+                RunContainerCommand.self,
+                TestCommand.self
+            ]
+        )
+    }
+}
+
+// MARK: - Lambda Subcommands
+
+extension LocalCommand.LambdaCommand {
     /// Setup Docker network for Lambda container
     struct SetupNetworkCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -119,9 +153,9 @@ extension LocalCommand {
     }
 
     /// Build Lambda for Linux
-    struct BuildLambdaCommand: AsyncParsableCommand {
+    struct BuildCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "build-lambda",
+            commandName: "build",
             abstract: "Build Lambda for Linux (AMD64)"
         )
 
@@ -159,7 +193,11 @@ extension LocalCommand {
             try await service.testLocalLambda()
         }
     }
+}
 
+// MARK: - Configuration Management
+
+extension LocalCommand {
     /// Copy config file
     struct CopyConfigCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(

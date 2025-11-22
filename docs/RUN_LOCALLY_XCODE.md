@@ -18,7 +18,7 @@ This guide covers running and debugging the Swift Lambda function natively on yo
 ### 1. Copy Configuration File
 
 ```bash
-./tools.sh local-copy-config
+./tools.sh local copy-config
 ```
 
 This creates `~/.swiftSampleDemo/swiftLambdaDemo.json` with local service configuration.
@@ -26,7 +26,7 @@ This creates `~/.swiftSampleDemo/swiftLambdaDemo.json` with local service config
 ### 2. Start Local Services
 
 ```bash
-./tools.sh local-start-all
+./tools.sh local services start-all
 ```
 
 This starts:
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8080/invoke \
 ### 6. Stop Services
 
 ```bash
-./tools.sh local-stop-all
+./tools.sh local services stop-all
 ```
 
 ## Testing Different Endpoints
@@ -283,7 +283,7 @@ To test against real AWS services instead of local Docker containers:
 
 ```bash
 # 1. Start services (if not already running)
-./tools.sh local-start-all
+./tools.sh local services start-all
 
 # 2. Make code changes
 # Edit your Swift files in Xcode
@@ -295,26 +295,26 @@ To test against real AWS services instead of local Docker containers:
 # 5. Repeat steps 2-4
 
 # 6. Stop services when done
-./tools.sh local-stop-all
+./tools.sh local services stop-all
 ```
 
 ### Option 2: Using Command Line
 
 ```bash
 # 1. Start services
-./tools.sh local-start-all
+./tools.sh local services start-all
 
 # 2. Copy configuration
-./tools.sh local-copy-config
+./tools.sh local copy-config
 
 # 3. Run Lambda locally via swift run
 swift run SwiftLambda
 
 # 4. Test endpoints (in another terminal)
-./tools.sh local-test 8080
+./tools.sh local lambda test 8080
 
 # 5. Stop services when done
-./tools.sh local-stop-all
+./tools.sh local services stop-all
 ```
 
 ## Integration Testing

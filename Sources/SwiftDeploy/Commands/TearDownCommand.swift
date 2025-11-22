@@ -1,11 +1,12 @@
 import Foundation
 import ArgumentParser
 
-struct TearDownCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "tear-down",
-        abstract: "Destroy the CDK deployment"
-    )
+extension AWSCommand {
+    struct TearDownCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "tear-down",
+            abstract: "Destroy the CDK deployment"
+        )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
@@ -50,5 +51,6 @@ struct TearDownCommand: AsyncParsableCommand {
         )
 
         print("\n🎉 Tear down completed successfully!")
+    }
     }
 }

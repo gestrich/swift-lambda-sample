@@ -1,11 +1,12 @@
 import Foundation
 import ArgumentParser
 
-struct FreshDeployCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "fresh-deploy",
-        abstract: "Initial deployment: CDK infrastructure + Lambda code"
-    )
+extension AWSCommand {
+    struct FreshDeployCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "fresh-deploy",
+            abstract: "Initial deployment: CDK infrastructure + Lambda code"
+        )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
@@ -286,5 +287,6 @@ struct FreshDeployCommand: AsyncParsableCommand {
                 throw CLIError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
             }
         }
+    }
     }
 }

@@ -29,18 +29,23 @@ Deploy with minimal AWS costs (no database, no NAT Gateway):
 
 ```bash
 # Initial deployment
-swift run SwiftDeploy fresh-deploy
+swift run SwiftDeploy aws fresh-deploy
+
+# Or using the tools.sh wrapper
+./tools.sh aws fresh-deploy
 ```
 
 ### Deployment Commands
 
 | Command | Description |
 |---------|-------------|
-| `swift run SwiftDeploy fresh-deploy` | Initial deployment: CDK infrastructure + Lambda code |
-| `swift run SwiftDeploy deploy` | Update CDK infrastructure only |
-| `swift run SwiftDeploy update-lambda` | Update Lambda code only |
-| `swift run SwiftDeploy status` | Check deployment status and outputs |
-| `swift run SwiftDeploy tear-down` | Destroy all infrastructure |
+| `swift run SwiftDeploy aws fresh-deploy` | Initial deployment: CDK infrastructure + Lambda code |
+| `swift run SwiftDeploy aws deploy` | Update CDK infrastructure only |
+| `swift run SwiftDeploy aws update-lambda` | Update Lambda code only |
+| `swift run SwiftDeploy aws status` | Check deployment status and outputs |
+| `swift run SwiftDeploy aws tear-down` | Destroy all infrastructure |
+| `swift run SwiftDeploy aws test all` | Test deployed endpoints |
+| `swift run SwiftDeploy aws logs` | Show CloudWatch logs |
 
 ### Deployment Options
 
@@ -48,40 +53,40 @@ Control costs by choosing which resources to deploy:
 
 ```bash
 # Minimal deployment (default: no Postgres, no NAT Gateway)
-swift run SwiftDeploy fresh-deploy
+swift run SwiftDeploy aws fresh-deploy
 
 # Include PostgreSQL database (~$15/month)
-swift run SwiftDeploy fresh-deploy --with-postgres
+swift run SwiftDeploy aws fresh-deploy --with-postgres
 
 # Full deployment with PostgreSQL and NAT Gateway (~$47/month)
-swift run SwiftDeploy fresh-deploy --with-postgres --with-nat-gateway
+swift run SwiftDeploy aws fresh-deploy --with-postgres --with-nat-gateway
 ```
 
 ### Using tools.sh Wrapper
 
-For convenience, use the `tools.sh` wrapper functions:
+The `tools.sh` script is a thin wrapper that delegates to SwiftDeploy:
 
 ```bash
 # Deployment
-./tools.sh freshDeploy                                    # Initial deployment
-./tools.sh freshDeploy --with-postgres                    # With database
-./tools.sh deploy                                         # Update infrastructure
-./tools.sh updateLambda                                   # Update Lambda code
-./tools.sh deployStatus                                   # Check status
-./tools.sh deployTearDown                                 # Destroy everything
+./tools.sh aws fresh-deploy                    # Initial deployment
+./tools.sh aws fresh-deploy --with-postgres    # With database
+./tools.sh aws deploy                          # Update infrastructure
+./tools.sh aws update-lambda                   # Update Lambda code
+./tools.sh aws status                          # Check status
+./tools.sh aws tear-down                       # Destroy everything
 
 # Testing
-./tools.sh testDeployment                                 # Run all tests
-./tools.sh testApiFile                                    # Test S3 endpoint
-./tools.sh checkLambdaLogs                                # View logs
+./tools.sh aws test all                        # Run all tests
+./tools.sh aws test s3-upload                  # Test S3 endpoint
+./tools.sh aws logs                            # View logs
 ```
 
 ### Typical Workflows
 
 **Initial Setup:**
 ```bash
-./tools.sh freshDeploy
-./tools.sh testDeployment
+./tools.sh aws fresh-deploy
+./tools.sh aws test all
 ```
 
 **Update Lambda Code:**
@@ -91,7 +96,7 @@ vim Sources/SwiftLambda/APIGatewayHandler.swift
 
 # Commit and deploy
 git add -A && git commit -m "Update handler"
-./tools.sh updateLambda
+./tools.sh aws update-lambda
 ```
 
 **Update Infrastructure:**
@@ -100,7 +105,7 @@ git add -A && git commit -m "Update handler"
 vim cdk/lib/constructs/lambda-construct.ts
 
 # Deploy infrastructure changes
-./tools.sh deploy
+./tools.sh aws deploy
 ```
 
 For detailed deployment documentation, see [CLAUDE.md](CLAUDE.md).
@@ -118,8 +123,8 @@ There are three ways to run and test the Lambda locally:
 **For daily development (Mac/Xcode):**
 ```bash
 # Start local services
-./tools.sh copyConfig
-./tools.sh startServices
+./tools.sh local copy-config
+./tools.sh local services start-all
 
 # Then run in Xcode (⌘R)
 ```
@@ -128,8 +133,8 @@ There are three ways to run and test the Lambda locally:
 ```bash
 # Build and test in Linux container
 ./build.sh SwiftLambda
-./tools.sh startServices
-./tools.sh runLambdaContainer
+./tools.sh local services start-all
+./tools.sh local lambda run-container
 
 # Inside container:
 ./bootstrap

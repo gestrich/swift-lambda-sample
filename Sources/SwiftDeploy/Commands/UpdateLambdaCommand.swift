@@ -1,11 +1,12 @@
 import Foundation
 import ArgumentParser
 
-struct UpdateLambdaCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "update-lambda",
-        abstract: "Update Lambda code only (via GitHub Actions)"
-    )
+extension AWSCommand {
+    struct UpdateLambdaCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "update-lambda",
+            abstract: "Update Lambda code only (via GitHub Actions)"
+        )
 
     @Flag(name: .long, help: "Skip git push (manually trigger workflow instead)")
     var skipPush: Bool = false
@@ -58,5 +59,6 @@ struct UpdateLambdaCommand: AsyncParsableCommand {
         }
 
         print("\n🎉 Lambda deployment completed successfully!")
+    }
     }
 }

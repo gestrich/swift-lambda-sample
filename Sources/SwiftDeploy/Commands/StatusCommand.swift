@@ -1,11 +1,12 @@
 import Foundation
 import ArgumentParser
 
-struct StatusCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "status",
-        abstract: "Check deployment and git status"
-    )
+extension AWSCommand {
+    struct StatusCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "status",
+            abstract: "Check deployment and git status"
+        )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
@@ -72,5 +73,6 @@ struct StatusCommand: AsyncParsableCommand {
         } catch {
             print("\n☁️  CDK Stack: Not deployed or error fetching status")
         }
+    }
     }
 }

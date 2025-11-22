@@ -1,11 +1,12 @@
 import Foundation
 import ArgumentParser
 
-struct DeployCommand: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "deploy",
-        abstract: "Deploy/update CDK infrastructure only (does not update Lambda code)"
-    )
+extension AWSCommand {
+    struct DeployCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "deploy",
+            abstract: "Deploy/update CDK infrastructure only (does not update Lambda code)"
+        )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
@@ -77,6 +78,7 @@ struct DeployCommand: AsyncParsableCommand {
         }
 
         print("\n✅ Infrastructure deployment completed successfully!")
-        print("\nℹ️  Lambda code was NOT updated. Use 'update-lambda' to update Lambda code.")
+        print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")
+    }
     }
 }
