@@ -15,48 +15,17 @@ extension AWSCommand {
         print("🚀 Updating Lambda code...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let gitService = GitService(repoPath: projectRoot)
+        let awsConfig = try AWSAuthConfiguration.resolve(
+            profileName: nil,
+            useAWSVault: nil
+        )
 
-        let repoInfo = try await gitService.getRepoInfo()
-        let currentBranch = try await gitService.getCurrentBranch()
-        let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
 
-        if !skipPush {
-            let hasCommitsToPush = try await gitService.hasCommitsToPush()
-
-            if hasCommitsToPush {
-                // Get the current latest run ID before pushing
-                let beforeRunId = try await githubService.getLatestRunId(branch: currentBranch)
-
-                // Push commits (this will auto-trigger the workflow)
-                try await gitService.push()
-
-                // Wait for the NEW workflow that was triggered by the push
-                try await githubService.waitForNewWorkflowCompletion(
-                    branch: currentBranch,
-                    afterRunId: beforeRunId,
-                    timeoutMinutes: 10
-                )
-            } else {
-                // No commits to push, manually trigger the workflow
-                print("✅ No commits to push")
-                print("🔄 Triggering workflow to redeploy current code...\n")
-                try await githubService.triggerWorkflowAndWait(
-                    workflowName: "Dev Deploy",
-                    branch: currentBranch,
-                    timeoutMinutes: 10
-                )
-            }
-        } else {
-            // Skip push, manually trigger the workflow
-            print("⏭️  Skipping git push (--skip-push enabled)")
-            print("🔄 Triggering workflow...\n")
-            try await githubService.triggerWorkflowAndWait(
-                workflowName: "Dev Deploy",
-                branch: currentBranch,
-                timeoutMinutes: 10
-            )
-        }
+        try await deploymentService.updateLambdaCode(skipPush: skipPush)
 
         print("\n🎉 Lambda deployment completed successfully!")
     }

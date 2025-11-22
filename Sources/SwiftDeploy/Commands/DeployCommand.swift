@@ -50,7 +50,6 @@ extension AWSCommand {
             awsConfig: awsConfig
         )
 
-        // 1. Deploy CDK infrastructure
         let options = DeploymentOptions(
             skipPostgres: !withPostgres,
             skipNATGateway: !withNatGateway,
@@ -58,24 +57,7 @@ extension AWSCommand {
             cdkDirectory: cdkDirectory
         )
 
-        try await deploymentService.deploy(options: options)
-
-        // 2. Poll deployment status
-        try await deploymentService.pollDeploymentStatus(
-            stackName: "SwiftLambdaSampleStack"
-        )
-
-        // 3. Get and display stack outputs
-        let outputs = try await deploymentService.getStackOutputs(
-            stackName: "SwiftLambdaSampleStack"
-        )
-
-        if !outputs.isEmpty {
-            print("\n📋 Stack Outputs:")
-            for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
-                print("  \(key): \(value)")
-            }
-        }
+        _ = try await deploymentService.deployInfrastructure(options: options)
 
         print("\n✅ Infrastructure deployment completed successfully!")
         print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")

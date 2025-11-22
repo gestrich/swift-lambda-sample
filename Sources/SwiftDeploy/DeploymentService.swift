@@ -96,4 +96,75 @@ public actor DeploymentService {
     ) async throws -> [String: String] {
         return try await awsService.getStackOutputs(name: stackName)
     }
+
+    /// Deploy infrastructure and display outputs
+    /// This is the complete infrastructure deployment workflow
+    public func deployInfrastructure(
+        options: DeploymentOptions,
+        stackName: String = "SwiftLambdaSampleStack"
+    ) async throws -> [String: String] {
+        // 1. Deploy CDK infrastructure
+        try await deploy(options: options)
+
+        // 2. Poll deployment status
+        try await pollDeploymentStatus(stackName: stackName)
+
+        // 3. Get and display stack outputs
+        let outputs = try await getStackOutputs(stackName: stackName)
+
+        if !outputs.isEmpty {
+            print("\n📋 Stack Outputs:")
+            for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
+                print("  \(key): \(value)")
+            }
+        }
+
+        return outputs
+    }
+
+    /// Update Lambda code via GitHub Actions
+    /// Handles git push (if needed) and triggers/waits for GitHub Actions workflow
+    public func updateLambdaCode(skipPush: Bool = false) async throws {
+        let gitService = GitService(repoPath: projectRoot)
+        let repoInfo = try await gitService.getRepoInfo()
+        let currentBranch = try await gitService.getCurrentBranch()
+        let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
+
+        if !skipPush {
+            let hasCommitsToPush = try await gitService.hasCommitsToPush()
+
+            if hasCommitsToPush {
+                // Get the current latest run ID before pushing
+                let beforeRunId = try await githubService.getLatestRunId(branch: currentBranch)
+
+                // Push commits (this will auto-trigger the workflow)
+                try await gitService.push()
+
+                // Wait for the NEW workflow that was triggered by the push
+                try await githubService.waitForNewWorkflowCompletion(
+                    branch: currentBranch,
+                    afterRunId: beforeRunId,
+                    timeoutMinutes: 10
+                )
+            } else {
+                // No commits to push, manually trigger the workflow
+                print("\n✅ No commits to push")
+                print("🔄 Triggering workflow to redeploy current code...\n")
+                try await githubService.triggerWorkflowAndWait(
+                    workflowName: "Dev Deploy",
+                    branch: currentBranch,
+                    timeoutMinutes: 10
+                )
+            }
+        } else {
+            // Skip push, manually trigger the workflow
+            print("\n⏭️  Skipping git push (--skip-push enabled)")
+            print("🔄 Triggering workflow...\n")
+            try await githubService.triggerWorkflowAndWait(
+                workflowName: "Dev Deploy",
+                branch: currentBranch,
+                timeoutMinutes: 10
+            )
+        }
+    }
 }

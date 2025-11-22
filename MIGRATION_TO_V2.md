@@ -378,7 +378,7 @@ gh run view --repo gestrich/swift-lambda-sample --log
 swift run SwiftDeploy tear-down
 
 # Fresh deployment (minimal cost)
-swift run SwiftDeploy fresh-deploy
+swift run SwiftDeploy deploy-full
 
 # This deploys:
 # - Lambda function (in AWS-managed VPC)
@@ -395,10 +395,10 @@ swift run SwiftDeploy fresh-deploy
 
 ```bash
 # Deploy with PostgreSQL
-swift run SwiftDeploy fresh-deploy --with-postgres
+swift run SwiftDeploy deploy-full --with-postgres
 
 # Full deployment with NAT Gateway
-swift run SwiftDeploy fresh-deploy --with-postgres --with-nat-gateway
+swift run SwiftDeploy deploy-full --with-postgres --with-nat-gateway
 ```
 
 ## Breaking Changes Summary

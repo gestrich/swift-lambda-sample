@@ -29,17 +29,17 @@ Deploy with minimal AWS costs (no database, no NAT Gateway):
 
 ```bash
 # Initial deployment
-swift run SwiftDeploy aws fresh-deploy
+swift run SwiftDeploy aws deploy-full
 
 # Or using the tools.sh wrapper
-./tools.sh aws fresh-deploy
+./tools.sh aws deploy-full
 ```
 
 ### Deployment Commands
 
 | Command | Description |
 |---------|-------------|
-| `swift run SwiftDeploy aws fresh-deploy` | Initial deployment: CDK infrastructure + Lambda code |
+| `swift run SwiftDeploy aws deploy-full` | Initial deployment: CDK infrastructure + Lambda code |
 | `swift run SwiftDeploy aws deploy` | Update CDK infrastructure only |
 | `swift run SwiftDeploy aws update-lambda` | Update Lambda code only |
 | `swift run SwiftDeploy aws status` | Check deployment status and outputs |
@@ -53,13 +53,13 @@ Control costs by choosing which resources to deploy:
 
 ```bash
 # Minimal deployment (default: no Postgres, no NAT Gateway)
-swift run SwiftDeploy aws fresh-deploy
+swift run SwiftDeploy aws deploy-full
 
 # Include PostgreSQL database (~$15/month)
-swift run SwiftDeploy aws fresh-deploy --with-postgres
+swift run SwiftDeploy aws deploy-full --with-postgres
 
 # Full deployment with PostgreSQL and NAT Gateway (~$47/month)
-swift run SwiftDeploy aws fresh-deploy --with-postgres --with-nat-gateway
+swift run SwiftDeploy aws deploy-full --with-postgres --with-nat-gateway
 ```
 
 ### Using tools.sh Wrapper
@@ -68,8 +68,8 @@ The `tools.sh` script is a thin wrapper that delegates to SwiftDeploy:
 
 ```bash
 # Deployment
-./tools.sh aws fresh-deploy                    # Initial deployment
-./tools.sh aws fresh-deploy --with-postgres    # With database
+./tools.sh aws deploy-full                    # Initial deployment
+./tools.sh aws deploy-full --with-postgres    # With database
 ./tools.sh aws deploy                          # Update infrastructure
 ./tools.sh aws update-lambda                   # Update Lambda code
 ./tools.sh aws status                          # Check status
@@ -85,7 +85,7 @@ The `tools.sh` script is a thin wrapper that delegates to SwiftDeploy:
 
 **Initial Setup:**
 ```bash
-./tools.sh aws fresh-deploy
+./tools.sh aws deploy-full
 ./tools.sh aws test all
 ```
 

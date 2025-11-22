@@ -2,10 +2,10 @@ import Foundation
 import ArgumentParser
 
 extension AWSCommand {
-    struct FreshDeployCommand: AsyncParsableCommand {
+    struct DeployFullCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "fresh-deploy",
-            abstract: "Initial deployment: CDK infrastructure + Lambda code"
+            commandName: "deploy-full",
+            abstract: "Full deployment: CDK infrastructure + Lambda code"
         )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
@@ -52,76 +52,19 @@ extension AWSCommand {
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
-        let gitService = GitService(repoPath: projectRoot)
 
         // 1. Deploy CDK infrastructure
         let options = DeploymentOptions(
-            skipPostgres: !withPostgres,  // Invert: default is to skip
-            skipNATGateway: !withNatGateway,  // Invert: default is to skip
+            skipPostgres: !withPostgres,
+            skipNATGateway: !withNatGateway,
             awsProfile: awsConfig.profileName,
             cdkDirectory: cdkDirectory
         )
 
-        try await deploymentService.deploy(options: options)
+        _ = try await deploymentService.deployInfrastructure(options: options)
 
-        // 2. Poll deployment status
-        try await deploymentService.pollDeploymentStatus(
-            stackName: "SwiftLambdaSampleStack"
-        )
-
-        // 3. Get and display stack outputs
-        let outputs = try await deploymentService.getStackOutputs(
-            stackName: "SwiftLambdaSampleStack"
-        )
-
-        if !outputs.isEmpty {
-            print("\n📋 Stack Outputs:")
-            for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
-                print("  \(key): \(value)")
-            }
-        }
-
-        // 4. Deploy Lambda code via GitHub Actions
-        let repoInfo = try await gitService.getRepoInfo()
-        let currentBranch = try await gitService.getCurrentBranch()
-        let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
-
-        if !skipPush {
-            let hasCommitsToPush = try await gitService.hasCommitsToPush()
-
-            if hasCommitsToPush {
-                // Get the current latest run ID before pushing
-                let beforeRunId = try await githubService.getLatestRunId(branch: currentBranch)
-
-                // Push commits (this will auto-trigger the workflow)
-                try await gitService.push()
-
-                // Wait for the NEW workflow that was triggered by the push
-                try await githubService.waitForNewWorkflowCompletion(
-                    branch: currentBranch,
-                    afterRunId: beforeRunId,
-                    timeoutMinutes: 10
-                )
-            } else {
-                // No commits to push, but we still need to deploy Lambda code
-                // Manually trigger the workflow
-                print("\n✅ No commits to push")
-                try await githubService.triggerWorkflowAndWait(
-                    workflowName: "Dev Deploy",
-                    branch: currentBranch,
-                    timeoutMinutes: 10
-                )
-            }
-        } else {
-            // Skip push is enabled, but we still need Lambda code deployed
-            // Manually trigger the workflow
-            print("\n⏭️  Skipping git push (--skip-push enabled)")
-            try await githubService.triggerWorkflowAndWait(
-                workflowName: "Dev Deploy",
-                branch: currentBranch,
-                timeoutMinutes: 10
-            )
-        }
+        // 2. Deploy Lambda code via GitHub Actions
+        try await deploymentService.updateLambdaCode(skipPush: skipPush)
 
         // 5. Initialize database if PostgreSQL was deployed
         if withPostgres {

@@ -8,7 +8,7 @@ struct AWSCommand: AsyncParsableCommand {
         abstract: "AWS deployment and management operations",
         subcommands: [
             DeployCommand.self,
-            FreshDeployCommand.self,
+            DeployFullCommand.self,
             UpdateLambdaCommand.self,
             TearDownCommand.self,
             StatusCommand.self,

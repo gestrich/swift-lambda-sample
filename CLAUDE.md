@@ -541,7 +541,7 @@ The CLI is organized into two top-level commands:
 SwiftDeploy
 ├── aws                          # All AWS operations
 │   ├── deploy                   # Deploy/update infrastructure
-│   ├── fresh-deploy             # Initial deployment (infrastructure + code)
+│   ├── deploy-full             # Initial deployment (infrastructure + code)
 │   ├── update-lambda            # Update Lambda code only
 │   ├── tear-down                # Destroy infrastructure
 │   ├── status                   # Check deployment status
@@ -570,25 +570,25 @@ SwiftDeploy
 
 ### Commands
 
-#### 1. Fresh Deploy (`aws fresh-deploy`)
+#### 1. Full Deploy (`aws deploy-full`)
 
-**Initial deployment**: Deploys CDK infrastructure + Lambda code. Use this for the first deployment.
+**Full deployment**: Deploys CDK infrastructure + Lambda code. Use this for initial deployment or when you want to update everything.
 
 **Default is minimal cost** (no database, no NAT Gateway).
 
 **Basic usage:**
 ```bash
 # Minimal deployment (default: no Postgres, no NAT)
-swift run SwiftDeploy aws fresh-deploy
-./tools.sh aws fresh-deploy
+swift run SwiftDeploy aws deploy-full
+./tools.sh aws deploy-full
 
 # Deploy with PostgreSQL (adds cost)
-swift run SwiftDeploy aws fresh-deploy --with-postgres
-./tools.sh aws fresh-deploy --with-postgres
+swift run SwiftDeploy aws deploy-full --with-postgres
+./tools.sh aws deploy-full --with-postgres
 
 # Full deployment (Postgres + NAT)
-swift run SwiftDeploy aws fresh-deploy --with-postgres --with-nat-gateway
-./tools.sh aws fresh-deploy --with-postgres --with-nat-gateway
+swift run SwiftDeploy aws deploy-full --with-postgres --with-nat-gateway
+./tools.sh aws deploy-full --with-postgres --with-nat-gateway
 ```
 
 **Options:**
@@ -766,7 +766,7 @@ swift run SwiftDeploy aws test users
 **Example workflow:**
 ```bash
 # 1. Deploy Lambda
-swift run SwiftDeploy aws fresh-deploy
+swift run SwiftDeploy aws deploy-full
 
 # 2. Run all tests
 swift run SwiftDeploy aws test all
@@ -862,7 +862,7 @@ The `tools.sh` script is a **thin wrapper** that delegates all commands directly
 
 # All commands are the same, just with shorter prefix
 ./tools.sh aws deploy                     # = swift run SwiftDeploy aws deploy
-./tools.sh aws fresh-deploy --with-postgres
+./tools.sh aws deploy-full --with-postgres
 ./tools.sh aws test all
 ./tools.sh local services start-all
 ```
@@ -892,7 +892,7 @@ The `tools.sh` script is a **thin wrapper** that delegates all commands directly
 #### Initial Deployment
 ```bash
 # 1. Deploy everything (minimal cost by default)
-./tools.sh aws fresh-deploy
+./tools.sh aws deploy-full
 
 # 2. Verify deployment
 ./tools.sh aws test all
@@ -928,10 +928,10 @@ vim cdk/lib/constructs/lambda-construct.ts
 #### Full Deployment with Database
 ```bash
 # Initial deployment with PostgreSQL and NAT Gateway
-./tools.sh aws fresh-deploy --with-postgres --with-nat-gateway
+./tools.sh aws deploy-full --with-postgres --with-nat-gateway
 
 # Or just add PostgreSQL
-./tools.sh aws fresh-deploy --with-postgres
+./tools.sh aws deploy-full --with-postgres
 ```
 
 #### Clean Up
@@ -962,7 +962,7 @@ cdk deploy --profile production --require-approval never
 cdk deploy --profile production --outputs-file outputs.json
 ```
 
-**Note**: The `swift run SwiftDeploy aws fresh-deploy` command handles all of this automatically.
+**Note**: The `swift run SwiftDeploy aws deploy-full` command handles all of this automatically.
 
 ### Deploying Lambda Code Changes
 
@@ -1126,12 +1126,12 @@ gh run view {run-id} --repo gestrich/swift-lambda-sample --log
 ### SwiftDeploy CLI (Recommended)
 ```bash
 # Deploy infrastructure + Lambda code
-swift run SwiftDeploy aws fresh-deploy
-./tools.sh aws fresh-deploy
+swift run SwiftDeploy aws deploy-full
+./tools.sh aws deploy-full
 
 # Deploy with database
-swift run SwiftDeploy aws fresh-deploy --with-postgres
-./tools.sh aws fresh-deploy --with-postgres
+swift run SwiftDeploy aws deploy-full --with-postgres
+./tools.sh aws deploy-full --with-postgres
 
 # Check status
 swift run SwiftDeploy aws status
