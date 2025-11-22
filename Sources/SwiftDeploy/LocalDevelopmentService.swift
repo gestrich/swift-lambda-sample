@@ -20,12 +20,12 @@ public actor LocalDevelopmentService {
     private let s3BucketName = "org.gestrich.sandbox"
 
     // Working directory
-    private let workingDirectory: String?
+    private let workingDirectory: String
 
     // Public accessors for configuration
     public var port: Int { lambdaHostPort }
 
-    public init(workingDirectory: String? = nil) {
+    public init(workingDirectory: String) {
         self.dockerService = DockerService()
         self.cliService = CLIService.shared
         self.workingDirectory = workingDirectory
@@ -178,15 +178,13 @@ public actor LocalDevelopmentService {
     public func buildLambda(clean: Bool = false) async throws {
         print("\n🔨 Building Lambda for Linux...")
 
-        let currentDir = FileManager.default.currentDirectoryPath
-
         // Clean if requested
         if clean {
             print("🧹 Cleaning previous build artifacts...")
             _ = try await cliService.execute(
                 command: "rm",
                 arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
-                workingDirectory: currentDir,
+                workingDirectory: workingDirectory,
                 printCommand: false
             )
             print("  ✅ Cleaned")
@@ -196,7 +194,7 @@ public actor LocalDevelopmentService {
         let buildResult = try await cliService.execute(
             command: "./build.sh",
             arguments: ["SwiftLambda"],
-            workingDirectory: currentDir,
+            workingDirectory: workingDirectory,
             inheritIO: true  // Show build output in real-time
         )
 
@@ -213,10 +211,9 @@ public actor LocalDevelopmentService {
 
     /// Check if Lambda is already built
     public func isLambdaBuilt() -> Bool {
-        let currentDir = FileManager.default.currentDirectoryPath
-        let lambdaDir = "\(currentDir)/lambda"
+        let lambdaDir = "\(workingDirectory)/lambda"
         let bootstrapPath = "\(lambdaDir)/bootstrap"
-        let zipPath = "\(currentDir)/lambda.zip"
+        let zipPath = "\(workingDirectory)/lambda.zip"
 
         return FileManager.default.fileExists(atPath: lambdaDir) &&
                FileManager.default.fileExists(atPath: bootstrapPath) &&
@@ -267,8 +264,6 @@ public actor LocalDevelopmentService {
         print("(Type 'exit' to leave the container)")
         print("")
 
-        let currentDir = FileManager.default.currentDirectoryPath
-
         // Run interactive container
         var options = DockerService.RunOptions()
         options.interactive = true
@@ -276,7 +271,7 @@ public actor LocalDevelopmentService {
         options.remove = true
         options.platform = "linux/amd64"
         options.network = networkName
-        options.volumes = [("\(currentDir)/lambda", "/var/task")]
+        options.volumes = [("\(workingDirectory)/lambda", "/var/task")]
         options.ports = [(lambdaHostPort, lambdaContainerPort)]
         options.environment = getLambdaEnvironmentVariables()
 
@@ -292,8 +287,7 @@ public actor LocalDevelopmentService {
         print("🐳 Starting Lambda container in background...")
 
         // Determine lambda path
-        let currentDir = FileManager.default.currentDirectoryPath
-        let lambdaDir = lambdaPath ?? "\(currentDir)/lambda"
+        let lambdaDir = lambdaPath ?? "\(workingDirectory)/lambda"
 
         // Check if lambda directory exists
         guard FileManager.default.fileExists(atPath: lambdaDir) else {

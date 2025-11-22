@@ -45,7 +45,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopAllServices()
             try await service.startS3()
             try await service.startDatabase()
@@ -60,7 +60,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopAllServices()
         }
     }
@@ -73,7 +73,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startDatabase()
         }
     }
@@ -86,7 +86,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopDatabase()
         }
     }
@@ -99,7 +99,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startS3()
         }
     }
@@ -112,7 +112,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopS3()
         }
     }
@@ -147,7 +147,7 @@ extension LocalCommand.LambdaCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.setupLambdaNetwork()
         }
     }
@@ -163,7 +163,7 @@ extension LocalCommand.LambdaCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.buildLambda(clean: clean)
         }
     }
@@ -176,7 +176,7 @@ extension LocalCommand.LambdaCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.runLambdaContainer()
         }
     }
@@ -189,7 +189,7 @@ extension LocalCommand.LambdaCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.testLocalLambda()
         }
     }
@@ -206,7 +206,7 @@ extension LocalCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService()
+            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.copyConfig()
         }
     }

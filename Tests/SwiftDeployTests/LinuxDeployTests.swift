@@ -26,7 +26,13 @@ struct LinuxContainerIntegrationTests {
     }
 
     init() {
-        self.localService = LocalDevelopmentService(workingDirectory: nil)
+        // Calculate project root at init time for localService
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // Remove LinuxDeployTests.swift
+            .deletingLastPathComponent()  // Remove SwiftDeployTests
+            .deletingLastPathComponent()  // Remove Tests
+
+        self.localService = LocalDevelopmentService(workingDirectory: root.path)
     }
 
     @Test("Full Linux container workflow: build, start services, run in container, test endpoints, cleanup")
