@@ -104,32 +104,73 @@ The CDK infrastructure deploys:
 
 ### AWS Profile Configuration
 
-This project uses the **`production` AWS profile** for all AWS CLI and CDK operations.
+This project requires an AWS profile to be configured for all AWS CLI and CDK operations.
 
-#### Setting Up the Production Profile
+#### Setting Up AWS Authentication
 
-1. Configure AWS credentials with the production profile:
-   ```bash
-   aws configure --profile production
-   ```
+**Step 1: Configure your AWS profile**
 
-2. The profile will be stored in `~/.aws/credentials`:
-   ```ini
-   [production]
-   aws_access_key_id = YOUR_ACCESS_KEY
-   aws_secret_access_key = YOUR_SECRET_KEY
-   ```
+Choose a profile name (e.g., `production`, `staging`, `dev`) and configure AWS credentials:
 
-3. And `~/.aws/config`:
-   ```ini
-   [profile production]
-   region = us-east-1
-   output = json
-   ```
+```bash
+aws configure --profile production
+```
 
-#### Using the Production Profile
+This creates files:
+- `~/.aws/credentials` - Contains access keys
+  ```ini
+  [production]
+  aws_access_key_id = YOUR_ACCESS_KEY
+  aws_secret_access_key = YOUR_SECRET_KEY
+  ```
 
-All AWS commands must specify `--profile production`:
+- `~/.aws/config` - Contains region settings
+  ```ini
+  [profile production]
+  region = us-east-1
+  output = json
+  ```
+
+**Step 2: Create AWS configuration file**
+
+Create `~/.swiftSampleDemo/aws-config.json` with your AWS profile:
+
+```bash
+# Copy the example config file
+swift run SwiftDeploy local copy-config
+
+# Or create manually
+mkdir -p ~/.swiftSampleDemo
+cat > ~/.swiftSampleDemo/aws-config.json <<EOF
+{
+  "profileName": "production"
+}
+EOF
+```
+
+The SwiftDeploy CLI will automatically read the profile from this file. You can override it with the `--aws-profile` flag if needed.
+
+#### Using AWS Profiles
+
+**Option 1: Use config file (recommended)**
+
+```bash
+# Profile is read from ~/.swiftSampleDemo/aws-config.json
+swift run SwiftDeploy deploy
+swift run SwiftDeploy status
+```
+
+**Option 2: Override with CLI flag**
+
+```bash
+# Use a different profile for this command
+swift run SwiftDeploy deploy --aws-profile staging
+swift run SwiftDeploy test all --aws-profile development
+```
+
+**Direct AWS CLI usage** (when not using SwiftDeploy)
+
+When using AWS CLI commands directly, you must specify the profile:
 
 ```bash
 # Deploy CDK infrastructure
@@ -397,7 +438,7 @@ swift run SwiftDeploy fresh-deploy --with-postgres --with-nat-gateway
 --with-postgres         # Include PostgreSQL database (adds ~$15/month)
 --with-nat-gateway      # Include NAT Gateway (adds ~$32/month)
 --skip-push             # Don't push git commits
---aws-profile <name>    # AWS profile to use (default: production)
+--aws-profile <name>    # AWS profile to use (reads from ~/.swiftSampleDemo/aws-config.json if not specified)
 --cdk-directory <path>  # CDK directory path (default: cdk)
 ```
 
@@ -427,7 +468,7 @@ swift run SwiftDeploy deploy --with-postgres
 ```bash
 --with-postgres         # Include PostgreSQL database (adds ~$15/month)
 --with-nat-gateway      # Include NAT Gateway (adds ~$32/month)
---aws-profile <name>    # AWS profile to use (default: production)
+--aws-profile <name>    # AWS profile to use (reads from ~/.swiftSampleDemo/aws-config.json if not specified)
 --cdk-directory <path>  # CDK directory path (default: cdk)
 ```
 
@@ -578,7 +619,7 @@ swift run SwiftDeploy local run-container    # Run Lambda in Linux container
 swift run SwiftDeploy local test --port 8080 # Test local Lambda endpoints
 
 # Configuration
-swift run SwiftDeploy local copy-config      # Copy config to ~/.swiftSampleDemo/
+swift run SwiftDeploy local copy-config      # Copy config files to ~/.swiftSampleDemo/
 ```
 
 **What it does:**
@@ -586,6 +627,7 @@ swift run SwiftDeploy local copy-config      # Copy config to ~/.swiftSampleDemo
 - Sets up Docker networking for Lambda container testing
 - Provides interactive Linux container for testing Lambda builds
 - Tests local Lambda endpoints
+- Copies configuration files (swiftLambdaDemo.json and aws-config.json) to home directory
 
 **Example workflow:**
 ```bash
@@ -634,7 +676,7 @@ For convenience, `tools.sh` provides wrapper functions:
 
 | Function | Description |
 |----------|-------------|
-| `copyConfig` | Copy config to ~/.swiftSampleDemo/ |
+| `copyConfig` | Copy config files to ~/.swiftSampleDemo/ (app + AWS) |
 | `startServices` | Start PostgreSQL + MinIO |
 | `stopServices` | Stop all services |
 | `startDatabase` | Start PostgreSQL only |

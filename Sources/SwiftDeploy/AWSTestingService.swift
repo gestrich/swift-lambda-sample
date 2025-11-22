@@ -7,7 +7,7 @@ public actor AWSTestingService {
     private let stackName = "SwiftLambdaSampleStack"
     private let lambdaName = "swift-lambda-sample"
 
-    public init(awsProfile: String = "production") {
+    public init(awsProfile: String) {
         self.awsService = AWSCLIService(profile: awsProfile)
         self.cliService = CLIService.shared
     }

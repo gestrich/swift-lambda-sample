@@ -7,8 +7,8 @@ struct DeployCommand: AsyncParsableCommand {
         abstract: "Deploy/update CDK infrastructure only (does not update Lambda code)"
     )
 
-    @Option(name: .long, help: "AWS profile to use")
-    var awsProfile: String = "production"
+    @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+    var awsProfile: String?
 
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
@@ -20,6 +20,12 @@ struct DeployCommand: AsyncParsableCommand {
     var withNatGateway: Bool = false
 
     mutating func run() async throws {
+        // Get AWS profile from flag or config file
+        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+        if awsProfile == nil {
+            print("ℹ️  Using AWS profile '\(profile)' from config file\n")
+        }
+
         print("🚀 Deploying CDK infrastructure...\n")
 
         if !withPostgres && !withNatGateway {
@@ -31,13 +37,13 @@ struct DeployCommand: AsyncParsableCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot)
+        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
 
         // 1. Deploy CDK infrastructure
         let options = DeploymentOptions(
             skipPostgres: !withPostgres,
             skipNATGateway: !withNatGateway,
-            awsProfile: awsProfile,
+            awsProfile: profile,
             cdkDirectory: cdkDirectory
         )
 
@@ -45,14 +51,12 @@ struct DeployCommand: AsyncParsableCommand {
 
         // 2. Poll deployment status
         try await deploymentService.pollDeploymentStatus(
-            stackName: "SwiftLambdaSampleStack",
-            awsProfile: awsProfile
+            stackName: "SwiftLambdaSampleStack"
         )
 
         // 3. Get and display stack outputs
         let outputs = try await deploymentService.getStackOutputs(
-            stackName: "SwiftLambdaSampleStack",
-            awsProfile: awsProfile
+            stackName: "SwiftLambdaSampleStack"
         )
 
         if !outputs.isEmpty {

@@ -5,7 +5,7 @@ public actor AWSCLIService {
     private let cliService: CLIService
     private let profile: String
 
-    public init(profile: String = "production") {
+    public init(profile: String) {
         self.cliService = CLIService.shared
         self.profile = profile
     }

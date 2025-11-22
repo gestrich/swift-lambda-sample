@@ -21,6 +21,8 @@ The repository includes infrastructure-as-code using **AWS CDK (TypeScript)**, a
 
 This project uses the **SwiftDeploy** CLI tool for managing AWS deployments. The tool handles both infrastructure (via CDK) and Lambda code deployment.
 
+**Prerequisites:** Configure AWS credentials and profile (see [CLAUDE.md](CLAUDE.md#aws-profile-configuration) for details)
+
 ### Quick Start
 
 Deploy with minimal AWS costs (no database, no NAT Gateway):

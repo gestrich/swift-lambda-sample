@@ -7,8 +7,8 @@ struct TearDownCommand: AsyncParsableCommand {
         abstract: "Destroy the CDK deployment"
     )
 
-    @Option(name: .long, help: "AWS profile to use")
-    var awsProfile: String = "production"
+    @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+    var awsProfile: String?
 
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
@@ -17,6 +17,9 @@ struct TearDownCommand: AsyncParsableCommand {
     var force: Bool = false
 
     mutating func run() async throws {
+        // Get AWS profile from flag or config file
+        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+
         print("🗑️  Starting tear down...\n")
 
         if !force {
@@ -31,10 +34,9 @@ struct TearDownCommand: AsyncParsableCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot)
+        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
 
         try await deploymentService.tearDown(
-            awsProfile: awsProfile,
             cdkDirectory: cdkDirectory
         )
 

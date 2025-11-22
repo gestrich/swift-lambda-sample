@@ -8,7 +8,7 @@ public actor CDKService {
 
     public init(
         cdkDirectory: String = "cdk",
-        awsProfile: String = "production"
+        awsProfile: String
     ) {
         self.cliService = CLIService.shared
         self.cdkDirectory = cdkDirectory

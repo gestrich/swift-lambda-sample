@@ -7,14 +7,17 @@ struct StatusCommand: AsyncParsableCommand {
         abstract: "Check deployment and git status"
     )
 
-    @Option(name: .long, help: "AWS profile to use")
-    var awsProfile: String = "production"
+    @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+    var awsProfile: String?
 
     mutating func run() async throws {
+        // Get AWS profile from flag or config file
+        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+
         print("📊 Checking status...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot)
+        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
         let gitService = GitService(repoPath: projectRoot)
 
         // Git status
@@ -46,8 +49,7 @@ struct StatusCommand: AsyncParsableCommand {
         // CDK Stack status
         do {
             let outputs = try await deploymentService.getStackOutputs(
-                stackName: "SwiftLambdaSampleStack",
-                awsProfile: awsProfile
+                stackName: "SwiftLambdaSampleStack"
             )
 
             print("\n☁️  CDK Stack:")

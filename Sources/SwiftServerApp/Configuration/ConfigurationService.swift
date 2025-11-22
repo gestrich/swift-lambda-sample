@@ -33,8 +33,6 @@ public final class ConfigurationService: Sendable {
         return try Configuration.loadConfiguration(fileURL: configFileURL)
     }
 
-    //MARK: AWS Credentials 
-
     //MARK: Postgres
 
     public func postgresConfiguration() async throws -> PostgresConfiguration? {

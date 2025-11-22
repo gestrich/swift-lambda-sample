@@ -8,7 +8,7 @@ public actor DeploymentService {
 
     public init(
         projectRoot: String,
-        awsProfile: String = "production",
+        awsProfile: String,
         cdkDirectory: String = "cdk"
     ) {
         self.projectRoot = projectRoot
@@ -40,8 +40,7 @@ public actor DeploymentService {
 
     /// Poll CloudFormation stack status until deployment is complete
     public func pollDeploymentStatus(
-        stackName: String = "SwiftLambdaSampleStack",
-        awsProfile: String = "production"
+        stackName: String = "SwiftLambdaSampleStack"
     ) async throws {
         print("\n⏳ Polling deployment status...")
 
@@ -77,7 +76,7 @@ public actor DeploymentService {
     }
 
     /// Tear down CDK stack
-    public func tearDown(awsProfile: String = "production", cdkDirectory: String = "cdk") async throws {
+    public func tearDown(cdkDirectory: String = "cdk") async throws {
         let cdkPath = "\(projectRoot)/\(cdkDirectory)"
 
         // Verify CDK directory exists
@@ -93,8 +92,7 @@ public actor DeploymentService {
 
     /// Get stack outputs
     public func getStackOutputs(
-        stackName: String = "SwiftLambdaSampleStack",
-        awsProfile: String = "production"
+        stackName: String = "SwiftLambdaSampleStack"
     ) async throws -> [String: String] {
         return try await awsService.getStackOutputs(name: stackName)
     }

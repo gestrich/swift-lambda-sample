@@ -27,11 +27,12 @@ extension TestCommand {
             abstract: "Test S3 file upload/download endpoint"
         )
 
-        @Option(name: .long, help: "AWS profile to use")
-        var awsProfile: String = "production"
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
         func run() async throws {
-            let service = AWSTestingService(awsProfile: awsProfile)
+            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+            let service = AWSTestingService(awsProfile: profile)
             try await service.testFileEndpoint()
         }
     }
@@ -43,11 +44,12 @@ extension TestCommand {
             abstract: "Test S3 file endpoint with verbose curl output"
         )
 
-        @Option(name: .long, help: "AWS profile to use")
-        var awsProfile: String = "production"
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
         func run() async throws {
-            let service = AWSTestingService(awsProfile: awsProfile)
+            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+            let service = AWSTestingService(awsProfile: profile)
             try await service.testFileEndpointVerbose()
         }
     }
@@ -59,11 +61,12 @@ extension TestCommand {
             abstract: "Verify S3 file was created and show content"
         )
 
-        @Option(name: .long, help: "AWS profile to use")
-        var awsProfile: String = "production"
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
         func run() async throws {
-            let service = AWSTestingService(awsProfile: awsProfile)
+            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+            let service = AWSTestingService(awsProfile: profile)
             try await service.verifyS3File()
         }
     }
@@ -75,14 +78,15 @@ extension TestCommand {
             abstract: "Show Lambda execution logs"
         )
 
-        @Option(name: .long, help: "AWS profile to use")
-        var awsProfile: String = "production"
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
         @Option(name: .long, help: "Time period (e.g., 5m, 1h, 30m)")
         var since: String = "5m"
 
         func run() async throws {
-            let service = AWSTestingService(awsProfile: awsProfile)
+            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+            let service = AWSTestingService(awsProfile: profile)
             try await service.checkLogs(since: since)
         }
     }
@@ -94,11 +98,12 @@ extension TestCommand {
             abstract: "Run all deployment verification tests"
         )
 
-        @Option(name: .long, help: "AWS profile to use")
-        var awsProfile: String = "production"
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
         func run() async throws {
-            let service = AWSTestingService(awsProfile: awsProfile)
+            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+            let service = AWSTestingService(awsProfile: profile)
             try await service.runAllTests()
         }
     }
@@ -110,11 +115,12 @@ extension TestCommand {
             abstract: "Get API Gateway URL from CloudFormation"
         )
 
-        @Option(name: .long, help: "AWS profile to use")
-        var awsProfile: String = "production"
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
         func run() async throws {
-            let service = AWSTestingService(awsProfile: awsProfile)
+            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+            let service = AWSTestingService(awsProfile: profile)
             let url = try await service.getApiGatewayUrl()
             print(url)
         }

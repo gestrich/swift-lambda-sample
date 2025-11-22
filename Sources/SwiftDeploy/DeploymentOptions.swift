@@ -17,7 +17,7 @@ public struct DeploymentOptions: Sendable {
     public init(
         skipPostgres: Bool = false,
         skipNATGateway: Bool = false,
-        awsProfile: String = "production",
+        awsProfile: String,
         cdkDirectory: String = "cdk"
     ) {
         self.skipPostgres = skipPostgres
