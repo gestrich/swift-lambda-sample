@@ -42,7 +42,8 @@ public actor CDKService {
         _ = try await cliService.execute(
             command: "npm",
             arguments: ["run", "build"],
-            workingDirectory: cdkDirectory
+            workingDirectory: cdkDirectory,
+            inheritIO: true
         )
     }
 
@@ -88,7 +89,8 @@ public actor CDKService {
             command: command,
             arguments: arguments,
             workingDirectory: cdkDirectory,
-            environment: ["AWS_PROFILE": awsProfile]
+            environment: ["AWS_PROFILE": awsProfile],
+            inheritIO: true
         )
     }
 
@@ -111,7 +113,8 @@ public actor CDKService {
             command: command,
             arguments: arguments,
             workingDirectory: cdkDirectory,
-            environment: ["AWS_PROFILE": awsProfile]
+            environment: ["AWS_PROFILE": awsProfile],
+            inheritIO: true
         )
     }
 
