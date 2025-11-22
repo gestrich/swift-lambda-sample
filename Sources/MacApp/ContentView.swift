@@ -1,21 +1,26 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var apiClient = APIClient.shared
+
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
+        TabView {
+            FileView()
+                .tabItem {
+                    Label("Files", systemImage: "doc.fill")
+                }
 
-            Text("Hello, Mac!")
-                .font(.largeTitle)
+            UserListView()
+                .tabItem {
+                    Label("Users", systemImage: "person.3.fill")
+                }
 
-            Text("This is a SwiftUI macOS application")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
+                }
         }
-        .padding()
-        .frame(width: 400, height: 300)
+        .environmentObject(apiClient)
     }
 }
 

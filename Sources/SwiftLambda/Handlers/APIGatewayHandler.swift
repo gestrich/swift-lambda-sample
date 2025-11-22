@@ -64,6 +64,45 @@ struct APIGWHandler {
         case "file":
             let _ = try await app.uploadAndDownloadS3File()
             return try "File uploaded and downloaded".apiGatewayOkResponse()
+        case "files":
+            switch event.httpMethod {
+            case .get:
+                // GET /api/files - list all files
+                // GET /api/files/{fileName} - download specific file
+                guard urlComponents.count > 1 else {
+                    let files = try await app.listS3Files()
+                    return try files.apiGatewayOkResponse()
+                }
+
+                let fileName = urlComponents[1]
+                guard let fileData = try await app.downloadS3File(key: fileName) else {
+                    return try "File not found: \(fileName)".createAPIGatewayJSONResponse(statusCode: .notFound)
+                }
+
+                let response = FileDownloadResponse(
+                    fileName: fileName,
+                    data: fileData.base64EncodedString()
+                )
+                return try response.apiGatewayOkResponse()
+
+            case .post:
+                // POST /api/files - upload file
+                guard let bodyString = event.body,
+                      let bodyData = bodyString.data(using: .utf8) else {
+                    throw APIGWHandlerError.general(description: "Missing body data")
+                }
+
+                let uploadRequest = try JSONDecoder().decode(FileUploadRequest.self, from: bodyData)
+                guard let fileData = Data(base64Encoded: uploadRequest.data) else {
+                    throw APIGWHandlerError.general(description: "Invalid base64 data")
+                }
+
+                try await app.uploadS3File(key: uploadRequest.fileName, data: fileData)
+                return try "File uploaded: \(uploadRequest.fileName)".apiGatewayOkResponse()
+
+            default:
+                throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")
+            }
         case "users":
             switch event.httpMethod {
             case .get:

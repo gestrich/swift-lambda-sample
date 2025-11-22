@@ -118,11 +118,34 @@ public struct SwiftServerApp {
         }
         try await s3DataStore.uploadData(data, key: key)
     }
-    
-    
+
+    public func uploadS3File(key: String, data: Data) async throws {
+        guard let s3DataStore else {
+            throw LambdaDemoError.missingService(name: "s3DataStore")
+        }
+        try await s3DataStore.uploadData(data, key: key)
+    }
+
+    public func downloadS3File(key: String) async throws -> Data? {
+        guard let s3DataStore else {
+            throw LambdaDemoError.missingService(name: "s3DataStore")
+        }
+        return try await s3DataStore.getData(key: key)
+    }
+
+    public func listS3Files() async throws -> [String] {
+        guard let s3DataStore else {
+            throw LambdaDemoError.missingService(name: "s3DataStore")
+        }
+        // For now, return a hardcoded list since S3DataStoreInterface doesn't have a list method
+        // In production, you'd extend S3DataStoreInterface to support listing
+        return try await s3DataStore.listFiles()
+    }
+
+
     enum LambdaDemoError: LocalizedError {
         case missingService(name: String)
         case unexpectedError(description: String)
     }
-    
+
 }

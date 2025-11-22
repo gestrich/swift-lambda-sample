@@ -396,14 +396,14 @@ git push origin dev
 gh run watch --repo gestrich/swift-lambda-sample
 
 # 4. Test the deployed Lambda
-curl -X GET https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/api/users
+curl -X GET https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod/api/users
 ```
 
 ## API Gateway URL
 
 **Current Endpoint:**
 ```
-https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/
+https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod/
 ```
 
 **Note:** The API Gateway URL changes with each fresh deployment. Get the current URL from the deployment outputs or by running:
@@ -1198,5 +1198,5 @@ aws secretsmanager get-secret-value --secret-id {secret-name}
 
 - **CDK Documentation**: See `cdk/README.md` for detailed infrastructure docs
 - **Project README**: See root `README.md` for local development setup
-- **API Gateway URL**: https://gmyk36woqc.execute-api.us-east-1.amazonaws.com/prod/
+- **API Gateway URL**: https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod/
 - **GitHub Actions**: https://github.com/gestrich/swift-lambda-sample/actions

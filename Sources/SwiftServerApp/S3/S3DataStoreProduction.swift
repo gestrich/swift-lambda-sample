@@ -34,7 +34,11 @@ public actor S3DataStoreProduction: S3DataStoreInterface, Sendable {
     public func uploadData(_ data: Data, key: String) async throws {
         let s3Store = try await getOrCreateS3Store()
         _ = try await s3Store.uploadData(data, key: key)
+    }
 
+    public func listFiles() async throws -> [String] {
+        let s3Store = try await getOrCreateS3Store()
+        return try await s3Store.listFiles()
     }
 }
 

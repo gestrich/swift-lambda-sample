@@ -14,6 +14,6 @@ struct MacAppMain: App {
         WindowGroup {
             ContentView()
         }
-        .defaultSize(width: 400, height: 300)
+        .defaultSize(width: 700, height: 600)
     }
 }

@@ -39,7 +39,12 @@ public final class S3DataStoreS3: S3DataStoreInterface {
         )
 
         let _ = try await s3.putObject(putObjectRequest)
+    }
 
+    public func listFiles() async throws -> [String] {
+        let listRequest = S3.ListObjectsV2Request(bucket: bucketName)
+        let response = try await s3.listObjectsV2(listRequest)
+        return response.contents?.compactMap { $0.key } ?? []
     }
 }
 

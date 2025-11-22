@@ -10,4 +10,5 @@ import Foundation
 public protocol S3DataStoreInterface: Sendable {
     func getData(key: String) async throws -> Data?
     func uploadData(_ data: Data, key: String) async throws
+    func listFiles() async throws -> [String]
 }
