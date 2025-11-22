@@ -459,6 +459,145 @@ public actor LocalDevelopmentService {
 
         print("")
 
+        // Test file upload (new /api/files endpoint)
+        print("→ Testing file upload...")
+        let testFileData = "Hello from test file!".data(using: .utf8)!.base64EncodedString()
+        let uploadFileBody = """
+        {
+          "resource": "/api/files",
+          "path": "/api/files",
+          "httpMethod": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "multiValueHeaders": {},
+          "requestContext": {
+            "resourceId": "test",
+            "apiId": "test",
+            "resourcePath": "/api/files",
+            "httpMethod": "POST",
+            "requestId": "test",
+            "accountId": "123456789012",
+            "stage": "local",
+            "identity": {"sourceIp": "127.0.0.1"},
+            "path": "/api/files"
+          },
+          "body": "{\\"fileName\\":\\"test-upload.txt\\",\\"data\\":\\"\(testFileData)\\"}",
+          "isBase64Encoded": false
+        }
+        """
+
+        let uploadResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                endpoint,
+                "-H", "Content-Type: application/json",
+                "-d", uploadFileBody
+            ],
+            printCommand: false
+        )
+
+        if uploadResult.stdout.contains("File uploaded: test-upload.txt") {
+            print("  ✅ File upload test passed")
+        } else {
+            print("  ❌ File upload test failed: \(uploadResult.stdout)")
+            throw CLIError.testFailed(message: "File upload endpoint test failed")
+        }
+
+        print("")
+
+        // Test list files
+        print("→ Testing list files...")
+        let listFilesBody = """
+        {
+          "resource": "/api/files",
+          "path": "/api/files",
+          "httpMethod": "GET",
+          "headers": {},
+          "multiValueHeaders": {},
+          "requestContext": {
+            "resourceId": "test",
+            "apiId": "test",
+            "resourcePath": "/api/files",
+            "httpMethod": "GET",
+            "requestId": "test",
+            "accountId": "123456789012",
+            "stage": "local",
+            "identity": {"sourceIp": "127.0.0.1"},
+            "path": "/api/files"
+          },
+          "body": null,
+          "isBase64Encoded": false
+        }
+        """
+
+        let listResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                endpoint,
+                "-H", "Content-Type: application/json",
+                "-d", listFilesBody
+            ],
+            printCommand: false
+        )
+
+        if listResult.stdout.contains("test-upload.txt") {
+            print("  ✅ List files test passed")
+        } else {
+            print("  ❌ List files test failed: \(listResult.stdout)")
+            throw CLIError.testFailed(message: "List files endpoint test failed")
+        }
+
+        print("")
+
+        // Test file download
+        print("→ Testing file download...")
+        let downloadFileBody = """
+        {
+          "resource": "/api/files/test-upload.txt",
+          "path": "/api/files/test-upload.txt",
+          "httpMethod": "GET",
+          "headers": {},
+          "multiValueHeaders": {},
+          "requestContext": {
+            "resourceId": "test",
+            "apiId": "test",
+            "resourcePath": "/api/files/{fileName}",
+            "httpMethod": "GET",
+            "requestId": "test",
+            "accountId": "123456789012",
+            "stage": "local",
+            "identity": {"sourceIp": "127.0.0.1"},
+            "path": "/api/files/test-upload.txt"
+          },
+          "body": null,
+          "isBase64Encoded": false
+        }
+        """
+
+        let downloadResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                endpoint,
+                "-H", "Content-Type: application/json",
+                "-d", downloadFileBody
+            ],
+            printCommand: false
+        )
+
+        if downloadResult.stdout.contains("fileName") && downloadResult.stdout.contains("test-upload.txt") {
+            print("  ✅ File download test passed")
+        } else {
+            print("  ❌ File download test failed: \(downloadResult.stdout)")
+            throw CLIError.testFailed(message: "File download endpoint test failed")
+        }
+
+        print("")
+
         // Test database initialization
         print("→ Testing database initialization...")
         let dbBody = """

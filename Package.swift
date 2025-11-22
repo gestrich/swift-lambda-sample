@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftLambda",
     platforms: [
-        .macOS("15.0")
+        .macOS(.v15)
     ],
     products: [
         .executable(
