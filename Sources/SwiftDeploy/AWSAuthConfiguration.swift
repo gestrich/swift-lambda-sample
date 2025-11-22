@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import ArgumentParser
 
 /// AWS authentication configuration for SwiftDeploy CLI
 public struct AWSAuthConfiguration: Codable {
@@ -14,13 +13,6 @@ public struct AWSAuthConfiguration: Codable {
 
     public init(profileName: String) {
         self.profileName = profileName
-    }
-
-    // MARK: - Constants
-
-    /// Help text for --aws-profile option
-    public static var profileOptionHelp: ArgumentHelp {
-        ArgumentHelp("AWS profile to use (reads from ~/.swiftSampleDemo/aws-config.json if not specified)")
     }
 
     // MARK: - Configuration File
