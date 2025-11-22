@@ -10,6 +10,9 @@ struct FreshDeployCommand: AsyncParsableCommand {
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
 
+    @Option(name: .long, help: "Use aws-vault for credential management")
+    var useAwsVault: Bool?
+
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
 
@@ -23,10 +26,14 @@ struct FreshDeployCommand: AsyncParsableCommand {
     var skipPush: Bool = false
 
     mutating func run() async throws {
-        // Get AWS profile from flag or config file
-        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+        // Resolve AWS configuration from CLI args and config file
+        let awsConfig = try AWSAuthConfiguration.resolve(
+            profileName: awsProfile,
+            useAWSVault: useAwsVault
+        )
+
         if awsProfile == nil {
-            print("ℹ️  Using AWS profile '\(profile)' from config file\n")
+            print("ℹ️  Using AWS profile '\(awsConfig.profileName)' from config file\n")
         }
 
         print("🚀 Starting deployment...\n")
@@ -40,14 +47,17 @@ struct FreshDeployCommand: AsyncParsableCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
         let gitService = GitService(repoPath: projectRoot)
 
         // 1. Deploy CDK infrastructure
         let options = DeploymentOptions(
             skipPostgres: !withPostgres,  // Invert: default is to skip
             skipNATGateway: !withNatGateway,  // Invert: default is to skip
-            awsProfile: profile,
+            awsProfile: awsConfig.profileName,
             cdkDirectory: cdkDirectory
         )
 
@@ -118,7 +128,7 @@ struct FreshDeployCommand: AsyncParsableCommand {
             do {
                 try await initializeDatabase(
                     stackName: "SwiftLambdaSampleStack",
-                    awsProfile: profile
+                    awsConfig: awsConfig
                 )
                 print("  ✓ Database initialized successfully")
             } catch {
@@ -133,7 +143,7 @@ struct FreshDeployCommand: AsyncParsableCommand {
         do {
             try await verifyDeployment(
                 stackName: "SwiftLambdaSampleStack",
-                awsProfile: profile,
+                awsConfig: awsConfig,
                 withPostgres: withPostgres
             )
             print("\n✅ Deployment verification passed!")
@@ -145,9 +155,12 @@ struct FreshDeployCommand: AsyncParsableCommand {
         print("\n🎉 Deployment completed successfully!")
     }
 
-    private func initializeDatabase(stackName: String, awsProfile: String) async throws {
+    private func initializeDatabase(stackName: String, awsConfig: AWSAuthConfiguration) async throws {
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: awsProfile)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
         let cliService = CLIService.shared
 
         // Get API Gateway URL
@@ -188,9 +201,12 @@ struct FreshDeployCommand: AsyncParsableCommand {
         }
     }
 
-    private func verifyDeployment(stackName: String, awsProfile: String, withPostgres: Bool) async throws {
+    private func verifyDeployment(stackName: String, awsConfig: AWSAuthConfiguration, withPostgres: Bool) async throws {
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: awsProfile)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
         let cliService = CLIService.shared
 
         // Get API Gateway URL

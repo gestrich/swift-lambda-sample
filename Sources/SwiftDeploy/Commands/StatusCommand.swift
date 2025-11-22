@@ -10,14 +10,23 @@ struct StatusCommand: AsyncParsableCommand {
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
 
+    @Option(name: .long, help: "Use aws-vault for credential management")
+    var useAwsVault: Bool?
+
     mutating func run() async throws {
-        // Get AWS profile from flag or config file
-        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+        // Resolve AWS configuration from CLI args and config file
+        let awsConfig = try AWSAuthConfiguration.resolve(
+            profileName: awsProfile,
+            useAWSVault: useAwsVault
+        )
 
         print("📊 Checking status...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
         let gitService = GitService(repoPath: projectRoot)
 
         // Git status

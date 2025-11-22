@@ -10,6 +10,9 @@ struct TearDownCommand: AsyncParsableCommand {
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
 
+    @Option(name: .long, help: "Use aws-vault for credential management")
+    var useAwsVault: Bool?
+
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
 
@@ -17,8 +20,11 @@ struct TearDownCommand: AsyncParsableCommand {
     var force: Bool = false
 
     mutating func run() async throws {
-        // Get AWS profile from flag or config file
-        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+        // Resolve AWS configuration from CLI args and config file
+        let awsConfig = try AWSAuthConfiguration.resolve(
+            profileName: awsProfile,
+            useAWSVault: useAwsVault
+        )
 
         print("🗑️  Starting tear down...\n")
 
@@ -34,7 +40,10 @@ struct TearDownCommand: AsyncParsableCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
 
         try await deploymentService.tearDown(
             cdkDirectory: cdkDirectory

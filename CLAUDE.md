@@ -143,12 +143,17 @@ swift run SwiftDeploy local copy-config
 mkdir -p ~/.swiftSampleDemo
 cat > ~/.swiftSampleDemo/aws-config.json <<EOF
 {
-  "profileName": "production"
+  "profileName": "production",
+  "useAWSVault": false
 }
 EOF
 ```
 
-The SwiftDeploy CLI will automatically read the profile from this file. You can override it with the `--aws-profile` flag if needed.
+**Configuration options:**
+- `profileName`: AWS profile name to use (required)
+- `useAWSVault`: Use aws-vault for credential management (default: false)
+
+The SwiftDeploy CLI will automatically read the profile from this file. You can override it with the `--aws-profile` and `--use-aws-vault` flags if needed.
 
 #### Using AWS Profiles
 
@@ -202,6 +207,117 @@ aws secretsmanager get-secret-value \
 # List all secrets
 aws secretsmanager list-secrets \
   --profile production
+```
+
+### Using AWS Vault for Credential Management
+
+**aws-vault** is a tool that securely stores and accesses AWS credentials in your operating system's secure keystore. It provides better security than storing credentials in plaintext files.
+
+#### Installation
+
+```bash
+# macOS
+brew install --cask aws-vault
+
+# Verify installation
+which aws-vault
+```
+
+#### Setup
+
+```bash
+# Add your AWS credentials to aws-vault
+aws-vault add production
+# Enter your AWS Access Key ID and Secret Access Key when prompted
+
+# Test the credentials
+aws-vault exec production -- aws sts get-caller-identity
+```
+
+#### Configuring SwiftDeploy to Use aws-vault
+
+**Option 1: Enable in config file (recommended)**
+
+Update `~/.swiftSampleDemo/aws-config.json`:
+
+```json
+{
+  "profileName": "production",
+  "useAWSVault": true
+}
+```
+
+Now all SwiftDeploy commands will use aws-vault automatically:
+
+```bash
+# These commands now use aws-vault
+swift run SwiftDeploy deploy
+swift run SwiftDeploy status
+swift run SwiftDeploy test all
+```
+
+**Option 2: Use CLI flag**
+
+```bash
+# Use aws-vault for a single command
+swift run SwiftDeploy deploy --use-aws-vault
+swift run SwiftDeploy test all --use-aws-vault
+
+# Override config to NOT use aws-vault for this command
+# (if useAWSVault is true in config but you want to temporarily disable it)
+swift run SwiftDeploy deploy  # Uses traditional credentials
+```
+
+#### How it Works
+
+When `useAWSVault` is enabled, SwiftDeploy:
+1. Wraps AWS CLI and CDK commands with `aws-vault exec <profile> --`
+2. Removes `--profile` flags from commands (aws-vault handles authentication)
+3. Credentials are injected via environment variables
+
+**Traditional approach:**
+```bash
+aws cloudformation describe-stacks --profile production
+cdk deploy --profile production
+```
+
+**With aws-vault:**
+```bash
+aws-vault exec production -- aws cloudformation describe-stacks
+aws-vault exec production -- cdk deploy
+```
+
+SwiftDeploy handles this automatically when `useAWSVault: true`.
+
+#### Benefits
+
+- **Security**: Credentials stored in OS keychain (macOS Keychain, Windows Credential Manager, etc.)
+- **No plaintext**: AWS credentials never stored in `~/.aws/credentials`
+- **MFA support**: Works with multi-factor authentication
+- **Session management**: Temporary credentials with automatic rotation
+
+#### Troubleshooting
+
+**Error: "aws-vault is not installed"**
+
+Install aws-vault:
+```bash
+brew install --cask aws-vault
+```
+
+Or disable aws-vault in your config:
+```json
+{
+  "profileName": "production",
+  "useAWSVault": false
+}
+```
+
+**Error: "profile not found"**
+
+Add your profile to aws-vault:
+```bash
+aws-vault add production
 ```
 
 ## GitHub Actions Deployment

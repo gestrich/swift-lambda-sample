@@ -1,3 +1,4 @@
 {
-  "profileName": "production"
+  "profileName": "production",
+  "useAWSVault": false
 }

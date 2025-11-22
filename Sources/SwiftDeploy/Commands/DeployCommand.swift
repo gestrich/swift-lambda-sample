@@ -10,6 +10,9 @@ struct DeployCommand: AsyncParsableCommand {
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
     var awsProfile: String?
 
+    @Option(name: .long, help: "Use aws-vault for credential management")
+    var useAwsVault: Bool?
+
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
 
@@ -20,10 +23,14 @@ struct DeployCommand: AsyncParsableCommand {
     var withNatGateway: Bool = false
 
     mutating func run() async throws {
-        // Get AWS profile from flag or config file
-        let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
+        // Resolve AWS configuration from CLI args and config file
+        let awsConfig = try AWSAuthConfiguration.resolve(
+            profileName: awsProfile,
+            useAWSVault: useAwsVault
+        )
+
         if awsProfile == nil {
-            print("ℹ️  Using AWS profile '\(profile)' from config file\n")
+            print("ℹ️  Using AWS profile '\(awsConfig.profileName)' from config file\n")
         }
 
         print("🚀 Deploying CDK infrastructure...\n")
@@ -37,13 +44,16 @@ struct DeployCommand: AsyncParsableCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(projectRoot: projectRoot, awsProfile: profile)
+        let deploymentService = DeploymentService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
 
         // 1. Deploy CDK infrastructure
         let options = DeploymentOptions(
             skipPostgres: !withPostgres,
             skipNATGateway: !withNatGateway,
-            awsProfile: profile,
+            awsProfile: awsConfig.profileName,
             cdkDirectory: cdkDirectory
         )
 

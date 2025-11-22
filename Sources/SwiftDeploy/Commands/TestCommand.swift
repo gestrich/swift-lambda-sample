@@ -30,9 +30,15 @@ extension TestCommand {
         @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
+
         func run() async throws {
-            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
-            let service = AWSTestingService(awsProfile: profile)
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.testFileEndpoint()
         }
     }
@@ -47,9 +53,15 @@ extension TestCommand {
         @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
+
         func run() async throws {
-            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
-            let service = AWSTestingService(awsProfile: profile)
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.testFileEndpointVerbose()
         }
     }
@@ -64,9 +76,15 @@ extension TestCommand {
         @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
+
         func run() async throws {
-            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
-            let service = AWSTestingService(awsProfile: profile)
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.verifyS3File()
         }
     }
@@ -81,12 +99,18 @@ extension TestCommand {
         @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
+
         @Option(name: .long, help: "Time period (e.g., 5m, 1h, 30m)")
         var since: String = "5m"
 
         func run() async throws {
-            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
-            let service = AWSTestingService(awsProfile: profile)
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.checkLogs(since: since)
         }
     }
@@ -101,9 +125,15 @@ extension TestCommand {
         @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
+
         func run() async throws {
-            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
-            let service = AWSTestingService(awsProfile: profile)
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.runAllTests()
         }
     }
@@ -118,9 +148,15 @@ extension TestCommand {
         @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
+
         func run() async throws {
-            let profile = try AWSAuthConfiguration.getProfile(from: awsProfile)
-            let service = AWSTestingService(awsProfile: profile)
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
+            let service = AWSTestingService(awsConfig: awsConfig)
             let url = try await service.getApiGatewayUrl()
             print(url)
         }

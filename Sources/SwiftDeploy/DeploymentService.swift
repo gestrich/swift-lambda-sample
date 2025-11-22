@@ -8,15 +8,15 @@ public actor DeploymentService {
 
     public init(
         projectRoot: String,
-        awsProfile: String,
+        awsConfig: AWSAuthConfiguration,
         cdkDirectory: String = "cdk"
     ) {
         self.projectRoot = projectRoot
         self.cdkService = CDKService(
             cdkDirectory: "\(projectRoot)/\(cdkDirectory)",
-            awsProfile: awsProfile
+            awsConfig: awsConfig
         )
-        self.awsService = AWSCLIService(profile: awsProfile)
+        self.awsService = AWSCLIService(awsConfig: awsConfig)
     }
 
     /// Deploy CDK stack
