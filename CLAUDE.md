@@ -619,7 +619,7 @@ swift run SwiftDeploy local run-container    # Run Lambda in Linux container
 swift run SwiftDeploy local test --port 8080 # Test local Lambda endpoints
 
 # Configuration
-swift run SwiftDeploy local copy-config      # Copy config files to ~/.swiftSampleDemo/
+swift run SwiftDeploy local copy-config      # Copy runtime config to ~/.swiftSampleDemo/
 ```
 
 **What it does:**
@@ -627,7 +627,7 @@ swift run SwiftDeploy local copy-config      # Copy config files to ~/.swiftSamp
 - Sets up Docker networking for Lambda container testing
 - Provides interactive Linux container for testing Lambda builds
 - Tests local Lambda endpoints
-- Copies configuration files (swiftLambdaDemo.json and aws-config.json) to home directory
+- Copies runtime configuration file (swiftLambdaDemo.json) to home directory
 
 **Example workflow:**
 ```bash

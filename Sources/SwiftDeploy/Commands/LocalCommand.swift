@@ -164,7 +164,7 @@ extension LocalCommand {
     struct CopyConfigCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "copy-config",
-            abstract: "Copy config file to ~/.swiftSampleDemo/"
+            abstract: "Copy runtime config file to ~/.swiftSampleDemo/"
         )
 
         func run() async throws {

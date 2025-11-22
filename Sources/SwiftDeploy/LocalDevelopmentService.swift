@@ -518,7 +518,7 @@ public actor LocalDevelopmentService {
     /// Copy config file to home directory
     /// - Parameter sourcePath: Optional path to the config file. If nil, uses "swiftLambdaDemo.json" in current directory
     public func copyConfig(sourcePath: String? = nil) async throws {
-        print("\n📝 Copying config files...")
+        print("\n📝 Copying runtime config file...")
 
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let configDir = "\(homeDir)/.swiftSampleDemo"
@@ -542,23 +542,9 @@ public actor LocalDevelopmentService {
             try FileManager.default.removeItem(atPath: appConfigDest)
         }
         try FileManager.default.copyItem(atPath: appConfigSource, toPath: appConfigDest)
-        print("  ✓ App config: \(appConfigDest)")
+        print("  ✓ Runtime config: \(appConfigDest)")
 
-        // Copy aws-config.json (deployment config)
-        let awsConfigSource = "aws-config.json"
-        let awsConfigDest = "\(configDir)/aws-config.json"
-
-        if FileManager.default.fileExists(atPath: awsConfigSource) {
-            if FileManager.default.fileExists(atPath: awsConfigDest) {
-                try FileManager.default.removeItem(atPath: awsConfigDest)
-            }
-            try FileManager.default.copyItem(atPath: awsConfigSource, toPath: awsConfigDest)
-            print("  ✓ AWS config: \(awsConfigDest)")
-        } else {
-            print("  ⚠️  AWS config not found at: \(awsConfigSource) (skipping)")
-        }
-
-        print("\n✅ Config files copied to ~/.swiftSampleDemo/")
+        print("\n✅ Runtime config copied to ~/.swiftSampleDemo/")
     }
 
     // MARK: - Private Helpers
