@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import ArgumentParser
 
 /// AWS authentication configuration for SwiftDeploy CLI
 public struct AWSAuthConfiguration: Codable {
@@ -18,7 +19,9 @@ public struct AWSAuthConfiguration: Codable {
     // MARK: - Constants
 
     /// Help text for --aws-profile option
-    public static let profileOptionHelp = "AWS profile to use (reads from ~/.swiftSampleDemo/aws-config.json if not specified)"
+    public static var profileOptionHelp: ArgumentHelp {
+        ArgumentHelp("AWS profile to use (reads from ~/.swiftSampleDemo/aws-config.json if not specified)")
+    }
 
     // MARK: - Configuration File
 
@@ -56,15 +59,17 @@ public struct AWSAuthConfiguration: Codable {
         } else if let config = loadConfig() {
             return config.profileName
         } else {
-            throw CLIError.invalidInput(
-                reason: "AWS profile not specified. Either:\n" +
-                "  1. Pass --aws-profile <name>, OR\n" +
-                "  2. Configure profileName in ~/.swiftSampleDemo/aws-config.json\n\n" +
-                "Example aws-config.json:\n" +
-                "{\n" +
-                "  \"profileName\": \"production\"\n" +
-                "}"
-            )
+            let errorMessage = """
+                AWS profile not specified. Either:
+                  1. Pass --aws-profile <name>, OR
+                  2. Configure profileName in ~/.swiftSampleDemo/aws-config.json
+
+                Example aws-config.json:
+                {
+                  "profileName": "production"
+                }
+                """
+            throw CLIError.invalidCommand(errorMessage)
         }
     }
 }
