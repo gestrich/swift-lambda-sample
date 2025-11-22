@@ -13,7 +13,7 @@ This guide has been split into focused documentation for different development a
 
 **Quick Start:**
 ```bash
-./tools.sh startServices  # Start PostgreSQL + MinIO
+./tools.sh local-start-all  # Start PostgreSQL + MinIO
 # Then run in Xcode (⌘R)
 ```
 
@@ -29,7 +29,7 @@ This guide has been split into focused documentation for different development a
 **Quick Start:**
 ```bash
 ./build.sh SwiftLambda              # Build for AWS Lambda
-./tools.sh runLambdaContainer       # Test in Linux container
+./tools.sh local-run-container      # Test in Linux container
 ```
 
 ---
@@ -41,7 +41,7 @@ Both approaches use the same local services:
 ### Start Services
 
 ```bash
-./tools.sh startServices
+./tools.sh local-start-all
 ```
 
 This starts:
@@ -52,7 +52,7 @@ This starts:
 ### Stop Services
 
 ```bash
-./tools.sh stopServices
+./tools.sh local-stop-all
 ```
 
 ### Verify Services
@@ -68,11 +68,11 @@ docker ps
 
 | Task | Command |
 |------|---------|
-| Copy config | `./tools.sh copyConfig` |
-| Start services | `./tools.sh startServices` |
-| Stop services | `./tools.sh stopServices` |
+| Copy config | `./tools.sh local-copy-config` |
+| Start services | `./tools.sh local-start-all` |
+| Stop services | `./tools.sh local-stop-all` |
 | Build for AWS | `./build.sh SwiftLambda` |
-| Run in container | `./tools.sh runLambdaContainer` |
+| Run in container | `./tools.sh local-run-container` |
 
 ---
 

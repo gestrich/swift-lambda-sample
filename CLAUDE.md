@@ -53,12 +53,12 @@ tools.sh           → Convenience aliases (Bash wrapper)
 
 | Task | SwiftDeploy (Recommended) | tools.sh (Alias) |
 |------|---------------------------|------------------|
-| Deploy infrastructure | `swift run SwiftDeploy deploy` | `./tools.sh deploy` |
-| Update Lambda code | `swift run SwiftDeploy update-lambda` | `./tools.sh updateLambda` |
-| Start local services | `swift run SwiftDeploy local start-services` | `./tools.sh startServices` |
-| Test deployment | `swift run SwiftDeploy test all` | `./tools.sh testDeployment` |
-| Check logs | `swift run SwiftDeploy test logs` | `./tools.sh checkLambdaLogs` |
-| Check status | `swift run SwiftDeploy status` | `./tools.sh deployStatus` |
+| Deploy infrastructure | `swift run SwiftDeploy deploy` | `./tools.sh aws-deploy` |
+| Update Lambda code | `swift run SwiftDeploy update-lambda` | `./tools.sh aws-update-lambda` |
+| Start local services | `swift run SwiftDeploy local start-services` | `./tools.sh local-start-all` |
+| Test deployment | `swift run SwiftDeploy test all` | `./tools.sh aws-test` |
+| Check logs | `swift run SwiftDeploy test logs` | `./tools.sh aws-logs` |
+| Check status | `swift run SwiftDeploy status` | `./tools.sh aws-status` |
 
 ## Project Structure
 
@@ -538,15 +538,15 @@ swift run SwiftDeploy <command>
 ```bash
 # Minimal deployment (default: no Postgres, no NAT)
 swift run SwiftDeploy fresh-deploy
-./tools.sh freshDeploy
+./tools.sh aws-fresh-deploy
 
 # Deploy with PostgreSQL (adds cost)
 swift run SwiftDeploy fresh-deploy --with-postgres
-./tools.sh freshDeploy --with-postgres
+./tools.sh aws-fresh-deploy --with-postgres
 
 # Full deployment (Postgres + NAT)
 swift run SwiftDeploy fresh-deploy --with-postgres --with-nat-gateway
-./tools.sh freshDeploy --with-postgres --with-nat-gateway
+./tools.sh aws-fresh-deploy --with-postgres --with-nat-gateway
 ```
 
 **Options:**
@@ -602,7 +602,7 @@ swift run SwiftDeploy deploy --with-postgres
 ```bash
 # Update Lambda code
 swift run SwiftDeploy update-lambda
-./tools.sh updateLambda
+./tools.sh aws-update-lambda
 
 # Update without pushing git commits
 swift run SwiftDeploy update-lambda --skip-push
@@ -623,7 +623,7 @@ Safely destroys the entire CDK stack:
 swift run SwiftDeploy tear-down
 
 # Using tools.sh wrapper
-./tools.sh deployTearDown
+./tools.sh aws-tear-down
 
 # Skip confirmation prompt
 swift run SwiftDeploy tear-down --force
@@ -647,7 +647,7 @@ Check the current state of your deployment:
 swift run SwiftDeploy status
 
 # Using tools.sh wrapper
-./tools.sh deployStatus
+./tools.sh aws-status
 ```
 
 **Displays:**
@@ -766,53 +766,55 @@ swift run SwiftDeploy local stop-services
 
 ### Tools.sh Wrapper Functions
 
-For convenience, `tools.sh` provides wrapper functions:
+For convenience, `tools.sh` provides wrapper functions with consistent naming:
+- **AWS commands**: `aws-*` prefix for all AWS deployment and testing
+- **Local commands**: `local-*` prefix for all local development
 
-#### Deployment Functions
+#### AWS Deployment Functions
 
 | Function | Description |
 |----------|-------------|
-| `freshDeploy` | Initial deployment: CDK infrastructure + Lambda code |
-| `deploy` | Update CDK infrastructure only (does NOT update Lambda) |
-| `updateLambda` | Update Lambda code only (does NOT update infrastructure) |
-| `deployTearDown` | Destroy all infrastructure |
-| `deployStatus` | Check deployment and git status |
+| `aws-fresh-deploy` | Initial deployment: CDK infrastructure + Lambda code |
+| `aws-deploy` | Update CDK infrastructure only (does NOT update Lambda) |
+| `aws-update-lambda` | Update Lambda code only (does NOT update infrastructure) |
+| `aws-tear-down` | Destroy all infrastructure |
+| `aws-status` | Check deployment and git status |
+| `aws-logs` | Show Lambda CloudWatch logs |
+| `aws-get-url` | Get API Gateway URL |
 
-**Flags for freshDeploy and deploy:**
+**Flags for aws-fresh-deploy and aws-deploy:**
 ```bash
-./tools.sh freshDeploy                                  # Minimal (first deployment)
-./tools.sh freshDeploy --with-postgres                  # Add database
-./tools.sh freshDeploy --with-postgres --with-nat-gateway  # Full infrastructure
+./tools.sh aws-fresh-deploy                                  # Minimal (first deployment)
+./tools.sh aws-fresh-deploy --with-postgres                  # Add database
+./tools.sh aws-fresh-deploy --with-postgres --with-nat-gateway  # Full infrastructure
 
-./tools.sh deploy                    # Update infrastructure (minimal)
-./tools.sh deploy --with-postgres    # Update infrastructure with database
+./tools.sh aws-deploy                    # Update infrastructure (minimal)
+./tools.sh aws-deploy --with-postgres    # Update infrastructure with database
 ```
-
-#### Local Development Functions
-
-| Function | Description |
-|----------|-------------|
-| `copyConfig` | Copy config files to ~/.swiftSampleDemo/ (app + AWS) |
-| `startServices` | Start PostgreSQL + MinIO |
-| `stopServices` | Stop all services |
-| `startDatabase` | Start PostgreSQL only |
-| `stopDatabase` | Stop PostgreSQL only |
-| `startS3` | Start MinIO only |
-| `stopS3` | Stop MinIO only |
-| `setupLambdaNetwork` | Setup Docker network |
-| `runLambdaContainer` | Run Lambda in Linux container |
-| `testLocalLambda [port]` | Test local Lambda endpoints |
 
 #### AWS Testing Functions
 
 | Function | SwiftDeploy Equivalent |
 |----------|------------------------|
-| `testApiFile` | `swift run SwiftDeploy test file` |
-| `testApiFileVerbose` | `swift run SwiftDeploy test file-verbose` |
-| `verifyS3File` | `swift run SwiftDeploy test verify-s3` |
-| `checkLambdaLogs` | `swift run SwiftDeploy test logs` |
-| `testDeployment` | `swift run SwiftDeploy test all` |
-| `getApiGatewayUrl` | `swift run SwiftDeploy test get-url` |
+| `aws-test` | `swift run SwiftDeploy test all` |
+| `aws-test-file` | `swift run SwiftDeploy test file` |
+| `aws-test-file-verbose` | `swift run SwiftDeploy test file-verbose` |
+| `aws-verify-s3` | `swift run SwiftDeploy test verify-s3` |
+
+#### Local Development Functions
+
+| Function | Description |
+|----------|-------------|
+| `local-copy-config` | Copy config files to ~/.swiftSampleDemo/ (app + AWS) |
+| `local-start-all` | Start PostgreSQL + MinIO |
+| `local-stop-all` | Stop all services |
+| `local-start-db` | Start PostgreSQL only |
+| `local-stop-db` | Stop PostgreSQL only |
+| `local-start-s3` | Start MinIO only |
+| `local-stop-s3` | Stop MinIO only |
+| `local-setup-network` | Setup Docker network |
+| `local-run-container` | Run Lambda in Linux container |
+| `local-test [port]` | Test local Lambda endpoints |
 
 **Usage:**
 ```bash
@@ -820,19 +822,19 @@ For convenience, `tools.sh` provides wrapper functions:
 ./tools.sh
 
 # Deploy (minimal cost by default)
-./tools.sh deploy
+./tools.sh aws-deploy
 
 # Deploy with database
-./tools.sh deploy --with-postgres
+./tools.sh aws-deploy --with-postgres
 
 # Update Lambda code only
-./tools.sh deployLambda
+./tools.sh aws-update-lambda
 
 # Test your deployment
-./tools.sh testDeployment
+./tools.sh aws-test
 
 # Check status
-./tools.sh deployStatus
+./tools.sh aws-status
 ```
 
 ### Typical Deployment Workflows
@@ -840,13 +842,13 @@ For convenience, `tools.sh` provides wrapper functions:
 #### Initial Deployment
 ```bash
 # 1. Deploy everything (minimal cost by default)
-./tools.sh freshDeploy
+./tools.sh aws-fresh-deploy
 
 # 2. Verify deployment
-./tools.sh testDeployment
+./tools.sh aws-test
 
 # 3. Check status
-./tools.sh deployStatus
+./tools.sh aws-status
 ```
 
 #### Update Lambda Code Only
@@ -859,7 +861,7 @@ git add -A
 git commit -m "Update API handler"
 
 # 3. Update Lambda code (infrastructure unchanged)
-./tools.sh updateLambda
+./tools.sh aws-update-lambda
 ```
 
 #### Update Infrastructure Only
@@ -868,24 +870,24 @@ git commit -m "Update API handler"
 vim cdk/lib/constructs/lambda-construct.ts
 
 # 2. Update infrastructure only (Lambda code unchanged)
-./tools.sh deploy
+./tools.sh aws-deploy
 
-# (Lambda code is NOT updated - use updateLambda if needed)
+# (Lambda code is NOT updated - use aws-update-lambda if needed)
 ```
 
 #### Full Deployment with Database
 ```bash
 # Initial deployment with PostgreSQL and NAT Gateway
-./tools.sh freshDeploy --with-postgres --with-nat-gateway
+./tools.sh aws-fresh-deploy --with-postgres --with-nat-gateway
 
 # Or just add PostgreSQL
-./tools.sh freshDeploy --with-postgres
+./tools.sh aws-fresh-deploy --with-postgres
 ```
 
 #### Clean Up
 ```bash
 # Destroy all infrastructure
-./tools.sh deployTearDown
+./tools.sh aws-tear-down
 ```
 
 ## Common Development Tasks
@@ -1075,18 +1077,19 @@ gh run view {run-id} --repo gestrich/swift-lambda-sample --log
 ```bash
 # Deploy infrastructure
 swift run SwiftDeploy fresh-deploy
-./tools.sh deployFresh
+./tools.sh aws-fresh-deploy
 
 # Deploy without database (minimal cost)
-./tools.sh deployFreshNoPostgres
+swift run SwiftDeploy fresh-deploy
+./tools.sh aws-fresh-deploy
 
 # Check status
 swift run SwiftDeploy status
-./tools.sh deployStatus
+./tools.sh aws-status
 
 # Destroy deployment
 swift run SwiftDeploy tear-down
-./tools.sh deployTearDown
+./tools.sh aws-tear-down
 
 # Get help
 swift run SwiftDeploy --help

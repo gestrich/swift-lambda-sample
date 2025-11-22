@@ -18,7 +18,7 @@ This guide covers running and debugging the Swift Lambda function natively on yo
 ### 1. Copy Configuration File
 
 ```bash
-./tools.sh copyConfig
+./tools.sh local-copy-config
 ```
 
 This creates `~/.swiftSampleDemo/swiftLambdaDemo.json` with local service configuration.
@@ -26,7 +26,7 @@ This creates `~/.swiftSampleDemo/swiftLambdaDemo.json` with local service config
 ### 2. Start Local Services
 
 ```bash
-./tools.sh startServices
+./tools.sh local-start-all
 ```
 
 This starts:
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8080/invoke \
 ### 6. Stop Services
 
 ```bash
-./tools.sh stopServices
+./tools.sh local-stop-all
 ```
 
 ## Testing Different Endpoints
@@ -283,7 +283,7 @@ To test against real AWS services instead of local Docker containers:
 
 ```bash
 # 1. Start services (if not already running)
-./tools.sh startServices
+./tools.sh local-start-all
 
 # 2. Make code changes
 # Edit your Swift files in Xcode
@@ -295,32 +295,26 @@ To test against real AWS services instead of local Docker containers:
 # 5. Repeat steps 2-4
 
 # 6. Stop services when done
-./tools.sh stopServices
+./tools.sh local-stop-all
 ```
 
 ### Option 2: Using Command Line
 
 ```bash
 # 1. Start services
-./tools.sh startServices
+./tools.sh local-start-all
 
 # 2. Copy configuration
-./tools.sh copyConfig
+./tools.sh local-copy-config
 
-# 3. Run Lambda locally (foreground - will block terminal)
-./tools.sh runLocalLambda 8080
+# 3. Run Lambda locally via swift run
+swift run SwiftLambda
 
-# OR run in background
-./tools.sh runLocalLambda 8080 bg
+# 4. Test endpoints (in another terminal)
+./tools.sh local-test 8080
 
-# 4. Test endpoints
-./tools.sh testLocalLambda 8080
-
-# 5. Stop Lambda (if running in background)
-./tools.sh stopLocalLambda 8080
-
-# 6. Stop services
-./tools.sh stopServices
+# 5. Stop services when done
+./tools.sh local-stop-all
 ```
 
 ## Integration Testing

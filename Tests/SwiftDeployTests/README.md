@@ -80,7 +80,7 @@ The integration test typically takes **2-5 minutes** to complete:
 docker ps
 
 # Manually start services to see errors
-./tools.sh startServices
+./tools.sh local-start-all
 
 # Check PostgreSQL logs
 docker logs postgres_lambda
@@ -91,11 +91,12 @@ docker logs postgres_lambda
 **Issue**: Lambda compilation or startup took too long
 
 **Solution**:
-- Check `/tmp/lambda_local_8080.log` for compilation errors
-- Try running manually:
+- Try running manually via swift run:
   ```bash
-  ./tools.sh runLocalLambda 8080 bg
-  tail -f /tmp/lambda_local_8080.log
+  LOCAL_LAMBDA_SERVER_ENABLED=true \
+  MOCK_AWS_CREDENTIALS=true \
+  LOCAL_LAMBDA_PORT=8080 \
+  swift run SwiftLambda
   ```
 
 #### Test Fails: "S3 endpoint should return success message"
@@ -126,9 +127,6 @@ docker exec -e PGPASSWORD=docker postgres_lambda \
 
 # Check configuration
 cat ~/.swiftSampleDemo/swiftLambdaDemo.json | jq '.postgres'
-
-# Check Lambda logs for detailed error
-tail -100 /tmp/lambda_local_8080.log | grep -i error
 ```
 
 ### Environment Variables
@@ -145,17 +143,16 @@ The test uses the `tools.sh` bash script to manage the lifecycle:
 
 ```swift
 // Start services
-./tools.sh startServices
+./tools.sh local-start-all
 
-// Run Lambda in background
-./tools.sh runLocalLambda 8080 bg
+// Run Lambda
+swift run SwiftLambda
 
 // Test endpoints
-./tools.sh testLocalLambda 8080
+./tools.sh local-test 8080
 
 // Cleanup
-./tools.sh stopLocalLambda 8080
-./tools.sh stopServices
+./tools.sh local-stop-all
 ```
 
 ### CI/CD Integration
@@ -178,16 +175,21 @@ You can manually verify what the test does:
 
 ```bash
 # 1. Start everything
-./tools.sh copyConfig
-./tools.sh startServices
-./tools.sh runLocalLambda 8080 bg
+./tools.sh local-copy-config
+./tools.sh local-start-all
 
-# 2. Test S3 endpoint
+# 2. In one terminal, run Lambda
+LOCAL_LAMBDA_SERVER_ENABLED=true \
+MOCK_AWS_CREDENTIALS=true \
+LOCAL_LAMBDA_PORT=8080 \
+swift run SwiftLambda
+
+# 3. In another terminal, test S3 endpoint
 curl -X POST http://localhost:8080/invoke \
   -H "Content-Type: application/json" \
   -d @test-api-gateway-event.json
 
-# 3. Test database endpoint
+# 4. Test database endpoint
 curl -X POST http://localhost:8080/invoke \
   -H "Content-Type: application/json" \
   -d '{
@@ -203,9 +205,8 @@ curl -X POST http://localhost:8080/invoke \
     }
   }'
 
-# 4. Cleanup
-./tools.sh stopLocalLambda 8080
-./tools.sh stopServices
+# 5. Cleanup (stop Lambda with Ctrl+C, then)
+./tools.sh local-stop-all
 ```
 
 ### Contributing

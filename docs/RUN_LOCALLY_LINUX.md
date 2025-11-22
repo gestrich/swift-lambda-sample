@@ -109,7 +109,7 @@ aws lambda update-function-code \
 
 ```bash
 # Update Lambda code only (doesn't change infrastructure)
-./tools.sh updateLambda
+./tools.sh aws-update-lambda
 ```
 
 See [CLAUDE.md](../CLAUDE.md) for more deployment options.
@@ -141,10 +141,10 @@ This creates the `lambda/` directory with the compiled bootstrap executable.
 
 ```bash
 # 1. Start local services (PostgreSQL + MinIO)
-./tools.sh startServices
+./tools.sh local-start-all
 
 # 2. Run Lambda in container (auto-configures network and environment)
-./tools.sh runLambdaContainer
+./tools.sh local-run-container
 ```
 
 ### What `runLambdaContainer` Does
@@ -275,7 +275,7 @@ If you prefer to set up the network manually:
 
 ```bash
 # Setup the Docker network only (without starting Lambda container)
-./tools.sh setupLambdaNetwork
+./tools.sh local-setup-network
 ```
 
 This creates the network and connects the services, then provides instructions for running the container manually.
@@ -284,8 +284,8 @@ This creates the network and connects the services, then provides instructions f
 
 | Command | Description |
 |---------|-------------|
-| `./tools.sh setupLambdaNetwork` | Setup Docker network for containers |
-| `./tools.sh runLambdaContainer` | Run Lambda in interactive container (recommended) |
+| `./tools.sh local-setup-network` | Setup Docker network for containers |
+| `./tools.sh local-run-container` | Run Lambda in interactive container (recommended) |
 
 ### Container Networking Details
 
@@ -425,10 +425,10 @@ mc cp local/org.gestrich.sandbox/hello-world.text ./
 ./build.sh SwiftLambda
 
 # 2. Start services
-./tools.sh startServices
+./tools.sh local-start-all
 
 # 3. Run in Linux container
-./tools.sh runLambdaContainer
+./tools.sh local-run-container
 
 # 4. Inside container, run Lambda
 ./bootstrap
@@ -439,7 +439,7 @@ curl -X POST http://localhost:8080/invoke \
   -d @test-api-gateway-event.json
 
 # 6. If tests pass, deploy to AWS
-./tools.sh updateLambda
+./tools.sh aws-update-lambda
 ```
 
 ### Verification Checklist
@@ -468,7 +468,7 @@ vim Sources/SwiftLambda/APIGatewayHandler.swift
 ./build.sh SwiftLambda
 
 # 3. Test in container
-./tools.sh runLambdaContainer
+./tools.sh local-run-container
 ./bootstrap
 ```
 
@@ -486,7 +486,7 @@ rm -rf .aws-sam/build-SwiftLambda lambda lambda.zip
 
 ```bash
 # Stop PostgreSQL and MinIO
-./tools.sh stopServices
+./tools.sh local-stop-all
 
 # Stop specific container
 docker stop postgres_lambda
