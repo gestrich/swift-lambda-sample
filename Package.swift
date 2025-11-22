@@ -2,6 +2,27 @@
 
 import PackageDescription
 
+#if os(macOS)
+let macAppProducts: [Product] = [
+    .executable(
+        name: "MacApp",
+        targets: ["MacApp"]
+    )
+]
+let macAppTargets: [Target] = [
+    .executableTarget(
+        name: "MacApp",
+        dependencies: [],
+        swiftSettings: [
+            .unsafeFlags(["-parse-as-library"])
+        ]
+    )
+]
+#else
+let macAppProducts: [Product] = []
+let macAppTargets: [Target] = []
+#endif
+
 let package = Package(
     name: "SwiftLambda",
     platforms: [
@@ -11,12 +32,8 @@ let package = Package(
         .executable(
             name: "SwiftLambda",
             targets: ["SwiftLambda"]
-        ),
-        .executable(
-            name: "MacApp",
-            targets: ["MacApp"]
         )
-    ],
+    ] + macAppProducts,
     dependencies: [
         .package(url: "https://github.com/soto-project/soto.git", "6.8.0"..<"7.0.0"),
         .package(url: "https://github.com/swift-server/swift-aws-lambda-runtime.git", "2.0.0"..<"3.0.0"),
@@ -26,13 +43,6 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
     ],
     targets: [
-        .executableTarget(
-            name: "MacApp",
-            dependencies: [],
-            swiftSettings: [
-                .unsafeFlags(["-parse-as-library"])
-            ]
-        ),
         .executableTarget(
             name: "SwiftDeploy",
             dependencies: [
@@ -68,5 +78,5 @@ let package = Package(
                 .target(name: "SwiftServerApp")
             ]
         )
-    ]
+    ] + macAppTargets
 )
