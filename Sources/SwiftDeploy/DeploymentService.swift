@@ -167,4 +167,164 @@ public actor DeploymentService {
             )
         }
     }
+
+    /// Complete full deployment workflow
+    /// Deploys infrastructure, Lambda code, initializes database, and verifies deployment
+    public func deployFull(
+        options: DeploymentOptions,
+        withPostgres: Bool,
+        skipPush: Bool = false,
+        stackName: String = "SwiftLambdaSampleStack"
+    ) async throws {
+        // 1. Deploy infrastructure
+        _ = try await deployInfrastructure(options: options, stackName: stackName)
+
+        // 2. Deploy Lambda code
+        try await updateLambdaCode(skipPush: skipPush)
+
+        // 3. Initialize database if PostgreSQL was deployed
+        if withPostgres {
+            print("\n🗄️  Initializing database...")
+            do {
+                try await initializeDatabase(stackName: stackName)
+                print("  ✓ Database initialized successfully")
+            } catch {
+                print("\n⚠️  Database initialization failed: \(error)")
+                print("⚠️  You may need to initialize the database manually.")
+            }
+        }
+
+        // 4. Verify deployment by testing the API
+        print("\n🧪 Verifying deployment...")
+        do {
+            try await verifyDeployment(stackName: stackName, withPostgres: withPostgres)
+            print("\n✅ Deployment verification passed!")
+        } catch {
+            print("\n⚠️  Deployment verification failed: \(error)")
+            print("⚠️  The infrastructure is deployed but the API may not be working correctly.")
+        }
+
+        print("\n🎉 Deployment completed successfully!")
+    }
+
+    /// Initialize database by calling the /api/database endpoint
+    private func initializeDatabase(stackName: String) async throws {
+        let cliService = CLIService.shared
+
+        // Get API Gateway URL
+        let outputs = try await getStackOutputs(stackName: stackName)
+
+        guard let apiUrl = outputs["ApiGatewayUrl"] else {
+            throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+        }
+
+        // Initialize the database
+        print("  → POST \(apiUrl)api/database")
+
+        let result = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                "\(apiUrl)api/database"
+            ],
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw CLIError.executionFailed(
+                command: "curl",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("  Response: \(response)")
+
+        if !response.contains("Database Initialized") {
+            throw CLIError.deploymentFailed(reason: "Unexpected database init response: \(response)")
+        }
+    }
+
+    /// Verify deployment by testing API endpoints
+    private func verifyDeployment(stackName: String, withPostgres: Bool) async throws {
+        let cliService = CLIService.shared
+
+        // Get API Gateway URL
+        let outputs = try await getStackOutputs(stackName: stackName)
+
+        guard let apiUrl = outputs["ApiGatewayUrl"] else {
+            throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+        }
+
+        // Test the file endpoint
+        print("  Testing S3 file endpoint...")
+        print("  → POST \(apiUrl)api/file")
+
+        let testResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                "\(apiUrl)api/file"
+            ],
+            printCommand: false
+        )
+
+        guard testResult.isSuccess else {
+            throw CLIError.executionFailed(
+                command: "curl",
+                exitCode: testResult.exitCode,
+                stderr: testResult.stderr
+            )
+        }
+
+        let response = testResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("  Response: \(response)")
+
+        if !response.contains("File uploaded and downloaded") {
+            throw CLIError.deploymentFailed(reason: "Unexpected API response: \(response)")
+        }
+
+        print("  ✓ API Gateway working")
+        print("  ✓ Lambda function executing")
+        print("  ✓ S3 integration working")
+
+        // Test database endpoints if PostgreSQL is deployed
+        if withPostgres {
+            print("\n  Testing database endpoints...")
+            print("  → GET \(apiUrl)api/users")
+
+            let usersResult = try await cliService.execute(
+                command: "curl",
+                arguments: [
+                    "-s",
+                    "-X", "GET",
+                    "\(apiUrl)api/users"
+                ],
+                printCommand: false
+            )
+
+            guard usersResult.isSuccess else {
+                throw CLIError.executionFailed(
+                    command: "curl",
+                    exitCode: usersResult.exitCode,
+                    stderr: usersResult.stderr
+                )
+            }
+
+            let usersResponse = usersResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("  Response: \(usersResponse)")
+
+            // Verify it's valid JSON (empty array is expected for fresh database)
+            if let data = usersResponse.data(using: .utf8),
+               let _ = try? JSONSerialization.jsonObject(with: data) {
+                print("  ✓ Database connection working")
+                print("  ✓ User endpoint responding")
+            } else {
+                throw CLIError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
+            }
+        }
+    }
 }
