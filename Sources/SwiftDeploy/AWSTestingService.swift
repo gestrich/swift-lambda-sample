@@ -56,7 +56,7 @@ public actor AWSTestingService {
             print("✅ File endpoint test passed!")
         } else {
             print("❌ File endpoint test failed!")
-            throw CLIError.testFailed(message: "File endpoint did not return expected response")
+            throw CLIError.testFailed(message: "File endpoint did not return expected response. \(result.stderr). \(response)")
         }
     }
 
