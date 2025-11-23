@@ -99,13 +99,12 @@ public class APIClient {
     /// Download a specific file
     public func downloadFile(fileName: String) async throws -> Data {
         let endpoint = "/api/files/\(fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fileName)"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "GET",
+            body: nil
+        )
 
         // Try to decode as base64 response
         if let jsonData = try? JSONDecoder().decode(FileDownloadResponse.self, from: data) {
@@ -122,13 +121,12 @@ public class APIClient {
     /// Delete a specific file
     public func deleteFile(fileName: String) async throws -> String {
         let endpoint = "/api/files/\(fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fileName)"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-
-        let (responseData, response) = try await session.data(for: request)
-        try validateResponse(response, data: responseData)
+        let (responseData, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "DELETE",
+            body: nil
+        )
 
         guard let result = String(data: responseData, encoding: .utf8) else {
             throw APIError.invalidResponse
@@ -140,13 +138,12 @@ public class APIClient {
 
     public func initializeDatabase() async throws -> String {
         let endpoint = "/api/database"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "POST",
+            body: nil
+        )
 
         guard let result = String(data: data, encoding: .utf8) else {
             throw APIError.invalidResponse
@@ -158,13 +155,12 @@ public class APIClient {
 
     public func listUsers() async throws -> [User] {
         let endpoint = "/api/users"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "GET",
+            body: nil
+        )
 
         do {
             let users = try JSONDecoder().decode([User].self, from: data)
@@ -176,13 +172,12 @@ public class APIClient {
 
     public func getUser(id: UUID) async throws -> User {
         let endpoint = "/api/users/\(id.uuidString)"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "GET",
+            body: nil
+        )
 
         do {
             let user = try JSONDecoder().decode(User.self, from: data)
@@ -194,20 +189,15 @@ public class APIClient {
 
     public func createUser(_ userRequest: CreateUserRequest) async throws -> User {
         let endpoint = "/api/users"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let requestBody = try JSONEncoder().encode(userRequest)
 
-        do {
-            request.httpBody = try JSONEncoder().encode(userRequest)
-        } catch {
-            throw APIError.networkError(error)
-        }
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "POST",
+            body: requestBody,
+            headers: ["Content-Type": "application/json"]
+        )
 
         do {
             let user = try JSONDecoder().decode(User.self, from: data)
@@ -219,20 +209,15 @@ public class APIClient {
 
     public func updateUser(id: UUID, _ userRequest: UpdateUserRequest) async throws -> User {
         let endpoint = "/api/users/\(id.uuidString)"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let requestBody = try JSONEncoder().encode(userRequest)
 
-        do {
-            request.httpBody = try JSONEncoder().encode(userRequest)
-        } catch {
-            throw APIError.networkError(error)
-        }
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "PUT",
+            body: requestBody,
+            headers: ["Content-Type": "application/json"]
+        )
 
         do {
             let user = try JSONDecoder().decode(User.self, from: data)
@@ -244,13 +229,12 @@ public class APIClient {
 
     public func deleteUser(id: UUID) async throws {
         let endpoint = "/api/users/\(id.uuidString)"
-        let url = try makeURL(endpoint: endpoint)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        let (_, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "DELETE",
+            body: nil
+        )
     }
 
     // MARK: - Helper Methods
