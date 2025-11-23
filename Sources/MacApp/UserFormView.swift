@@ -44,9 +44,9 @@ struct UserFormView: View {
             _email = State(initialValue: user.email)
             _firstName = State(initialValue: user.firstName)
             _lastName = State(initialValue: user.lastName)
-            _nickName = State(initialValue: user.nickName ?? "")
-            _phone = State(initialValue: user.phone ?? "")
-            _slackID = State(initialValue: user.slackID ?? "")
+            _nickName = State(initialValue: user.nickName)
+            _phone = State(initialValue: user.phone)
+            _slackID = State(initialValue: user.slackID)
         }
     }
 
@@ -100,7 +100,7 @@ struct UserFormView: View {
 
                     // Nick Name
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Nickname")
+                        Text("Nickname *")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         TextField("JD", text: $nickName)
@@ -109,7 +109,7 @@ struct UserFormView: View {
 
                     // Phone
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Phone")
+                        Text("Phone *")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         TextField("555-1234", text: $phone)
@@ -118,7 +118,7 @@ struct UserFormView: View {
 
                     // Slack ID
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Slack ID")
+                        Text("Slack ID *")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         TextField("U12345678", text: $slackID)
@@ -160,9 +160,9 @@ struct UserFormView: View {
     private var isValid: Bool {
         switch mode {
         case .create:
-            return !email.isEmpty && !password.isEmpty && !firstName.isEmpty && !lastName.isEmpty
+            return !email.isEmpty && !password.isEmpty && !firstName.isEmpty && !lastName.isEmpty && !nickName.isEmpty && !phone.isEmpty && !slackID.isEmpty
         case .edit:
-            return !email.isEmpty && !firstName.isEmpty && !lastName.isEmpty
+            return !email.isEmpty && !firstName.isEmpty && !lastName.isEmpty && !nickName.isEmpty && !phone.isEmpty && !slackID.isEmpty
         }
     }
 
@@ -179,9 +179,9 @@ struct UserFormView: View {
                     password: password,
                     firstName: firstName,
                     lastName: lastName,
-                    nickName: nickName.isEmpty ? nil : nickName,
-                    phone: phone.isEmpty ? nil : phone,
-                    slackID: slackID.isEmpty ? nil : slackID
+                    nickName: nickName,
+                    phone: phone,
+                    slackID: slackID
                 )
                 user = try await apiClient.createUser(request)
             case .edit(let existingUser):
@@ -195,9 +195,9 @@ struct UserFormView: View {
                     password: nil,
                     firstName: firstName,
                     lastName: lastName,
-                    nickName: nickName.isEmpty ? nil : nickName,
-                    phone: phone.isEmpty ? nil : phone,
-                    slackID: slackID.isEmpty ? nil : slackID
+                    nickName: nickName,
+                    phone: phone,
+                    slackID: slackID
                 )
                 user = try await apiClient.updateUser(id: userId, request)
             }

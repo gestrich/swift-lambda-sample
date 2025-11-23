@@ -183,8 +183,8 @@ struct UserRowView: View {
             Text(user.email)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            if let phone = user.phone {
-                Text(phone)
+            if !user.phone.isEmpty {
+                Text(user.phone)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

@@ -23,7 +23,7 @@ public struct CreateUserHandler {
 
     //MARK: Handler
 
-    func handle(context: LambdaContext, event: CreateUser) async throws -> String {
+    func handle(context: LambdaContext, event: CreateUser) async throws -> User {
 
         context.logger.info("Direct CreateUser invocation received", metadata: [
             "email": .string(event.email),
@@ -35,9 +35,9 @@ public struct CreateUserHandler {
         let app = services.app
 
         do {
-            let response = try await app.createUser(event)
+            let user = try await app.createUser(event)
             try await services.shutdown()
-            return response
+            return user
         } catch {
             //We have to shut down out resources before they deallocate so we catch then rethrow
             try await services.shutdown()

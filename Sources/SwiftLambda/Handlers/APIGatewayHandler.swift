@@ -177,7 +177,7 @@ struct APIGWHandler {
                 }
 
                 user.applyCreateUserRequest(userRequest)
-                return try await app.updateUser(user).createAPIGatewayJSONResponse(statusCode: .created)
+                return try await app.updateUser(user).createAPIGatewayJSONResponse(statusCode: .ok)
 
             case .delete:
 
@@ -191,7 +191,7 @@ struct APIGWHandler {
                 }
 
                 try await app.deleteUser(user)
-                return APIGatewayResponse(statusCode: .ok, headers: ["Content-Type": "application/json"])
+                return APIGatewayResponse(statusCode: .noContent)
 
             default:
                 throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")

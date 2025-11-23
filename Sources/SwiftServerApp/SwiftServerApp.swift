@@ -40,7 +40,7 @@ public struct SwiftServerApp {
     
     //MARK: User Service
 
-    public func createUser(_ createUserRequest: CreateUser) async throws -> String {
+    public func createUser(_ createUserRequest: CreateUser) async throws -> User {
         guard let postgresModelStore else {
             throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
@@ -51,7 +51,7 @@ public struct SwiftServerApp {
             throw LambdaDemoError.unexpectedError(description: "Unexpected for Postgres not to return user.")
         }
 
-        return "Inserted and Read User: \(user.firstName) \(user.lastName)"
+        return user
     }
 
     public func getUser(id: String) async throws -> User? {

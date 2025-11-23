@@ -81,7 +81,9 @@ struct DynamicLambdaHandler: LambdaHandler {
         case .createUser(let user):
             let handler = CreateUserHandler()
             let result = try await handler.handle(context: context, event: user)
-            return .string(result)
+            let jsonData = try JSONEncoder().encode(result)
+            let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
+            return .string(jsonString)
 
         // Future direct invocation types will be handled here:
         // case .deleteUser(let request):
