@@ -64,12 +64,7 @@ public class APIClient {
             body: nil
         )
 
-        do {
-            let fileList = try JSONDecoder().decode([String].self, from: data)
-            return fileList
-        } catch {
-            throw APIError.decodingError(error)
-        }
+        return try decode([String].self, from: data)
     }
 
     /// Download a specific file
@@ -138,12 +133,7 @@ public class APIClient {
             body: nil
         )
 
-        do {
-            let users = try JSONDecoder().decode([User].self, from: data)
-            return users
-        } catch {
-            throw APIError.decodingError(error)
-        }
+        return try decode([User].self, from: data)
     }
 
     public func getUser(id: UUID) async throws -> User {
@@ -155,12 +145,7 @@ public class APIClient {
             body: nil
         )
 
-        do {
-            let user = try JSONDecoder().decode(User.self, from: data)
-            return user
-        } catch {
-            throw APIError.decodingError(error)
-        }
+        return try decode(User.self, from: data)
     }
 
     public func createUser(_ userRequest: CreateUserRequest) async throws -> User {
@@ -175,12 +160,7 @@ public class APIClient {
             headers: ["Content-Type": "application/json"]
         )
 
-        do {
-            let user = try JSONDecoder().decode(User.self, from: data)
-            return user
-        } catch {
-            throw APIError.decodingError(error)
-        }
+        return try decode(User.self, from: data)
     }
 
     public func updateUser(id: UUID, _ userRequest: UpdateUserRequest) async throws -> User {
@@ -195,12 +175,7 @@ public class APIClient {
             headers: ["Content-Type": "application/json"]
         )
 
-        do {
-            let user = try JSONDecoder().decode(User.self, from: data)
-            return user
-        } catch {
-            throw APIError.decodingError(error)
-        }
+        return try decode(User.self, from: data)
     }
 
     public func deleteUser(id: UUID) async throws {
@@ -297,7 +272,8 @@ public class APIClient {
             let wrapper = try JSONDecoder().decode(APIGatewayResponseWrapper.self, from: data)
 
             guard (200...299).contains(wrapper.statusCode) else {
-                throw APIError.httpError(statusCode: wrapper.statusCode, message: wrapper.body)
+                let bodyData = wrapper.body.data(using: .utf8)
+                throw APIError.httpError(statusCode: wrapper.statusCode, data: bodyData)
             }
 
             guard let responseData = wrapper.body.data(using: .utf8) else {
@@ -306,9 +282,7 @@ public class APIClient {
 
             return responseData
         } catch let decodingError as DecodingError {
-            // If decoding fails, show what we received
-            let rawResponse = String(data: data, encoding: .utf8) ?? "<binary data>"
-            throw APIError.apiGatewayDecodingError(underlyingError: decodingError, rawResponse: rawResponse)
+            throw APIError.apiGatewayDecodingError(decodingError, data: data)
         } catch {
             throw error
         }
@@ -320,8 +294,16 @@ public class APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw APIError.httpError(statusCode: httpResponse.statusCode, message: message)
+            throw APIError.httpError(statusCode: httpResponse.statusCode, data: data)
+        }
+    }
+
+    /// Decode JSON data, throwing detailed error with raw response on failure
+    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            throw APIError.decodingError(error, data: data)
         }
     }
 }
@@ -330,9 +312,35 @@ public enum APIError: Error, LocalizedError {
     case invalidURL
     case invalidResponse
     case httpError(statusCode: Int, message: String)
-    case decodingError(Error)
+    case decodingError(underlyingError: Error, rawResponse: String)
     case apiGatewayDecodingError(underlyingError: Error, rawResponse: String)
     case networkError(Error)
+
+    /// Create an HTTP error from status code and response data
+    static func httpError(statusCode: Int, data: Data?) -> APIError {
+        let message = extractErrorMessage(from: data)
+        return .httpError(statusCode: statusCode, message: message)
+    }
+
+    /// Create a decoding error from underlying error and response data
+    static func decodingError(_ error: Error, data: Data) -> APIError {
+        let rawResponse = extractErrorMessage(from: data)
+        return .decodingError(underlyingError: error, rawResponse: rawResponse)
+    }
+
+    /// Create an API Gateway decoding error from underlying error and response data
+    static func apiGatewayDecodingError(_ error: Error, data: Data) -> APIError {
+        let rawResponse = extractErrorMessage(from: data)
+        return .apiGatewayDecodingError(underlyingError: error, rawResponse: rawResponse)
+    }
+
+    /// Extract error message from response data
+    private static func extractErrorMessage(from data: Data?) -> String {
+        guard let data = data else {
+            return "Unknown error (no response data)"
+        }
+        return String(data: data, encoding: .utf8) ?? "Unknown error (binary response)"
+    }
 
     public var errorDescription: String? {
         switch self {
@@ -342,8 +350,13 @@ public enum APIError: Error, LocalizedError {
             return "Invalid response from server"
         case .httpError(let statusCode, let message):
             return "HTTP \(statusCode): \(message)"
-        case .decodingError(let error):
-            return "Failed to decode response: \(error.localizedDescription)"
+        case .decodingError(let underlyingError, let rawResponse):
+            return """
+            Failed to decode response: \(underlyingError.localizedDescription)
+
+            Raw response received:
+            \(rawResponse)
+            """
         case .apiGatewayDecodingError(let underlyingError, let rawResponse):
             return """
             Failed to decode API Gateway response wrapper
