@@ -137,8 +137,6 @@ public struct SwiftServerApp {
         guard let s3DataStore else {
             throw LambdaDemoError.missingService(name: "s3DataStore")
         }
-        // For now, return a hardcoded list since S3DataStoreInterface doesn't have a list method
-        // In production, you'd extend S3DataStoreInterface to support listing
         return try await s3DataStore.listFiles()
     }
 
