@@ -316,17 +316,26 @@ public class APIClient {
 
     /// Unwrap API Gateway response from local Lambda
     private func unwrapResponse(data: Data) throws -> Data {
-        let wrapper = try JSONDecoder().decode(APIGatewayResponseWrapper.self, from: data)
+        // Try to decode as API Gateway response wrapper
+        do {
+            let wrapper = try JSONDecoder().decode(APIGatewayResponseWrapper.self, from: data)
 
-        guard (200...299).contains(wrapper.statusCode) else {
-            throw APIError.httpError(statusCode: wrapper.statusCode, message: wrapper.body)
+            guard (200...299).contains(wrapper.statusCode) else {
+                throw APIError.httpError(statusCode: wrapper.statusCode, message: wrapper.body)
+            }
+
+            guard let responseData = wrapper.body.data(using: .utf8) else {
+                throw APIError.invalidResponse
+            }
+
+            return responseData
+        } catch let decodingError as DecodingError {
+            // If decoding fails, show what we received
+            let rawResponse = String(data: data, encoding: .utf8) ?? "<binary data>"
+            throw APIError.apiGatewayDecodingError(underlyingError: decodingError, rawResponse: rawResponse)
+        } catch {
+            throw error
         }
-
-        guard let responseData = wrapper.body.data(using: .utf8) else {
-            throw APIError.invalidResponse
-        }
-
-        return responseData
     }
 
     private func validateResponse(_ response: URLResponse, data: Data) throws {
@@ -346,6 +355,7 @@ public enum APIError: Error, LocalizedError {
     case invalidResponse
     case httpError(statusCode: Int, message: String)
     case decodingError(Error)
+    case apiGatewayDecodingError(underlyingError: Error, rawResponse: String)
     case networkError(Error)
 
     public var errorDescription: String? {
@@ -358,6 +368,15 @@ public enum APIError: Error, LocalizedError {
             return "HTTP \(statusCode): \(message)"
         case .decodingError(let error):
             return "Failed to decode response: \(error.localizedDescription)"
+        case .apiGatewayDecodingError(let underlyingError, let rawResponse):
+            return """
+            Failed to decode API Gateway response wrapper
+
+            Underlying error: \(underlyingError.localizedDescription)
+
+            Raw response received:
+            \(rawResponse)
+            """
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         }
