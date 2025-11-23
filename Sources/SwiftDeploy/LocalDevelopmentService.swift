@@ -305,24 +305,38 @@ public actor LocalDevelopmentService {
         )
 
         if lsofResult.isSuccess && !lsofResult.stdout.isEmpty {
-            let pid = lsofResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            print("→ Killing process \(pid)...")
+            // Split PIDs by newlines in case there are multiple processes
+            let pids = lsofResult.stdout
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .split(separator: "\n")
+                .map(String.init)
+                .filter { !$0.isEmpty }
 
-            let killResult = try await cliService.execute(
-                command: "kill",
-                arguments: [pid],
-                printCommand: false
-            )
-
-            if killResult.isSuccess {
-                print("✅ Lambda stopped")
-            } else {
-                throw CLIError.commandFailed(
-                    command: "kill",
-                    exitCode: killResult.exitCode,
-                    stderr: killResult.stderr
-                )
+            guard !pids.isEmpty else {
+                print("⚠️  No Lambda process found on port \(lambdaHostPort)")
+                return
             }
+
+            print("→ Killing process(es): \(pids.joined(separator: ", "))...")
+
+            // Kill each process
+            for pid in pids {
+                let killResult = try await cliService.execute(
+                    command: "kill",
+                    arguments: [pid],
+                    printCommand: false
+                )
+
+                if !killResult.isSuccess {
+                    throw CLIError.commandFailed(
+                        command: "kill",
+                        exitCode: killResult.exitCode,
+                        stderr: killResult.stderr
+                    )
+                }
+            }
+
+            print("✅ Lambda stopped (\(pids.count) process\(pids.count == 1 ? "" : "es"))")
         } else {
             print("⚠️  No Lambda process found on port \(lambdaHostPort)")
         }
