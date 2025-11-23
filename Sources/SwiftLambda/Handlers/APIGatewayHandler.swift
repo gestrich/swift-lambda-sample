@@ -17,6 +17,13 @@ struct APIGWHandler {
 
     func handle(context: LambdaContext, event: APIGatewayRequest) async throws -> APIGatewayResponse {
 
+        // Log every incoming request for debugging
+        context.logger.info("API Gateway request received", metadata: [
+            "path": .string(event.path),
+            "method": .string(event.httpMethod.rawValue),
+            "requestId": .string(context.requestID)
+        ])
+
         //TODO: The Lambda.InitializationContext can hold resources that can be reused on every request.
         //It may be more performant to use that to hold onto our database connections.
         let services = try await ServiceComposer()
@@ -24,6 +31,13 @@ struct APIGWHandler {
         do {
             let response = try await route(event: event, app: services.app)
             try await services.shutdown()
+
+            // Log successful responses
+            context.logger.info("API Gateway response", metadata: [
+                "statusCode": .stringConvertible(response.statusCode.code),
+                "requestId": .string(context.requestID)
+            ])
+
             return response
         } catch {
             //We have to shut down out resources before they deallocate so we catch then rethrow
