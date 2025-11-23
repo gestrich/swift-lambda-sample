@@ -26,14 +26,14 @@ public final class S3DataStoreS3: S3DataStoreInterface {
     public func getData(key: String) async throws -> Data? {
         let objRequest = S3.GetObjectRequest(bucket: bucketName, key: key)
         let s3Obj = try await self.s3.getObject(objRequest)
-        return s3Obj.body?.asData()
+        let buffer = try await s3Obj.body.collect(upTo: .max)
+        return Data(buffer: buffer)
     }
 
     public func uploadData(_ data: Data, key: String) async throws {
-        let bodyData = data
         let putObjectRequest = SotoS3.S3.PutObjectRequest(
             acl: .private,
-            body: .data(bodyData),
+            body: .init(bytes: data),
             bucket: bucketName,
             key: key
         )
