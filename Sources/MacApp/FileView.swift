@@ -4,7 +4,6 @@ import AppKit
 struct FileView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var selectedFileURL: URL?
     @State private var uploadedFiles: [String] = []
     @State private var selectedImage: NSImage?
     @State private var showingImagePreview = false
@@ -22,41 +21,10 @@ struct FileView: View {
                 Text("Upload File")
                     .font(.headline)
 
-                if let selectedFileURL = selectedFileURL {
-                    HStack {
-                        Text(selectedFileURL.lastPathComponent)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Clear") {
-                            self.selectedFileURL = nil
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                    .padding(.horizontal)
+                Button("Upload") {
+                    selectAndUploadFile()
                 }
-
-                HStack(spacing: 10) {
-                    Button("Choose File") {
-                        selectFile()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Upload to S3") {
-                        Task {
-                            await uploadSelectedFile()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(selectedFileURL == nil || isLoading)
-                }
-
-                Button("Test S3 Upload/Download") {
-                    Task {
-                        await testS3Upload()
-                    }
-                }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .disabled(isLoading)
             }
             .padding()
@@ -169,48 +137,29 @@ struct FileView: View {
         }
     }
 
-    private func selectFile() {
+    private func selectAndUploadFile() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
 
-        if panel.runModal() == .OK {
-            selectedFileURL = panel.url
+        if panel.runModal() == .OK, let fileURL = panel.url {
+            Task {
+                isLoading = true
+                errorMessage = nil
+
+                do {
+                    let data = try Data(contentsOf: fileURL)
+                    let fileName = fileURL.lastPathComponent
+                    _ = try await APIClient.shared.uploadFile(fileName: fileName, data: data)
+                    await loadFiles()
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+
+                isLoading = false
+            }
         }
-    }
-
-    private func uploadSelectedFile() async {
-        guard let fileURL = selectedFileURL else { return }
-
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            let data = try Data(contentsOf: fileURL)
-            let fileName = fileURL.lastPathComponent
-            _ = try await APIClient.shared.uploadFile(fileName: fileName, data: data)
-            selectedFileURL = nil
-            await loadFiles()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        isLoading = false
-    }
-
-    private func testS3Upload() async {
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            _ = try await APIClient.shared.testFileUpload()
-            await loadFiles()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        isLoading = false
     }
 
     private func loadFiles() async {
