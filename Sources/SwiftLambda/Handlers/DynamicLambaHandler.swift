@@ -38,12 +38,7 @@ struct DynamicLambdaHandler: LambdaHandler {
                 return try await handleDirectInvocation(event: directEvent, context: context)
             }
         } catch {
-            // Log error details to CloudWatch
-            context.logger.error("Lambda handler error: \(error)")
-            context.logger.error("Error type: \(type(of: error))")
             context.logger.error("Error description: \(String(describing: error))")
-
-            // Re-throw the error so Lambda runtime can handle it
             throw error
         }
     }

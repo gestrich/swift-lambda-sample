@@ -40,7 +40,6 @@ struct APIGWHandler {
 
             return response
         } catch {
-            context.logger.error("Error description: \(String(reflecting: error))")
             try await services.shutdown()
             throw error
         }
