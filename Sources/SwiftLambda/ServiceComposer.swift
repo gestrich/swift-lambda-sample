@@ -43,9 +43,9 @@ class ServiceComposer {
         let awsClient: AWSClient
         let value = Self.getEnvironmentVariable(key: "MOCK_AWS_CREDENTIALS")
         if value == "true" {
-            awsClient = AWSClient(credentialProvider: .static(accessKeyId: "admin", secretAccessKey: "password"), httpClientProvider: .createNew)
+            awsClient = AWSClient(credentialProvider: .static(accessKeyId: "admin", secretAccessKey: "password"))
         } else {
-            awsClient = AWSClient(httpClientProvider: .createNew)
+            awsClient = AWSClient()
         }
 
         self.awsClient = awsClient
