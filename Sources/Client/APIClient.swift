@@ -1,13 +1,5 @@
 import Foundation
 
-/// Configuration for API client behavior
-public enum APIClientMode {
-    /// Standard mode - calls API Gateway directly
-    case apiGateway
-    /// Local Lambda mode - wraps requests in API Gateway format and hits /invoke endpoint
-    case localLambda(endpoint: String)
-}
-
 @Observable
 @MainActor
 public class APIClient {
@@ -381,4 +373,12 @@ public enum APIError: Error, LocalizedError {
             return "Network error: \(error.localizedDescription)"
         }
     }
+}
+
+/// Configuration for API client behavior
+public enum APIClientMode {
+    /// Standard mode - calls API Gateway directly
+    case apiGateway
+    /// Local Lambda mode - wraps requests in API Gateway format and hits /invoke endpoint
+    case localLambda(endpoint: String)
 }

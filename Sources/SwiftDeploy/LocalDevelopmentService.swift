@@ -1,5 +1,5 @@
-import Foundation
 import Client
+import Foundation
 
 /// Service for managing local development environment (Docker services, testing)
 public actor LocalDevelopmentService {
