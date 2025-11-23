@@ -27,7 +27,11 @@ struct APIGWHandler {
             return response
         } catch {
             //We have to shut down out resources before they deallocate so we catch then rethrow
-            print(String(reflecting: error))
+            context.logger.error("API Gateway handler error: \(error)")
+            context.logger.error("Error type: \(type(of: error))")
+            context.logger.error("Error description: \(String(reflecting: error))")
+            context.logger.error("Request path: \(event.path)")
+            context.logger.error("Request method: \(event.httpMethod)")
             try await services.shutdown()
             //Note that error always results in a 500 status code returned (expected)
             throw error

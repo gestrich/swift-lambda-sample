@@ -2,26 +2,26 @@
 
 import PackageDescription
 
-// #if os(macOS)
-// let macAppProducts: [Product] = [
-//     .executable(
-//         name: "MacApp",
-//         targets: ["MacApp"]
-//     )
-// ]
-// let macAppTargets: [Target] = [
-//     .executableTarget(
-//         name: "MacApp",
-//         dependencies: [],
-//         swiftSettings: [
-//             .unsafeFlags(["-parse-as-library"])
-//         ]
-//     )
-// ]
-// #else
+ #if os(macOS)
+ let macAppProducts: [Product] = [
+     .executable(
+         name: "MacApp",
+         targets: ["MacApp"]
+     )
+ ]
+ let macAppTargets: [Target] = [
+     .executableTarget(
+         name: "MacApp",
+         dependencies: [],
+         swiftSettings: [
+             .unsafeFlags(["-parse-as-library"])
+         ]
+     )
+ ]
+ #else
 let macAppProducts: [Product] = []
 let macAppTargets: [Target] = []
-// #endif
+ #endif
 
 let package = Package(
     name: "SwiftLambda",

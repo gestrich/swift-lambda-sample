@@ -26,16 +26,25 @@ struct DynamicLambdaHandler: LambdaHandler {
     typealias Output = LambdaResponse
 
     func handle(_ event: LambdaEvent, context: LambdaContext) async throws -> LambdaResponse {
+        do {
+            switch event {
+            case .apiGateway(let request):
+                return try await handleAPIGateway(request: request, context: context)
 
-        switch event {
-        case .apiGateway(let request):
-            return try await handleAPIGateway(request: request, context: context)
+            case .cloudWatchScheduled(let scheduledEvent):
+                return try await handleCloudWatchScheduled(event: scheduledEvent, context: context)
 
-        case .cloudWatchScheduled(let scheduledEvent):
-            return try await handleCloudWatchScheduled(event: scheduledEvent, context: context)
+            case .directInvocation(let directEvent):
+                return try await handleDirectInvocation(event: directEvent, context: context)
+            }
+        } catch {
+            // Log error details to CloudWatch
+            context.logger.error("Lambda handler error: \(error)")
+            context.logger.error("Error type: \(type(of: error))")
+            context.logger.error("Error description: \(String(describing: error))")
 
-        case .directInvocation(let directEvent):
-            return try await handleDirectInvocation(event: directEvent, context: context)
+            // Re-throw the error so Lambda runtime can handle it
+            throw error
         }
     }
 
