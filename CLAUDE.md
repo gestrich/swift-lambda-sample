@@ -396,19 +396,16 @@ git push origin dev
 gh run watch --repo gestrich/swift-lambda-sample
 
 # 4. Test the deployed Lambda
-curl -X GET https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod/api/users
+curl -X GET <api-gw-url>/api/users
 ```
 
 ## API Gateway URL
 
-**Current Endpoint:**
-```
-https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod/
-```
-
 **Note:** The API Gateway URL changes with each fresh deployment. Get the current URL from the deployment outputs or by running:
 ```bash
 swift run SwiftDeploy status
+# Or use the shortcut
+./tools.sh aws get-url
 ```
 
 ### Testing Your Deployment
@@ -421,7 +418,7 @@ The file endpoint tests S3 integration and Lambda execution:
 
 ```bash
 # Test S3 file upload/download
-curl -X POST https://{your-api-gateway-id}.execute-api.us-east-1.amazonaws.com/prod/api/file
+curl -X POST <api-gw-url>/api/file
 
 # Expected response:
 "File uploaded and downloaded"
@@ -463,7 +460,7 @@ aws logs tail /aws/lambda/swift-lambda-sample \
 #### File Operations (No Database Required)
 ```bash
 # Upload and download S3 test file
-curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/file
+curl -X POST <api-gw-url>/api/file
 
 # Response: "File uploaded and downloaded"
 # This endpoint works without PostgreSQL deployed
@@ -472,7 +469,7 @@ curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/file
 #### Database Management (Requires PostgreSQL)
 ```bash
 # Initialize/reset database
-curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/database
+curl -X POST <api-gw-url>/api/database
 
 # Response: "Database Initialized"
 # Note: Only works if deployed WITH PostgreSQL (without --skip-postgres)
@@ -481,7 +478,7 @@ curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/datab
 #### User CRUD Operations (Requires PostgreSQL)
 ```bash
 # Create user
-curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users \
+curl -X POST <api-gw-url>/api/users \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -494,18 +491,18 @@ curl -X POST https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users
   }'
 
 # Get all users
-curl -X GET https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users
+curl -X GET <api-gw-url>/api/users
 
 # Get single user
-curl -X GET https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid}
+curl -X GET <api-gw-url>/api/users/{uuid}
 
 # Update user
-curl -X PUT https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid} \
+curl -X PUT <api-gw-url>/api/users/{uuid} \
   -H "Content-Type: application/json" \
   -d '{...}'
 
 # Delete user
-curl -X DELETE https://{api-id}.execute-api.us-east-1.amazonaws.com/prod/api/users/{uuid}
+curl -X DELETE <api-gw-url>/api/users/{uuid}
 
 # Note: User endpoints require PostgreSQL to be deployed
 ```
@@ -1198,5 +1195,5 @@ aws secretsmanager get-secret-value --secret-id {secret-name}
 
 - **CDK Documentation**: See `cdk/README.md` for detailed infrastructure docs
 - **Project README**: See root `README.md` for local development setup
-- **API Gateway URL**: https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod/
+- **API Gateway URL**: Get via `./tools.sh aws get-url` (changes with each deployment)
 - **GitHub Actions**: https://github.com/gestrich/swift-lambda-sample/actions
