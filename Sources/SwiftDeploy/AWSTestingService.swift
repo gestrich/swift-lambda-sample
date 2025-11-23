@@ -106,6 +106,135 @@ public actor AWSTestingService {
         print("")
     }
 
+    /// Test file upload/download with spaces in filename
+    public func testFileWithSpaces() async throws {
+        print("\n🧪 Testing file upload/download with spaces in filename...")
+
+        let apiUrl = try await getApiGatewayUrl()
+        let fileName = "test file with spaces.txt"
+        let testContent = "Hello World! This is a test file with spaces in the name."
+
+        // Create base64 encoded test data
+        guard let data = testContent.data(using: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create test data")
+        }
+        let base64Data = data.base64EncodedString()
+
+        // Create upload request JSON
+        let uploadRequest: [String: String] = [
+            "fileName": fileName,
+            "data": base64Data
+        ]
+
+        guard let uploadJson = try? JSONSerialization.data(withJSONObject: uploadRequest),
+              let uploadJsonString = String(data: uploadJson, encoding: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create upload JSON")
+        }
+
+        // Step 1: Upload file
+        print("→ Uploading file: \"\(fileName)\"")
+        let uploadEndpoint = "\(apiUrl)api/files"
+
+        let uploadResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "POST",
+                "-H", "Content-Type: application/json",
+                "-d", uploadJsonString,
+                uploadEndpoint
+            ],
+            printCommand: false
+        )
+
+        guard uploadResult.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "curl",
+                exitCode: uploadResult.exitCode,
+                stderr: uploadResult.stderr
+            )
+        }
+
+        print("  Upload response: \(uploadResult.stdout)")
+
+        // Step 2: List files to verify upload
+        print("→ Listing files to verify upload...")
+        let listEndpoint = "\(apiUrl)api/files"
+
+        let listResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "GET",
+                listEndpoint
+            ],
+            printCommand: false
+        )
+
+        guard listResult.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "curl",
+                exitCode: listResult.exitCode,
+                stderr: listResult.stderr
+            )
+        }
+
+        print("  Files: \(listResult.stdout)")
+
+        guard listResult.stdout.contains(fileName) else {
+            throw CLIError.testFailed(message: "Uploaded file '\(fileName)' not found in file list")
+        }
+
+        // Step 3: Download file
+        print("→ Downloading file: \"\(fileName)\"")
+
+        // URL encode the filename for the download endpoint
+        guard let encodedFileName = fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            throw CLIError.testFailed(message: "Failed to URL-encode filename")
+        }
+
+        let downloadEndpoint = "\(apiUrl)api/files/\(encodedFileName)"
+
+        let downloadResult = try await cliService.execute(
+            command: "curl",
+            arguments: [
+                "-s",
+                "-X", "GET",
+                downloadEndpoint
+            ],
+            printCommand: false
+        )
+
+        guard downloadResult.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "curl",
+                exitCode: downloadResult.exitCode,
+                stderr: downloadResult.stderr
+            )
+        }
+
+        // Step 4: Verify downloaded content
+        print("  Download response: \(downloadResult.stdout)")
+
+        // Parse response as JSON
+        guard let responseData = downloadResult.stdout.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+              let downloadedBase64 = json["data"] as? String,
+              let downloadedData = Data(base64Encoded: downloadedBase64),
+              let downloadedContent = String(data: downloadedData, encoding: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to parse download response")
+        }
+
+        print("  Downloaded content: \"\(downloadedContent)\"")
+
+        // Verify content matches
+        guard downloadedContent == testContent else {
+            throw CLIError.testFailed(message: "Downloaded content does not match uploaded content. Expected: '\(testContent)', Got: '\(downloadedContent)'")
+        }
+
+        print("✅ File with spaces test passed!")
+    }
+
     // MARK: - Logging
 
     /// Check Lambda execution logs
@@ -138,7 +267,17 @@ public actor AWSTestingService {
 
         print("")
 
-        // Test 2: Verify S3
+        // Test 2: File with spaces
+        do {
+            try await testFileWithSpaces()
+        } catch {
+            print("❌ File with spaces test failed: \(error)")
+            allPassed = false
+        }
+
+        print("")
+
+        // Test 3: Verify S3
         do {
             try await verifyS3File()
         } catch {
@@ -148,7 +287,7 @@ public actor AWSTestingService {
 
         print("")
 
-        // Test 3: Check logs
+        // Test 4: Check logs
         do {
             try await checkLogs(since: "5m")
         } catch {
