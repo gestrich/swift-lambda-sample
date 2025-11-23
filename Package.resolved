@@ -1,13 +1,13 @@
 {
-  "originHash" : "79f9486b017a539febca5186b30936c85d9436e22b4a205a3422c2418837e752",
+  "originHash" : "49513470b180adb9ec0e215c1836490fd9a4d21def3ad3b438c5091c465335d3",
   "pins" : [
     {
       "identity" : "async-http-client",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/async-http-client.git",
       "state" : {
-        "revision" : "efb14fec9f79f3f8d4f2a6c0530303efb6fe6533",
-        "version" : "1.29.1"
+        "revision" : "b2faff932b956df50668241d14f1b42f7bae12b4",
+        "version" : "1.30.0"
       }
     },
     {
@@ -49,7 +49,7 @@
     {
       "identity" : "jmespath.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/adam-fowler/jmespath.swift.git",
+      "location" : "https://github.com/jmespath/jmespath.swift.git",
       "state" : {
         "revision" : "3877a5060e85ae33e3b9fe51ab581784f65ec80e",
         "version" : "1.0.3"
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/soto-project/soto.git",
       "state" : {
-        "revision" : "c28c3efa72e6beceae6f38f8c8fe18e7c57e3418",
-        "version" : "6.8.0"
+        "revision" : "bdfcc97e2472061ddf3035e74aec57245a55396f",
+        "version" : "7.10.0"
       }
     },
     {
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/soto-project/soto-core.git",
       "state" : {
-        "revision" : "3ed66ec536bc372360d7e3ec39a5e8b1870747ea",
-        "version" : "6.5.2"
+        "revision" : "6ed8bfde45bbee4c290dff732b05a2c6f0b8daf8",
+        "version" : "7.9.0"
       }
     },
     {
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-async-algorithms.git",
       "state" : {
-        "revision" : "042e1c4d9d19748c9c228f8d4ebc97bb1e339b0b",
-        "version" : "1.0.4"
+        "revision" : "2773d4125311133a2f705ec374c363a935069d45",
+        "version" : "1.1.0"
       }
     },
     {
@@ -177,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/swift-aws-lambda-runtime.git",
       "state" : {
-        "revision" : "b1553d27663a7218fd08738c65f9a2530385a177",
-        "version" : "2.3.1"
+        "revision" : "2abe7eb7de5038dfded58d766d62d815d1d39cc2",
+        "version" : "2.4.0"
       }
     },
     {
@@ -204,8 +204,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto.git",
       "state" : {
-        "revision" : "95ba0316a9b733e92bb6b071255ff46263bbe7dc",
-        "version" : "3.15.1"
+        "revision" : "e8ed8867ec23bccf5f3bb9342148fa8deaff9b49",
+        "version" : "4.1.0"
       }
     },
     {
@@ -222,8 +222,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-http-structured-headers.git",
       "state" : {
-        "revision" : "a9f3c352f4d46afd155e00b3c6e85decae6bcbeb",
-        "version" : "1.5.0"
+        "revision" : "76d7627bd88b47bf5a0f8497dd244885960dde0b",
+        "version" : "1.6.0"
       }
     },
     {
@@ -258,8 +258,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "a24771a4c228ff116df343c85fcf3dcfae31a06c",
-        "version" : "2.88.0"
+        "revision" : "6e02c7a2467cf22526ac54521d4230d8c5890e62",
+        "version" : "2.90.0"
       }
     },
     {
@@ -276,8 +276,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-http2.git",
       "state" : {
-        "revision" : "5e9e99ec96c53bc2c18ddd10c1e25a3cd97c55e5",
-        "version" : "1.38.0"
+        "revision" : "c2ba4cfbb83f307c66f5a6df6bb43e3c88dfbf80",
+        "version" : "1.39.0"
       }
     },
     {

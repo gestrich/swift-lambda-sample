@@ -35,7 +35,7 @@ let package = Package(
         )
     ] + macAppProducts,
     dependencies: [
-        .package(url: "https://github.com/soto-project/soto.git", "6.8.0"..<"7.0.0"),
+        .package(url: "https://github.com/soto-project/soto.git", from: "7.10.0"),
         .package(url: "https://github.com/swift-server/swift-aws-lambda-runtime.git", "2.0.0"..<"3.0.0"),
         .package(url: "https://github.com/swift-server/swift-aws-lambda-events.git", from: "0.5.0"),
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", "2.2.0"..<"3.0.0"),
