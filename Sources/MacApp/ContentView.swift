@@ -1,7 +1,8 @@
+import Client
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var apiClient = APIClient.shared
+    @State private var apiClient = APIClient.shared
 
     var body: some View {
         TabView {
@@ -20,7 +21,7 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gear")
                 }
         }
-        .environmentObject(apiClient)
+        .environment(apiClient)
     }
 }
 

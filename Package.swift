@@ -38,10 +38,16 @@ let package = Package(
         ),
         .executableTarget(
             name: "MacApp",
-            dependencies: [],
+            dependencies: [
+                .target(name: "Client")
+            ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
+        ),
+        .target(
+            name: "Client",
+            dependencies: []
         ),
         .target(
             name: "SwiftServerApp",

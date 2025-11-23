@@ -1,7 +1,8 @@
+import Client
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var apiClient: APIClient
+    @Environment(APIClient.self) var apiClient
     @State private var editedURL: String = ""
     @State private var showingSuccess = false
 
@@ -112,5 +113,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
-        .environmentObject(APIClient.shared)
+        .environment(APIClient.shared)
 }

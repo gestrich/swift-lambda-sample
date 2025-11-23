@@ -1,5 +1,6 @@
-import SwiftUI
 import AppKit
+import Client
+import SwiftUI
 
 struct FileView: View {
     @State private var isLoading = false

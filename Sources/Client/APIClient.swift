@@ -1,33 +1,11 @@
 import Foundation
 
-enum APIError: Error, LocalizedError {
-    case invalidURL
-    case invalidResponse
-    case httpError(statusCode: Int, message: String)
-    case decodingError(Error)
-    case networkError(Error)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "Invalid URL"
-        case .invalidResponse:
-            return "Invalid response from server"
-        case .httpError(let statusCode, let message):
-            return "HTTP \(statusCode): \(message)"
-        case .decodingError(let error):
-            return "Failed to decode response: \(error.localizedDescription)"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        }
-    }
-}
-
+@Observable
 @MainActor
-class APIClient: ObservableObject {
-    static let shared = APIClient()
+public class APIClient {
+    public static let shared = APIClient()
 
-    @Published var baseURL: String {
+    public var baseURL: String {
         didSet {
             UserDefaults.standard.set(baseURL, forKey: "apiBaseURL")
         }
@@ -35,7 +13,7 @@ class APIClient: ObservableObject {
 
     private let session: URLSession
 
-    init() {
+    public init() {
         self.session = URLSession.shared
         // Load saved URL or use default
         if let savedURL = UserDefaults.standard.string(forKey: "apiBaseURL") {
@@ -48,7 +26,7 @@ class APIClient: ObservableObject {
     // MARK: - File Operations
 
     /// Test file upload (uploads hardcoded test file)
-    func testFileUpload() async throws -> String {
+    public func testFileUpload() async throws -> String {
         // Upload a test file using the files endpoint
         let testContent = "Hello World! This data was written/read from S3."
         guard let data = testContent.data(using: .utf8) else {
@@ -59,7 +37,7 @@ class APIClient: ObservableObject {
     }
 
     /// Upload file with custom data and filename
-    func uploadFile(fileName: String, data: Data) async throws -> String {
+    public func uploadFile(fileName: String, data: Data) async throws -> String {
         let endpoint = "/api/files"
         let url = try makeURL(endpoint: endpoint)
 
@@ -88,7 +66,7 @@ class APIClient: ObservableObject {
     }
 
     /// List all uploaded files
-    func listFiles() async throws -> [String] {
+    public func listFiles() async throws -> [String] {
         let endpoint = "/api/files"
         let url = try makeURL(endpoint: endpoint)
 
@@ -107,7 +85,7 @@ class APIClient: ObservableObject {
     }
 
     /// Download a specific file
-    func downloadFile(fileName: String) async throws -> Data {
+    public func downloadFile(fileName: String) async throws -> Data {
         let endpoint = "/api/files/\(fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fileName)"
         let url = try makeURL(endpoint: endpoint)
 
@@ -130,7 +108,7 @@ class APIClient: ObservableObject {
     }
 
     /// Delete a specific file
-    func deleteFile(fileName: String) async throws -> String {
+    public func deleteFile(fileName: String) async throws -> String {
         let endpoint = "/api/files/\(fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fileName)"
         let url = try makeURL(endpoint: endpoint)
 
@@ -148,7 +126,7 @@ class APIClient: ObservableObject {
 
     // MARK: - Database Operations
 
-    func initializeDatabase() async throws -> String {
+    public func initializeDatabase() async throws -> String {
         let endpoint = "/api/database"
         let url = try makeURL(endpoint: endpoint)
 
@@ -166,7 +144,7 @@ class APIClient: ObservableObject {
 
     // MARK: - User Operations
 
-    func listUsers() async throws -> [User] {
+    public func listUsers() async throws -> [User] {
         let endpoint = "/api/users"
         let url = try makeURL(endpoint: endpoint)
 
@@ -184,7 +162,7 @@ class APIClient: ObservableObject {
         }
     }
 
-    func getUser(id: UUID) async throws -> User {
+    public func getUser(id: UUID) async throws -> User {
         let endpoint = "/api/users/\(id.uuidString)"
         let url = try makeURL(endpoint: endpoint)
 
@@ -202,7 +180,7 @@ class APIClient: ObservableObject {
         }
     }
 
-    func createUser(_ userRequest: CreateUserRequest) async throws -> User {
+    public func createUser(_ userRequest: CreateUserRequest) async throws -> User {
         let endpoint = "/api/users"
         let url = try makeURL(endpoint: endpoint)
 
@@ -227,7 +205,7 @@ class APIClient: ObservableObject {
         }
     }
 
-    func updateUser(id: UUID, _ userRequest: UpdateUserRequest) async throws -> User {
+    public func updateUser(id: UUID, _ userRequest: UpdateUserRequest) async throws -> User {
         let endpoint = "/api/users/\(id.uuidString)"
         let url = try makeURL(endpoint: endpoint)
 
@@ -252,7 +230,7 @@ class APIClient: ObservableObject {
         }
     }
 
-    func deleteUser(id: UUID) async throws {
+    public func deleteUser(id: UUID) async throws {
         let endpoint = "/api/users/\(id.uuidString)"
         let url = try makeURL(endpoint: endpoint)
 
@@ -281,6 +259,29 @@ class APIClient: ObservableObject {
         guard (200...299).contains(httpResponse.statusCode) else {
             let message = String(data: data, encoding: .utf8) ?? "Unknown error"
             throw APIError.httpError(statusCode: httpResponse.statusCode, message: message)
+        }
+    }
+}
+
+public enum APIError: Error, LocalizedError {
+    case invalidURL
+    case invalidResponse
+    case httpError(statusCode: Int, message: String)
+    case decodingError(Error)
+    case networkError(Error)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "Invalid URL"
+        case .invalidResponse:
+            return "Invalid response from server"
+        case .httpError(let statusCode, let message):
+            return "HTTP \(statusCode): \(message)"
+        case .decodingError(let error):
+            return "Failed to decode response: \(error.localizedDescription)"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
         }
     }
 }
