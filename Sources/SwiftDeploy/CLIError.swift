@@ -35,6 +35,9 @@ public enum CLIError: Error, LocalizedError, Sendable {
     /// Command failed with exit code
     case commandFailed(command: String, exitCode: Int32, stderr: String)
 
+    /// Invalid configuration
+    case invalidConfiguration(String)
+
     public var errorDescription: String? {
         switch self {
         case .commandNotFound(let command):
@@ -71,6 +74,9 @@ public enum CLIError: Error, LocalizedError, Sendable {
         case .commandFailed(let command, let exitCode, let stderr):
             let errorOutput = stderr.isEmpty ? "No error output" : stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             return "Command '\(command)' failed with exit code \(exitCode): \(errorOutput)"
+
+        case .invalidConfiguration(let reason):
+            return "Invalid configuration: \(reason)"
         }
     }
 }

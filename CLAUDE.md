@@ -537,8 +537,8 @@ The CLI is organized into two top-level commands:
 ```
 SwiftDeploy
 ├── aws                          # All AWS operations
-│   ├── deploy                   # Deploy/update infrastructure
-│   ├── deploy-full             # Initial deployment (infrastructure + code)
+│   ├── deploy-init              # Initial deployment - set infrastructure configuration
+│   ├── deploy                   # Deploy/update infrastructure (maintains current state)
 │   ├── update-lambda            # Update Lambda code only
 │   ├── tear-down                # Destroy infrastructure
 │   ├── status                   # Check deployment status
@@ -567,25 +567,27 @@ SwiftDeploy
 
 ### Commands
 
-#### 1. Full Deploy (`aws deploy-full`)
+#### 1. Initial Deploy (`aws deploy-init`)
 
-**Full deployment**: Deploys CDK infrastructure + Lambda code. Use this for initial deployment or when you want to update everything.
+**Initial deployment**: Sets infrastructure configuration and deploys CDK infrastructure + Lambda code. Use this for initial deployment or when changing infrastructure scope (e.g., adding database).
 
 **Default is minimal cost** (no database, no NAT Gateway).
+
+**Key Safety Feature**: Prevents accidental database deletion. If a database exists, you cannot remove it with deploy-init - you must use tear-down first.
 
 **Basic usage:**
 ```bash
 # Minimal deployment (default: no Postgres, no NAT)
-swift run SwiftDeploy aws deploy-full
-./tools.sh aws deploy-full
+swift run SwiftDeploy aws deploy-init
+./tools.sh aws deploy-init
 
 # Deploy with PostgreSQL (adds cost)
-swift run SwiftDeploy aws deploy-full --with-postgres
-./tools.sh aws deploy-full --with-postgres
+swift run SwiftDeploy aws deploy-init --with-postgres
+./tools.sh aws deploy-init --with-postgres
 
 # Full deployment (Postgres + NAT)
-swift run SwiftDeploy aws deploy-full --with-postgres --with-nat-gateway
-./tools.sh aws deploy-full --with-postgres --with-nat-gateway
+swift run SwiftDeploy aws deploy-init --with-postgres --with-nat-gateway
+./tools.sh aws deploy-init --with-postgres --with-nat-gateway
 ```
 
 **Options:**
@@ -606,32 +608,43 @@ swift run SwiftDeploy aws deploy-full --with-postgres --with-nat-gateway
 
 #### 2. Deploy (`aws deploy`)
 
-**Update infrastructure only**: Updates CDK infrastructure without touching Lambda code.
+**Update infrastructure (maintains current configuration)**: Updates CDK infrastructure without touching Lambda code. This command queries AWS to detect your current configuration and maintains it.
+
+**Key Safety Feature**: Automatically detects whether you have PostgreSQL and NAT Gateway deployed, and maintains that configuration. You don't need to remember flags!
 
 **Usage:**
 ```bash
-# Update infrastructure (minimal)
+# Update infrastructure (maintains current state)
 swift run SwiftDeploy aws deploy
 ./tools.sh aws deploy
-
-# Update infrastructure with database
-swift run SwiftDeploy aws deploy --with-postgres
-./tools.sh aws deploy --with-postgres
 ```
 
 **Options:**
 ```bash
---with-postgres         # Include PostgreSQL database (adds ~$15/month)
---with-nat-gateway      # Include NAT Gateway (adds ~$32/month)
 --aws-profile <name>    # AWS profile to use (reads from ~/.swiftSampleDemo/aws-config.json if not specified)
 --cdk-directory <path>  # CDK directory path (default: cdk)
 ```
 
 **What it does:**
-1. Updates CDK infrastructure only
-2. Polls CloudFormation until complete
-3. Displays stack outputs
-4. **Does NOT update Lambda code** (use `aws update-lambda` for that)
+1. Queries AWS to detect current infrastructure configuration (database, NAT Gateway)
+2. Updates CDK infrastructure while maintaining the same configuration
+3. Polls CloudFormation until complete
+4. Displays stack outputs
+5. **Does NOT update Lambda code** (use `aws update-lambda` for that)
+
+**Example output:**
+```
+📦 Starting CDK deployment...
+
+📊 Detected existing stack configuration:
+   Database: YES
+   NAT Gateway: NO
+   → Maintaining current configuration
+
+🔨 Building CDK TypeScript...
+🚀 Deploying CDK stack...
+✅ CDK deployment completed successfully
+```
 
 #### 3. Update Lambda (`aws update-lambda`)
 
@@ -889,7 +902,7 @@ The `tools.sh` script is a **thin wrapper** that delegates all commands directly
 #### Initial Deployment
 ```bash
 # 1. Deploy everything (minimal cost by default)
-./tools.sh aws deploy-full
+./tools.sh aws deploy-init
 
 # 2. Verify deployment
 ./tools.sh aws test all
@@ -917,18 +930,27 @@ git commit -m "Update API handler"
 vim cdk/lib/constructs/lambda-construct.ts
 
 # 2. Update infrastructure only (Lambda code unchanged)
+# The deploy command maintains your current configuration automatically!
 ./tools.sh aws deploy
 
 # (Lambda code is NOT updated - use aws update-lambda if needed)
 ```
 
-#### Full Deployment with Database
+#### Initial Deployment with Database
 ```bash
 # Initial deployment with PostgreSQL and NAT Gateway
-./tools.sh aws deploy-full --with-postgres --with-nat-gateway
+./tools.sh aws deploy-init --with-postgres --with-nat-gateway
 
 # Or just add PostgreSQL
-./tools.sh aws deploy-full --with-postgres
+./tools.sh aws deploy-init --with-postgres
+```
+
+#### Adding Database to Existing Deployment
+```bash
+# Use deploy-init to change infrastructure configuration
+./tools.sh aws deploy-init --with-postgres
+
+# The command will warn you about changes and proceed
 ```
 
 #### Clean Up
@@ -959,7 +981,7 @@ cdk deploy --profile production --require-approval never
 cdk deploy --profile production --outputs-file outputs.json
 ```
 
-**Note**: The `swift run SwiftDeploy aws deploy-full` command handles all of this automatically.
+**Note**: The `swift run SwiftDeploy aws deploy-init` command handles all of this automatically.
 
 ### Deploying Lambda Code Changes
 
@@ -1122,13 +1144,17 @@ gh run view {run-id} --repo gestrich/swift-lambda-sample --log
 
 ### SwiftDeploy CLI (Recommended)
 ```bash
-# Deploy infrastructure + Lambda code
-swift run SwiftDeploy aws deploy-full
-./tools.sh aws deploy-full
+# Initial deployment (set infrastructure configuration)
+swift run SwiftDeploy aws deploy-init
+./tools.sh aws deploy-init
 
-# Deploy with database
-swift run SwiftDeploy aws deploy-full --with-postgres
-./tools.sh aws deploy-full --with-postgres
+# Initial deployment with database
+swift run SwiftDeploy aws deploy-init --with-postgres
+./tools.sh aws deploy-init --with-postgres
+
+# Update infrastructure (maintains current configuration automatically)
+swift run SwiftDeploy aws deploy
+./tools.sh aws deploy
 
 # Check status
 swift run SwiftDeploy aws status

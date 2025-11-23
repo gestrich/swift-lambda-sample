@@ -37,6 +37,12 @@ public actor AWSCLIService {
         public let exportName: String?
     }
 
+    public struct StackResource: Sendable {
+        public let logicalResourceId: String
+        public let resourceType: String
+        public let resourceStatus: String
+    }
+
     /// Describe a CloudFormation stack
     public func describeStack(name: String) async throws -> [String: Any] {
         let (command, arguments) = buildCommand(arguments: [
@@ -150,6 +156,51 @@ public actor AWSCLIService {
         }
 
         return value
+    }
+
+    /// Describe stack resources to detect what's deployed
+    public func describeStackResources(name: String) async throws -> [StackResource] {
+        let (command, arguments) = buildCommand(arguments: [
+            "cloudformation", "describe-stack-resources",
+            "--stack-name", name,
+            "--profile", profile,
+            "--output", "json"
+        ])
+
+        let result = try await cliService.execute(
+            command: command,
+            arguments: arguments,
+            environment: ["AWS_PROFILE": profile],
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "aws cloudformation describe-stack-resources",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        guard let data = result.stdout.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let resourcesArray = json["StackResources"] as? [[String: Any]] else {
+            throw CLIError.invalidOutput(reason: "Failed to parse CloudFormation stack resources")
+        }
+
+        return resourcesArray.compactMap { resource in
+            guard let logicalId = resource["LogicalResourceId"] as? String,
+                  let resourceType = resource["ResourceType"] as? String,
+                  let resourceStatus = resource["ResourceStatus"] as? String else {
+                return nil
+            }
+
+            return StackResource(
+                logicalResourceId: logicalId,
+                resourceType: resourceType,
+                resourceStatus: resourceStatus
+            )
+        }
     }
 
     // MARK: - Lambda

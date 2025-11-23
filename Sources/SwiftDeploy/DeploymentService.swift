@@ -1,5 +1,12 @@
 import Foundation
 
+/// Detected state of deployed infrastructure
+public struct DeployedState: Sendable {
+    let hasDatabase: Bool
+    let hasNATGateway: Bool
+    let hasVPC: Bool
+}
+
 /// Service for managing CDK deployments
 public actor DeploymentService {
     private let cdkService: CDKService
@@ -19,23 +26,76 @@ public actor DeploymentService {
         self.awsService = AWSCLIService(awsConfig: awsConfig)
     }
 
-    /// Deploy CDK stack
+    /// Deploy CDK stack (maintains current configuration)
     public func deploy(options: DeploymentOptions) async throws {
         print("\n📦 Starting CDK deployment...")
+
+        // Query current deployed state
+        let deployedState = try await queryDeployedState()
+
+        // Determine what to deploy based on current state
+        let finalOptions: DeploymentOptions
+
+        if let state = deployedState {
+            // Stack exists - maintain current configuration
+            print("\n📊 Detected existing stack configuration:")
+            print("   Database: \(state.hasDatabase ? "YES" : "NO")")
+            print("   NAT Gateway: \(state.hasNATGateway ? "YES" : "NO")")
+            print("   → Maintaining current configuration\n")
+
+            finalOptions = DeploymentOptions(
+                skipPostgres: !state.hasDatabase,
+                skipNATGateway: !state.hasNATGateway,
+                awsProfile: options.awsProfile,
+                cdkDirectory: options.cdkDirectory
+            )
+        } else {
+            // No stack exists - use minimal config
+            print("\n⚠️  No existing stack detected")
+            print("   → Using minimal configuration (no database, no NAT)")
+            print("   → Use 'deploy-init' to set initial configuration\n")
+
+            finalOptions = options
+        }
 
         // Build TypeScript first
         try await cdkService.build()
 
-        // Deploy with CDK
+        // Deploy with resolved options
         let cdkOptions = CDKService.DeployOptions(
-            skipPostgres: options.skipPostgres,
-            skipNATGateway: options.skipNATGateway,
+            skipPostgres: finalOptions.skipPostgres,
+            skipNATGateway: finalOptions.skipNATGateway,
             requireApproval: false
         )
 
         try await cdkService.deploy(options: cdkOptions)
 
         print("\n✅ CDK deployment completed successfully")
+    }
+
+    /// Query AWS to determine what's currently deployed
+    private func queryDeployedState(
+        stackName: String = "SwiftLambdaSampleStack"
+    ) async throws -> DeployedState? {
+        do {
+            let resources = try await awsService.describeStackResources(name: stackName)
+
+            return DeployedState(
+                hasDatabase: resources.contains {
+                    $0.logicalResourceId.contains("Database") &&
+                    $0.resourceType.contains("RDS")
+                },
+                hasNATGateway: resources.contains {
+                    $0.resourceType == "AWS::EC2::NatGateway"
+                },
+                hasVPC: resources.contains {
+                    $0.resourceType == "AWS::EC2::VPC"
+                }
+            )
+        } catch {
+            // Stack doesn't exist yet
+            return nil
+        }
     }
 
     /// Poll CloudFormation stack status until deployment is complete
@@ -176,14 +236,36 @@ public actor DeploymentService {
         }
     }
 
-    /// Complete full deployment workflow
-    /// Deploys infrastructure, Lambda code, initializes database, and verifies deployment
-    public func deployFull(
+    /// Initial deployment workflow - sets infrastructure configuration
+    /// Use this for first deployment or when changing infrastructure scope
+    public func deployInit(
         options: DeploymentOptions,
         withPostgres: Bool,
         skipPush: Bool = false,
         stackName: String = "SwiftLambdaSampleStack"
     ) async throws {
+        // Check if stack already exists
+        let existingState = try await queryDeployedState(stackName: stackName)
+
+        if let state = existingState {
+            print("\n⚠️  WARNING: Stack already exists!")
+            print("   Current configuration:")
+            print("     Database: \(state.hasDatabase ? "YES" : "NO")")
+            print("     NAT Gateway: \(state.hasNATGateway ? "YES" : "NO")")
+            print("\n   New configuration:")
+            print("     Database: \(withPostgres ? "YES" : "NO")")
+            print("     NAT Gateway: \(!options.skipNATGateway ? "YES" : "NO")")
+
+            // Prevent accidental database deletion
+            if state.hasDatabase && options.skipPostgres {
+                print("\n❌ ERROR: This would DELETE your database!")
+                print("   Use 'tear-down' first if you want to remove the database.")
+                throw CLIError.invalidConfiguration("Cannot remove database with deploy-init")
+            }
+
+            print("\n   Updating existing stack...\n")
+        }
+
         // 1. Deploy infrastructure
         _ = try await deployInfrastructure(options: options, stackName: stackName)
 

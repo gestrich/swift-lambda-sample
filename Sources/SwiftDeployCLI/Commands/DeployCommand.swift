@@ -6,7 +6,7 @@ extension AWSCommand {
     struct DeployCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "deploy",
-            abstract: "Deploy/update CDK infrastructure only (does not update Lambda code)"
+            abstract: "Deploy/update CDK infrastructure (maintains current configuration)"
         )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
@@ -17,12 +17,6 @@ extension AWSCommand {
 
     @Option(name: .long, help: "CDK directory path")
     var cdkDirectory: String = "cdk"
-
-    @Flag(name: .long, help: "Include PostgreSQL database (adds cost)")
-    var withPostgres: Bool = false
-
-    @Flag(name: .long, help: "Include NAT Gateway (adds cost)")
-    var withNatGateway: Bool = false
 
     mutating func run() async throws {
         // Resolve AWS configuration from CLI args and config file
@@ -35,25 +29,16 @@ extension AWSCommand {
             print("ℹ️  Using AWS profile '\(awsConfig.profileName)' from config file\n")
         }
 
-        print("🚀 Deploying CDK infrastructure...\n")
-
-        if !withPostgres && !withNatGateway {
-            print("💰 MINIMAL COST MODE (default)")
-            print("   - No PostgreSQL database")
-            print("   - No NAT Gateway")
-            print("   - Cost: ~$0/month (only pay for Lambda invocations, S3, SQS usage)")
-            print("")
-        }
-
         let projectRoot = FileManager.default.currentDirectoryPath
         let deploymentService = DeploymentService(
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
 
+        // Options with minimal config - actual config will be detected from AWS
         let options = DeploymentOptions(
-            skipPostgres: !withPostgres,
-            skipNATGateway: !withNatGateway,
+            skipPostgres: true,
+            skipNATGateway: true,
             awsProfile: awsConfig.profileName,
             cdkDirectory: cdkDirectory
         )

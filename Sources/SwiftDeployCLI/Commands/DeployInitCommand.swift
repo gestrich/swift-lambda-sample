@@ -3,10 +3,10 @@ import ArgumentParser
 import SwiftDeploy
 
 extension AWSCommand {
-    struct DeployFullCommand: AsyncParsableCommand {
+    struct DeployInitCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "deploy-full",
-            abstract: "Full deployment: CDK infrastructure + Lambda code"
+            commandName: "deploy-init",
+            abstract: "Initial deployment - set infrastructure configuration"
         )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
@@ -61,7 +61,7 @@ extension AWSCommand {
             cdkDirectory: cdkDirectory
         )
 
-        try await deploymentService.deployFull(
+        try await deploymentService.deployInit(
             options: options,
             withPostgres: withPostgres,
             skipPush: skipPush
