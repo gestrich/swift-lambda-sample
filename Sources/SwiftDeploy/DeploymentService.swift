@@ -258,16 +258,16 @@ public actor DeploymentService {
             throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
-        // Test the file endpoint
-        print("  Testing S3 file endpoint...")
-        print("  → POST \(apiUrl)api/file")
+        // Test the health endpoint
+        print("  Testing health endpoint...")
+        print("  → GET \(apiUrl)api/health")
 
         let testResult = try await cliService.execute(
             command: "curl",
             arguments: [
                 "-s",
-                "-X", "POST",
-                "\(apiUrl)api/file"
+                "-X", "GET",
+                "\(apiUrl)api/health"
             ],
             printCommand: false
         )
@@ -283,13 +283,13 @@ public actor DeploymentService {
         let response = testResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         print("  Response: \(response)")
 
-        if !response.contains("File uploaded and downloaded") {
+        if !response.contains("healthy") {
             throw CLIError.deploymentFailed(reason: "Unexpected API response: \(response)")
         }
 
         print("  ✓ API Gateway working")
         print("  ✓ Lambda function executing")
-        print("  ✓ S3 integration working")
+        print("  ✓ Health check passed")
 
         // Test database endpoints if PostgreSQL is deployed
         if withPostgres {

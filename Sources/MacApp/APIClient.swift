@@ -49,19 +49,13 @@ class APIClient: ObservableObject {
 
     /// Test file upload (uploads hardcoded test file)
     func testFileUpload() async throws -> String {
-        let endpoint = "/api/file"
-        let url = try makeURL(endpoint: endpoint)
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
-
-        guard let result = String(data: data, encoding: .utf8) else {
+        // Upload a test file using the files endpoint
+        let testContent = "Hello World! This data was written/read from S3."
+        guard let data = testContent.data(using: .utf8) else {
             throw APIError.invalidResponse
         }
-        return result
+
+        return try await uploadFile(fileName: "hello-world.text", data: data)
     }
 
     /// Upload file with custom data and filename

@@ -86,9 +86,6 @@ struct APIGWHandler {
             default:
                 throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")
             }
-        case "file":
-            let _ = try await app.uploadAndDownloadS3File()
-            return try "File uploaded and downloaded".apiGatewayOkResponse()
         case "files":
             switch event.httpMethod {
             case .get:

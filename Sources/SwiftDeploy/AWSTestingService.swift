@@ -26,8 +26,27 @@ public actor AWSTestingService {
         print("\n🧪 Testing S3 file endpoint...")
 
         let apiUrl = try await getApiGatewayUrl()
-        let endpoint = "\(apiUrl)api/file"
+        let fileName = "hello-world.text"
+        let testContent = "Hello World! This data was written/read from S3."
 
+        // Create base64 encoded test data
+        guard let data = testContent.data(using: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create test data")
+        }
+        let base64Data = data.base64EncodedString()
+
+        // Create upload request JSON
+        let uploadRequest: [String: String] = [
+            "fileName": fileName,
+            "data": base64Data
+        ]
+
+        guard let uploadJson = try? JSONSerialization.data(withJSONObject: uploadRequest),
+              let uploadJsonString = String(data: uploadJson, encoding: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create upload JSON")
+        }
+
+        let endpoint = "\(apiUrl)api/files"
         print("→ POST \(endpoint)")
         print("")
 
@@ -36,6 +55,8 @@ public actor AWSTestingService {
             arguments: [
                 "-s",
                 "-X", "POST",
+                "-H", "Content-Type: application/json",
+                "-d", uploadJsonString,
                 endpoint
             ],
             printCommand: false
@@ -52,7 +73,7 @@ public actor AWSTestingService {
         let response = result.stdout
         print("Response: \(response)")
 
-        if response.contains("File uploaded and downloaded") {
+        if response.contains("File uploaded") {
             print("✅ File endpoint test passed!")
         } else {
             print("❌ File endpoint test failed!")
@@ -65,8 +86,27 @@ public actor AWSTestingService {
         print("\n🧪 Testing S3 file endpoint (verbose)...")
 
         let apiUrl = try await getApiGatewayUrl()
-        let endpoint = "\(apiUrl)api/file"
+        let fileName = "hello-world.text"
+        let testContent = "Hello World! This data was written/read from S3."
 
+        // Create base64 encoded test data
+        guard let data = testContent.data(using: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create test data")
+        }
+        let base64Data = data.base64EncodedString()
+
+        // Create upload request JSON
+        let uploadRequest: [String: String] = [
+            "fileName": fileName,
+            "data": base64Data
+        ]
+
+        guard let uploadJson = try? JSONSerialization.data(withJSONObject: uploadRequest),
+              let uploadJsonString = String(data: uploadJson, encoding: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create upload JSON")
+        }
+
+        let endpoint = "\(apiUrl)api/files"
         print("→ POST \(endpoint)")
         print("")
 
@@ -75,6 +115,8 @@ public actor AWSTestingService {
             arguments: [
                 "-v",
                 "-X", "POST",
+                "-H", "Content-Type: application/json",
+                "-d", uploadJsonString,
                 endpoint
             ]
         )

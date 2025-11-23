@@ -53,7 +53,7 @@ struct DynamicLambdaHandler: LambdaHandler {
     /// Handles HTTP requests from API Gateway
     ///
     /// Called when: User makes HTTP request through API Gateway
-    /// Example: `curl -X POST https://{api-gateway-url}/prod/api/file`
+    /// Example: `curl -X GET https://{api-gateway-url}/prod/api/health`
     private func handleAPIGateway(request: APIGatewayRequest, context: LambdaContext) async throws -> LambdaResponse {
         let handler = APIGWHandler()
         let response = try await handler.handle(context: context, event: request)
