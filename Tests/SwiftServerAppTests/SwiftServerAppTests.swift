@@ -38,7 +38,7 @@ final class SwiftServerAppTests: XCTestCase {
 
 final class MockS3DataStore: S3DataStoreInterface, @unchecked Sendable {
     func listFiles() async throws -> [String] {
-        keysToData.keys.sorted()
+        return Array(keysToData.keys).sorted()
     }
     
     var keysToData = [String: Data]()
