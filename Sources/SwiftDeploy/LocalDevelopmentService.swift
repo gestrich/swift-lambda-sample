@@ -211,7 +211,7 @@ public actor LocalDevelopmentService {
     }
 
     /// Check if Lambda is already built
-    public func isLambdaBuilt() -> Bool {
+    public nonisolated func isLambdaBuilt() -> Bool {
         let lambdaDir = "\(workingDirectory)/lambda"
         let bootstrapPath = "\(lambdaDir)/bootstrap"
         let zipPath = "\(workingDirectory)/lambda.zip"
