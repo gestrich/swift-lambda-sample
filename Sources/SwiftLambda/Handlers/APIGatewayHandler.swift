@@ -68,6 +68,19 @@ struct APIGWHandler {
         }
 
         switch firstComponent {
+        case "health":
+            // Health check endpoint - always returns 200 OK
+            let healthResponse = [
+                "status": "healthy",
+                "timestamp": ISO8601DateFormatter().string(from: Date()),
+                "service": "swift-lambda-sample"
+            ]
+            return try healthResponse.apiGatewayOkResponse()
+
+        case "checkError":
+            // Test endpoint that always throws an error for testing error logging
+            throw APIGWHandlerError.general(description: "Test error from checkError endpoint - this is intentional for testing error logs")
+
         case "database":
             switch event.httpMethod {
             case .post:
