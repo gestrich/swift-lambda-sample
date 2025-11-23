@@ -40,5 +40,10 @@ public actor S3DataStoreProduction: S3DataStoreInterface, Sendable {
         let s3Store = try await getOrCreateS3Store()
         return try await s3Store.listFiles()
     }
+
+    public func deleteFile(key: String) async throws {
+        let s3Store = try await getOrCreateS3Store()
+        try await s3Store.deleteFile(key: key)
+    }
 }
 

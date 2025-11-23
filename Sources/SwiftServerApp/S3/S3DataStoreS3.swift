@@ -46,5 +46,10 @@ public final class S3DataStoreS3: S3DataStoreInterface {
         let response = try await s3.listObjectsV2(listRequest)
         return response.contents?.compactMap { $0.key } ?? []
     }
+
+    public func deleteFile(key: String) async throws {
+        let deleteRequest = S3.DeleteObjectRequest(bucket: bucketName, key: key)
+        _ = try await s3.deleteObject(deleteRequest)
+    }
 }
 

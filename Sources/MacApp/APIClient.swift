@@ -129,6 +129,23 @@ class APIClient: ObservableObject {
         return data
     }
 
+    /// Delete a specific file
+    func deleteFile(fileName: String) async throws -> String {
+        let endpoint = "/api/files/\(fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fileName)"
+        let url = try makeURL(endpoint: endpoint)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+
+        let (responseData, response) = try await session.data(for: request)
+        try validateResponse(response, data: responseData)
+
+        guard let result = String(data: responseData, encoding: .utf8) else {
+            throw APIError.invalidResponse
+        }
+        return result
+    }
+
     // MARK: - Database Operations
 
     func initializeDatabase() async throws -> String {

@@ -140,6 +140,13 @@ public struct SwiftServerApp {
         return try await s3DataStore.listFiles()
     }
 
+    public func deleteS3File(key: String) async throws {
+        guard let s3DataStore else {
+            throw LambdaDemoError.missingService(name: "s3DataStore")
+        }
+        try await s3DataStore.deleteFile(key: key)
+    }
+
 
     enum LambdaDemoError: LocalizedError {
         case missingService(name: String)

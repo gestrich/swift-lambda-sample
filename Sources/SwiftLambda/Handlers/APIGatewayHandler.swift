@@ -121,6 +121,16 @@ struct APIGWHandler {
                 try await app.uploadS3File(key: uploadRequest.fileName, data: fileData)
                 return try "File uploaded: \(uploadRequest.fileName)".apiGatewayOkResponse()
 
+            case .delete:
+                // DELETE /api/files/{fileName} - delete file
+                guard urlComponents.count > 1 else {
+                    throw APIGWHandlerError.general(description: "File name required for delete")
+                }
+
+                let fileName = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
+                try await app.deleteS3File(key: fileName)
+                return try "File deleted: \(fileName)".apiGatewayOkResponse()
+
             default:
                 throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")
             }

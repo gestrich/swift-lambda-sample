@@ -119,6 +119,13 @@ struct FileView: View {
                                 }
                             }
                             .buttonStyle(.borderless)
+                            Button("Delete") {
+                                Task {
+                                    await deleteFile(fileName)
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundColor(.red)
                         }
                         .padding(.vertical, 2)
                     }
@@ -252,6 +259,20 @@ struct FileView: View {
             } else {
                 errorMessage = "Failed to load image"
             }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    private func deleteFile(_ fileName: String) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            _ = try await APIClient.shared.deleteFile(fileName: fileName)
+            await loadFiles()
         } catch {
             errorMessage = error.localizedDescription
         }

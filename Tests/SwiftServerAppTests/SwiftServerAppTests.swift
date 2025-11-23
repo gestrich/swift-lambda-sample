@@ -40,7 +40,7 @@ final class MockS3DataStore: S3DataStoreInterface, @unchecked Sendable {
     func listFiles() async throws -> [String] {
         return Array(keysToData.keys).sorted()
     }
-    
+
     var keysToData = [String: Data]()
 
     func getData(key: String) async throws -> Data? {
@@ -49,6 +49,10 @@ final class MockS3DataStore: S3DataStoreInterface, @unchecked Sendable {
 
     func uploadData(_ data: Data, key: String) async throws {
         keysToData[key] = data
+    }
+
+    func deleteFile(key: String) async throws {
+        keysToData.removeValue(forKey: key)
     }
 }
 
