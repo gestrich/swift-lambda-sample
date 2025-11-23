@@ -1,4 +1,5 @@
 import Foundation
+import Client
 
 /// Service for managing local development environment (Docker services, testing)
 public actor LocalDevelopmentService {
@@ -406,101 +407,47 @@ public actor LocalDevelopmentService {
         ]
     }
 
-    /// Test local Lambda endpoints
-    public func testLocalLambda() async throws {
+    /// Create an API client configured for local Lambda testing
+    @MainActor
+    private func createLocalAPIClient() -> APIClient {
         let endpoint = "http://localhost:\(lambdaHostPort)/invoke"
+        return APIClient(
+            baseURL: "http://localhost:\(lambdaHostPort)",
+            mode: .localLambda(endpoint: endpoint)
+        )
+    }
 
+    /// Test local Lambda endpoints using Client library
+    public func testLocalLambda() async throws {
         print("\n🧪 Testing local Lambda on port \(lambdaHostPort)...")
         print("")
 
-        // Test S3 file endpoint
-        print("→ Testing S3 file upload/download...")
-        let s3Body = """
-        {
-          "resource": "/api/file",
-          "path": "/api/file",
-          "httpMethod": "POST",
-          "headers": {},
-          "multiValueHeaders": {},
-          "requestContext": {
-            "resourceId": "test",
-            "apiId": "test",
-            "resourcePath": "/api/file",
-            "httpMethod": "POST",
-            "requestId": "test",
-            "accountId": "123456789012",
-            "stage": "local",
-            "identity": {"sourceIp": "127.0.0.1"},
-            "path": "/api/file"
-          },
-          "body": null,
-          "isBase64Encoded": false
-        }
-        """
-
-        let s3Result = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                endpoint,
-                "-H", "Content-Type: application/json",
-                "-d", s3Body
-            ],
-            printCommand: false
-        )
-
-        if s3Result.stdout.contains("File uploaded and downloaded") {
-            print("  ✅ S3 test passed")
-        } else {
-            print("  ❌ S3 test failed: \(s3Result.stdout)")
-            throw CLIError.testFailed(message: "S3 endpoint test failed")
+        do {
+            try await performLocalLambdaTests()
+        } catch let error as APIError {
+            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
 
         print("")
+        print("✅ All local Lambda tests passed!")
+    }
 
-        // Test file upload (new /api/files endpoint)
+    @MainActor
+    private func performLocalLambdaTests() async throws {
+        let client = createLocalAPIClient()
+
+        // Test file upload
         print("→ Testing file upload...")
-        let testFileData = "Hello from test file!".data(using: .utf8)!.base64EncodedString()
-        let uploadFileBody = """
-        {
-          "resource": "/api/files",
-          "path": "/api/files",
-          "httpMethod": "POST",
-          "headers": {"Content-Type": "application/json"},
-          "multiValueHeaders": {},
-          "requestContext": {
-            "resourceId": "test",
-            "apiId": "test",
-            "resourcePath": "/api/files",
-            "httpMethod": "POST",
-            "requestId": "test",
-            "accountId": "123456789012",
-            "stage": "local",
-            "identity": {"sourceIp": "127.0.0.1"},
-            "path": "/api/files"
-          },
-          "body": "{\\"fileName\\":\\"test-upload.txt\\",\\"data\\":\\"\(testFileData)\\"}",
-          "isBase64Encoded": false
+        let testContent = "Hello from test file!"
+        guard let testData = testContent.data(using: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create test data")
         }
-        """
 
-        let uploadResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                endpoint,
-                "-H", "Content-Type: application/json",
-                "-d", uploadFileBody
-            ],
-            printCommand: false
-        )
-
-        if uploadResult.stdout.contains("File uploaded: test-upload.txt") {
+        let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
+        if uploadResponse.contains("File uploaded: test-upload.txt") {
             print("  ✅ File upload test passed")
         } else {
-            print("  ❌ File upload test failed: \(uploadResult.stdout)")
+            print("  ❌ File upload test failed: \(uploadResponse)")
             throw CLIError.testFailed(message: "File upload endpoint test failed")
         }
 
@@ -508,45 +455,11 @@ public actor LocalDevelopmentService {
 
         // Test list files
         print("→ Testing list files...")
-        let listFilesBody = """
-        {
-          "resource": "/api/files",
-          "path": "/api/files",
-          "httpMethod": "GET",
-          "headers": {},
-          "multiValueHeaders": {},
-          "requestContext": {
-            "resourceId": "test",
-            "apiId": "test",
-            "resourcePath": "/api/files",
-            "httpMethod": "GET",
-            "requestId": "test",
-            "accountId": "123456789012",
-            "stage": "local",
-            "identity": {"sourceIp": "127.0.0.1"},
-            "path": "/api/files"
-          },
-          "body": null,
-          "isBase64Encoded": false
-        }
-        """
-
-        let listResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                endpoint,
-                "-H", "Content-Type: application/json",
-                "-d", listFilesBody
-            ],
-            printCommand: false
-        )
-
-        if listResult.stdout.contains("test-upload.txt") {
-            print("  ✅ List files test passed")
+        let fileList = try await client.listFiles()
+        if fileList.contains("test-upload.txt") {
+            print("  ✅ List files test passed (found \(fileList.count) files)")
         } else {
-            print("  ❌ List files test failed: \(listResult.stdout)")
+            print("  ❌ List files test failed: \(fileList)")
             throw CLIError.testFailed(message: "List files endpoint test failed")
         }
 
@@ -554,45 +467,16 @@ public actor LocalDevelopmentService {
 
         // Test file download
         print("→ Testing file download...")
-        let downloadFileBody = """
-        {
-          "resource": "/api/files/test-upload.txt",
-          "path": "/api/files/test-upload.txt",
-          "httpMethod": "GET",
-          "headers": {},
-          "multiValueHeaders": {},
-          "requestContext": {
-            "resourceId": "test",
-            "apiId": "test",
-            "resourcePath": "/api/files/{fileName}",
-            "httpMethod": "GET",
-            "requestId": "test",
-            "accountId": "123456789012",
-            "stage": "local",
-            "identity": {"sourceIp": "127.0.0.1"},
-            "path": "/api/files/test-upload.txt"
-          },
-          "body": null,
-          "isBase64Encoded": false
-        }
-        """
-
-        let downloadResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                endpoint,
-                "-H", "Content-Type: application/json",
-                "-d", downloadFileBody
-            ],
-            printCommand: false
-        )
-
-        if downloadResult.stdout.contains("fileName") && downloadResult.stdout.contains("test-upload.txt") {
-            print("  ✅ File download test passed")
+        let downloadedData = try await client.downloadFile(fileName: "test-upload.txt")
+        if let downloadedContent = String(data: downloadedData, encoding: .utf8) {
+            if downloadedContent.contains("Hello from test file!") {
+                print("  ✅ File download test passed")
+            } else {
+                print("  ❌ File download test failed: unexpected content")
+                throw CLIError.testFailed(message: "File download endpoint test failed")
+            }
         } else {
-            print("  ❌ File download test failed: \(downloadResult.stdout)")
+            print("  ❌ File download test failed: could not decode content")
             throw CLIError.testFailed(message: "File download endpoint test failed")
         }
 
@@ -600,50 +484,13 @@ public actor LocalDevelopmentService {
 
         // Test database initialization
         print("→ Testing database initialization...")
-        let dbBody = """
-        {
-          "resource": "/api/database",
-          "path": "/api/database",
-          "httpMethod": "POST",
-          "headers": {},
-          "multiValueHeaders": {},
-          "requestContext": {
-            "resourceId": "test",
-            "apiId": "test",
-            "resourcePath": "/api/database",
-            "httpMethod": "POST",
-            "requestId": "test",
-            "accountId": "123456789012",
-            "stage": "local",
-            "identity": {"sourceIp": "127.0.0.1"},
-            "path": "/api/database"
-          },
-          "body": null,
-          "isBase64Encoded": false
-        }
-        """
-
-        let dbResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                endpoint,
-                "-H", "Content-Type: application/json",
-                "-d", dbBody
-            ],
-            printCommand: false
-        )
-
-        if dbResult.stdout.contains("Database Initialized") {
+        let dbResult = try await client.initializeDatabase()
+        if dbResult.contains("Database Initialized") {
             print("  ✅ Database test passed")
         } else {
-            print("  ❌ Database test failed: \(dbResult.stdout)")
+            print("  ❌ Database test failed: \(dbResult)")
             throw CLIError.testFailed(message: "Database endpoint test failed")
         }
-
-        print("")
-        print("✅ All local Lambda tests passed!")
     }
 
     // MARK: - Configuration
