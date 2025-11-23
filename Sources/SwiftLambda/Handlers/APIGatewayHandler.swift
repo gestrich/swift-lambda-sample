@@ -74,11 +74,15 @@ struct APIGWHandler {
                 // GET /api/files - list all files
                 // GET /api/files/{fileName} - download specific file
                 guard urlComponents.count > 1 else {
-                    // Test with hardcoded array
-                    let testFiles = ["file1.txt", "file2.txt", "test-upload.txt"]
-                    return try testFiles.apiGatewayOkResponse()
-                    // let files = try await app.listS3Files()
-                    // return try files.apiGatewayOkResponse()
+                    // Try to call S3 and catch any errors
+                    do {
+                        let files = try await app.listS3Files()
+                        return try files.apiGatewayOkResponse()
+                    } catch {
+                        // Return error as array so we can see it
+                        let errorFiles = ["ERROR: \(error)", "Type: \(type(of: error))"]
+                        return try errorFiles.apiGatewayOkResponse()
+                    }
                 }
 
                 let fileName = urlComponents[1]
