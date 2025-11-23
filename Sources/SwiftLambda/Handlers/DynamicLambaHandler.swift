@@ -38,7 +38,7 @@ struct DynamicLambdaHandler: LambdaHandler {
                 return try await handleDirectInvocation(event: directEvent, context: context)
             }
         } catch {
-            context.logger.error("Error description: \(String(describing: error))")
+            context.logger.error("Error description: \(String(reflecting: error))")
             throw error
         }
     }
