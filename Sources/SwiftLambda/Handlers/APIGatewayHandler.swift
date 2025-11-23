@@ -74,8 +74,9 @@ struct APIGWHandler {
                 // GET /api/files - list all files
                 // GET /api/files/{fileName} - download specific file
                 guard urlComponents.count > 1 else {
-                    // Hardcoded test - bypass all S3 logic
-                    return try "Files list test".apiGatewayOkResponse()
+                    // Test with hardcoded array
+                    let testFiles = ["file1.txt", "file2.txt", "test-upload.txt"]
+                    return try testFiles.apiGatewayOkResponse()
                     // let files = try await app.listS3Files()
                     // return try files.apiGatewayOkResponse()
                 }
