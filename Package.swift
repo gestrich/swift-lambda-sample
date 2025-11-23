@@ -2,27 +2,6 @@
 
 import PackageDescription
 
- #if os(macOS)
- let macAppProducts: [Product] = [
-     .executable(
-         name: "MacApp",
-         targets: ["MacApp"]
-     )
- ]
- let macAppTargets: [Target] = [
-     .executableTarget(
-         name: "MacApp",
-         dependencies: [],
-         swiftSettings: [
-             .unsafeFlags(["-parse-as-library"])
-         ]
-     )
- ]
- #else
-let macAppProducts: [Product] = []
-let macAppTargets: [Target] = []
- #endif
-
 let package = Package(
     name: "SwiftLambda",
     platforms: [
@@ -33,7 +12,7 @@ let package = Package(
             name: "SwiftLambda",
             targets: ["SwiftLambda"]
         )
-    ] + macAppProducts,
+    ],
     dependencies: [
         .package(url: "https://github.com/soto-project/soto.git", from: "7.10.0"),
         .package(url: "https://github.com/swift-server/swift-aws-lambda-runtime.git", "2.0.0"..<"3.0.0"),
@@ -57,6 +36,13 @@ let package = Package(
                 .target(name: "SwiftServerApp")
             ]
         ),
+        .executableTarget(
+            name: "MacApp",
+            dependencies: [],
+            swiftSettings: [
+                .unsafeFlags(["-parse-as-library"])
+            ]
+        ),
         .target(
             name: "SwiftServerApp",
             dependencies: [
@@ -78,5 +64,5 @@ let package = Package(
                 .target(name: "SwiftServerApp")
             ]
         )
-    ] + macAppTargets
+    ]
 )
