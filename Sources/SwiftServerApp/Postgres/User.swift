@@ -57,6 +57,57 @@ final public class User: Model, Equatable, @unchecked Sendable {
     }
 }
 
+// MARK: - Request Application
+
+extension User {
+    /// Apply CreateUser request (for POST/create operations)
+    /// Updates all fields from the request
+    public func applyCreateUserRequest(_ createUser: CreateUser) {
+        email = createUser.email
+        password = createUser.password
+        firstName = createUser.firstName
+        lastName = createUser.lastName
+        nickName = createUser.nickName
+        phone = createUser.phone
+        slackID = createUser.slackID
+    }
+
+    /// Apply UpdateUser request (for PUT/update operations)
+    /// Only updates fields that are provided (non-nil)
+    /// This implements PATCH semantics for partial updates
+    public func applyUpdateUserRequest(_ updateUser: UpdateUser) {
+        if let email = updateUser.email {
+            self.email = email
+        }
+
+        // Only update password if provided and not empty
+        // Empty passwords should not overwrite existing passwords
+        if let password = updateUser.password, !password.isEmpty {
+            self.password = password
+        }
+
+        if let firstName = updateUser.firstName {
+            self.firstName = firstName
+        }
+
+        if let lastName = updateUser.lastName {
+            self.lastName = lastName
+        }
+
+        if let nickName = updateUser.nickName {
+            self.nickName = nickName
+        }
+
+        if let phone = updateUser.phone {
+            self.phone = phone
+        }
+
+        if let slackID = updateUser.slackID {
+            self.slackID = slackID
+        }
+    }
+}
+
 struct CreatePostgresUser: AsyncMigration {
     func prepare(on database: Database) async throws  {
         return try await database.schema(User.schema)

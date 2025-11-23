@@ -169,14 +169,14 @@ struct APIGWHandler {
                     throw APIGWHandlerError.general(description: "Missing body data")
                 }
 
-                let userRequest = try JSONDecoder().decode(CreateUser.self, from: bodyData)
+                let updateRequest = try JSONDecoder().decode(UpdateUser.self, from: bodyData)
 
                 let uuid = urlComponents[1]
                 guard let user = try await app.getUser(id: uuid) else {
                     return try "User not found: \(uuid)".createAPIGatewayJSONResponse(statusCode: .notFound)
                 }
 
-                user.applyCreateUserRequest(userRequest)
+                user.applyUpdateUserRequest(updateRequest)
                 return try await app.updateUser(user).createAPIGatewayJSONResponse(statusCode: .ok)
 
             case .delete:
@@ -246,17 +246,5 @@ extension String {
         }
 
         return result
-    }
-}
-
-extension User {
-    func applyCreateUserRequest(_ createUser: CreateUser) {
-        email = createUser.email
-        password = createUser.password
-        firstName = createUser.firstName
-        lastName = createUser.lastName
-        nickName = createUser.nickName
-        phone = createUser.phone
-        slackID = createUser.slackID
     }
 }
