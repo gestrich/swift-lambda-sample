@@ -165,45 +165,7 @@ extension AWSCommand.TestCommand {
                 useAWSVault: useAwsVault
             )
             let service = AWSTestingService(awsConfig: awsConfig)
-
-            print("🧪 Testing user endpoints...\n")
-
-            // Get API Gateway URL
-            let url = try await service.getApiGatewayUrl()
-            let cliService = CLIService.shared
-
-            // Test GET /api/users
-            print("→ GET \(url)api/users")
-            let result = try await cliService.execute(
-                command: "curl",
-                arguments: [
-                    "-s",
-                    "-X", "GET",
-                    "\(url)api/users"
-                ],
-                printCommand: false
-            )
-
-            guard result.isSuccess else {
-                throw CLIError.executionFailed(
-                    command: "curl",
-                    exitCode: result.exitCode,
-                    stderr: result.stderr
-                )
-            }
-
-            let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            print("Response: \(response)\n")
-
-            // Verify it's valid JSON
-            guard let data = response.data(using: .utf8),
-                  let _ = try? JSONSerialization.jsonObject(with: data) else {
-                throw CLIError.deploymentFailed(reason: "Invalid JSON response from users endpoint")
-            }
-
-            print("✅ User endpoint test passed")
-            print("✓ Database connection working")
-            print("✓ User endpoint responding with valid JSON")
+            try await service.testUserEndpoints()
         }
     }
 }

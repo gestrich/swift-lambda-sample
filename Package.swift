@@ -26,6 +26,7 @@ let package = Package(
             name: "SwiftDeploy",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .target(name: "Client")
             ]
         ),
         .executableTarget(

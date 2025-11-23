@@ -1,3 +1,4 @@
+import Client
 import Foundation
 
 /// Service for testing deployed AWS Lambda and infrastructure
@@ -10,6 +11,15 @@ public actor AWSTestingService {
     public init(awsConfig: AWSAuthConfiguration) {
         self.awsService = AWSCLIService(awsConfig: awsConfig)
         self.cliService = CLIService.shared
+    }
+
+    /// Create an API client configured with the deployed API Gateway URL
+    @MainActor
+    private func createAPIClient() async throws -> APIClient {
+        let apiUrl = try await getApiGatewayUrl()
+        let client = APIClient()
+        client.baseURL = apiUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return client
     }
 
     // MARK: - API Gateway
@@ -29,56 +39,34 @@ public actor AWSTestingService {
         let fileName = "hello-world.text"
         let testContent = "Hello World! This data was written/read from S3."
 
-        // Create base64 encoded test data
         guard let data = testContent.data(using: .utf8) else {
             throw CLIError.testFailed(message: "Failed to create test data")
-        }
-        let base64Data = data.base64EncodedString()
-
-        // Create upload request JSON
-        let uploadRequest: [String: String] = [
-            "fileName": fileName,
-            "data": base64Data
-        ]
-
-        guard let uploadJson = try? JSONSerialization.data(withJSONObject: uploadRequest),
-              let uploadJsonString = String(data: uploadJson, encoding: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create upload JSON")
         }
 
         let endpoint = "\(apiUrl)api/files"
         print("→ POST \(endpoint)")
         print("")
 
-        let result = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                "-H", "Content-Type: application/json",
-                "-d", uploadJsonString,
-                endpoint
-            ],
-            printCommand: false
-        )
+        do {
+            let response = try await performFileUpload(fileName: fileName, data: data)
 
-        guard result.isSuccess else {
-            throw CLIError.commandFailed(
-                command: "curl",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
+            print("Response: \(response)")
+
+            if response.contains("File uploaded") {
+                print("✅ File endpoint test passed!")
+            } else {
+                print("❌ File endpoint test failed!")
+                throw CLIError.testFailed(message: "File endpoint did not return expected response: \(response)")
+            }
+        } catch let error as APIError {
+            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
+    }
 
-        let response = result.stdout
-        print("Response: \(response)")
-
-        if response.contains("File uploaded") {
-            print("✅ File endpoint test passed!")
-        } else {
-            print("❌ File endpoint test failed!")
-            throw CLIError.testFailed(message: "File endpoint did not return expected response. \(result.stderr). \(response)")
-        }
+    @MainActor
+    private func performFileUpload(fileName: String, data: Data) async throws -> String {
+        let client = try await createAPIClient()
+        return try await client.uploadFile(fileName: fileName, data: data)
     }
 
     /// Test S3 file endpoint with verbose curl output
@@ -152,129 +140,82 @@ public actor AWSTestingService {
     public func testFileWithSpaces() async throws {
         print("\n🧪 Testing file upload/download with spaces in filename...")
 
-        let apiUrl = try await getApiGatewayUrl()
         let fileName = "test file with spaces.txt"
         let testContent = "Hello World! This is a test file with spaces in the name."
 
-        // Create base64 encoded test data
         guard let data = testContent.data(using: .utf8) else {
             throw CLIError.testFailed(message: "Failed to create test data")
         }
-        let base64Data = data.base64EncodedString()
 
-        // Create upload request JSON
-        let uploadRequest: [String: String] = [
-            "fileName": fileName,
-            "data": base64Data
-        ]
-
-        guard let uploadJson = try? JSONSerialization.data(withJSONObject: uploadRequest),
-              let uploadJsonString = String(data: uploadJson, encoding: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create upload JSON")
+        do {
+            try await performFileWithSpacesTest(fileName: fileName, data: data, expectedContent: testContent)
+        } catch let error as APIError {
+            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
+    }
+
+    @MainActor
+    private func performFileWithSpacesTest(fileName: String, data: Data, expectedContent: String) async throws {
+        let client = try await createAPIClient()
 
         // Step 1: Upload file
         print("→ Uploading file: \"\(fileName)\"")
-        let uploadEndpoint = "\(apiUrl)api/files"
-
-        let uploadResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                "-H", "Content-Type: application/json",
-                "-d", uploadJsonString,
-                uploadEndpoint
-            ],
-            printCommand: false
-        )
-
-        guard uploadResult.isSuccess else {
-            throw CLIError.commandFailed(
-                command: "curl",
-                exitCode: uploadResult.exitCode,
-                stderr: uploadResult.stderr
-            )
-        }
-
-        print("  Upload response: \(uploadResult.stdout)")
+        let uploadResponse = try await client.uploadFile(fileName: fileName, data: data)
+        print("  Upload response: \(uploadResponse)")
 
         // Step 2: List files to verify upload
         print("→ Listing files to verify upload...")
-        let listEndpoint = "\(apiUrl)api/files"
+        let fileList = try await client.listFiles()
+        print("  Files: \(fileList)")
 
-        let listResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "GET",
-                listEndpoint
-            ],
-            printCommand: false
-        )
-
-        guard listResult.isSuccess else {
-            throw CLIError.commandFailed(
-                command: "curl",
-                exitCode: listResult.exitCode,
-                stderr: listResult.stderr
-            )
-        }
-
-        print("  Files: \(listResult.stdout)")
-
-        guard listResult.stdout.contains(fileName) else {
+        guard fileList.contains(fileName) else {
             throw CLIError.testFailed(message: "Uploaded file '\(fileName)' not found in file list")
         }
 
         // Step 3: Download file
         print("→ Downloading file: \"\(fileName)\"")
-
-        // URL encode the filename for the download endpoint
-        guard let encodedFileName = fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
-            throw CLIError.testFailed(message: "Failed to URL-encode filename")
-        }
-
-        let downloadEndpoint = "\(apiUrl)api/files/\(encodedFileName)"
-
-        let downloadResult = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-s",
-                "-X", "GET",
-                downloadEndpoint
-            ],
-            printCommand: false
-        )
-
-        guard downloadResult.isSuccess else {
-            throw CLIError.commandFailed(
-                command: "curl",
-                exitCode: downloadResult.exitCode,
-                stderr: downloadResult.stderr
-            )
-        }
+        let downloadedData = try await client.downloadFile(fileName: fileName)
 
         // Step 4: Verify downloaded content
-        print("  Download response: \(downloadResult.stdout)")
-
-        // Parse response as JSON
-        guard let responseData = downloadResult.stdout.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-              let downloadedBase64 = json["data"] as? String,
-              let downloadedData = Data(base64Encoded: downloadedBase64),
-              let downloadedContent = String(data: downloadedData, encoding: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to parse download response")
+        guard let downloadedContent = String(data: downloadedData, encoding: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to decode downloaded content")
         }
 
         print("  Downloaded content: \"\(downloadedContent)\"")
 
         // Verify content matches
-        guard downloadedContent == testContent else {
-            throw CLIError.testFailed(message: "Downloaded content does not match uploaded content. Expected: '\(testContent)', Got: '\(downloadedContent)'")
+        guard downloadedContent == expectedContent else {
+            throw CLIError.testFailed(message: "Downloaded content does not match uploaded content. Expected: '\(expectedContent)', Got: '\(downloadedContent)'")
         }
 
         print("✅ File with spaces test passed!")
+    }
+
+    // MARK: - User Testing
+
+    /// Test user CRUD endpoints (requires PostgreSQL)
+    public func testUserEndpoints() async throws {
+        print("🧪 Testing user endpoints...\n")
+
+        do {
+            try await performUserEndpointTest()
+        } catch let error as APIError {
+            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+        }
+    }
+
+    @MainActor
+    private func performUserEndpointTest() async throws {
+        let client = try await createAPIClient()
+
+        // Test GET /api/users
+        print("→ GET \(client.baseURL)/api/users")
+        let users = try await client.listUsers()
+        print("Response: Found \(users.count) users\n")
+
+        print("✅ User endpoint test passed")
+        print("✓ Database connection working")
+        print("✓ User endpoint responding with valid data")
     }
 
     // MARK: - Logging
