@@ -77,6 +77,10 @@ docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -w /build-
 echo "Fixing file permissions..."
 chmod -R u+w $BUILD_DIR 2>/dev/null || true
 
+# Ensure required directories exist (repositories directory may not be copied if empty)
+echo "Ensuring required build directories exist..."
+mkdir -p $BUILD_DIR/repositories 2>/dev/null || true
+
 # Prep local directories
 echo "Preparing lambda directory..."
 # Try with sudo first (for GitHub Actions), fall back to regular mkdir (for Mac)
