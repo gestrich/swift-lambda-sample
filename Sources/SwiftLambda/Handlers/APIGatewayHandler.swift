@@ -34,7 +34,7 @@ struct APIGWHandler {
             context.logger.error("Request method: \(event.httpMethod)")
             try await services.shutdown()
             //Note that error always results in a 500 status code returned (expected)
-            throw error
+            return APIGatewayResponse(statusCode: .internalServerError, body: "Internal Server Error: \(String(describing: error))")
         }
     }
 
