@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct MacAppMain: App {
-    let config = APIConfiguration()
+    @State private var config = APIConfiguration()
 
     init() {
         // Set activation policy to make app appear in Dock and Cmd+Tab
@@ -15,6 +15,10 @@ struct MacAppMain: App {
     var body: some Scene {
         WindowGroup {
             ContentView(config: config)
+                .task {
+                    // Fetch remote URL from CDK on app start
+                    await config.fetchRemoteURLFromCDK()
+                }
         }
         .defaultSize(width: 700, height: 600)
     }

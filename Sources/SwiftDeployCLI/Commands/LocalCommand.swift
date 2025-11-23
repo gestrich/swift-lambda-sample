@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import SwiftDeploy
 
 /// Top-level command for local development operations
 struct LocalCommand: AsyncParsableCommand {

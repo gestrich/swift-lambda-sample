@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import SwiftDeploy
 
 /// Top-level command for all AWS operations
 struct AWSCommand: AsyncParsableCommand {

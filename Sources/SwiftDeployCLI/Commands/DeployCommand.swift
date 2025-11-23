@@ -1,11 +1,12 @@
 import Foundation
 import ArgumentParser
+import SwiftDeploy
 
 extension AWSCommand {
-    struct DeployFullCommand: AsyncParsableCommand {
+    struct DeployCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "deploy-full",
-            abstract: "Full deployment: CDK infrastructure + Lambda code"
+            commandName: "deploy",
+            abstract: "Deploy/update CDK infrastructure only (does not update Lambda code)"
         )
 
     @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
@@ -23,9 +24,6 @@ extension AWSCommand {
     @Flag(name: .long, help: "Include NAT Gateway (adds cost)")
     var withNatGateway: Bool = false
 
-    @Flag(name: .long, help: "Skip git push")
-    var skipPush: Bool = false
-
     mutating func run() async throws {
         // Resolve AWS configuration from CLI args and config file
         let awsConfig = try AWSAuthConfiguration.resolve(
@@ -37,7 +35,7 @@ extension AWSCommand {
             print("ℹ️  Using AWS profile '\(awsConfig.profileName)' from config file\n")
         }
 
-        print("🚀 Starting deployment...\n")
+        print("🚀 Deploying CDK infrastructure...\n")
 
         if !withPostgres && !withNatGateway {
             print("💰 MINIMAL COST MODE (default)")
@@ -60,11 +58,10 @@ extension AWSCommand {
             cdkDirectory: cdkDirectory
         )
 
-        try await deploymentService.deployFull(
-            options: options,
-            withPostgres: withPostgres,
-            skipPush: skipPush
-        )
+        _ = try await deploymentService.deployInfrastructure(options: options)
+
+        print("\n✅ Infrastructure deployment completed successfully!")
+        print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")
     }
     }
 }

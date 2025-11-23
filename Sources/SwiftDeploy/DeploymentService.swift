@@ -97,6 +97,14 @@ public actor DeploymentService {
         return try await awsService.getStackOutputs(name: stackName)
     }
 
+    /// Get API Gateway URL from deployed stack
+    public func getAPIGatewayURL(
+        stackName: String = "SwiftLambdaSampleStack"
+    ) async throws -> String? {
+        let outputs = try await getStackOutputs(stackName: stackName)
+        return outputs["ApiGatewayUrl"]
+    }
+
     /// Deploy infrastructure and display outputs
     /// This is the complete infrastructure deployment workflow
     public func deployInfrastructure(

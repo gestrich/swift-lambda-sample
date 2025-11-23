@@ -23,9 +23,18 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "SwiftDeploy",
+            name: "SwiftDeployCLI",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .target(name: "SwiftDeploy")
+            ],
+            swiftSettings: [
+                .unsafeFlags(["-parse-as-library"])
+            ]
+        ),
+        .target(
+            name: "SwiftDeploy",
+            dependencies: [
                 .target(name: "Client")
             ]
         ),
@@ -40,7 +49,8 @@ let package = Package(
         .executableTarget(
             name: "MacApp",
             dependencies: [
-                .target(name: "Client")
+                .target(name: "Client"),
+                .target(name: "SwiftDeploy")
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

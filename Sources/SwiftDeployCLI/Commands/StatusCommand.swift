@@ -1,5 +1,6 @@
 import Foundation
 import ArgumentParser
+import SwiftDeploy
 
 extension AWSCommand {
     struct StatusCommand: AsyncParsableCommand {

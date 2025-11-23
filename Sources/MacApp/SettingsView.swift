@@ -1,10 +1,9 @@
 import Client
 import SwiftUI
+import SwiftDeploy
 
 struct SettingsView: View {
     @Environment(APIConfiguration.self) var config
-    @State private var editedRemoteURL: String = ""
-    @State private var editedLocalEndpoint: String = ""
     @State private var editedMode: ConnectionMode = .remote
     @State private var showingSuccess = false
 
@@ -40,30 +39,42 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        TextField("https://api.example.com/prod", text: $editedRemoteURL)
-                            .textFieldStyle(.roundedBorder)
+                        HStack {
+                            TextField("Fetched from CDK", text: .constant(config.remoteURL ?? "Not fetched yet"))
+                                .textFieldStyle(.roundedBorder)
+                                .disabled(true)
 
-                        if !config.isConfigured && editedMode == .remote {
-                            Text("⚠️ Remote URL required")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
+                            Button(config.isLoadingRemoteURL ? "Fetching..." : "Fetch from CDK") {
+                                Task {
+                                    await config.fetchRemoteURLFromCDK()
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(config.isLoadingRemoteURL)
                         }
+
+                        Text("URL is automatically fetched from deployed CDK stack")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
                 }
 
                 // Local Lambda Endpoint (shown when in local mode)
                 if editedMode == .local {
+                    let localService = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Local Lambda Endpoint")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        TextField("http://localhost:8080/invoke", text: $editedLocalEndpoint)
+                        TextField("Local endpoint", text: .constant(localService.localEndpoint))
                             .textFieldStyle(.roundedBorder)
+                            .disabled(true)
 
-                        Text("Note: Make sure local Lambda is running on port 8080")
+                        Text("Local endpoint is configured in LocalDevelopmentService - make sure local Lambda is running on port \(localService.port)")
                             .font(.caption2)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.secondary)
                     }
                 }
 
@@ -117,22 +128,25 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(config.isConfigured ? .green : .red)
                         }
-                        if let remoteURL = config.remoteURL {
-                            HStack {
-                                Text("Remote URL:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(remoteURL)
-                                    .font(.caption)
-                                    .textSelection(.enabled)
+                        if config.mode == .remote {
+                            if let remoteURL = config.remoteURL {
+                                HStack {
+                                    Text("Remote URL:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(remoteURL)
+                                        .font(.caption)
+                                        .textSelection(.enabled)
+                                }
                             }
-                        }
-                        if let localEndpoint = config.localEndpoint {
+                        } else {
+                            let localService = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+
                             HStack {
                                 Text("Local Endpoint:")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text(localEndpoint)
+                                Text(localService.localEndpoint)
                                     .font(.caption)
                                     .textSelection(.enabled)
                             }
@@ -169,21 +183,14 @@ struct SettingsView: View {
     }
 
     private func loadCurrentSettings() {
-        editedRemoteURL = config.remoteURL ?? ""
-        editedLocalEndpoint = config.localEndpoint ?? "http://localhost:8080/invoke"
         editedMode = config.mode
     }
 
     private func hasChanges() -> Bool {
-        let remoteChanged = editedRemoteURL != (config.remoteURL ?? "")
-        let localChanged = editedLocalEndpoint != (config.localEndpoint ?? "")
-        let modeChanged = editedMode != config.mode
-        return remoteChanged || localChanged || modeChanged
+        return editedMode != config.mode
     }
 
     private func saveSettings() {
-        config.remoteURL = editedRemoteURL.isEmpty ? nil : editedRemoteURL
-        config.localEndpoint = editedLocalEndpoint.isEmpty ? nil : editedLocalEndpoint
         config.mode = editedMode
         config.save()
 

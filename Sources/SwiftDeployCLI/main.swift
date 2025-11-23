@@ -1,8 +1,9 @@
 import ArgumentParser
 import Foundation
+import SwiftDeploy
 
 @main
-struct SwiftDeploy: AsyncParsableCommand {
+struct SwiftDeployCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swift-deploy",
         abstract: "CLI tool for managing Swift Lambda deployments",

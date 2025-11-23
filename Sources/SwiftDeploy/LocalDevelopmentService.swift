@@ -26,6 +26,11 @@ public actor LocalDevelopmentService {
     // Public accessors for configuration
     public var port: Int { lambdaHostPort }
 
+    /// Get the local Lambda endpoint URL
+    nonisolated public var localEndpoint: String {
+        "http://localhost:\(lambdaHostPort)/invoke"
+    }
+
     public init(workingDirectory: String) {
         self.dockerService = DockerService()
         self.cliService = CLIService.shared

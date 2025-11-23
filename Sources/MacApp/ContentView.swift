@@ -45,11 +45,6 @@ struct ContentView: View {
                 apiClient = config.createAPIClient()
             }
         }
-        .onChange(of: config.localEndpoint) { _, _ in
-            if config.mode == .local {
-                apiClient = config.createAPIClient()
-            }
-        }
     }
 }
 

@@ -20,14 +20,14 @@ public struct AWSAuthConfiguration: Codable, Sendable {
     // MARK: - Configuration File
 
     /// Path to AWS configuration file
-    static var configPath: String {
+    public static var configPath: String {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         return homeDir.appendingPathComponent(".swiftSampleDemo/aws-config.json").path
     }
 
     /// Load AWS auth configuration from file
     /// - Returns: Configuration if file exists and is valid, nil otherwise
-    static func loadConfig() -> AWSAuthConfiguration? {
+    public static func loadConfig() -> AWSAuthConfiguration? {
         guard FileManager.default.fileExists(atPath: configPath) else {
             return nil
         }
