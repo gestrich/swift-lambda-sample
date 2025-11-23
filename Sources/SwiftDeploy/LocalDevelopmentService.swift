@@ -228,6 +228,16 @@ public actor LocalDevelopmentService {
 
     // MARK: - Local Lambda Execution
 
+    /// Start Lambda locally with services (complete flow)
+    public func startLambdaWithServices() async throws {
+        // Start services first
+        print("\n📦 Starting local services...")
+        try await startAllServices()
+
+        // Then start Lambda
+        try await startLambdaLocally()
+    }
+
     /// Start Lambda locally (not in container)
     public func startLambdaLocally() async throws {
         print("\n🚀 Starting Lambda locally...")
@@ -291,6 +301,16 @@ public actor LocalDevelopmentService {
         } else {
             throw CLIError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
         }
+    }
+
+    /// Stop Lambda and services (complete flow)
+    public func stopLambdaWithServices() async throws {
+        // Stop Lambda first
+        try await stopLambdaLocally()
+
+        // Then stop services
+        print("\n📦 Stopping local services...")
+        try await stopAllServices()
     }
 
     /// Stop locally running Lambda

@@ -175,12 +175,12 @@ extension LocalCommand.LambdaCommand {
     struct StartCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "start",
-            abstract: "Start Lambda locally in background"
+            abstract: "Start Lambda locally (with services)"
         )
 
         func run() async throws {
             let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startLambdaLocally()
+            try await service.startLambdaWithServices()
         }
     }
 
@@ -188,12 +188,12 @@ extension LocalCommand.LambdaCommand {
     struct StopCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "stop",
-            abstract: "Stop Lambda process"
+            abstract: "Stop Lambda and services"
         )
 
         func run() async throws {
             let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopLambdaLocally()
+            try await service.stopLambdaWithServices()
         }
     }
 
