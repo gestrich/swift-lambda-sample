@@ -221,6 +221,108 @@ public actor LocalDevelopmentService {
                FileManager.default.fileExists(atPath: zipPath)
     }
 
+    // MARK: - Local Lambda Execution
+
+    /// Start Lambda locally (not in container)
+    public func startLambdaLocally() async throws {
+        print("\n🚀 Starting Lambda locally...")
+
+        // Build Lambda
+        print("→ Building SwiftLambda...")
+        let buildResult = try await cliService.execute(
+            command: "swift",
+            arguments: ["build", "--product", "SwiftLambda"],
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+
+        guard buildResult.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "swift build",
+                exitCode: buildResult.exitCode,
+                stderr: buildResult.stderr
+            )
+        }
+
+        print("✅ Build completed")
+
+        // Get the built executable path
+        let executablePath = "\(workingDirectory)/.build/debug/SwiftLambda"
+
+        // Start Lambda in background with environment variables
+        print("→ Starting Lambda on port \(lambdaHostPort)...")
+
+        var env = getLambdaEnvironmentVariables()
+        env["LOCAL_LAMBDA_SERVER_ENABLED"] = "true"
+        env["LOCAL_LAMBDA_HOST"] = "0.0.0.0"
+        env["LOCAL_LAMBDA_PORT"] = "\(lambdaHostPort)"
+
+        // Build environment variable string for shell
+        let envVars = env.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+
+        // Run in background using nohup
+        _ = try await cliService.execute(
+            command: "sh",
+            arguments: ["-c", "\(envVars) \(executablePath) > /tmp/lambda.log 2>&1 & echo $!"],
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+
+        // Wait a bit for Lambda to start
+        print("→ Waiting for Lambda to start...")
+        try await Task.sleep(for: .seconds(3))
+
+        // Check if it's running
+        let checkResult = try await cliService.execute(
+            command: "lsof",
+            arguments: ["-i", ":\(lambdaHostPort)"],
+            printCommand: false
+        )
+
+        if checkResult.isSuccess && !checkResult.stdout.isEmpty {
+            print("\n✅ Lambda is running on port \(lambdaHostPort)")
+            print("   Test with: ./tools.sh local lambda test")
+            print("   Stop with: ./tools.sh local lambda stop")
+        } else {
+            throw CLIError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
+        }
+    }
+
+    /// Stop locally running Lambda
+    public func stopLambdaLocally() async throws {
+        print("\n🛑 Stopping Lambda...")
+
+        // Find process on port
+        let lsofResult = try await cliService.execute(
+            command: "lsof",
+            arguments: ["-i", ":\(lambdaHostPort)", "-t"],
+            printCommand: false
+        )
+
+        if lsofResult.isSuccess && !lsofResult.stdout.isEmpty {
+            let pid = lsofResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("→ Killing process \(pid)...")
+
+            let killResult = try await cliService.execute(
+                command: "kill",
+                arguments: [pid],
+                printCommand: false
+            )
+
+            if killResult.isSuccess {
+                print("✅ Lambda stopped")
+            } else {
+                throw CLIError.commandFailed(
+                    command: "kill",
+                    exitCode: killResult.exitCode,
+                    stderr: killResult.stderr
+                )
+            }
+        } else {
+            print("⚠️  No Lambda process found on port \(lambdaHostPort)")
+        }
+    }
+
     // MARK: - Lambda Container Testing
 
     /// Setup Docker network for Lambda container testing

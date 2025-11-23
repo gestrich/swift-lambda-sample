@@ -170,46 +170,29 @@ extension LocalCommand.LambdaCommand {
         }
     }
 
-    /// Start Lambda container in detached mode
+    /// Start Lambda locally in background
     struct StartCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "start",
-            abstract: "Start Lambda container in background (detached mode)"
+            abstract: "Start Lambda locally in background"
         )
 
         func run() async throws {
             let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-
-            // Check if Lambda is built
-            let isBuilt = service.isLambdaBuilt()
-            if !isBuilt {
-                print("❌ Lambda not built yet. Building now...")
-                try await service.buildLambda()
-            }
-
-            // Start the Lambda container
-            try await service.startLambdaContainerDetached()
-
-            // Wait for Lambda to be ready
-            try await service.waitForLambdaReady()
-
-            let port = await service.port
-            print("\n✅ Lambda container is running on port \(port)")
-            print("   Test with: ./tools.sh local lambda test")
-            print("   Stop with: ./tools.sh local lambda stop")
+            try await service.startLambdaLocally()
         }
     }
 
-    /// Stop Lambda container
+    /// Stop Lambda
     struct StopCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "stop",
-            abstract: "Stop Lambda container"
+            abstract: "Stop Lambda process"
         )
 
         func run() async throws {
             let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopLambdaContainer()
+            try await service.stopLambdaLocally()
         }
     }
 
