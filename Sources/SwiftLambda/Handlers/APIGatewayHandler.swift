@@ -78,7 +78,7 @@ struct APIGWHandler {
                     return try files.apiGatewayOkResponse()
                 }
 
-                let fileName = urlComponents[1]
+                let fileName = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
                 guard let fileData = try await app.downloadS3File(key: fileName) else {
                     return try "File not found: \(fileName)".createAPIGatewayJSONResponse(statusCode: .notFound)
                 }
