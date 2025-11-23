@@ -2,6 +2,7 @@ import Client
 import SwiftUI
 
 struct UserListView: View {
+    @Environment(APIClient.self) var apiClient
     @State private var users: [User] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -135,7 +136,7 @@ struct UserListView: View {
         errorMessage = nil
 
         do {
-            users = try await APIClient.shared.listUsers()
+            users = try await apiClient.listUsers()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -150,7 +151,7 @@ struct UserListView: View {
         errorMessage = nil
 
         do {
-            try await APIClient.shared.deleteUser(id: userId)
+            try await apiClient.deleteUser(id: userId)
             await loadUsers()
         } catch {
             errorMessage = error.localizedDescription
@@ -163,7 +164,7 @@ struct UserListView: View {
         errorMessage = nil
 
         do {
-            _ = try await APIClient.shared.initializeDatabase()
+            _ = try await apiClient.initializeDatabase()
             await loadUsers()
         } catch {
             errorMessage = error.localizedDescription

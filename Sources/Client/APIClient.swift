@@ -3,30 +3,14 @@ import Foundation
 @Observable
 @MainActor
 public class APIClient {
-    public static let shared = APIClient()
-
-    public var baseURL: String {
-        didSet {
-            UserDefaults.standard.set(baseURL, forKey: "apiBaseURL")
-        }
-    }
+    public var baseURL: String
 
     /// Mode for API client - determines whether to wrap requests in API Gateway format
     public var mode: APIClientMode = .apiGateway
 
     private let session: URLSession
 
-    public init() {
-        self.session = URLSession.shared
-        // Load saved URL or use default
-        if let savedURL = UserDefaults.standard.string(forKey: "apiBaseURL") {
-            self.baseURL = savedURL
-        } else {
-            self.baseURL = "https://5kawxqr7e4.execute-api.us-east-1.amazonaws.com/prod"
-        }
-    }
-
-    /// Initialize with specific mode
+    /// Initialize with specific base URL and mode
     public init(baseURL: String, mode: APIClientMode = .apiGateway) {
         self.session = URLSession.shared
         self.baseURL = baseURL

@@ -21,6 +21,7 @@ enum UserFormMode {
 }
 
 struct UserFormView: View {
+    @Environment(APIClient.self) var apiClient
     let mode: UserFormMode
     let onComplete: (User?) -> Void
 
@@ -182,7 +183,7 @@ struct UserFormView: View {
                     phone: phone.isEmpty ? nil : phone,
                     slackID: slackID.isEmpty ? nil : slackID
                 )
-                user = try await APIClient.shared.createUser(request)
+                user = try await apiClient.createUser(request)
             case .edit(let existingUser):
                 guard let userId = existingUser.id else {
                     errorMessage = "User ID not found"
@@ -198,7 +199,7 @@ struct UserFormView: View {
                     phone: phone.isEmpty ? nil : phone,
                     slackID: slackID.isEmpty ? nil : slackID
                 )
-                user = try await APIClient.shared.updateUser(id: userId, request)
+                user = try await apiClient.updateUser(id: userId, request)
             }
             onComplete(user)
         } catch {

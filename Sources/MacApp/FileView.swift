@@ -3,6 +3,7 @@ import Client
 import SwiftUI
 
 struct FileView: View {
+    @Environment(APIClient.self) var apiClient
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var uploadedFiles: [String] = []
@@ -152,7 +153,7 @@ struct FileView: View {
                 do {
                     let data = try Data(contentsOf: fileURL)
                     let fileName = fileURL.lastPathComponent
-                    _ = try await APIClient.shared.uploadFile(fileName: fileName, data: data)
+                    _ = try await apiClient.uploadFile(fileName: fileName, data: data)
                     await loadFiles()
                 } catch {
                     errorMessage = error.localizedDescription
@@ -168,7 +169,7 @@ struct FileView: View {
         errorMessage = nil
 
         do {
-            uploadedFiles = try await APIClient.shared.listFiles()
+            uploadedFiles = try await apiClient.listFiles()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -181,7 +182,7 @@ struct FileView: View {
         errorMessage = nil
 
         do {
-            let data = try await APIClient.shared.downloadFile(fileName: fileName)
+            let data = try await apiClient.downloadFile(fileName: fileName)
 
             let savePanel = NSSavePanel()
             savePanel.nameFieldStringValue = fileName
@@ -202,7 +203,7 @@ struct FileView: View {
         errorMessage = nil
 
         do {
-            let data = try await APIClient.shared.downloadFile(fileName: fileName)
+            let data = try await apiClient.downloadFile(fileName: fileName)
             if let image = NSImage(data: data) {
                 selectedImage = image
                 showingImagePreview = true
@@ -221,7 +222,7 @@ struct FileView: View {
         errorMessage = nil
 
         do {
-            _ = try await APIClient.shared.deleteFile(fileName: fileName)
+            _ = try await apiClient.deleteFile(fileName: fileName)
             await loadFiles()
         } catch {
             errorMessage = error.localizedDescription
