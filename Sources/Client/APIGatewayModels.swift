@@ -1,3 +1,10 @@
+//
+//  APIGatewayRequestWrapper.swift
+//  SwiftLambda
+//
+//  Created by Bill Gestrich on 11/23/25.
+//
+
 import Foundation
 
 /// Models for wrapping/unwrapping API Gateway requests and responses

@@ -1,3 +1,10 @@
+//
+//  APIClient.swift
+//  SwiftLambda
+//
+//  Created by Bill Gestrich on 11/23/25.
+//
+
 import Foundation
 
 @Observable

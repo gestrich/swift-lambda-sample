@@ -29,10 +29,11 @@ final class SwiftServerAppTests: XCTestCase {
         let databaseService = PostgresModelStoreProduction.createInMemoryDatabaseService()
         try await databaseService.wipeAndInitialize()
         let app = SwiftServerApp(s3DataStore: nil, postgresModelStore: databaseService)
-        let user = CreateUser(email: "test@gmail.com", password: "pw", firstName: "John", lastName: "Smith", nickName: "JS", phone: "555-555-5555", slackID: "12345")
-        let result = try await app.createUser(user)
+        let createUser = CreateUser(email: "test@gmail.com", password: "pw", firstName: "John", lastName: "Smith", nickName: "JS", phone: "555-555-5555", slackID: "12345")
+        let result = try await app.createUser(createUser)
+        let user = User(email: createUser.email, password: createUser.password, firstName: createUser.firstName, lastName: createUser.lastName, nickName: createUser.nickName, phone: createUser.phone, slackID: createUser.slackID)
         try await databaseService.shutdown()
-        XCTAssertEqual(result, "Inserted and Read User: John Smith")
+        XCTAssertEqual(result, user)
     }
 }
 
