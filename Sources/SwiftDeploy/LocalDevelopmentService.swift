@@ -289,9 +289,50 @@ public actor LocalDevelopmentService {
         try await lambdaContainerService.setupNetwork()
     }
 
-    /// Run Lambda in interactive Linux container
+    /// Run Lambda in interactive Linux container (complete setup)
+    /// This command does everything: stops existing containers, starts services, sets up network, runs container
     public func runLambdaContainer() async throws {
+        print("\n🚀 Setting up complete Lambda container environment...")
+
+        // 1. Stop any existing Lambda container
+        print("\n→ Checking for existing Lambda container...")
+        do {
+            try await lambdaContainerService.stop()
+        } catch {
+            // Container might not exist, which is fine
+            print("  (No existing container to stop)")
+        }
+
+        // 2. Start services (PostgreSQL + MinIO)
+        print("\n→ Starting local services...")
+        try await startAllServices()
+
+        // 3. Setup network (will connect services if needed)
+        print("\n→ Setting up Docker network...")
+        try await lambdaContainerService.setupNetwork()
+
+        // 4. Run interactive container
+        print("\n→ Starting Lambda container...")
         try await lambdaContainerService.runInteractive()
+    }
+
+    /// Stop Lambda container and all services (complete teardown)
+    public func stopLambdaContainerAndServices() async throws {
+        print("\n🛑 Stopping Lambda container and services...")
+
+        // 1. Stop Lambda container
+        print("\n→ Stopping Lambda container...")
+        do {
+            try await lambdaContainerService.stop()
+        } catch {
+            print("  (No container to stop)")
+        }
+
+        // 2. Stop services
+        print("\n→ Stopping local services...")
+        try await stopAllServices()
+
+        print("\n✅ All services stopped")
     }
 
     /// Run Lambda in detached mode (for automated testing)

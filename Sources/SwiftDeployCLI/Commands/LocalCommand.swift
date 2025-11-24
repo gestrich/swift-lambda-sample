@@ -184,16 +184,16 @@ extension LocalCommand.LambdaCommand {
         }
     }
 
-    /// Stop Lambda
+    /// Stop Lambda container and services
     struct StopCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "stop",
-            abstract: "Stop Lambda and services"
+            abstract: "Stop Lambda container and all services"
         )
 
         func run() async throws {
             let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopLambdaWithServices()
+            try await service.stopLambdaContainerAndServices()
         }
     }
 

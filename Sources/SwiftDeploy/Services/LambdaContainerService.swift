@@ -52,8 +52,6 @@ public actor LambdaContainerService {
 
     /// Setup Docker network for Lambda containers
     public func setupNetwork() async throws {
-        print("\n🔧 Setting up Docker network for local Lambda testing...")
-
         // Create network if it doesn't exist
         if !(try await dockerService.networkExists(name: config.networkName)) {
             print("→ Creating Docker network: \(config.networkName)")
@@ -67,19 +65,12 @@ public actor LambdaContainerService {
 
         // Connect MinIO to network
         try await connectContainerToNetwork(container: minioService.minioContainerName)
-
-        print("\n✅ Network setup complete!")
-        print("\nYou can now run the Lambda container with:")
-        print("  swift run SwiftDeploy local run-container")
     }
 
     // MARK: - Container Lifecycle
 
     /// Run Lambda in interactive container
     public func runInteractive() async throws {
-        print("\n🚀 Starting Lambda in Linux container...")
-        print("")
-
         // Check if lambda directory exists
         guard FileManager.default.fileExists(atPath: "lambda") else {
             print("❌ Error: lambda directory not found!")
@@ -87,12 +78,8 @@ public actor LambdaContainerService {
             throw CLIError.invalidWorkingDirectory("lambda directory not found")
         }
 
-        // Ensure network is set up
-        try await setupNetwork()
-
-        print("Starting interactive container...")
-        print("(Type 'exit' to leave the container)")
-        print("")
+        print("\n✅ Starting interactive container...")
+        print("(Type 'exit' to leave the container)\n")
 
         // Run interactive container
         var options = DockerService.RunOptions()
@@ -114,8 +101,6 @@ public actor LambdaContainerService {
 
     /// Start Lambda in detached mode (for automated testing)
     public func startDetached(lambdaPath: String? = nil) async throws {
-        print("🐳 Starting Lambda container in background...")
-
         // Determine lambda path
         let lambdaDir = lambdaPath ?? "\(config.workingDirectory)/lambda"
 
@@ -145,15 +130,11 @@ public actor LambdaContainerService {
             command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
             options: options
         )
-
-        print("  ✅ Lambda container started")
     }
 
     /// Stop Lambda container
     public func stop() async throws {
-        print("🛑 Stopping Lambda container...")
         try await dockerService.stop(container: config.containerName)
-        print("  ✅ Lambda container stopped")
     }
 
     /// Wait for Lambda to be ready on specified port
