@@ -142,6 +142,7 @@ Sources/SwiftDeployCLI/Commands/
 4. `5c92fb6` - Fix: Print Docker command instead of trying to run interactively
 5. `22d7f95` - Fix: Run Lambda container in detached mode, not interactively
 6. `b25a746` - Fix MinIO permission issues by not removing data directory
+7. `e6791f8` - Add automatic S3 bucket creation to Lambda container startup
 
 ---
 
@@ -165,18 +166,7 @@ The MacApp needs to be updated to use the same local development infrastructure:
   - Use local Lambda endpoint instead of AWS API Gateway
 - **Benefit:** Test Lambda locally without deploying to AWS
 
-#### 3. Auto-Create S3 Bucket on Startup
-- **Current Issue:** Bucket must be created manually after container starts
-- **Fix Needed:** Add bucket creation to `runLambdaContainer()` workflow
-- **Implementation:**
-  ```swift
-  // In LocalDevelopmentService.runLambdaContainer():
-  // After starting services, before starting Lambda:
-  try await minioService.createBucket(bucketName: "org.gestrich.sandbox")
-  ```
-- **Result:** Bucket exists automatically, S3 endpoints work immediately
-
-#### 4. Stop Container from MacApp
+#### 3. Stop Container from MacApp
 - **Goal:** MacApp can stop Lambda container and services
 - **Implementation:** Call `LocalDevelopmentService.stopLambdaContainerAndServices()` from MacApp UI
 - **UI:** Add "Stop Local Lambda" button in MacApp
@@ -198,12 +188,7 @@ The MacApp needs to be updated to use the same local development infrastructure:
 - Switch between AWS API Gateway and local container
 - Update `APIClient` to handle local mode
 
-**Phase 4: Automatic Bucket Creation**
-- Add `createBucket()` call to startup workflow
-- Handle bucket already exists error gracefully
-- Verify bucket exists before starting Lambda
-
-**Phase 5: Testing**
+**Phase 4: Testing**
 - Test MacApp can start/stop container
 - Test MacApp can connect to local Lambda
 - Test all CRUD operations work locally
@@ -217,12 +202,12 @@ The MacApp needs to be updated to use the same local development infrastructure:
 - CLI commands (`./tools.sh local lambda run-container` and `stop`)
 - PostgreSQL service (start/stop)
 - MinIO service (start/stop, bucket creation)
+- Automatic S3 bucket creation on container startup
 - Lambda container (detached mode)
 - All API endpoints (S3, PostgreSQL, users)
 - Docker networking (lambda-local)
 
 **Needs Work:**
-- Auto-create S3 bucket on container startup
 - MacApp integration (planned next)
 
 ---
