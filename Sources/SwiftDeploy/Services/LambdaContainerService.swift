@@ -139,9 +139,6 @@ public actor LambdaContainerService {
             throw CLIError.invalidWorkingDirectory("lambda directory not found")
         }
 
-        // Ensure network is set up
-        try await setupNetwork()
-
         // Run detached container
         var options = DockerService.RunOptions()
         options.detached = true

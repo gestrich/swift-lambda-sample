@@ -311,10 +311,16 @@ public actor LocalDevelopmentService {
         print("\n→ Setting up Docker network...")
         try await lambdaContainerService.setupNetwork()
 
-        // 4. Show container launch instructions
-        print("\n✅ Environment ready! To start the Lambda container, run:\n")
-        try await lambdaContainerService.printRunCommand()
+        // 4. Start Lambda container in detached mode
+        print("\n→ Starting Lambda container in background...")
+        try await lambdaContainerService.startDetached(lambdaPath: nil)
+
+        print("\n✅ Lambda container started!")
+        print("   Container: lambda-test-container")
+        print("   Port: http://localhost:\(port)")
         print("")
+        print("To test: curl -X POST http://localhost:\(port)/invoke ...")
+        print("To stop: ./tools.sh local lambda stop")
     }
 
     /// Stop Lambda container and all services (complete teardown)
