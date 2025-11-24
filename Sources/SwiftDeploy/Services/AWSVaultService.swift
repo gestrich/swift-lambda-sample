@@ -55,7 +55,7 @@ public struct AWSVaultService {
         var filtered: [String] = []
         var skipNext = false
 
-        for (index, arg) in arguments.enumerated() {
+        for (_, arg) in arguments.enumerated() {
             if skipNext {
                 skipNext = false
                 continue

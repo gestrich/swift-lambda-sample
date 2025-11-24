@@ -6,11 +6,11 @@ public actor LocalDevelopmentService {
     private let dockerService: DockerService
     private let cliService: CLIService
 
+    // Extracted services
+    private let postgresService: PostgreSQLService
+    private let minioService: MinIOService
+
     // Container configuration
-    private let minioImageName = "quay.io/minio/minio"
-    private let minioContainerName = "minio-lambda"  // Use hyphen not underscore for valid HTTP hostname
-    private let postgresImageName = "postgres-lambda"
-    private let postgresContainerName = "postgres-lambda"
     private let lambdaContainerName = "lambda-test-container"
     private let lambdaSwiftImage = "swift:6.2.0-amazonlinux2"
     private let networkName = "lambda-local"
@@ -18,13 +18,12 @@ public actor LocalDevelopmentService {
     // Lambda configuration
     private let lambdaHostPort = 8080
     private let lambdaContainerPort = 7000
-    private let s3BucketName = "org.gestrich.sandbox"
 
     // Working directory
     private let workingDirectory: String
 
     // Public accessors for configuration
-    public var port: Int { lambdaHostPort }
+    nonisolated public var port: Int { lambdaHostPort }
 
     /// Get the local Lambda endpoint URL
     nonisolated public var localEndpoint: String {
@@ -35,6 +34,16 @@ public actor LocalDevelopmentService {
         self.dockerService = DockerService()
         self.cliService = CLIService.shared
         self.workingDirectory = workingDirectory
+
+        // Initialize extracted services
+        self.postgresService = PostgreSQLService(
+            dockerService: dockerService,
+            workingDirectory: workingDirectory
+        )
+        self.minioService = MinIOService(
+            dockerService: dockerService,
+            networkName: networkName
+        )
     }
 
     // MARK: - Service Management
@@ -42,140 +51,39 @@ public actor LocalDevelopmentService {
     /// Start all services (PostgreSQL + MinIO)
     public func startAllServices() async throws {
         try await stopAllServices()
-        try await startS3()
-        try await startDatabase()
+        try await minioService.start()
+        try await postgresService.start()
     }
 
     /// Stop all services
     public func stopAllServices() async throws {
-        try await stopS3()
-        try await stopDatabase()
+        try await minioService.stop()
+        try await postgresService.stop()
     }
 
     /// Start MinIO S3 service
     public func startS3() async throws {
-        print("\n🗄️  Starting MinIO S3...")
-
-        // Create data directory
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let minioRootPath = "\(homeDir)/minio"
-        let minioDataPath = "\(minioRootPath)/data"
-
-        // Clean any existing MinIO data to avoid configuration conflicts
-        if FileManager.default.fileExists(atPath: minioDataPath) {
-            print("→ Removing existing MinIO data...")
-            try FileManager.default.removeItem(atPath: minioDataPath)
-        }
-
-        // Create fresh data directory
-        try FileManager.default.createDirectory(
-            atPath: "\(minioDataPath)/org.gestrich.sandbox",
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
-
-        // Get user ID and group ID
-        let userId = try await dockerService.getCurrentUserId()
-        let groupId = try await dockerService.getCurrentGroupId()
-
-        // Run MinIO container
-        var options = DockerService.RunOptions()
-        options.detached = true
-        options.ports = [(9000, 9000), (9001, 9001)]
-        options.user = "\(userId):\(groupId)"
-        options.name = minioContainerName
-        options.environment = [
-            "MINIO_ROOT_USER": "admin",
-            "MINIO_ROOT_PASSWORD": "password",
-            "MINIO_REGION_NAME": "us-east-1"  // Modern MinIO uses MINIO_REGION_NAME
-        ]
-        options.volumes = [("\(minioDataPath)", "/data")]
-
-        try await dockerService.run(
-            image: minioImageName,
-            command: ["server", "/data", "--console-address", ":9001"],
-            options: options
-        )
-
-        print("✅ MinIO started successfully")
-        print("   - S3 endpoint: http://localhost:9000")
-        print("   - Console: http://localhost:9001")
-        print("   - Credentials: admin/password")
+        try await minioService.start()
     }
 
     /// Create S3 bucket in MinIO
     public func createBucket(bucketName: String? = nil) async throws {
-        let bucket = bucketName ?? s3BucketName
-        print("📦 Creating S3 bucket in MinIO...")
-
-        // Run AWS CLI in a container to create the bucket
-        var options = DockerService.RunOptions()
-        options.remove = true
-        options.network = networkName
-        options.environment = [
-            "AWS_ACCESS_KEY_ID": "admin",
-            "AWS_SECRET_ACCESS_KEY": "password",
-            "AWS_REGION": "us-east-1",
-            "AWS_DEFAULT_REGION": "us-east-1"
-        ]
-
-        do {
-            try await dockerService.run(
-                image: "amazon/aws-cli",
-                command: ["--endpoint-url", "http://\(minioContainerName):9000", "s3", "mb", "s3://\(bucket)"],
-                options: options
-            )
-            print("  ✅ S3 bucket '\(bucket)' created")
-        } catch {
-            // Bucket might already exist, which is fine
-            print("  ℹ️  Bucket might already exist (this is OK)")
-        }
+        try await minioService.createBucket(bucketName: bucketName)
     }
 
     /// Stop MinIO S3 service
     public func stopS3() async throws {
-        try await stopContainer(named: minioContainerName)
+        try await minioService.stop()
     }
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
-        print("\n🗄️  Starting PostgreSQL...")
-
-        // Build PostgreSQL image
-        print("→ Building PostgreSQL Docker image...")
-        var buildOptions = DockerService.BuildOptions()
-        buildOptions.tag = postgresImageName
-        buildOptions.file = "PostgresDockerfile"
-        buildOptions.buildArgs = [
-            "EXPOSE_PORT": "5432",
-            "USERNAME": "docker",
-            "PASSWORD": "docker"
-        ]
-        buildOptions.workingDirectory = workingDirectory
-
-        try await dockerService.build(context: ".", options: buildOptions)
-
-        // Run PostgreSQL container
-        print("→ Starting PostgreSQL container...")
-        var runOptions = DockerService.RunOptions()
-        runOptions.detached = true
-        runOptions.ports = [(5432, 5432)]
-        runOptions.name = postgresContainerName
-
-        try await dockerService.run(
-            image: postgresImageName,
-            options: runOptions
-        )
-
-        print("✅ PostgreSQL started successfully")
-        print("   - Host: localhost:5432")
-        print("   - Database: docker")
-        print("   - Credentials: docker/docker")
+        try await postgresService.start()
     }
 
     /// Stop PostgreSQL database
     public func stopDatabase() async throws {
-        try await stopContainer(named: postgresContainerName)
+        try await postgresService.stop()
     }
 
     // MARK: - Lambda Build
@@ -377,10 +285,10 @@ public actor LocalDevelopmentService {
         }
 
         // Connect PostgreSQL to network
-        try await connectContainerToNetwork(container: postgresContainerName)
+        try await connectContainerToNetwork(container: postgresService.connectionInfo.containerName)
 
         // Connect MinIO to network
-        try await connectContainerToNetwork(container: minioContainerName)
+        try await connectContainerToNetwork(container: minioService.minioContainerName)
 
         print("\n✅ Network setup complete!")
         print("\nYou can now run the Lambda container with:")
@@ -520,22 +428,25 @@ public actor LocalDevelopmentService {
 
     /// Get standard Lambda environment variables for local testing
     private func getLambdaEnvironmentVariables() -> [String: String] {
+        let postgresInfo = postgresService.connectionInfo
+        let minioCreds = minioService.credentials
+
         return [
             // PostgreSQL configuration
-            "POSTGRES_HOST": postgresContainerName,
-            "POSTGRES_PORT": "5432",
-            "POSTGRES_USER_NAME": "docker",
-            "POSTGRES_DBNAME": "docker",
-            "POSTGRES_PASSWORD": "docker",
+            "POSTGRES_HOST": postgresInfo.containerName,
+            "POSTGRES_PORT": "\(postgresInfo.port)",
+            "POSTGRES_USER_NAME": postgresInfo.username,
+            "POSTGRES_DBNAME": postgresInfo.database,
+            "POSTGRES_PASSWORD": postgresInfo.password,
             "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
 
             // S3/MinIO configuration
-            "S3_BUCKET_NAME": s3BucketName,
-            "AWS_ENDPOINT_URL": "http://\(minioContainerName):9000",
-            "AWS_ACCESS_KEY_ID": "admin",
-            "AWS_SECRET_ACCESS_KEY": "password",
-            "AWS_REGION": "us-east-1",
-            "AWS_DEFAULT_REGION": "us-east-1",
+            "S3_BUCKET_NAME": minioService.bucketName,
+            "AWS_ENDPOINT_URL": "http://\(minioService.minioContainerName):9000",
+            "AWS_ACCESS_KEY_ID": minioCreds.accessKeyId,
+            "AWS_SECRET_ACCESS_KEY": minioCreds.secretAccessKey,
+            "AWS_REGION": minioCreds.region,
+            "AWS_DEFAULT_REGION": minioCreds.region,
 
             // Disable AWS credential chain for local testing
             "AWS_EC2_METADATA_DISABLED": "true",
@@ -670,19 +581,6 @@ public actor LocalDevelopmentService {
 
     // MARK: - Private Helpers
 
-    /// Stop a Docker container by name
-    private func stopContainer(named containerName: String) async throws {
-        // Check if container exists
-        let exists = try await dockerService.containerExists(name: containerName)
-
-        if exists {
-            print("→ Stopping and removing \(containerName)...")
-            try await dockerService.stop(container: containerName)
-            try await dockerService.remove(container: containerName)
-            print("✅ \(containerName) stopped and removed")
-        }
-    }
-
     /// Connect a container to the Lambda network
     private func connectContainerToNetwork(container: String) async throws {
         // Check if container is connected
@@ -699,7 +597,7 @@ public actor LocalDevelopmentService {
                 print("→ Connecting \(container) to \(networkName)")
                 try await dockerService.connectToNetwork(container: container, network: networkName)
             } else {
-                print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local start-\(container == postgresContainerName ? "database" : "s3")")
+                print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local start-\(container == postgresService.connectionInfo.containerName ? "database" : "s3")")
             }
         } else {
             print("✓ \(container) already connected")
