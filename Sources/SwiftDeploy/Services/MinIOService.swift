@@ -62,18 +62,16 @@ public actor MinIOService {
         let minioRootPath = "\(FileManager.default.homeDirectoryForCurrentUser.path)/minio"
         let minioDataPath = "\(minioRootPath)/data"
 
-        // Clean any existing MinIO data to avoid configuration conflicts
-        if FileManager.default.fileExists(atPath: minioDataPath) {
-            print("→ Removing existing MinIO data...")
-            try FileManager.default.removeItem(atPath: minioDataPath)
+        // Create MinIO data directory if it doesn't exist
+        // Don't remove existing data - let MinIO reuse it
+        if !FileManager.default.fileExists(atPath: minioDataPath) {
+            print("→ Creating MinIO data directory...")
+            try FileManager.default.createDirectory(
+                atPath: minioDataPath,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
         }
-
-        // Create fresh data directory
-        try FileManager.default.createDirectory(
-            atPath: "\(minioDataPath)/\(defaultBucketName)",
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
 
         // Get user ID and group ID
         let userId = try await dockerService.getCurrentUserId()
