@@ -311,7 +311,11 @@ public actor LocalDevelopmentService {
         print("\n→ Setting up Docker network...")
         try await lambdaContainerService.setupNetwork()
 
-        // 4. Start Lambda container in detached mode
+        // 4. Ensure S3 bucket exists
+        print("\n→ Ensuring S3 bucket exists...")
+        try await minioService.createBucket(bucketName: nil)
+
+        // 5. Start Lambda container in detached mode
         print("\n→ Starting Lambda container in background...")
         try await lambdaContainerService.startDetached(lambdaPath: nil)
 
