@@ -311,9 +311,10 @@ public actor LocalDevelopmentService {
         print("\n→ Setting up Docker network...")
         try await lambdaContainerService.setupNetwork()
 
-        // 4. Run interactive container
-        print("\n→ Starting Lambda container...")
-        try await lambdaContainerService.runInteractive()
+        // 4. Show container launch instructions
+        print("\n✅ Environment ready! To start the Lambda container, run:\n")
+        try await lambdaContainerService.printRunCommand()
+        print("")
     }
 
     /// Stop Lambda container and all services (complete teardown)

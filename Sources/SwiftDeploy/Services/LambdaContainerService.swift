@@ -69,7 +69,35 @@ public actor LambdaContainerService {
 
     // MARK: - Container Lifecycle
 
-    /// Run Lambda in interactive container
+    /// Print the Docker command to run Lambda interactively
+    public func printRunCommand() async throws {
+        // Check if lambda directory exists
+        guard FileManager.default.fileExists(atPath: "lambda") else {
+            print("❌ Error: lambda directory not found!")
+            print("Build the Lambda first with: ./build.sh SwiftLambda")
+            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+        }
+
+        let env = getEnvironmentVariables()
+        let envFlags = env.map { "-e \($0.key)=\($0.value)" }.joined(separator: " \\\n    ")
+
+        print("""
+        docker run --rm -it \\
+            --platform linux/amd64 \\
+            --network \(config.networkName) \\
+            --name \(config.containerName) \\
+            -p \(config.hostPort):\(config.containerPort) \\
+            -v \(config.workingDirectory)/lambda:/var/task \\
+            \(envFlags) \\
+            \(config.swiftImage) \\
+            bash -c 'cd /var/task && chmod +x bootstrap && echo "✅ Lambda ready! Run: ./bootstrap" && bash'
+
+        Inside the container, run: ./bootstrap
+        To exit: Type 'exit' or press Ctrl+D
+        """)
+    }
+
+    /// Run Lambda in interactive container (direct execution - may have TTY issues)
     public func runInteractive() async throws {
         // Check if lambda directory exists
         guard FileManager.default.fileExists(atPath: "lambda") else {
@@ -231,6 +259,9 @@ public actor LambdaContainerService {
 
     /// Connect a container to the Lambda network
     private func connectContainerToNetwork(container: String) async throws {
+        // Wait a moment for container to be fully started
+        try await Task.sleep(for: .seconds(1))
+
         // Check if container is connected
         let isConnected = try await dockerService.isConnectedToNetwork(
             container: container,
