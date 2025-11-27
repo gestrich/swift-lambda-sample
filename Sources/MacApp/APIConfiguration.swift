@@ -2,9 +2,22 @@ import Client
 import Foundation
 import SwiftDeploy
 
+/// Connection mode for the API
 enum ConnectionMode: String, Codable {
-    case remote
-    case local
+    case remote         // AWS API Gateway
+    case localXcode     // Native macOS build (fast)
+    case localLinux     // Docker container build (AWS-compatible)
+
+    var displayName: String {
+        switch self {
+        case .remote:
+            return "Remote (API Gateway)"
+        case .localXcode:
+            return "Local Xcode (Native)"
+        case .localLinux:
+            return "Local Linux (Container)"
+        }
+    }
 }
 
 /// Manages API configuration persistence for the MacApp
@@ -16,11 +29,6 @@ class APIConfiguration {
     var isLoadingRemoteURL: Bool = false
 
     private let modeKey = "macApp.mode"
-
-    // Local endpoint from LocalDevelopmentService
-    private var localEndpoint: String {
-        LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath).localEndpoint
-    }
 
     init() {
         // Load mode from UserDefaults
@@ -66,7 +74,6 @@ class APIConfiguration {
     }
 
     func save() {
-        // Only save the mode preference - URL is fetched from CDK, local endpoint is hardcoded
         UserDefaults.standard.set(mode.rawValue, forKey: modeKey)
     }
 
@@ -78,26 +85,10 @@ class APIConfiguration {
 
     var isConfigured: Bool {
         switch mode {
-        case .local:
-            return true  // Local endpoint is always configured (hardcoded)
+        case .localXcode, .localLinux:
+            return true  // Local services are always available
         case .remote:
             return remoteURL != nil
-        }
-    }
-
-    func createAPIClient() -> APIClient? {
-        switch mode {
-        case .local:
-            return APIClient(
-                baseURL: "http://localhost:8080",
-                mode: .localLambda(endpoint: localEndpoint)
-            )
-        case .remote:
-            guard let url = remoteURL else { return nil }
-            return APIClient(
-                baseURL: url,
-                mode: .apiGateway
-            )
         }
     }
 }

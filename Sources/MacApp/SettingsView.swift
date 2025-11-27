@@ -19,17 +19,21 @@ struct SettingsView: View {
                 Text("API Configuration")
                     .font(.headline)
 
-                // Mode Toggle
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Lambda Mode")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
                     Picker("Mode", selection: $editedMode) {
-                        Text("Remote (API Gateway)").tag(ConnectionMode.remote)
-                        Text("Local Lambda").tag(ConnectionMode.local)
+                        Text("Remote").tag(ConnectionMode.remote)
+                        Text("Local Xcode").tag(ConnectionMode.localXcode)
+                        Text("Local Linux").tag(ConnectionMode.localLinux)
                     }
                     .pickerStyle(.segmented)
+
+                    Text(modeDescription)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
 
                 // Remote API Gateway URL (shown when in remote mode)
@@ -59,10 +63,8 @@ struct SettingsView: View {
                     }
                 }
 
-                // Local Lambda Endpoint (shown when in local mode)
-                if editedMode == .local {
-                    let localService = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-
+                // Local Lambda info (shown when in local mode)
+                if let localService = createLocalService(for: editedMode) {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Local Lambda Endpoint")
                             .font(.caption)
@@ -72,7 +74,7 @@ struct SettingsView: View {
                             .textFieldStyle(.roundedBorder)
                             .disabled(true)
 
-                        Text("Local endpoint is configured in LocalDevelopmentService - make sure local Lambda is running on port \(localService.port)")
+                        Text("Make sure local Lambda is running on port \(localService.port)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -116,7 +118,7 @@ struct SettingsView: View {
                             Text("Mode:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text(config.mode == .local ? "Local Lambda" : "Remote (API Gateway)")
+                            Text(config.mode.displayName)
                                 .font(.caption)
                                 .textSelection(.enabled)
                         }
@@ -128,25 +130,21 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(config.isConfigured ? .green : .red)
                         }
-                        if config.mode == .remote {
-                            if let remoteURL = config.remoteURL {
-                                HStack {
-                                    Text("Remote URL:")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text(remoteURL)
-                                        .font(.caption)
-                                        .textSelection(.enabled)
-                                }
-                            }
-                        } else {
-                            let localService = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-
+                        if let localService = createLocalService(for: config.mode) {
                             HStack {
                                 Text("Local Endpoint:")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 Text(localService.localEndpoint)
+                                    .font(.caption)
+                                    .textSelection(.enabled)
+                            }
+                        } else if let remoteURL = config.remoteURL {
+                            HStack {
+                                Text("Remote URL:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(remoteURL)
                                     .font(.caption)
                                     .textSelection(.enabled)
                             }
@@ -182,6 +180,17 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var modeDescription: String {
+        switch editedMode {
+        case .remote:
+            return "Connect to deployed AWS API Gateway"
+        case .localXcode:
+            return "Native macOS build - fast iteration, best for development"
+        case .localLinux:
+            return "Docker container build - matches AWS Lambda environment"
+        }
+    }
+
     private func loadCurrentSettings() {
         editedMode = config.mode
     }
@@ -210,6 +219,20 @@ struct SettingsView: View {
         Task {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             showingSuccess = false
+        }
+    }
+
+    /// Create a local service for a specific mode (nil if remote mode)
+    private func createLocalService(for mode: ConnectionMode) -> (any LocalDeploymentService)? {
+        let workingDir = FileManager.default.currentDirectoryPath
+
+        switch mode {
+        case .localXcode:
+            return XcodeLocalService(workingDirectory: workingDir)
+        case .localLinux:
+            return LinuxLocalService(workingDirectory: workingDir)
+        case .remote:
+            return nil
         }
     }
 }

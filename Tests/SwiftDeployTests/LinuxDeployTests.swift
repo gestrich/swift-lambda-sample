@@ -12,7 +12,7 @@ import Testing
 @Suite("Linux Lambda Container Integration Tests")
 struct LinuxContainerIntegrationTests {
 
-    let localService: LocalDevelopmentService
+    let linuxService: LinuxLocalService
     let cliService = CLIService.shared
     let projectRoot: URL
 
@@ -26,7 +26,7 @@ struct LinuxContainerIntegrationTests {
             .deletingLastPathComponent()  // Remove Tests
 
         self.projectRoot = root
-        self.localService = LocalDevelopmentService(workingDirectory: root.path)
+        self.linuxService = LinuxLocalService(workingDirectory: root.path)
     }
 
     @Test("Full Linux container workflow: build, start services, run in container, test endpoints, cleanup")
@@ -37,36 +37,36 @@ struct LinuxContainerIntegrationTests {
             Task {
                 print("🧹 Cleanup: Stopping Lambda container and services...")
 
-                // Stop Lambda container
-                try? await localService.stopLambdaContainer()
+                // Stop Lambda container using protocol method
+                try? await linuxService.stopLambda()
 
-                // Stop services using LocalDevelopmentService
-                try? await localService.stopAllServices()
+                // Stop services
+                try? await linuxService.stopAllServices()
             }
         }
 
         // Step 1: Start local services (PostgreSQL + MinIO) - do this first for debugging
         print("🚀 Step 1: Starting local services...")
-        try await localService.startAllServices()
+        try await linuxService.startAllServices()
 
         // Give services time to fully start
         try await Task.sleep(for: .seconds(5))
 
         // Setup Lambda network
         print("🔧 Step 2: Setting up Docker network...")
-        try await localService.setupLambdaNetwork()
+        try await linuxService.setupDockerNetwork()
 
         // Create MinIO bucket for testing
-        try await localService.createBucket()
+        try await linuxService.createBucket()
 
         // Step 3: Build Lambda (skip if already built)
         print("🔨 Step 3: Checking Lambda build...")
-        let isBuilt = await localService.isLambdaBuilt()
+        let isBuilt = linuxService.isLambdaBuilt()
         if isBuilt {
             print("  ✅ Lambda already built, skipping build step")
         } else {
             print("  → Lambda not built, building now...")
-            try await localService.buildLambda()
+            try await linuxService.buildLambda()
             // Give filesystem time to sync after build
             try await Task.sleep(for: .seconds(2))
         }
@@ -74,17 +74,17 @@ struct LinuxContainerIntegrationTests {
         // Verify build artifacts exist
         try await verifyBuildArtifacts()
 
-        // Step 4: Start Lambda in container (background mode)
+        // Step 4: Start Lambda in container (background mode) using protocol method
         print("🚀 Step 4: Starting Lambda in Linux container...")
-        try await localService.startLambdaContainerDetached(
+        try await linuxService.startDetached(
             lambdaPath: "\(projectRoot.path)/lambda"
         )
 
         // Give Lambda time to start
         try await Task.sleep(for: .seconds(5))
 
-        // Verify Lambda is running and ready
-        try await localService.waitForLambdaReady()
+        // Verify Lambda is running and ready using protocol method
+        try await linuxService.waitForReady()
 
         // Step 5: Test S3 endpoint
         print("🧪 Step 5: Testing S3 file upload/download...")
@@ -94,13 +94,13 @@ struct LinuxContainerIntegrationTests {
         print("🧪 Step 6: Testing PostgreSQL database initialization...")
         try await testPostgresEndpoint()
 
-        // Step 7: Stop Lambda container
+        // Step 7: Stop Lambda container using protocol method
         print("🛑 Step 7: Stopping Lambda container...")
-        try await localService.stopLambdaContainer()
+        try await linuxService.stopLambda()
 
         // Step 8: Stop services
         print("🧹 Step 8: Stopping local services...")
-        try await localService.stopAllServices()
+        try await linuxService.stopAllServices()
 
         print("✅ All Linux container integration tests passed!")
     }
@@ -130,7 +130,7 @@ struct LinuxContainerIntegrationTests {
 
 
     private func testS3Endpoint() async throws {
-        let port = await localService.port
+        let port = linuxService.port
         let endpoint = "http://localhost:\(port)/invoke"
 
         let payload = """
@@ -165,7 +165,7 @@ struct LinuxContainerIntegrationTests {
     }
 
     private func testPostgresEndpoint() async throws {
-        let port = await localService.port
+        let port = linuxService.port
         let endpoint = "http://localhost:\(port)/invoke"
 
         let payload = """

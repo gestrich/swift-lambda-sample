@@ -9,7 +9,8 @@ struct LocalCommand: AsyncParsableCommand {
         abstract: "Local development environment management",
         subcommands: [
             ServicesCommand.self,
-            LambdaCommand.self,
+            XcodeCommand.self,
+            LinuxCommand.self,
             CopyConfigCommand.self
         ]
     )
@@ -46,7 +47,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopAllServices()
             try await service.startS3()
             try await service.startDatabase()
@@ -61,7 +62,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopAllServices()
         }
     }
@@ -74,7 +75,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startDatabase()
         }
     }
@@ -87,7 +88,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopDatabase()
         }
     }
@@ -100,7 +101,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startS3()
         }
     }
@@ -113,100 +114,100 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopS3()
         }
     }
 }
 
-// MARK: - Lambda Container Testing
+// MARK: - Xcode Local Development (Native macOS)
 
 extension LocalCommand {
-    /// Lambda container testing and management
-    struct LambdaCommand: AsyncParsableCommand {
+    /// Native macOS Xcode development workflow (fast iteration)
+    struct XcodeCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "lambda",
-            abstract: "Lambda container testing and management",
+            commandName: "xcode",
+            abstract: "Native macOS Xcode development workflow (fast iteration)",
             subcommands: [
-                SetupNetworkCommand.self,
                 BuildCommand.self,
                 StartCommand.self,
                 StopCommand.self,
-                RunContainerCommand.self,
+                StartAllCommand.self,
+                StopAllCommand.self,
                 TestCommand.self
             ]
         )
     }
 }
 
-// MARK: - Lambda Subcommands
+// MARK: - Xcode Subcommands
 
-extension LocalCommand.LambdaCommand {
-    /// Setup Docker network for Lambda container
-    struct SetupNetworkCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "setup-network",
-            abstract: "Setup Docker network for local Lambda container testing"
-        )
-
-        func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.setupLambdaNetwork()
-        }
-    }
-
-    /// Build Lambda for Linux
+extension LocalCommand.XcodeCommand {
+    /// Build Lambda for macOS (native)
     struct BuildCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "build",
-            abstract: "Build Lambda for Linux (AMD64)"
+            abstract: "Build Lambda for macOS (native Swift build)"
         )
 
         @Flag(name: .long, help: "Clean build artifacts before building")
         var clean: Bool = false
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.buildLambda(clean: clean)
         }
     }
 
-    /// Start Lambda locally in background
+    /// Start Lambda locally (native process)
     struct StartCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "start",
-            abstract: "Start Lambda locally (with services)"
+            abstract: "Start Lambda locally (native process)"
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startLambdaWithServices()
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.startLambda()
         }
     }
 
-    /// Stop Lambda container and services
+    /// Stop Lambda (native process)
     struct StopCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "stop",
-            abstract: "Stop Lambda container and all services"
+            abstract: "Stop Lambda (native process)"
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopLambdaContainerAndServices()
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.stopLambda()
         }
     }
 
-    /// Run Lambda in interactive Linux container
-    struct RunContainerCommand: AsyncParsableCommand {
+    /// Start Lambda with all services (native process)
+    struct StartAllCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "run-container",
-            abstract: "Run Lambda in interactive Linux container"
+            commandName: "start-all",
+            abstract: "Start Lambda with services (PostgreSQL + MinIO + native Lambda)"
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.runLambdaContainer()
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.startWithServices()
+        }
+    }
+
+    /// Stop Lambda and all services
+    struct StopAllCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-all",
+            abstract: "Stop Lambda and all services"
+        )
+
+        func run() async throws {
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.stopWithServices()
         }
     }
 
@@ -218,8 +219,141 @@ extension LocalCommand.LambdaCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.testLocalLambda()
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.testLambda()
+        }
+    }
+}
+
+// MARK: - Linux Container Development (AWS-compatible)
+
+extension LocalCommand {
+    /// Linux container deployment workflow (AWS Lambda compatible)
+    struct LinuxCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "linux",
+            abstract: "Linux container deployment workflow (AWS Lambda compatible)",
+            subcommands: [
+                BuildCommand.self,
+                StartCommand.self,
+                StopCommand.self,
+                StartAllCommand.self,
+                StopAllCommand.self,
+                TestCommand.self,
+                SetupNetworkCommand.self,
+                RunInteractiveCommand.self
+            ]
+        )
+    }
+}
+
+// MARK: - Linux Subcommands
+
+extension LocalCommand.LinuxCommand {
+    /// Build Lambda for Linux (Docker-based)
+    struct BuildCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "build",
+            abstract: "Build Lambda for Linux (AMD64, Docker-based)"
+        )
+
+        @Flag(name: .long, help: "Clean build artifacts before building")
+        var clean: Bool = false
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.buildLambda(clean: clean)
+        }
+    }
+
+    /// Start Lambda container
+    struct StartCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start",
+            abstract: "Start Lambda container"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.startLambda()
+        }
+    }
+
+    /// Stop Lambda container
+    struct StopCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop",
+            abstract: "Stop Lambda container"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.stopLambda()
+        }
+    }
+
+    /// Start Lambda container with all services
+    struct StartAllCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-all",
+            abstract: "Start Lambda with services (PostgreSQL + MinIO + container)"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.startWithServices()
+        }
+    }
+
+    /// Stop Lambda container and all services
+    struct StopAllCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-all",
+            abstract: "Stop Lambda container and all services"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.stopWithServices()
+        }
+    }
+
+    /// Test Lambda container
+    struct TestCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "test",
+            abstract: "Test Lambda container endpoints"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.testLambda()
+        }
+    }
+
+    /// Setup Docker network (Linux-specific)
+    struct SetupNetworkCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "setup-network",
+            abstract: "Setup Docker network for Lambda container testing"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.setupDockerNetwork()
+        }
+    }
+
+    /// Run Lambda in interactive container (Linux-specific)
+    struct RunInteractiveCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "run-interactive",
+            abstract: "Run Lambda in interactive container shell"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            try await service.runInteractive()
         }
     }
 }
@@ -235,7 +369,7 @@ extension LocalCommand {
         )
 
         func run() async throws {
-            let service = LocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.copyConfig()
         }
     }

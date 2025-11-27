@@ -13,15 +13,22 @@ public class APIClient {
     public var baseURL: String
 
     /// Mode for API client - determines whether to wrap requests in API Gateway format
-    public var mode: APIClientMode = .apiGateway
+    public var mode: APIClientMode = .remote
 
     private let session: URLSession
 
     /// Initialize with specific base URL and mode
-    public init(baseURL: String, mode: APIClientMode = .apiGateway) {
+    public init(baseURL: String, mode: APIClientMode = .remote) {
         self.session = URLSession.shared
         self.baseURL = baseURL
         self.mode = mode
+    }
+
+    /// Convenience initializer for local Lambda mode
+    public convenience init(localPort: Int) {
+        let baseURL = "http://localhost:\(localPort)"
+        let endpoint = "\(baseURL)/invoke"
+        self.init(baseURL: baseURL, mode: .local(endpoint: endpoint))
     }
 
     // MARK: - File Operations
@@ -199,15 +206,15 @@ public class APIClient {
 
     private func makeURL(endpoint: String) throws -> URL {
         switch mode {
-        case .apiGateway:
-            // Standard mode: baseURL + endpoint
+        case .remote:
+            // Remote mode: baseURL + endpoint
             let urlString = baseURL + endpoint
             guard let url = URL(string: urlString) else {
                 throw APIError.invalidURL
             }
             return url
-        case .localLambda(let invokeEndpoint):
-            // Local Lambda mode: use /invoke endpoint
+        case .local(let invokeEndpoint):
+            // Local mode: use /invoke endpoint
             guard let url = URL(string: invokeEndpoint) else {
                 throw APIError.invalidURL
             }
@@ -221,16 +228,16 @@ public class APIClient {
         var request = URLRequest(url: url)
 
         switch mode {
-        case .apiGateway:
-            // Standard mode: direct request
+        case .remote:
+            // Remote mode: direct request
             request.httpMethod = method
             for (key, value) in headers {
                 request.setValue(value, forHTTPHeaderField: key)
             }
             request.httpBody = body
 
-        case .localLambda:
-            // Local Lambda mode: wrap in API Gateway format
+        case .local:
+            // Local mode: wrap in API Gateway format
             request.httpMethod = "POST"  // Always POST to /invoke
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             let wrappedBody = try wrapRequest(path: endpoint, method: method, body: body, headers: headers)
@@ -240,13 +247,13 @@ public class APIClient {
         let (responseData, response) = try await session.data(for: request)
 
         switch mode {
-        case .apiGateway:
-            // Standard mode: validate HTTP response
+        case .remote:
+            // Remote mode: validate HTTP response
             try validateResponse(response, data: responseData)
             return (responseData, response)
 
-        case .localLambda:
-            // Local Lambda mode: unwrap API Gateway response
+        case .local:
+            // Local mode: unwrap API Gateway response
             let unwrappedData = try unwrapResponse(data: responseData)
             return (unwrappedData, response)
         }
@@ -289,7 +296,7 @@ public class APIClient {
 
             return responseData
         } catch let decodingError as DecodingError {
-            throw APIError.apiGatewayDecodingError(decodingError, data: data)
+            throw APIError.localDecodingError(decodingError, data: data)
         } catch {
             throw error
         }
@@ -320,7 +327,7 @@ public enum APIError: Error, LocalizedError {
     case invalidResponse
     case httpError(statusCode: Int, message: String)
     case decodingError(underlyingError: Error, rawResponse: String)
-    case apiGatewayDecodingError(underlyingError: Error, rawResponse: String)
+    case localDecodingError(underlyingError: Error, rawResponse: String)
     case networkError(Error)
 
     /// Create an HTTP error from status code and response data
@@ -335,10 +342,10 @@ public enum APIError: Error, LocalizedError {
         return .decodingError(underlyingError: error, rawResponse: rawResponse)
     }
 
-    /// Create an API Gateway decoding error from underlying error and response data
-    static func apiGatewayDecodingError(_ error: Error, data: Data) -> APIError {
+    /// Create a local decoding error from underlying error and response data
+    static func localDecodingError(_ error: Error, data: Data) -> APIError {
         let rawResponse = extractErrorMessage(from: data)
-        return .apiGatewayDecodingError(underlyingError: error, rawResponse: rawResponse)
+        return .localDecodingError(underlyingError: error, rawResponse: rawResponse)
     }
 
     /// Extract error message from response data
@@ -364,9 +371,9 @@ public enum APIError: Error, LocalizedError {
             Raw response received:
             \(rawResponse)
             """
-        case .apiGatewayDecodingError(let underlyingError, let rawResponse):
+        case .localDecodingError(let underlyingError, let rawResponse):
             return """
-            Failed to decode API Gateway response wrapper
+            Failed to decode local Lambda response wrapper
 
             Underlying error: \(underlyingError.localizedDescription)
 
@@ -381,8 +388,8 @@ public enum APIError: Error, LocalizedError {
 
 /// Configuration for API client behavior
 public enum APIClientMode {
-    /// Standard mode - calls API Gateway directly
-    case apiGateway
-    /// Local Lambda mode - wraps requests in API Gateway format and hits /invoke endpoint
-    case localLambda(endpoint: String)
+    /// Remote mode - calls API Gateway directly
+    case remote
+    /// Local mode - wraps requests in API Gateway format and hits /invoke endpoint
+    case local(endpoint: String)
 }

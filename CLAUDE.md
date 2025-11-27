@@ -557,13 +557,31 @@ SwiftDeploy
     │   ├── stop-database        # Stop PostgreSQL only
     │   ├── start-s3             # Start MinIO only
     │   └── stop-s3              # Stop MinIO only
-    ├── lambda                   # Lambda container testing
-    │   ├── setup-network        # Setup Docker network
-    │   ├── build                # Build Lambda for Linux
-    │   ├── run-container        # Run Lambda container
+    │
+    ├── xcode                    # Native macOS development (fast iteration)
+    │   ├── build                # Build Lambda for macOS (native Swift build)
+    │   ├── start                # Start Lambda (native process)
+    │   ├── stop                 # Stop Lambda
+    │   ├── start-all            # Start Lambda with services
+    │   ├── stop-all             # Stop Lambda and services
     │   └── test                 # Test local endpoints
+    │
+    ├── linux                    # Linux container deployment (AWS-compatible)
+    │   ├── build                # Build Lambda for Linux (Docker-based)
+    │   ├── start                # Start Lambda container
+    │   ├── stop                 # Stop Lambda container
+    │   ├── start-all            # Start Lambda with services
+    │   ├── stop-all             # Stop Lambda and services
+    │   ├── test                 # Test local endpoints
+    │   ├── setup-network        # Setup Docker network
+    │   └── run-interactive      # Run Lambda in interactive container
+    │
     └── copy-config              # Copy config files
 ```
+
+**Two Local Development Workflows:**
+- **Xcode (`local xcode`)**: Native macOS builds for fast iteration during development
+- **Linux (`local linux`)**: Docker container builds that match AWS Lambda environment
 
 ### Commands
 
@@ -809,23 +827,46 @@ swift run SwiftDeploy local services stop-database
 swift run SwiftDeploy local services stop-s3
 ```
 
-**Lambda Container Testing:**
+**Xcode Local Development (Native macOS - Fast Iteration):**
 ```bash
-# Setup Docker network
-swift run SwiftDeploy local lambda setup-network
-./tools.sh local lambda setup-network
+# Build Lambda for macOS (native Swift build)
+swift run SwiftDeploy local xcode build
+./tools.sh local xcode build
 
-# Build Lambda for Linux
-swift run SwiftDeploy local lambda build
-./tools.sh local lambda build
-
-# Run Lambda in interactive Linux container
-swift run SwiftDeploy local lambda run-container
-./tools.sh local lambda run-container
+# Start Lambda with all services
+swift run SwiftDeploy local xcode start-all
+./tools.sh local xcode start-all
 
 # Test local Lambda endpoints
-swift run SwiftDeploy local lambda test
-./tools.sh local lambda test
+swift run SwiftDeploy local xcode test
+./tools.sh local xcode test
+
+# Stop Lambda and all services
+swift run SwiftDeploy local xcode stop-all
+./tools.sh local xcode stop-all
+```
+
+**Linux Container Development (AWS-Compatible):**
+```bash
+# Build Lambda for Linux (Docker-based)
+swift run SwiftDeploy local linux build
+./tools.sh local linux build
+
+# Start Lambda container with all services
+swift run SwiftDeploy local linux start-all
+./tools.sh local linux start-all
+
+# Test Lambda container endpoints
+swift run SwiftDeploy local linux test
+./tools.sh local linux test
+
+# Stop Lambda container and all services
+swift run SwiftDeploy local linux stop-all
+./tools.sh local linux stop-all
+
+# Linux-specific commands
+swift run SwiftDeploy local linux setup-network      # Setup Docker network
+swift run SwiftDeploy local linux run-interactive    # Run in interactive container
 ```
 
 **Configuration:**
@@ -835,23 +876,31 @@ swift run SwiftDeploy local copy-config
 ./tools.sh local copy-config
 ```
 
-**Example workflow:**
+**Example workflow (Xcode - Fast Iteration):**
 ```bash
-# 1. Start local services
-swift run SwiftDeploy local services start-all
+# 1. Start Lambda with services (native macOS build)
+./tools.sh local xcode start-all
 
-# 2. Build Lambda for Linux
-./build.sh SwiftLambda
+# 2. Test endpoints
+./tools.sh local xcode test
 
-# 3. Run in container and test
-swift run SwiftDeploy local lambda run-container
-# Inside container: ./bootstrap
+# 3. Stop when done
+./tools.sh local xcode stop-all
+```
 
-# 4. In another terminal, test endpoints
-swift run SwiftDeploy local lambda test
+**Example workflow (Linux - AWS Compatibility Testing):**
+```bash
+# 1. Build Lambda for Linux
+./tools.sh local linux build
 
-# 5. Stop services when done
-swift run SwiftDeploy local services stop-all
+# 2. Start Lambda container with services
+./tools.sh local linux start-all
+
+# 3. Test containerized endpoints
+./tools.sh local linux test
+
+# 4. Stop when done
+./tools.sh local linux stop-all
 ```
 
 ### Tools.sh Thin Wrapper
@@ -892,9 +941,16 @@ The `tools.sh` script is a **thin wrapper** that delegates all commands directly
 # Check status
 ./tools.sh aws status
 
-# Local development
-./tools.sh local services start-all
-./tools.sh local lambda build
+# Local development (Xcode - fast iteration)
+./tools.sh local xcode start-all
+./tools.sh local xcode test
+./tools.sh local xcode stop-all
+
+# Local development (Linux - AWS compatibility)
+./tools.sh local linux build
+./tools.sh local linux start-all
+./tools.sh local linux test
+./tools.sh local linux stop-all
 ```
 
 ### Typical Deployment Workflows

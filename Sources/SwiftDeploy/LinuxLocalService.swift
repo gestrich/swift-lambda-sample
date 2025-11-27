@@ -1,0 +1,500 @@
+import Client
+import Foundation
+
+/// Configuration for Lambda container
+public struct LinuxContainerConfig: Sendable {
+    public let containerName: String
+    public let swiftImage: String
+    public let hostPort: Int
+    public let containerPort: Int
+    public let networkName: String
+    public let workingDirectory: String
+
+    public init(
+        containerName: String = "lambda-test-container",
+        swiftImage: String = "swift:6.2.0-amazonlinux2",
+        hostPort: Int = 8080,
+        containerPort: Int = 7000,
+        networkName: String = "lambda-local",
+        workingDirectory: String
+    ) {
+        self.containerName = containerName
+        self.swiftImage = swiftImage
+        self.hostPort = hostPort
+        self.containerPort = containerPort
+        self.networkName = networkName
+        self.workingDirectory = workingDirectory
+    }
+}
+
+/// Service for Linux container deployment workflow (AWS Lambda compatible)
+/// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
+public class LinuxLocalService: LocalDeploymentService {
+    private let dockerService: DockerService
+    private let cliService: CLIService
+
+    private let postgresService: PostgreSQLService
+    private let minioService: MinIOService
+    private let config: LinuxContainerConfig
+
+    // Working directory
+    private let workingDirectory: String
+
+    // MARK: - LocalDeploymentService Protocol
+
+    public var port: Int { config.hostPort }
+
+    public var localEndpoint: String {
+        "http://localhost:\(config.hostPort)/invoke"
+    }
+
+    public init(workingDirectory: String) {
+        self.workingDirectory = workingDirectory
+        self.dockerService = DockerService()
+        self.cliService = CLIService.shared
+
+        self.postgresService = PostgreSQLService(
+            dockerService: dockerService,
+            workingDirectory: workingDirectory
+        )
+        self.minioService = MinIOService(
+            dockerService: dockerService,
+            networkName: "lambda-local"
+        )
+        self.config = LinuxContainerConfig(workingDirectory: workingDirectory)
+    }
+
+    // MARK: - Service Management
+
+    /// Start all services (PostgreSQL + MinIO)
+    public func startAllServices() async throws {
+        try await stopAllServices()
+        try await minioService.start()
+        try await postgresService.start()
+    }
+
+    /// Stop all services
+    public func stopAllServices() async throws {
+        try await minioService.stop()
+        try await postgresService.stop()
+    }
+
+    /// Start MinIO S3 service
+    public func startS3() async throws {
+        try await minioService.start()
+    }
+
+    /// Create S3 bucket in MinIO
+    public func createBucket(bucketName: String? = nil) async throws {
+        try await minioService.createBucket(bucketName: bucketName)
+    }
+
+    /// Stop MinIO S3 service
+    public func stopS3() async throws {
+        try await minioService.stop()
+    }
+
+    /// Start PostgreSQL database
+    public func startDatabase() async throws {
+        try await postgresService.start()
+    }
+
+    /// Stop PostgreSQL database
+    public func stopDatabase() async throws {
+        try await postgresService.stop()
+    }
+
+    // MARK: - LocalDeploymentService Protocol: Build
+
+    /// Build Lambda for Linux (AMD64) using Docker
+    public func buildLambda(clean: Bool = false) async throws {
+        print("\n🔨 Building Lambda for Linux...")
+
+        // Clean if requested
+        if clean {
+            print("🧹 Cleaning previous build artifacts...")
+            _ = try await cliService.execute(
+                command: "rm",
+                arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
+                workingDirectory: workingDirectory,
+                printCommand: false
+            )
+            print("  ✅ Cleaned")
+        }
+
+        // Build using build.sh (Docker-based build)
+        let buildResult = try await cliService.execute(
+            command: "./build.sh",
+            arguments: ["SwiftLambda"],
+            workingDirectory: workingDirectory,
+            inheritIO: true
+        )
+
+        guard buildResult.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "build.sh SwiftLambda",
+                exitCode: buildResult.exitCode,
+                stderr: buildResult.stderr
+            )
+        }
+
+        print("✅ Build completed")
+    }
+
+    /// Check if Lambda is already built (Linux artifacts)
+    public func isLambdaBuilt() -> Bool {
+        let lambdaDir = "\(workingDirectory)/lambda"
+        let bootstrapPath = "\(lambdaDir)/bootstrap"
+        let zipPath = "\(workingDirectory)/lambda.zip"
+
+        return FileManager.default.fileExists(atPath: lambdaDir) &&
+               FileManager.default.fileExists(atPath: bootstrapPath) &&
+               FileManager.default.fileExists(atPath: zipPath)
+    }
+
+    // MARK: - LocalDeploymentService Protocol: Lifecycle
+
+    /// Start Lambda container in detached mode
+    public func startLambda() async throws {
+        try await startDetached(lambdaPath: nil)
+    }
+
+    /// Stop Lambda container
+    public func stopLambda() async throws {
+        try await dockerService.stop(container: config.containerName)
+    }
+
+    /// Start Lambda container with all services (complete flow)
+    public func startWithServices() async throws {
+        print("\n🚀 Setting up complete Lambda container environment...")
+
+        // 1. Stop any existing Lambda container
+        print("\n→ Checking for existing Lambda container...")
+        do {
+            try await stopLambda()
+        } catch {
+            print("  (No existing container to stop)")
+        }
+
+        // 2. Start services (PostgreSQL + MinIO)
+        print("\n→ Starting local services...")
+        try await startAllServices()
+
+        // 3. Setup network (will connect services if needed)
+        print("\n→ Setting up Docker network...")
+        try await setupDockerNetwork()
+
+        // 4. Ensure S3 bucket exists
+        print("\n→ Ensuring S3 bucket exists...")
+        try await minioService.createBucket(bucketName: nil)
+
+        // 5. Start Lambda container in detached mode
+        print("\n→ Starting Lambda container in background...")
+        try await startLambda()
+
+        print("\n✅ Lambda container started!")
+        print("   Container: \(config.containerName)")
+        print("   Port: http://localhost:\(port)")
+        print("")
+        print("To test: ./tools.sh local linux test")
+        print("To stop: ./tools.sh local linux stop-all")
+    }
+
+    /// Stop Lambda container and all services
+    public func stopWithServices() async throws {
+        print("\n🛑 Stopping Lambda container and services...")
+
+        // 1. Stop Lambda container
+        print("\n→ Stopping Lambda container...")
+        do {
+            try await stopLambda()
+        } catch {
+            print("  (No container to stop)")
+        }
+
+        // 2. Stop services
+        print("\n→ Stopping local services...")
+        try await stopAllServices()
+
+        print("\n✅ All services stopped")
+    }
+
+    // MARK: - LocalDeploymentService Protocol: Testing
+
+    /// Wait for Lambda to be ready on specified port
+    public func waitForReady(maxAttempts: Int = 30) async throws {
+        print("🔍 Verifying Lambda is running...")
+
+        // Check container is running
+        let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+        guard isRunning else {
+            throw CLIError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
+        }
+
+        // Wait for Lambda to be ready on the port
+        var attempts = 0
+        var ready = false
+
+        while attempts < maxAttempts && !ready {
+            let portCheck = try await cliService.execute(
+                command: "lsof",
+                arguments: ["-i", ":\(config.hostPort)"],
+                printCommand: false
+            )
+
+            if portCheck.isSuccess && !portCheck.stdout.isEmpty {
+                ready = true
+                break
+            }
+
+            try await Task.sleep(for: .seconds(1))
+            attempts += 1
+
+            if attempts % 10 == 0 {
+                print("  → Still waiting for Lambda on port \(config.hostPort)... (\(attempts) seconds)")
+            }
+        }
+
+        if !ready {
+            // Show container logs for debugging
+            print("❌ Lambda failed to start. Checking container logs:")
+            let logsResult = try await cliService.execute(
+                command: "docker",
+                arguments: ["logs", config.containerName],
+                printCommand: false
+            )
+            print(logsResult.stdout)
+            print(logsResult.stderr)
+            throw CLIError.testFailed(message: "Lambda failed to be ready on port \(config.hostPort) after \(maxAttempts) seconds")
+        }
+
+        print("  ✅ Lambda is running and ready")
+    }
+
+    /// Test Lambda endpoints using Client library
+    public func testLambda() async throws {
+        print("\n🧪 Testing Lambda container on port \(config.hostPort)...")
+        print("")
+
+        do {
+            try await performLocalLambdaTests()
+        } catch let error as APIError {
+            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+        }
+
+        print("")
+        print("✅ All Lambda container tests passed!")
+    }
+
+    // MARK: - Linux-Specific Methods (Not in Protocol)
+
+    /// Setup Docker network for Lambda container
+    public func setupDockerNetwork() async throws {
+        // Create network if it doesn't exist
+        if !(try await dockerService.networkExists(name: config.networkName)) {
+            print("→ Creating Docker network: \(config.networkName)")
+            try await dockerService.createNetwork(name: config.networkName)
+        } else {
+            print("✓ Network \(config.networkName) already exists")
+        }
+
+        // Connect PostgreSQL to network
+        try await connectContainerToNetwork(container: postgresService.connectionInfo.containerName)
+
+        // Connect MinIO to network
+        try await connectContainerToNetwork(container: minioService.minioContainerName)
+    }
+
+    /// Print the Docker command to run Lambda interactively
+    public func printRunCommand() async throws {
+        // Check if lambda directory exists
+        guard FileManager.default.fileExists(atPath: "\(workingDirectory)/lambda") else {
+            print("❌ Error: lambda directory not found!")
+            print("Build the Lambda first with: ./tools.sh local linux build")
+            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+        }
+
+        let env = getEnvironmentVariables()
+        let envFlags = env.map { "-e \($0.key)=\($0.value)" }.joined(separator: " \\\n    ")
+
+        print("""
+        docker run --rm -it \\
+            --platform linux/amd64 \\
+            --network \(config.networkName) \\
+            --name \(config.containerName) \\
+            -p \(config.hostPort):\(config.containerPort) \\
+            -v \(workingDirectory)/lambda:/var/task \\
+            \(envFlags) \\
+            \(config.swiftImage) \\
+            bash -c 'cd /var/task && chmod +x bootstrap && echo "✅ Lambda ready! Run: ./bootstrap" && bash'
+
+        Inside the container, run: ./bootstrap
+        To exit: Type 'exit' or press Ctrl+D
+        """)
+    }
+
+    /// Run Lambda in interactive container (direct execution - may have TTY issues)
+    public func runInteractive() async throws {
+        // Check if lambda directory exists
+        guard FileManager.default.fileExists(atPath: "\(workingDirectory)/lambda") else {
+            print("❌ Error: lambda directory not found!")
+            print("Build the Lambda first with: ./tools.sh local linux build")
+            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+        }
+
+        print("\n✅ Starting interactive container...")
+        print("(Type 'exit' to leave the container)\n")
+
+        // Run interactive container
+        var options = DockerService.RunOptions()
+        options.interactive = true
+        options.tty = true
+        options.remove = true
+        options.platform = "linux/amd64"
+        options.network = config.networkName
+        options.volumes = [("\(workingDirectory)/lambda", "/var/task")]
+        options.ports = [(config.hostPort, config.containerPort)]
+        options.environment = getEnvironmentVariables()
+
+        try await dockerService.run(
+            image: config.swiftImage,
+            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"],
+            options: options
+        )
+    }
+
+    /// Check if container is running
+    public func isRunning() async throws -> Bool {
+        return try await dockerService.containerIsRunning(name: config.containerName)
+    }
+
+    /// Start Lambda container in detached mode (for automated testing)
+    public func startDetached(lambdaPath: String? = nil) async throws {
+        // Determine lambda path
+        let lambdaDir = lambdaPath ?? "\(workingDirectory)/lambda"
+
+        // Check if lambda directory exists
+        guard FileManager.default.fileExists(atPath: lambdaDir) else {
+            print("❌ Error: lambda directory not found at \(lambdaDir)!")
+            print("Build the Lambda first with: ./tools.sh local linux build")
+            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+        }
+
+        // Run detached container
+        var options = DockerService.RunOptions()
+        options.detached = true
+        options.remove = true
+        options.name = config.containerName
+        options.platform = "linux/amd64"
+        options.network = config.networkName
+        options.ports = [(config.hostPort, config.containerPort)]
+        options.volumes = [(lambdaDir, "/var/task")]
+        options.environment = getEnvironmentVariables()
+
+        try await dockerService.run(
+            image: config.swiftImage,
+            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
+            options: options
+        )
+    }
+
+    // MARK: - Private Helpers
+
+    /// Get environment variables for Lambda container
+    public func getEnvironmentVariables() -> [String: String] {
+        return createEnvironmentVariables(postgresService: postgresService, minioService: minioService)
+    }
+
+    /// Connect a container to the Lambda network
+    private func connectContainerToNetwork(container: String) async throws {
+        // Wait a moment for container to be fully started
+        try await Task.sleep(for: .seconds(1))
+
+        // Check if container is connected
+        let isConnected = try await dockerService.isConnectedToNetwork(
+            container: container,
+            network: config.networkName
+        )
+
+        if !isConnected {
+            // Check if container is running
+            let isRunning = try await dockerService.containerIsRunning(name: container)
+
+            if isRunning {
+                print("→ Connecting \(container) to \(config.networkName)")
+                try await dockerService.connectToNetwork(container: container, network: config.networkName)
+            } else {
+                print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local services start-\(container == postgresService.connectionInfo.containerName ? "database" : "s3")")
+            }
+        } else {
+            print("✓ \(container) already connected")
+        }
+    }
+
+    /// Create an API client configured for local Lambda testing
+    @MainActor
+    private func createLocalAPIClient() -> APIClient {
+        APIClient(localPort: config.hostPort)
+    }
+
+    @MainActor
+    private func performLocalLambdaTests() async throws {
+        let client = createLocalAPIClient()
+
+        // Test file upload
+        print("→ Testing file upload...")
+        let testContent = "Hello from test file!"
+        guard let testData = testContent.data(using: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create test data")
+        }
+
+        let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
+        if uploadResponse.contains("File uploaded: test-upload.txt") {
+            print("  ✅ File upload test passed")
+        } else {
+            print("  ❌ File upload test failed: \(uploadResponse)")
+            throw CLIError.testFailed(message: "File upload endpoint test failed")
+        }
+
+        print("")
+
+        // Test list files
+        print("→ Testing list files...")
+        let fileList = try await client.listFiles()
+        if fileList.contains("test-upload.txt") {
+            print("  ✅ List files test passed (found \(fileList.count) files)")
+        } else {
+            print("  ❌ List files test failed: \(fileList)")
+            throw CLIError.testFailed(message: "List files endpoint test failed")
+        }
+
+        print("")
+
+        // Test file download
+        print("→ Testing file download...")
+        let downloadedData = try await client.downloadFile(fileName: "test-upload.txt")
+        if let downloadedContent = String(data: downloadedData, encoding: .utf8) {
+            if downloadedContent.contains("Hello from test file!") {
+                print("  ✅ File download test passed")
+            } else {
+                print("  ❌ File download test failed: unexpected content")
+                throw CLIError.testFailed(message: "File download endpoint test failed")
+            }
+        } else {
+            print("  ❌ File download test failed: could not decode content")
+            throw CLIError.testFailed(message: "File download endpoint test failed")
+        }
+
+        print("")
+
+        // Test database initialization
+        print("→ Testing database initialization...")
+        let dbResult = try await client.initializeDatabase()
+        if dbResult.contains("Database Initialized") {
+            print("  ✅ Database test passed")
+        } else {
+            print("  ❌ Database test failed: \(dbResult)")
+            throw CLIError.testFailed(message: "Database endpoint test failed")
+        }
+    }
+}

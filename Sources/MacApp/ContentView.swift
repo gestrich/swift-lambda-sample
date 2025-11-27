@@ -1,4 +1,5 @@
 import Client
+import SwiftDeploy
 import SwiftUI
 
 struct ContentView: View {
@@ -7,7 +8,7 @@ struct ContentView: View {
 
     init(config: APIConfiguration) {
         _config = State(initialValue: config)
-        _apiClient = State(initialValue: config.createAPIClient())
+        _apiClient = State(initialValue: Self.createAPIClient(for: config))
     }
 
     var body: some View {
@@ -35,15 +36,32 @@ struct ContentView: View {
                 .environment(config)
         }
         .onAppear(perform: {
-            self.apiClient = config.createAPIClient()
+            self.apiClient = Self.createAPIClient(for: config)
         })
         .onChange(of: config.mode) { _, _ in
-            apiClient = config.createAPIClient()
+            apiClient = Self.createAPIClient(for: config)
         }
         .onChange(of: config.remoteURL) { _, _ in
             if config.mode == .remote {
-                apiClient = config.createAPIClient()
+                apiClient = Self.createAPIClient(for: config)
             }
+        }
+    }
+
+    /// Create an API client based on the current configuration
+    private static func createAPIClient(for config: APIConfiguration) -> APIClient? {
+        let workingDir = FileManager.default.currentDirectoryPath
+
+        switch config.mode {
+        case .localXcode:
+            let service = XcodeLocalService(workingDirectory: workingDir)
+            return APIClient(localPort: service.port)
+        case .localLinux:
+            let service = LinuxLocalService(workingDirectory: workingDir)
+            return APIClient(localPort: service.port)
+        case .remote:
+            guard let url = config.remoteURL else { return nil }
+            return APIClient(baseURL: url)
         }
     }
 }
