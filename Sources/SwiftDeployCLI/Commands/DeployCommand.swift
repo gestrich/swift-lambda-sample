@@ -30,7 +30,7 @@ extension AWSCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(
+        let remoteService = RemoteService(
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
@@ -43,7 +43,7 @@ extension AWSCommand {
             cdkDirectory: cdkDirectory
         )
 
-        _ = try await deploymentService.deployInfrastructure(options: options)
+        _ = try await remoteService.deployInfrastructure(options: options)
 
         print("\n✅ Infrastructure deployment completed successfully!")
         print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")

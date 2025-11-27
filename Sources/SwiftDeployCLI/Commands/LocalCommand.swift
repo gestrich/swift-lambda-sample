@@ -408,16 +408,16 @@ extension LocalCommand {
 // MARK: - Status Helper
 
 /// Print status in a formatted way
-private func printStatus(_ status: LocalServiceStatus, mode: String) {
+private func printStatus(_ status: DeploymentStatus, mode: String) {
     let lambdaIcon = status.lambdaState == .running ? "✅" : "⏹️"
-    let minioIcon = status.minioState == .running ? "✅" : "⏹️"
+    let s3Icon = status.s3State == .running ? "✅" : "⏹️"
     let postgresIcon = status.postgresState == .running ? "✅" : "⏹️"
 
     print("")
-    print("📊 Local Services Status (\(mode))")
-    print("─────────────────────────────────")
+    print("📊 Services Status (\(mode))")
+    print("───────────────────────────────")
     print("\(lambdaIcon) Lambda:     \(status.lambdaState)")
-    print("\(minioIcon) MinIO (S3): \(status.minioState)")
+    print("\(s3Icon) S3:         \(status.s3State)")
     print("\(postgresIcon) PostgreSQL: \(status.postgresState)")
     print("")
 }

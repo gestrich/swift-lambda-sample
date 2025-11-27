@@ -18,6 +18,17 @@ enum ConnectionMode: String, Codable {
             return "Local Linux (Container)"
         }
     }
+
+    var detailText: String {
+        switch self {
+        case .remote:
+            return "Connect to deployed AWS API Gateway"
+        case .localXcode:
+            return "Native macOS build - fast iteration, best for development"
+        case .localLinux:
+            return "Docker container build - matches AWS Lambda environment"
+        }
+    }
 }
 
 /// Manages API configuration persistence for the MacApp
@@ -60,12 +71,12 @@ class APIConfiguration {
         }
 
         do {
-            let deploymentService = DeploymentService(
+            let remoteService = RemoteService(
                 projectRoot: FileManager.default.currentDirectoryPath,
                 awsConfig: awsConfig
             )
 
-            if let apiURL = try await deploymentService.getAPIGatewayURL() {
+            if let apiURL = try await remoteService.getAPIGatewayURL() {
                 self.remoteURL = apiURL
             }
         } catch {

@@ -12,30 +12,30 @@ public enum ServiceState: String, Sendable, CustomStringConvertible {
     }
 }
 
-/// Status of all local deployment services
-public struct LocalServiceStatus: Sendable {
+/// Status of all deployment services
+public struct DeploymentStatus: Sendable {
     public let lambdaState: ServiceState
-    public let minioState: ServiceState
+    public let s3State: ServiceState
     public let postgresState: ServiceState
 
-    public init(lambdaState: ServiceState, minioState: ServiceState, postgresState: ServiceState) {
+    public init(lambdaState: ServiceState, s3State: ServiceState, postgresState: ServiceState) {
         self.lambdaState = lambdaState
-        self.minioState = minioState
+        self.s3State = s3State
         self.postgresState = postgresState
     }
 }
 
 // MARK: - Protocol
 
-/// Protocol for local Lambda deployment services
-/// Both XcodeLocalService and LinuxLocalService conform to this protocol,
+/// Protocol for Lambda services (local and remote)
+/// XcodeLocalService, LinuxLocalService, and RemoteService conform to this protocol,
 /// enabling polymorphic usage and consistent CLI/UI experiences.
-public protocol LocalDeploymentService {
+public protocol LambdaService {
     /// The port where Lambda listens for requests
     var port: Int { get }
 
-    /// The local endpoint URL for invoking Lambda
-    var localEndpoint: String { get }
+    /// The endpoint URL for invoking Lambda
+    var endpoint: String { get }
 
     // MARK: - Build
 
@@ -54,7 +54,7 @@ public protocol LocalDeploymentService {
     /// Stop Lambda process/container only
     func stopLambda() async throws
 
-    /// Start Lambda with all supporting services (PostgreSQL + MinIO)
+    /// Start Lambda with all supporting services (PostgreSQL + S3)
     func startWithServices() async throws
 
     /// Stop Lambda and all supporting services
@@ -71,13 +71,13 @@ public protocol LocalDeploymentService {
 
     // MARK: - Status
 
-    /// Get the status of all services (Lambda, MinIO, PostgreSQL)
-    func status() async throws -> LocalServiceStatus
+    /// Get the status of all services (Lambda, S3, PostgreSQL)
+    func status() async throws -> DeploymentStatus
 }
 
 // MARK: - Default Implementations
 
-extension LocalDeploymentService {
+extension LambdaService {
     /// Default implementation with standard timeout
     public func waitForReady() async throws {
         try await waitForReady(maxAttempts: 30)

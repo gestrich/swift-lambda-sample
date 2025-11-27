@@ -25,7 +25,7 @@ extension AWSCommand {
         print("📊 Checking status...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(
+        let remoteService = RemoteService(
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
@@ -59,7 +59,7 @@ extension AWSCommand {
 
         // CDK Stack status
         do {
-            let outputs = try await deploymentService.getStackOutputs(
+            let outputs = try await remoteService.getStackOutputs(
                 stackName: "SwiftLambdaSampleStack"
             )
 

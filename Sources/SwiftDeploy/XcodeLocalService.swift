@@ -3,7 +3,7 @@ import Foundation
 
 /// Service for native macOS Xcode development workflow (fast iteration)
 /// Uses native Swift toolchain for builds and direct process execution
-public class XcodeLocalService: LocalDeploymentService {
+public class XcodeLocalService: LambdaService {
     private let dockerService: DockerService
     private let cliService: CLIService
 
@@ -16,11 +16,11 @@ public class XcodeLocalService: LocalDeploymentService {
     // Working directory
     private let workingDirectory: String
 
-    // MARK: - LocalDeploymentService Protocol
+    // MARK: - LambdaService Protocol
 
     public var port: Int { lambdaHostPort }
 
-    public var localEndpoint: String {
+    public var endpoint: String {
         "http://localhost:\(lambdaHostPort)/invoke"
     }
 
@@ -79,7 +79,7 @@ public class XcodeLocalService: LocalDeploymentService {
         try await postgresService.stop()
     }
 
-    // MARK: - LocalDeploymentService Protocol: Build
+    // MARK: - LambdaService Protocol: Build
 
     /// Build Lambda for Linux
     public func buildLambda(clean: Bool = false) async throws {
@@ -127,7 +127,7 @@ public class XcodeLocalService: LocalDeploymentService {
                FileManager.default.fileExists(atPath: zipPath)
     }
 
-    // MARK: - LocalDeploymentService Protocol: Lifecycle
+    // MARK: - LambdaService Protocol: Lifecycle
 
     /// Start Lambda locally (native process)
     public func startLambda() async throws {
@@ -247,7 +247,7 @@ public class XcodeLocalService: LocalDeploymentService {
         try await stopAllServices()
     }
 
-    // MARK: - LocalDeploymentService Protocol: Testing
+    // MARK: - LambdaService Protocol: Testing
 
     /// Wait for Lambda to be ready on specified port
     public func waitForReady(maxAttempts: Int = 30) async throws {
@@ -333,22 +333,22 @@ public class XcodeLocalService: LocalDeploymentService {
         print("\n✅ Runtime config copied to ~/.swiftSampleDemo/")
     }
 
-    // MARK: - LocalDeploymentService Protocol: Status
+    // MARK: - LambdaService Protocol: Status
 
-    /// Get the status of all services (Lambda, MinIO, PostgreSQL)
-    public func status() async throws -> LocalServiceStatus {
+    /// Get the status of all services (Lambda, S3, PostgreSQL)
+    public func status() async throws -> DeploymentStatus {
         // Check Lambda (native process on port)
         let lambdaRunning = await isLambdaRunning()
 
-        // Check MinIO
-        let minioRunning = try await minioService.isRunning()
+        // Check S3 (MinIO)
+        let s3Running = try await minioService.isRunning()
 
         // Check PostgreSQL
         let postgresRunning = try await postgresService.isRunning()
 
-        return LocalServiceStatus(
+        return DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
-            minioState: minioRunning ? .running : .stopped,
+            s3State: s3Running ? .running : .stopped,
             postgresState: postgresRunning ? .running : .stopped
         )
     }
@@ -375,6 +375,7 @@ public class XcodeLocalService: LocalDeploymentService {
             }
             return false
         } catch {
+            print("⚠️  Error checking Lambda status: \(error)")
             return false
         }
     }

@@ -29,7 +29,7 @@ public struct LinuxContainerConfig: Sendable {
 
 /// Service for Linux container deployment workflow (AWS Lambda compatible)
 /// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
-public class LinuxLocalService: LocalDeploymentService {
+public class LinuxLocalService: LambdaService {
     private let dockerService: DockerService
     private let cliService: CLIService
 
@@ -40,11 +40,11 @@ public class LinuxLocalService: LocalDeploymentService {
     // Working directory
     private let workingDirectory: String
 
-    // MARK: - LocalDeploymentService Protocol
+    // MARK: - LambdaService Protocol
 
     public var port: Int { config.hostPort }
 
-    public var localEndpoint: String {
+    public var endpoint: String {
         "http://localhost:\(config.hostPort)/invoke"
     }
 
@@ -104,7 +104,7 @@ public class LinuxLocalService: LocalDeploymentService {
         try await postgresService.stop()
     }
 
-    // MARK: - LocalDeploymentService Protocol: Build
+    // MARK: - LambdaService Protocol: Build
 
     /// Build Lambda for Linux (AMD64) using Docker
     public func buildLambda(clean: Bool = false) async throws {
@@ -152,7 +152,7 @@ public class LinuxLocalService: LocalDeploymentService {
                FileManager.default.fileExists(atPath: zipPath)
     }
 
-    // MARK: - LocalDeploymentService Protocol: Lifecycle
+    // MARK: - LambdaService Protocol: Lifecycle
 
     /// Start Lambda container in detached mode
     public func startLambda() async throws {
@@ -219,7 +219,7 @@ public class LinuxLocalService: LocalDeploymentService {
         print("\n✅ All services stopped")
     }
 
-    // MARK: - LocalDeploymentService Protocol: Testing
+    // MARK: - LambdaService Protocol: Testing
 
     /// Wait for Lambda to be ready on specified port
     public func waitForReady(maxAttempts: Int = 30) async throws {
@@ -286,22 +286,22 @@ public class LinuxLocalService: LocalDeploymentService {
         print("✅ All Lambda container tests passed!")
     }
 
-    // MARK: - LocalDeploymentService Protocol: Status
+    // MARK: - LambdaService Protocol: Status
 
-    /// Get the status of all services (Lambda, MinIO, PostgreSQL)
-    public func status() async throws -> LocalServiceStatus {
+    /// Get the status of all services (Lambda, S3, PostgreSQL)
+    public func status() async throws -> DeploymentStatus {
         // Check Lambda container
         let lambdaRunning = try await isRunning()
 
-        // Check MinIO
-        let minioRunning = try await minioService.isRunning()
+        // Check S3 (MinIO)
+        let s3Running = try await minioService.isRunning()
 
         // Check PostgreSQL
         let postgresRunning = try await postgresService.isRunning()
 
-        return LocalServiceStatus(
+        return DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
-            minioState: minioRunning ? .running : .stopped,
+            s3State: s3Running ? .running : .stopped,
             postgresState: postgresRunning ? .running : .stopped
         )
     }

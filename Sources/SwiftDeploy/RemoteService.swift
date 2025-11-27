@@ -1,3 +1,4 @@
+import Client
 import Foundation
 
 /// Detected state of deployed infrastructure
@@ -7,11 +8,26 @@ public struct DeployedState: Sendable {
     let hasVPC: Bool
 }
 
-/// Service for managing CDK deployments
-public actor DeploymentService {
+/// Service for remote AWS Lambda deployment and management
+/// Conforms to LambdaService for consistency with local services
+/// Start/stop lifecycle operations are no-ops since remote services are managed by AWS
+public class RemoteService: LambdaService {
     private let cdkService: CDKService
     private let awsService: AWSCLIService
+    private let cliService: CLIService
     private let projectRoot: String
+
+    private var _endpoint: String?
+
+    // MARK: - LambdaService Protocol Properties
+
+    public var port: Int { 443 }
+
+    public var endpoint: String {
+        _endpoint ?? "https://<not-configured>"
+    }
+
+    // MARK: - Initialization
 
     public init(
         projectRoot: String,
@@ -24,7 +40,149 @@ public actor DeploymentService {
             awsConfig: awsConfig
         )
         self.awsService = AWSCLIService(awsConfig: awsConfig)
+        self.cliService = CLIService.shared
     }
+
+    /// Set the endpoint URL manually
+    public func setEndpoint(_ url: String) {
+        _endpoint = url
+    }
+
+    /// Fetch and cache endpoint from CDK stack
+    public func fetchEndpoint() async throws {
+        let outputs = try await awsService.getStackOutputs(name: "SwiftLambdaSampleStack")
+        if let apiUrl = outputs["ApiGatewayUrl"] {
+            _endpoint = apiUrl
+        }
+    }
+
+    // MARK: - LambdaService Protocol: Build
+
+    /// Build is handled via CI/CD pipeline (GitHub Actions)
+    /// This triggers a Lambda code update via git push
+    public func buildLambda(clean: Bool = false) async throws {
+        print("ℹ️  Remote Lambda is built via CI/CD pipeline")
+        print("   Use 'aws update-lambda' to deploy code changes")
+    }
+
+    /// Check if Lambda is deployed (stack exists with endpoint)
+    public func isLambdaBuilt() -> Bool {
+        return _endpoint != nil
+    }
+
+    // MARK: - LambdaService Protocol: Lifecycle
+
+    /// Start is not applicable for remote services - Lambda runs on-demand
+    public func startLambda() async throws {
+        print("ℹ️  Remote Lambda is managed by AWS - cannot start manually")
+        print("   Lambda runs automatically when invoked via API Gateway")
+    }
+
+    /// Stop is not applicable for remote services
+    public func stopLambda() async throws {
+        print("ℹ️  Remote Lambda is managed by AWS - cannot stop manually")
+        print("   Use 'aws tear-down' to remove all infrastructure")
+    }
+
+    /// Start with services is not applicable for remote
+    public func startWithServices() async throws {
+        print("ℹ️  Remote services are managed by AWS - cannot start manually")
+        print("   Services (RDS, S3) run continuously when deployed")
+    }
+
+    /// Stop with services is not applicable for remote
+    public func stopWithServices() async throws {
+        print("ℹ️  Remote services are managed by AWS - cannot stop manually")
+        print("   Use 'aws tear-down' to remove all infrastructure")
+    }
+
+    // MARK: - LambdaService Protocol: Testing
+
+    /// Test remote Lambda endpoints
+    public func testLambda() async throws {
+        let apiUrl = endpoint
+        guard !apiUrl.contains("<not-configured>") else {
+            throw CLIError.testFailed(message: "Remote endpoint not configured. Deploy first or run fetchEndpoint().")
+        }
+
+        print("\n🧪 Testing remote Lambda at \(apiUrl)...")
+        print("")
+
+        do {
+            try await performRemoteLambdaTests(apiUrl: apiUrl)
+        } catch let error as APIError {
+            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+        }
+
+        print("")
+        print("✅ All remote Lambda tests passed!")
+    }
+
+    /// Wait for Lambda to be ready (check if endpoint responds)
+    public func waitForReady(maxAttempts: Int = 30) async throws {
+        let apiUrl = endpoint
+        guard !apiUrl.contains("<not-configured>") else {
+            throw CLIError.testFailed(message: "Remote endpoint not configured")
+        }
+
+        print("🔍 Checking remote Lambda availability...")
+
+        var attempts = 0
+        var ready = false
+
+        while attempts < maxAttempts && !ready {
+            do {
+                let result = try await cliService.execute(
+                    command: "curl",
+                    arguments: ["-s", "-o", "/dev/null", "-w", "%{http_code}", "\(apiUrl)api/health"],
+                    printCommand: false
+                )
+
+                if result.isSuccess && (result.stdout == "200" || result.stdout == "404") {
+                    ready = true
+                    break
+                }
+            } catch {
+                // Ignore errors, keep trying
+            }
+
+            try await Task.sleep(for: .seconds(1))
+            attempts += 1
+
+            if attempts % 10 == 0 {
+                print("  → Still waiting for Lambda... (\(attempts) seconds)")
+            }
+        }
+
+        if !ready {
+            throw CLIError.testFailed(message: "Remote Lambda not responding after \(maxAttempts) seconds")
+        }
+
+        print("  ✅ Remote Lambda is available")
+    }
+
+    // MARK: - LambdaService Protocol: Status
+
+    /// Get status of remote services
+    public func status() async throws -> DeploymentStatus {
+        let stackExists = await checkStackExists()
+
+        if stackExists {
+            return DeploymentStatus(
+                lambdaState: .running,
+                s3State: .running,
+                postgresState: .running
+            )
+        } else {
+            return DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: .stopped,
+                postgresState: .stopped
+            )
+        }
+    }
+
+    // MARK: - Deployment Operations
 
     /// Deploy CDK stack (maintains current configuration)
     public func deploy(options: DeploymentOptions) async throws {
@@ -37,7 +195,6 @@ public actor DeploymentService {
         let finalOptions: DeploymentOptions
 
         if let state = deployedState {
-            // Stack exists - maintain current configuration
             print("\n📊 Detected existing stack configuration:")
             print("   Database: \(state.hasDatabase ? "YES" : "NO")")
             print("   NAT Gateway: \(state.hasNATGateway ? "YES" : "NO")")
@@ -50,7 +207,6 @@ public actor DeploymentService {
                 cdkDirectory: options.cdkDirectory
             )
         } else {
-            // No stack exists - use minimal config
             print("\n⚠️  No existing stack detected")
             print("   → Using minimal configuration (no database, no NAT)")
             print("   → Use 'deploy-init' to set initial configuration\n")
@@ -73,31 +229,6 @@ public actor DeploymentService {
         print("\n✅ CDK deployment completed successfully")
     }
 
-    /// Query AWS to determine what's currently deployed
-    private func queryDeployedState(
-        stackName: String = "SwiftLambdaSampleStack"
-    ) async throws -> DeployedState? {
-        do {
-            let resources = try await awsService.describeStackResources(name: stackName)
-
-            return DeployedState(
-                hasDatabase: resources.contains {
-                    $0.logicalResourceId.contains("Database") &&
-                    $0.resourceType.contains("RDS")
-                },
-                hasNATGateway: resources.contains {
-                    $0.resourceType == "AWS::EC2::NatGateway"
-                },
-                hasVPC: resources.contains {
-                    $0.resourceType == "AWS::EC2::VPC"
-                }
-            )
-        } catch {
-            // Stack doesn't exist yet
-            return nil
-        }
-    }
-
     /// Poll CloudFormation stack status until deployment is complete
     public func pollDeploymentStatus(
         stackName: String = "SwiftLambdaSampleStack"
@@ -105,8 +236,8 @@ public actor DeploymentService {
         print("\n⏳ Polling deployment status...")
 
         var attempts = 0
-        let maxAttempts = 60 // 5 minutes with 5-second intervals
-        let pollInterval: UInt64 = 5_000_000_000 // 5 seconds in nanoseconds
+        let maxAttempts = 60
+        let pollInterval: UInt64 = 5_000_000_000
 
         while attempts < maxAttempts {
             let status = try await awsService.getStackStatus(name: stackName)
@@ -121,7 +252,6 @@ public actor DeploymentService {
                 throw CLIError.deploymentFailed(reason: "Stack deployment failed with status: \(status)")
 
             case "CREATE_IN_PROGRESS", "UPDATE_IN_PROGRESS", "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS":
-                // Continue polling
                 break
 
             default:
@@ -139,7 +269,6 @@ public actor DeploymentService {
     public func tearDown(cdkDirectory: String = "cdk") async throws {
         let cdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-        // Verify CDK directory exists
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: cdkPath, isDirectory: &isDirectory), isDirectory.boolValue else {
             throw CLIError.invalidWorkingDirectory("CDK directory not found at: \(cdkPath)")
@@ -166,18 +295,13 @@ public actor DeploymentService {
     }
 
     /// Deploy infrastructure and display outputs
-    /// This is the complete infrastructure deployment workflow
     public func deployInfrastructure(
         options: DeploymentOptions,
         stackName: String = "SwiftLambdaSampleStack"
     ) async throws -> [String: String] {
-        // 1. Deploy CDK infrastructure
         try await deploy(options: options)
-
-        // 2. Poll deployment status
         try await pollDeploymentStatus(stackName: stackName)
 
-        // 3. Get and display stack outputs
         let outputs = try await getStackOutputs(stackName: stackName)
 
         if !outputs.isEmpty {
@@ -191,7 +315,6 @@ public actor DeploymentService {
     }
 
     /// Update Lambda code via GitHub Actions
-    /// Handles git push (if needed) and triggers/waits for GitHub Actions workflow
     public func updateLambdaCode(skipPush: Bool = false) async throws {
         let gitService = GitService(repoPath: projectRoot)
         let repoInfo = try await gitService.getRepoInfo()
@@ -202,20 +325,15 @@ public actor DeploymentService {
             let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
             if hasCommitsToPush {
-                // Get the current latest run ID before pushing
                 let beforeRunId = try await githubService.getLatestRunId(branch: currentBranch)
-
-                // Push commits (this will auto-trigger the workflow)
                 try await gitService.push()
 
-                // Wait for the NEW workflow that was triggered by the push
                 try await githubService.waitForNewWorkflowCompletion(
                     branch: currentBranch,
                     afterRunId: beforeRunId,
                     timeoutMinutes: 10
                 )
             } else {
-                // No commits to push, manually trigger the workflow
                 print("\n✅ No commits to push")
                 print("🔄 Triggering workflow to redeploy current code...\n")
                 try await githubService.triggerWorkflowAndWait(
@@ -225,7 +343,6 @@ public actor DeploymentService {
                 )
             }
         } else {
-            // Skip push, manually trigger the workflow
             print("\n⏭️  Skipping git push (--skip-push enabled)")
             print("🔄 Triggering workflow...\n")
             try await githubService.triggerWorkflowAndWait(
@@ -237,14 +354,12 @@ public actor DeploymentService {
     }
 
     /// Initial deployment workflow - sets infrastructure configuration
-    /// Use this for first deployment or when changing infrastructure scope
     public func deployInit(
         options: DeploymentOptions,
         withPostgres: Bool,
         skipPush: Bool = false,
         stackName: String = "SwiftLambdaSampleStack"
     ) async throws {
-        // Check if stack already exists
         let existingState = try await queryDeployedState(stackName: stackName)
 
         if let state = existingState {
@@ -256,7 +371,6 @@ public actor DeploymentService {
             print("     Database: \(withPostgres ? "YES" : "NO")")
             print("     NAT Gateway: \(!options.skipNATGateway ? "YES" : "NO")")
 
-            // Prevent accidental database deletion
             if state.hasDatabase && options.skipPostgres {
                 print("\n❌ ERROR: This would DELETE your database!")
                 print("   Use 'tear-down' first if you want to remove the database.")
@@ -266,13 +380,9 @@ public actor DeploymentService {
             print("\n   Updating existing stack...\n")
         }
 
-        // 1. Deploy infrastructure
         _ = try await deployInfrastructure(options: options, stackName: stackName)
-
-        // 2. Deploy Lambda code
         try await updateLambdaCode(skipPush: skipPush)
 
-        // 3. Initialize database if PostgreSQL was deployed
         if withPostgres {
             print("\n🗄️  Initializing database...")
             do {
@@ -284,7 +394,6 @@ public actor DeploymentService {
             }
         }
 
-        // 4. Verify deployment by testing the API
         print("\n🧪 Verifying deployment...")
         do {
             try await verifyDeployment(stackName: stackName, withPostgres: withPostgres)
@@ -297,27 +406,87 @@ public actor DeploymentService {
         print("\n🎉 Deployment completed successfully!")
     }
 
-    /// Initialize database by calling the /api/database endpoint
-    private func initializeDatabase(stackName: String) async throws {
-        let cliService = CLIService.shared
+    // MARK: - Private Helpers
 
-        // Get API Gateway URL
+    private func checkStackExists() async -> Bool {
+        do {
+            let outputs = try await awsService.getStackOutputs(name: "SwiftLambdaSampleStack")
+            return !outputs.isEmpty
+        } catch {
+            return false
+        }
+    }
+
+    private func queryDeployedState(
+        stackName: String = "SwiftLambdaSampleStack"
+    ) async throws -> DeployedState? {
+        do {
+            let resources = try await awsService.describeStackResources(name: stackName)
+
+            return DeployedState(
+                hasDatabase: resources.contains {
+                    $0.logicalResourceId.contains("Database") &&
+                    $0.resourceType.contains("RDS")
+                },
+                hasNATGateway: resources.contains {
+                    $0.resourceType == "AWS::EC2::NatGateway"
+                },
+                hasVPC: resources.contains {
+                    $0.resourceType == "AWS::EC2::VPC"
+                }
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    @MainActor
+    private func createRemoteAPIClient(apiUrl: String) -> APIClient {
+        APIClient(baseURL: apiUrl)
+    }
+
+    @MainActor
+    private func performRemoteLambdaTests(apiUrl: String) async throws {
+        let client = createRemoteAPIClient(apiUrl: apiUrl)
+
+        print("→ Testing file upload...")
+        let testContent = "Hello from remote test!"
+        guard let testData = testContent.data(using: .utf8) else {
+            throw CLIError.testFailed(message: "Failed to create test data")
+        }
+
+        let uploadResponse = try await client.uploadFile(fileName: "test-remote.txt", data: testData)
+        if uploadResponse.contains("File uploaded: test-remote.txt") {
+            print("  ✅ File upload test passed")
+        } else {
+            print("  ❌ File upload test failed: \(uploadResponse)")
+            throw CLIError.testFailed(message: "File upload endpoint test failed")
+        }
+
+        print("")
+
+        print("→ Testing list files...")
+        let fileList = try await client.listFiles()
+        if fileList.contains("test-remote.txt") {
+            print("  ✅ List files test passed (found \(fileList.count) files)")
+        } else {
+            print("  ❌ List files test failed: \(fileList)")
+            throw CLIError.testFailed(message: "List files endpoint test failed")
+        }
+    }
+
+    private func initializeDatabase(stackName: String) async throws {
         let outputs = try await getStackOutputs(stackName: stackName)
 
         guard let apiUrl = outputs["ApiGatewayUrl"] else {
             throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
-        // Initialize the database
         print("  → POST \(apiUrl)api/database")
 
         let result = try await cliService.execute(
             command: "curl",
-            arguments: [
-                "-s",
-                "-X", "POST",
-                "\(apiUrl)api/database"
-            ],
+            arguments: ["-s", "-X", "POST", "\(apiUrl)api/database"],
             printCommand: false
         )
 
@@ -337,28 +506,19 @@ public actor DeploymentService {
         }
     }
 
-    /// Verify deployment by testing API endpoints
     private func verifyDeployment(stackName: String, withPostgres: Bool) async throws {
-        let cliService = CLIService.shared
-
-        // Get API Gateway URL
         let outputs = try await getStackOutputs(stackName: stackName)
 
         guard let apiUrl = outputs["ApiGatewayUrl"] else {
             throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
-        // Test the health endpoint
         print("  Testing health endpoint...")
         print("  → GET \(apiUrl)api/health")
 
         let testResult = try await cliService.execute(
             command: "curl",
-            arguments: [
-                "-s",
-                "-X", "GET",
-                "\(apiUrl)api/health"
-            ],
+            arguments: ["-s", "-X", "GET", "\(apiUrl)api/health"],
             printCommand: false
         )
 
@@ -381,18 +541,13 @@ public actor DeploymentService {
         print("  ✓ Lambda function executing")
         print("  ✓ Health check passed")
 
-        // Test database endpoints if PostgreSQL is deployed
         if withPostgres {
             print("\n  Testing database endpoints...")
             print("  → GET \(apiUrl)api/users")
 
             let usersResult = try await cliService.execute(
                 command: "curl",
-                arguments: [
-                    "-s",
-                    "-X", "GET",
-                    "\(apiUrl)api/users"
-                ],
+                arguments: ["-s", "-X", "GET", "\(apiUrl)api/users"],
                 printCommand: false
             )
 
@@ -407,7 +562,6 @@ public actor DeploymentService {
             let usersResponse = usersResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             print("  Response: \(usersResponse)")
 
-            // Verify it's valid JSON (empty array is expected for fresh database)
             if let data = usersResponse.data(using: .utf8),
                let _ = try? JSONSerialization.jsonObject(with: data) {
                 print("  ✓ Database connection working")

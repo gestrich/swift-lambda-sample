@@ -49,7 +49,7 @@ extension AWSCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(
+        let remoteService = RemoteService(
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
@@ -61,7 +61,7 @@ extension AWSCommand {
             cdkDirectory: cdkDirectory
         )
 
-        try await deploymentService.deployInit(
+        try await remoteService.deployInit(
             options: options,
             withPostgres: withPostgres,
             skipPush: skipPush

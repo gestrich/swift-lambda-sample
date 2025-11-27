@@ -21,12 +21,12 @@ extension AWSCommand {
             useAWSVault: nil
         )
 
-        let deploymentService = DeploymentService(
+        let remoteService = RemoteService(
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
 
-        try await deploymentService.updateLambdaCode(skipPush: skipPush)
+        try await remoteService.updateLambdaCode(skipPush: skipPush)
 
         print("\n🎉 Lambda deployment completed successfully!")
     }

@@ -42,12 +42,12 @@ extension AWSCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let deploymentService = DeploymentService(
+        let remoteService = RemoteService(
             projectRoot: projectRoot,
             awsConfig: awsConfig
         )
 
-        try await deploymentService.tearDown(
+        try await remoteService.tearDown(
             cdkDirectory: cdkDirectory
         )
 
