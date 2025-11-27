@@ -77,16 +77,28 @@ struct SettingsView: View {
 
                         Spacer()
 
-                        Button(action: { config.refreshStatus() }) {
-                            if config.isLoadingStatus {
+                        Button(action: {
+                            Task {
+                                await config.startServices()
+                            }
+                        }) {
+                            if config.status.lambdaState.isTransitioning {
                                 ProgressView()
                                     .scaleEffect(0.7)
                             } else {
-                                Image(systemName: "arrow.clockwise")
+                                Image(systemName: "play.circle")
                             }
                         }
                         .buttonStyle(.borderless)
-                        .disabled(config.isLoadingStatus)
+                        .disabled(config.status.lambdaState.isTransitioning)
+                        .help("Start services")
+
+                        Button(action: { config.refreshStatus() }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(config.status.lambdaState.isTransitioning)
+                        .help("Refresh status")
                     }
 
                     HStack(spacing: 20) {
@@ -168,10 +180,18 @@ private struct StatusIndicator: View {
     let label: String
     let state: ServiceState
 
+    private var color: Color {
+        switch state {
+        case .running: return .green
+        case .starting, .stopping: return .orange
+        case .stopped: return .gray
+        }
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(state == .running ? Color.green : Color.gray)
+                .fill(color)
                 .frame(width: 8, height: 8)
             Text(label)
                 .font(.caption2)

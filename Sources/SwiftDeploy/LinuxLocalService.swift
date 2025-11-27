@@ -195,6 +195,8 @@ public class LinuxLocalService: LambdaService {
 
     /// Start Lambda container with all services (complete flow)
     public func startWithServices() async throws {
+        statusSubject.send(.starting)
+
         print("\n🚀 Setting up complete Lambda container environment...")
 
         // 1. Stop any existing Lambda container
@@ -227,10 +229,14 @@ public class LinuxLocalService: LambdaService {
         print("")
         print("To test: ./tools.sh local linux test")
         print("To stop: ./tools.sh local linux stop-all")
+
+        refreshStatus()
     }
 
     /// Stop Lambda container and all services
     public func stopWithServices() async throws {
+        statusSubject.send(.stopping)
+
         print("\n🛑 Stopping Lambda container and services...")
 
         // 1. Stop Lambda container
@@ -246,6 +252,8 @@ public class LinuxLocalService: LambdaService {
         try await stopAllServices()
 
         print("\n✅ All services stopped")
+
+        refreshStatus()
     }
 
     // MARK: - LambdaService Protocol: Testing

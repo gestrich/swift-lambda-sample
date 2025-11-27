@@ -148,7 +148,7 @@ class APIConfiguration: LambdaService {
     var mode: ConnectionMode {
         didSet {
             if oldValue.persistenceKey != mode.persistenceKey {
-                onModeChanged()
+                onModeChanged(oldMode: oldValue)
             }
         }
     }
@@ -171,7 +171,7 @@ class APIConfiguration: LambdaService {
     // MARK: - Init
 
     init() {
-        self.workingDirectory = FileManager.default.currentDirectoryPath
+        self.workingDirectory = Self.resolveProjectDirectory()
 
         // Load mode from UserDefaults
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? "remote"
@@ -181,22 +181,75 @@ class APIConfiguration: LambdaService {
         subscribeToService(mode)
     }
 
+    /// Path to the app config file
+    private static var configFilePath: String {
+        "\(FileManager.default.homeDirectoryForCurrentUser.path)/.swiftSampleDemo/swiftLambdaDemo.json"
+    }
+
+    /// Resolve the project directory from config file or fallback
+    private static func resolveProjectDirectory() -> String {
+        // Try to read from config file
+        if let data = FileManager.default.contents(atPath: configFilePath),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let projectDir = json["projectDirectory"] as? String,
+           FileManager.default.fileExists(atPath: "\(projectDir)/Package.swift") {
+            return projectDir
+        }
+
+        // Fallback: check if current directory has Package.swift
+        let currentDir = FileManager.default.currentDirectoryPath
+        if FileManager.default.fileExists(atPath: "\(currentDir)/Package.swift") {
+            return currentDir
+        }
+
+        // Last resort: return current directory anyway
+        return currentDir
+    }
+
     // MARK: - Mode Changes
 
-    private func onModeChanged() {
-        // Cancel existing subscriptions
-        cancellables.removeAll()
-
-        // Reset status when service changes
-        self.status = .stopped
-        self.statusSubject.send(.stopped)
-
-        // Subscribe to new service's publishers
-        subscribeToService(mode)
-
-        // Save and refresh
+    private func onModeChanged(oldMode: ConnectionMode) {
+        // Save preference
         save()
-        refreshStatus()
+
+        // Stop old services and start new ones
+        Task {
+            // Stop old services if it was a local mode (keep old subscription active)
+            if !oldMode.isRemote {
+                do {
+                    try await oldMode.stopWithServices()
+                } catch {
+                    print("⚠️ Error stopping old services (may not have been running): \(error)")
+                }
+            }
+
+            // Now switch subscriptions to new service
+            cancellables.removeAll()
+            subscribeToService(mode)
+
+            // Start new services if it's a local mode
+            if !mode.isRemote {
+                await startServices()
+            } else {
+                // For remote mode, just refresh status
+                refreshStatus()
+            }
+        }
+    }
+
+    /// Start services for the current mode and refresh status
+    func startServices() async {
+        guard !mode.isRemote else {
+            refreshStatus()
+            return
+        }
+
+        do {
+            try await mode.startWithServices()
+        } catch {
+            print("⚠️ Failed to start services: \(error)")
+            refreshStatus()
+        }
     }
 
     private func subscribeToService(_ service: any LambdaService) {

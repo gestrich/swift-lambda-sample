@@ -6,11 +6,18 @@ import Foundation
 
 /// State of a service component
 public enum ServiceState: String, Sendable, CustomStringConvertible {
-    case running
     case stopped
+    case stopping
+    case starting
+    case running
 
     public var description: String {
         rawValue
+    }
+
+    /// Whether the service is in a transitional state (starting or stopping)
+    public var isTransitioning: Bool {
+        self == .starting || self == .stopping
     }
 }
 
@@ -31,6 +38,20 @@ public struct DeploymentStatus: Sendable {
         lambdaState: .stopped,
         s3State: .stopped,
         postgresState: .stopped
+    )
+
+    /// All services stopping
+    public static let stopping = DeploymentStatus(
+        lambdaState: .stopping,
+        s3State: .stopping,
+        postgresState: .stopping
+    )
+
+    /// All services starting
+    public static let starting = DeploymentStatus(
+        lambdaState: .starting,
+        s3State: .starting,
+        postgresState: .starting
     )
 }
 

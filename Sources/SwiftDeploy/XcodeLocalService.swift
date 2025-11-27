@@ -260,22 +260,30 @@ public class XcodeLocalService: LambdaService {
 
     /// Start Lambda with all services (complete flow)
     public func startWithServices() async throws {
+        statusSubject.send(.starting)
+
         // Start services first
         print("\n📦 Starting local services...")
         try await startAllServices()
 
         // Then start Lambda
         try await startLambda()
+
+        refreshStatus()
     }
 
     /// Stop Lambda and all services (complete flow)
     public func stopWithServices() async throws {
+        statusSubject.send(.stopping)
+
         // Stop Lambda first
         try await stopLambda()
 
         // Then stop services
         print("\n📦 Stopping local services...")
         try await stopAllServices()
+
+        refreshStatus()
     }
 
     // MARK: - LambdaService Protocol: Testing
