@@ -2,7 +2,7 @@
 
 ## Summary
 
-This repository demonstrates how to build and deploy a complete serverless application using **Swift on AWS Lambda**. It showcases best practices for Swift server development and provides a production-ready foundation for building scalable serverless APIs.
+This repository demonstrates how to build and deploy a complete serverless application using **Swift on AWS Lambda**. It showcases best practices for Swift server development and provides a foundation for building scalable serverless APIs.
 
 The project demonstrates integration with various AWS services:
 
