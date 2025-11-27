@@ -42,10 +42,12 @@ extension AWSCommand {
         }
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let remoteService = RemoteService(
-            projectRoot: projectRoot,
-            awsConfig: awsConfig
-        )
+        let remoteService = await MainActor.run {
+            RemoteService(
+                projectRoot: projectRoot,
+                awsConfig: awsConfig
+            )
+        }
 
         try await remoteService.tearDown(
             cdkDirectory: cdkDirectory

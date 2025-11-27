@@ -1,8 +1,10 @@
 import Client
+import Combine
 import Foundation
 
 /// Service for native macOS Xcode development workflow (fast iteration)
 /// Uses native Swift toolchain for builds and direct process execution
+@MainActor
 public class XcodeLocalService: LambdaService {
     private let dockerService: DockerService
     private let cliService: CLIService
@@ -16,13 +18,42 @@ public class XcodeLocalService: LambdaService {
     // Working directory
     private let workingDirectory: String
 
+    // MARK: - Combine Publishers
+
+    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(
+        .stopped
+    )
+    private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
+
+    public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
+        statusSubject.eraseToAnyPublisher()
+    }
+
+    public var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
+        isLoadingStatusSubject.eraseToAnyPublisher()
+    }
+
     // MARK: - LambdaService Protocol
+
+    public static let persistenceKey = "localXcode"
 
     public var port: Int { lambdaHostPort }
 
     public var endpoint: String {
         "http://localhost:\(lambdaHostPort)/invoke"
     }
+
+    public var endpointLabel: String { "Local Lambda Endpoint" }
+
+    public var endpointHelpText: String {
+        "Make sure local Lambda is running on port \(lambdaHostPort)"
+    }
+
+    public var apiClient: APIClient {
+        APIClient(localPort: lambdaHostPort)
+    }
+
+    public var isConfigured: Bool { true }
 
     public init(workingDirectory: String) {
         self.dockerService = DockerService()
@@ -351,6 +382,23 @@ public class XcodeLocalService: LambdaService {
             s3State: s3Running ? .running : .stopped,
             postgresState: postgresRunning ? .running : .stopped
         )
+    }
+
+    /// Refresh status and publish results via Combine publishers
+    public func refreshStatus() {
+        let statusSubject = self.statusSubject
+        let isLoadingStatusSubject = self.isLoadingStatusSubject
+
+        isLoadingStatusSubject.send(true)
+        Task {
+            do {
+                let newStatus = try await self.status()
+                statusSubject.send(newStatus)
+            } catch {
+                statusSubject.send(.stopped)
+            }
+            isLoadingStatusSubject.send(false)
+        }
     }
 
     /// Check if Lambda is running (native process on port, not Docker)

@@ -25,10 +25,12 @@ extension AWSCommand {
         print("📊 Checking status...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
-        let remoteService = RemoteService(
-            projectRoot: projectRoot,
-            awsConfig: awsConfig
-        )
+        let remoteService = await MainActor.run {
+            RemoteService(
+                projectRoot: projectRoot,
+                awsConfig: awsConfig
+            )
+        }
         let gitService = GitService(repoPath: projectRoot)
 
         // Git status

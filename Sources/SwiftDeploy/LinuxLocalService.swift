@@ -1,4 +1,5 @@
 import Client
+import Combine
 import Foundation
 
 /// Configuration for Lambda container
@@ -29,6 +30,7 @@ public struct LinuxContainerConfig: Sendable {
 
 /// Service for Linux container deployment workflow (AWS Lambda compatible)
 /// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
+@MainActor
 public class LinuxLocalService: LambdaService {
     private let dockerService: DockerService
     private let cliService: CLIService
@@ -40,13 +42,40 @@ public class LinuxLocalService: LambdaService {
     // Working directory
     private let workingDirectory: String
 
+    // MARK: - Combine Publishers
+
+    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
+    private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
+
+    public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
+        statusSubject.eraseToAnyPublisher()
+    }
+
+    public var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
+        isLoadingStatusSubject.eraseToAnyPublisher()
+    }
+
     // MARK: - LambdaService Protocol
+
+    public static let persistenceKey = "localLinux"
 
     public var port: Int { config.hostPort }
 
     public var endpoint: String {
         "http://localhost:\(config.hostPort)/invoke"
     }
+
+    public var endpointLabel: String { "Local Lambda Endpoint" }
+
+    public var endpointHelpText: String {
+        "Make sure local Lambda container is running on port \(config.hostPort)"
+    }
+
+    public var apiClient: APIClient {
+        APIClient(localPort: config.hostPort)
+    }
+
+    public var isConfigured: Bool { true }
 
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
@@ -304,6 +333,23 @@ public class LinuxLocalService: LambdaService {
             s3State: s3Running ? .running : .stopped,
             postgresState: postgresRunning ? .running : .stopped
         )
+    }
+
+    /// Refresh status and publish results via Combine publishers
+    public func refreshStatus() {
+        let statusSubject = self.statusSubject
+        let isLoadingStatusSubject = self.isLoadingStatusSubject
+
+        isLoadingStatusSubject.send(true)
+        Task {
+            do {
+                let newStatus = try await self.status()
+                statusSubject.send(newStatus)
+            } catch {
+                statusSubject.send(.stopped)
+            }
+            isLoadingStatusSubject.send(false)
+        }
     }
 
     // MARK: - Linux-Specific Methods (Not in Protocol)

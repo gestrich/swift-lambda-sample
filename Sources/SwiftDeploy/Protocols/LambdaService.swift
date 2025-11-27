@@ -1,3 +1,5 @@
+import Client
+import Combine
 import Foundation
 
 // MARK: - Service State
@@ -23,6 +25,13 @@ public struct DeploymentStatus: Sendable {
         self.s3State = s3State
         self.postgresState = postgresState
     }
+
+    /// All services stopped
+    public static let stopped = DeploymentStatus(
+        lambdaState: .stopped,
+        s3State: .stopped,
+        postgresState: .stopped
+    )
 }
 
 // MARK: - Protocol
@@ -30,12 +39,28 @@ public struct DeploymentStatus: Sendable {
 /// Protocol for Lambda services (local and remote)
 /// XcodeLocalService, LinuxLocalService, and RemoteService conform to this protocol,
 /// enabling polymorphic usage and consistent CLI/UI experiences.
+@MainActor
 public protocol LambdaService {
+    /// Unique key for persistence (used for saving/restoring mode selection)
+    static var persistenceKey: String { get }
+
     /// The port where Lambda listens for requests
     var port: Int { get }
 
     /// The endpoint URL for invoking Lambda
     var endpoint: String { get }
+
+    /// Label for the endpoint field in UI
+    var endpointLabel: String { get }
+
+    /// Help text for the endpoint field in UI
+    var endpointHelpText: String { get }
+
+    /// API client for making requests to this service
+    var apiClient: APIClient { get }
+
+    /// Whether the service is configured and ready to use
+    var isConfigured: Bool { get }
 
     // MARK: - Build
 
@@ -73,6 +98,17 @@ public protocol LambdaService {
 
     /// Get the status of all services (Lambda, S3, PostgreSQL)
     func status() async throws -> DeploymentStatus
+
+    // MARK: - Combine Publishers
+
+    /// Publisher that emits status updates
+    var statusPublisher: AnyPublisher<DeploymentStatus, Never> { get }
+
+    /// Publisher that emits loading state updates
+    var isLoadingStatusPublisher: AnyPublisher<Bool, Never> { get }
+
+    /// Trigger a status refresh (results published via statusPublisher)
+    func refreshStatus()
 }
 
 // MARK: - Default Implementations

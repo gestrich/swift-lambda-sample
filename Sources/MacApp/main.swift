@@ -14,10 +14,12 @@ struct MacAppMain: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(config: config)
-                .task {
-                    // Fetch remote URL from CDK on app start
-                    await config.fetchRemoteURLFromCDK()
+            ContentView()
+                .environment(config)
+                .environment(config.apiClient)
+                .id(config.serviceId)
+                .onAppear {
+                    config.refreshStatus()
                 }
         }
         .defaultSize(width: 700, height: 600)

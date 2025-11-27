@@ -21,10 +21,12 @@ extension AWSCommand {
             useAWSVault: nil
         )
 
-        let remoteService = RemoteService(
-            projectRoot: projectRoot,
-            awsConfig: awsConfig
-        )
+        let remoteService = await MainActor.run {
+            RemoteService(
+                projectRoot: projectRoot,
+                awsConfig: awsConfig
+            )
+        }
 
         try await remoteService.updateLambdaCode(skipPush: skipPush)
 

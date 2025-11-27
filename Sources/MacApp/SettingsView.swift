@@ -4,12 +4,26 @@ import SwiftDeploy
 
 struct SettingsView: View {
     @Environment(APIConfiguration.self) var config
-    @State private var serviceStatus = DeploymentStatus(lambdaState: .stopped, s3State: .stopped, postgresState: .stopped)
-    @State private var isLoadingStatus = false
+
+    private var modeBinding: Binding<String> {
+        Binding(
+            get: { config.mode.persistenceKey },
+            set: { key in
+                switch key {
+                case RemoteService.persistenceKey:
+                    config.setRemote()
+                case XcodeLocalService.persistenceKey:
+                    config.setLocalXcode()
+                case LinuxLocalService.persistenceKey:
+                    config.setLocalLinux()
+                default:
+                    break
+                }
+            }
+        )
+    }
 
     var body: some View {
-        @Bindable var config = config
-
         VStack(spacing: 20) {
             Text("Settings")
                 .font(.title)
@@ -21,71 +35,40 @@ struct SettingsView: View {
                 Text("API Configuration")
                     .font(.headline)
 
+                // Mode Picker
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Lambda Mode")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Picker("Mode", selection: $config.mode) {
-                        Text("Remote").tag(ConnectionMode.remote)
-                        Text("Local Xcode").tag(ConnectionMode.localXcode)
-                        Text("Local Linux").tag(ConnectionMode.localLinux)
+                    Picker("Lambda Mode", selection: modeBinding) {
+                        Text("Remote").tag(RemoteService.persistenceKey)
+                        Text("Local Xcode").tag(XcodeLocalService.persistenceKey)
+                        Text("Local Linux").tag(LinuxLocalService.persistenceKey)
                     }
                     .pickerStyle(.segmented)
-                    .onChange(of: config.mode) { _, newMode in
-                        onModeChanged(newMode)
-                    }
 
                     Text(config.mode.detailText)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
 
-                // Remote API Gateway URL (shown when in remote mode)
-                if config.mode == .remote {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("API Gateway URL")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                // Endpoint section
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(config.endpointLabel)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
-                        HStack {
-                            TextField("Fetched from CDK", text: .constant(config.remoteURL ?? "Not fetched yet"))
-                                .textFieldStyle(.roundedBorder)
-                                .disabled(true)
+                    TextField("Endpoint", text: .constant(config.endpoint))
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(true)
 
-                            Button(config.isLoadingRemoteURL ? "Fetching..." : "Fetch from CDK") {
-                                Task {
-                                    await config.fetchRemoteURLFromCDK()
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(config.isLoadingRemoteURL)
-                        }
-
-                        Text("URL is automatically fetched from deployed CDK stack")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
+                    Text(config.endpointHelpText)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
 
-                // Lambda endpoint info (shown for local modes)
-                if config.mode != .remote, let service = createService(for: config.mode) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Local Lambda Endpoint")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        TextField("Local endpoint", text: .constant(service.endpoint))
-                            .textFieldStyle(.roundedBorder)
-                            .disabled(true)
-
-                        Text("Make sure local Lambda is running on port \(service.port)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                // Service Status Section (shown for all modes)
+                // Service Status Section
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Service Status")
@@ -94,8 +77,8 @@ struct SettingsView: View {
 
                         Spacer()
 
-                        Button(action: { refreshStatus(for: config.mode) }) {
-                            if isLoadingStatus {
+                        Button(action: { config.refreshStatus() }) {
+                            if config.isLoadingStatus {
                                 ProgressView()
                                     .scaleEffect(0.7)
                             } else {
@@ -103,25 +86,21 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.borderless)
-                        .disabled(isLoadingStatus)
+                        .disabled(config.isLoadingStatus)
                     }
 
                     HStack(spacing: 20) {
-                        StatusIndicator(label: "Lambda", state: serviceStatus.lambdaState)
-                        StatusIndicator(label: "S3", state: serviceStatus.s3State)
-                        StatusIndicator(label: "PostgreSQL", state: serviceStatus.postgresState)
+                        StatusIndicator(label: "Lambda", state: config.status.lambdaState)
+                        StatusIndicator(label: "S3", state: config.status.s3State)
+                        StatusIndicator(label: "PostgreSQL", state: config.status.postgresState)
                     }
                     .padding(.vertical, 4)
                 }
 
-                Button("Reset All to Defaults") {
-                    resetAllSettings()
-                }
-                .buttonStyle(.bordered)
-
                 Divider()
                     .padding(.top)
 
+                // Current Configuration
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Current Configuration")
                         .font(.headline)
@@ -143,15 +122,13 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(config.isConfigured ? .green : .red)
                         }
-                        if let service = createService(for: config.mode) {
-                            HStack {
-                                Text("Endpoint:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(service.endpoint)
-                                    .font(.caption)
-                                    .textSelection(.enabled)
-                            }
+                        HStack {
+                            Text("Endpoint:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(config.endpoint)
+                                .font(.caption)
+                                .textSelection(.enabled)
                         }
                     }
                     .padding()
@@ -159,7 +136,7 @@ struct SettingsView: View {
                     .cornerRadius(8)
                 }
                 .onAppear {
-                    refreshStatus(for: config.mode)
+                    config.refreshStatus()
                 }
 
                 Divider()
@@ -182,61 +159,6 @@ struct SettingsView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func onModeChanged(_ newMode: ConnectionMode) {
-        // Auto-save when mode changes
-        config.save()
-        // Auto-refresh status for the new mode
-        refreshStatus(for: newMode)
-    }
-
-    private func resetAllSettings() {
-        config.clear()
-        refreshStatus(for: config.mode)
-    }
-
-    /// Create a service for a specific mode
-    private func createService(for mode: ConnectionMode) -> (any LambdaService)? {
-        let workingDir = FileManager.default.currentDirectoryPath
-
-        switch mode {
-        case .localXcode:
-            return XcodeLocalService(workingDirectory: workingDir)
-        case .localLinux:
-            return LinuxLocalService(workingDirectory: workingDir)
-        case .remote:
-            // Load AWS config for remote service
-            guard let awsConfig = AWSAuthConfiguration.loadConfig() else {
-                print("Warning: No AWS config found for remote service")
-                return nil
-            }
-            return RemoteService(projectRoot: workingDir, awsConfig: awsConfig)
-        }
-    }
-
-    /// Refresh the status of services
-    private func refreshStatus(for mode: ConnectionMode) {
-        guard let service = createService(for: mode) else {
-            return
-        }
-
-        isLoadingStatus = true
-        Task {
-            do {
-                let status = try await service.status()
-                await MainActor.run {
-                    self.serviceStatus = status
-                    self.isLoadingStatus = false
-                }
-            } catch {
-                await MainActor.run {
-                    // On error, show all stopped
-                    self.serviceStatus = DeploymentStatus(lambdaState: .stopped, s3State: .stopped, postgresState: .stopped)
-                    self.isLoadingStatus = false
-                }
-            }
-        }
     }
 }
 

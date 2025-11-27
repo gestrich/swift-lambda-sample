@@ -47,7 +47,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopAllServices()
             try await service.startS3()
             try await service.startDatabase()
@@ -62,7 +62,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopAllServices()
         }
     }
@@ -75,7 +75,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.startDatabase()
         }
     }
@@ -88,7 +88,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopDatabase()
         }
     }
@@ -101,7 +101,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.startS3()
         }
     }
@@ -114,7 +114,7 @@ extension LocalCommand.ServicesCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopS3()
         }
     }
@@ -155,7 +155,8 @@ extension LocalCommand.XcodeCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let clean = self.clean
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.buildLambda(clean: clean)
         }
     }
@@ -168,7 +169,7 @@ extension LocalCommand.XcodeCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.startLambda()
         }
     }
@@ -181,7 +182,7 @@ extension LocalCommand.XcodeCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopLambda()
         }
     }
@@ -194,7 +195,7 @@ extension LocalCommand.XcodeCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.startWithServices()
         }
     }
@@ -207,7 +208,7 @@ extension LocalCommand.XcodeCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopWithServices()
         }
     }
@@ -220,7 +221,7 @@ extension LocalCommand.XcodeCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.testLambda()
         }
     }
@@ -233,7 +234,7 @@ extension LocalCommand.XcodeCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             let status = try await service.status()
             printStatus(status, mode: "Xcode (Native)")
         }
@@ -277,7 +278,8 @@ extension LocalCommand.LinuxCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let clean = self.clean
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.buildLambda(clean: clean)
         }
     }
@@ -290,7 +292,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.startLambda()
         }
     }
@@ -303,7 +305,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopLambda()
         }
     }
@@ -316,7 +318,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.startWithServices()
         }
     }
@@ -329,7 +331,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.stopWithServices()
         }
     }
@@ -342,7 +344,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.testLambda()
         }
     }
@@ -355,7 +357,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             let status = try await service.status()
             printStatus(status, mode: "Linux (Container)")
         }
@@ -369,7 +371,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.setupDockerNetwork()
         }
     }
@@ -382,7 +384,7 @@ extension LocalCommand.LinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.runInteractive()
         }
     }
@@ -399,7 +401,7 @@ extension LocalCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.copyConfig()
         }
     }

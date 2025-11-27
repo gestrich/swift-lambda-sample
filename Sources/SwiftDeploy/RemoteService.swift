@@ -1,4 +1,5 @@
 import Client
+import Combine
 import Foundation
 
 /// Detected state of deployed infrastructure
@@ -11,20 +12,54 @@ public struct DeployedState: Sendable {
 /// Service for remote AWS Lambda deployment and management
 /// Conforms to LambdaService for consistency with local services
 /// Start/stop lifecycle operations are no-ops since remote services are managed by AWS
+@MainActor
 public class RemoteService: LambdaService {
     private let cdkService: CDKService
     private let awsService: AWSCLIService
     private let cliService: CLIService
     private let projectRoot: String
 
-    private var _endpoint: String?
+    private var _endpoint: String? {
+        didSet {
+            if let endpoint = _endpoint {
+                UserDefaults.standard.set(endpoint, forKey: Self.endpointKey)
+            }
+        }
+    }
+
+    private static let endpointKey = "remoteService.endpoint"
+
+    // MARK: - Combine Publishers
+
+    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
+    private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
+
+    public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
+        statusSubject.eraseToAnyPublisher()
+    }
+
+    public var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
+        isLoadingStatusSubject.eraseToAnyPublisher()
+    }
 
     // MARK: - LambdaService Protocol Properties
+
+    public static let persistenceKey = "remote"
 
     public var port: Int { 443 }
 
     public var endpoint: String {
         _endpoint ?? "https://<not-configured>"
+    }
+
+    public var endpointLabel: String { "API Gateway URL" }
+
+    public var endpointHelpText: String {
+        "URL is automatically fetched when refreshing status"
+    }
+
+    public var apiClient: APIClient {
+        APIClient(baseURL: endpoint)
     }
 
     // MARK: - Initialization
@@ -41,11 +76,25 @@ public class RemoteService: LambdaService {
         )
         self.awsService = AWSCLIService(awsConfig: awsConfig)
         self.cliService = CLIService.shared
+
+        // Load persisted endpoint
+        self._endpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
     }
 
-    /// Set the endpoint URL manually
+    /// Convenience initializer for workingDirectory-based initialization (matches local services)
+    /// Requires AWS config to be available in ~/.swiftSampleDemo/aws-config.json
+    public convenience init(workingDirectory: String) {
+        let awsConfig = AWSAuthConfiguration.loadConfig() ?? AWSAuthConfiguration(profileName: "default", useAWSVault: false)
+        self.init(projectRoot: workingDirectory, awsConfig: awsConfig)
+    }
+
+    /// Set the endpoint URL manually (persisted to UserDefaults)
     public func setEndpoint(_ url: String) {
         _endpoint = url
+    }
+
+    public var isConfigured: Bool {
+        _endpoint != nil
     }
 
     /// Fetch and cache endpoint from CDK stack
@@ -179,6 +228,29 @@ public class RemoteService: LambdaService {
                 s3State: .stopped,
                 postgresState: .stopped
             )
+        }
+    }
+
+    /// Refresh status and publish results via Combine publishers
+    /// Also fetches endpoint from CDK if not configured
+    public func refreshStatus() {
+        let statusSubject = self.statusSubject
+        let isLoadingStatusSubject = self.isLoadingStatusSubject
+
+        isLoadingStatusSubject.send(true)
+        Task {
+            // Fetch endpoint if not configured
+            if !isConfigured {
+                try? await fetchEndpoint()
+            }
+
+            do {
+                let newStatus = try await self.status()
+                statusSubject.send(newStatus)
+            } catch {
+                statusSubject.send(.stopped)
+            }
+            isLoadingStatusSubject.send(false)
         }
     }
 
