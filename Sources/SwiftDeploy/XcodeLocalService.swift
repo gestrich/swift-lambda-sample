@@ -74,6 +74,7 @@ public class XcodeLocalService: LambdaService {
 
     /// Start all services (PostgreSQL + MinIO)
     public func startAllServices() async throws {
+        try await dockerService.ensureDockerRunning()
         try await stopAllServices()
         try await minioService.start()
         try await postgresService.start()
@@ -87,6 +88,7 @@ public class XcodeLocalService: LambdaService {
 
     /// Start MinIO S3 service
     public func startS3() async throws {
+        try await dockerService.ensureDockerRunning()
         try await minioService.start()
     }
 
@@ -102,6 +104,7 @@ public class XcodeLocalService: LambdaService {
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
+        try await dockerService.ensureDockerRunning()
         try await postgresService.start()
     }
 

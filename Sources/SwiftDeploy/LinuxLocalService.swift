@@ -97,6 +97,7 @@ public class LinuxLocalService: LambdaService {
 
     /// Start all services (PostgreSQL + MinIO)
     public func startAllServices() async throws {
+        try await dockerService.ensureDockerRunning()
         try await stopAllServices()
         try await minioService.start()
         try await postgresService.start()
@@ -110,6 +111,7 @@ public class LinuxLocalService: LambdaService {
 
     /// Start MinIO S3 service
     public func startS3() async throws {
+        try await dockerService.ensureDockerRunning()
         try await minioService.start()
     }
 
@@ -125,6 +127,7 @@ public class LinuxLocalService: LambdaService {
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
+        try await dockerService.ensureDockerRunning()
         try await postgresService.start()
     }
 
@@ -444,6 +447,9 @@ public class LinuxLocalService: LambdaService {
 
     /// Start Lambda container in detached mode (for automated testing)
     public func startDetached(lambdaPath: String? = nil) async throws {
+        // Ensure Docker is running
+        try await dockerService.ensureDockerRunning()
+
         // Determine lambda path
         let lambdaDir = lambdaPath ?? "\(workingDirectory)/lambda"
 

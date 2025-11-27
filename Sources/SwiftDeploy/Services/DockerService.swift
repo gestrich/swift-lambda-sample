@@ -8,6 +8,72 @@ public actor DockerService {
         self.cliService = CLIService.shared
     }
 
+    // MARK: - Docker Daemon
+
+    /// Check if Docker daemon is running
+    public func isDockerRunning() async -> Bool {
+        do {
+            let result = try await cliService.execute(
+                command: "docker",
+                arguments: ["info"],
+                printCommand: false
+            )
+            return result.isSuccess
+        } catch {
+            return false
+        }
+    }
+
+    /// Start Docker Desktop application
+    public func startDockerDesktop() async throws {
+        print("🐳 Starting Docker Desktop...")
+
+        // Open Docker Desktop app
+        let result = try await cliService.execute(
+            command: "open",
+            arguments: ["-a", "Docker"],
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "open -a Docker",
+                exitCode: result.exitCode,
+                stderr: "Failed to start Docker Desktop. Is it installed?"
+            )
+        }
+
+        // Wait for Docker daemon to be ready
+        print("   Waiting for Docker daemon to be ready...")
+        let maxAttempts = 60  // Wait up to 60 seconds
+        for attempt in 1...maxAttempts {
+            if await isDockerRunning() {
+                print("   ✅ Docker is ready")
+                return
+            }
+            try await Task.sleep(for: .seconds(1))
+            if attempt % 10 == 0 {
+                print("   Still waiting... (\(attempt)s)")
+            }
+        }
+
+        throw CLIError.commandFailed(
+            command: "docker",
+            exitCode: 1,
+            stderr: "Docker Desktop started but daemon did not become ready within 60 seconds."
+        )
+    }
+
+    /// Ensure Docker daemon is running, starting Docker Desktop if needed
+    public func ensureDockerRunning() async throws {
+        if await isDockerRunning() {
+            return
+        }
+
+        // Try to start Docker Desktop
+        try await startDockerDesktop()
+    }
+
     // MARK: - Container Management
 
     public struct RunOptions {
@@ -192,40 +258,49 @@ public actor DockerService {
         context: String = ".",
         options: BuildOptions = BuildOptions()
     ) async throws {
-        var arguments = ["build"]
+        var dockerArgs = ["build"]
 
         // Platform
         if let platform = options.platform {
-            arguments.append(contentsOf: ["--platform", platform])
+            dockerArgs.append(contentsOf: ["--platform", platform])
         }
 
         // Tag
         if let tag = options.tag {
-            arguments.append(contentsOf: ["-t", tag])
+            dockerArgs.append(contentsOf: ["-t", tag])
         }
 
         // Dockerfile
         if let file = options.file {
-            arguments.append(contentsOf: ["-f", file])
+            dockerArgs.append(contentsOf: ["-f", file])
         }
 
         // Build args
         for (key, value) in options.buildArgs {
-            arguments.append(contentsOf: ["--build-arg", "\(key)=\(value)"])
+            dockerArgs.append(contentsOf: ["--build-arg", "\(key)=\(value)"])
         }
 
         // Secrets
         for (id, src) in options.secrets {
-            arguments.append(contentsOf: ["--secret", "id=\(id),src=\(src)"])
+            dockerArgs.append(contentsOf: ["--secret", "id=\(id),src=\(src)"])
         }
 
         // Context
-        arguments.append(context)
+        dockerArgs.append(context)
+
+        // Use shell with cd to ensure we're in the right directory
+        // Docker buildkit can have issues with process.currentDirectoryURL
+        let dockerCommand = "docker " + dockerArgs.joined(separator: " ")
+        let fullCommand: String
+        if let workDir = options.workingDirectory {
+            fullCommand = "cd \"\(workDir)\" && \(dockerCommand)"
+        } else {
+            fullCommand = dockerCommand
+        }
 
         let result = try await cliService.execute(
-            command: "docker",
-            arguments: arguments,
-            workingDirectory: options.workingDirectory
+            command: "/bin/sh",
+            arguments: ["-c", fullCommand]
         )
 
         guard result.isSuccess else {
