@@ -1,5 +1,32 @@
 import Foundation
 
+// MARK: - Service State
+
+/// State of a service component
+public enum ServiceState: String, Sendable, CustomStringConvertible {
+    case running
+    case stopped
+
+    public var description: String {
+        rawValue
+    }
+}
+
+/// Status of all local deployment services
+public struct LocalServiceStatus: Sendable {
+    public let lambdaState: ServiceState
+    public let minioState: ServiceState
+    public let postgresState: ServiceState
+
+    public init(lambdaState: ServiceState, minioState: ServiceState, postgresState: ServiceState) {
+        self.lambdaState = lambdaState
+        self.minioState = minioState
+        self.postgresState = postgresState
+    }
+}
+
+// MARK: - Protocol
+
 /// Protocol for local Lambda deployment services
 /// Both XcodeLocalService and LinuxLocalService conform to this protocol,
 /// enabling polymorphic usage and consistent CLI/UI experiences.
@@ -41,6 +68,11 @@ public protocol LocalDeploymentService {
     /// Wait for Lambda to be ready
     /// - Parameter maxAttempts: Maximum number of seconds to wait (default 30)
     func waitForReady(maxAttempts: Int) async throws
+
+    // MARK: - Status
+
+    /// Get the status of all services (Lambda, MinIO, PostgreSQL)
+    func status() async throws -> LocalServiceStatus
 }
 
 // MARK: - Default Implementations

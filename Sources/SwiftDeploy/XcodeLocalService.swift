@@ -333,6 +333,52 @@ public class XcodeLocalService: LocalDeploymentService {
         print("\n✅ Runtime config copied to ~/.swiftSampleDemo/")
     }
 
+    // MARK: - LocalDeploymentService Protocol: Status
+
+    /// Get the status of all services (Lambda, MinIO, PostgreSQL)
+    public func status() async throws -> LocalServiceStatus {
+        // Check Lambda (native process on port)
+        let lambdaRunning = await isLambdaRunning()
+
+        // Check MinIO
+        let minioRunning = try await minioService.isRunning()
+
+        // Check PostgreSQL
+        let postgresRunning = try await postgresService.isRunning()
+
+        return LocalServiceStatus(
+            lambdaState: lambdaRunning ? .running : .stopped,
+            minioState: minioRunning ? .running : .stopped,
+            postgresState: postgresRunning ? .running : .stopped
+        )
+    }
+
+    /// Check if Lambda is running (native process on port, not Docker)
+    private func isLambdaRunning() async -> Bool {
+        do {
+            let result = try await cliService.execute(
+                command: "lsof",
+                arguments: ["-i", ":\(lambdaHostPort)"],
+                printCommand: false
+            )
+            // Check if there's a native SwiftLambda process (not Docker)
+            // Docker processes show as "com.docke" or "docker" in lsof output
+            if result.isSuccess && !result.stdout.isEmpty {
+                let lines = result.stdout.components(separatedBy: "\n")
+                for line in lines {
+                    let lowercased = line.lowercased()
+                    // Look for SwiftLambda process, exclude Docker
+                    if lowercased.contains("swiftlamb") && !lowercased.contains("docker") {
+                        return true
+                    }
+                }
+            }
+            return false
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Private Helpers
 
     /// Get standard Lambda environment variables for local testing

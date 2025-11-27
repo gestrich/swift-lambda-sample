@@ -286,6 +286,26 @@ public class LinuxLocalService: LocalDeploymentService {
         print("✅ All Lambda container tests passed!")
     }
 
+    // MARK: - LocalDeploymentService Protocol: Status
+
+    /// Get the status of all services (Lambda, MinIO, PostgreSQL)
+    public func status() async throws -> LocalServiceStatus {
+        // Check Lambda container
+        let lambdaRunning = try await isRunning()
+
+        // Check MinIO
+        let minioRunning = try await minioService.isRunning()
+
+        // Check PostgreSQL
+        let postgresRunning = try await postgresService.isRunning()
+
+        return LocalServiceStatus(
+            lambdaState: lambdaRunning ? .running : .stopped,
+            minioState: minioRunning ? .running : .stopped,
+            postgresState: postgresRunning ? .running : .stopped
+        )
+    }
+
     // MARK: - Linux-Specific Methods (Not in Protocol)
 
     /// Setup Docker network for Lambda container

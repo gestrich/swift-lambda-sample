@@ -130,9 +130,10 @@ extension LocalCommand {
             abstract: "Native macOS Xcode development workflow (fast iteration)",
             subcommands: [
                 BuildCommand.self,
-                StartCommand.self,
-                StopCommand.self,
                 StartAllCommand.self,
+                StartCommand.self,
+                StatusCommand.self,
+                StopCommand.self,
                 StopAllCommand.self,
                 TestCommand.self
             ]
@@ -223,6 +224,20 @@ extension LocalCommand.XcodeCommand {
             try await service.testLambda()
         }
     }
+
+    /// Show status of all services
+    struct StatusCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "status",
+            abstract: "Show status of Lambda and services (PostgreSQL + MinIO)"
+        )
+
+        func run() async throws {
+            let service = XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let status = try await service.status()
+            printStatus(status, mode: "Xcode (Native)")
+        }
+    }
 }
 
 // MARK: - Linux Container Development (AWS-compatible)
@@ -235,13 +250,14 @@ extension LocalCommand {
             abstract: "Linux container deployment workflow (AWS Lambda compatible)",
             subcommands: [
                 BuildCommand.self,
-                StartCommand.self,
-                StopCommand.self,
-                StartAllCommand.self,
-                StopAllCommand.self,
-                TestCommand.self,
+                RunInteractiveCommand.self,
                 SetupNetworkCommand.self,
-                RunInteractiveCommand.self
+                StartAllCommand.self,
+                StartCommand.self,
+                StatusCommand.self,
+                StopAllCommand.self,
+                StopCommand.self,
+                TestCommand.self
             ]
         )
     }
@@ -331,6 +347,20 @@ extension LocalCommand.LinuxCommand {
         }
     }
 
+    /// Show status of all services
+    struct StatusCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "status",
+            abstract: "Show status of Lambda container and services (PostgreSQL + MinIO)"
+        )
+
+        func run() async throws {
+            let service = LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let status = try await service.status()
+            printStatus(status, mode: "Linux (Container)")
+        }
+    }
+
     /// Setup Docker network (Linux-specific)
     struct SetupNetworkCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -373,4 +403,21 @@ extension LocalCommand {
             try await service.copyConfig()
         }
     }
+}
+
+// MARK: - Status Helper
+
+/// Print status in a formatted way
+private func printStatus(_ status: LocalServiceStatus, mode: String) {
+    let lambdaIcon = status.lambdaState == .running ? "✅" : "⏹️"
+    let minioIcon = status.minioState == .running ? "✅" : "⏹️"
+    let postgresIcon = status.postgresState == .running ? "✅" : "⏹️"
+
+    print("")
+    print("📊 Local Services Status (\(mode))")
+    print("─────────────────────────────────")
+    print("\(lambdaIcon) Lambda:     \(status.lambdaState)")
+    print("\(minioIcon) MinIO (S3): \(status.minioState)")
+    print("\(postgresIcon) PostgreSQL: \(status.postgresState)")
+    print("")
 }

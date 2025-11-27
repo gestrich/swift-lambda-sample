@@ -6,6 +6,8 @@ struct SettingsView: View {
     @Environment(APIConfiguration.self) var config
     @State private var editedMode: ConnectionMode = .remote
     @State private var showingSuccess = false
+    @State private var serviceStatus: LocalServiceStatus?
+    @State private var isLoadingStatus = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -77,6 +79,41 @@ struct SettingsView: View {
                         Text("Make sure local Lambda is running on port \(localService.port)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                    }
+
+                    // Service Status Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Service Status")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
+                            Button(action: { refreshStatus() }) {
+                                if isLoadingStatus {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(isLoadingStatus)
+                        }
+
+                        if let status = serviceStatus {
+                            HStack(spacing: 20) {
+                                StatusIndicator(label: "Lambda", state: status.lambdaState)
+                                StatusIndicator(label: "MinIO", state: status.minioState)
+                                StatusIndicator(label: "PostgreSQL", state: status.postgresState)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            Text("Click refresh to check status")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
 
@@ -233,6 +270,47 @@ struct SettingsView: View {
             return LinuxLocalService(workingDirectory: workingDir)
         case .remote:
             return nil
+        }
+    }
+
+    /// Refresh the status of local services
+    private func refreshStatus() {
+        guard let service = createLocalService(for: editedMode) else {
+            serviceStatus = nil
+            return
+        }
+
+        isLoadingStatus = true
+        Task {
+            do {
+                let status = try await service.status()
+                await MainActor.run {
+                    self.serviceStatus = status
+                    self.isLoadingStatus = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.serviceStatus = nil
+                    self.isLoadingStatus = false
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Status Indicator View
+
+private struct StatusIndicator: View {
+    let label: String
+    let state: ServiceState
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(state == .running ? Color.green : Color.gray)
+                .frame(width: 8, height: 8)
+            Text(label)
+                .font(.caption2)
         }
     }
 }
