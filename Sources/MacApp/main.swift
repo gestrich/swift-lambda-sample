@@ -17,7 +17,6 @@ struct MacAppMain: App {
             ContentView()
                 .environment(config)
                 .environment(config.apiClient)
-                .id(config.serviceId)
                 .onAppear {
                     config.refreshStatus()
                 }
