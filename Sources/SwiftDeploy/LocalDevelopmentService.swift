@@ -2,11 +2,10 @@ import Client
 import Foundation
 
 /// Service for managing local development environment (Docker services, testing)
-public actor LocalDevelopmentService {
+public class LocalDevelopmentService {
     private let dockerService: DockerService
     private let cliService: CLIService
 
-    // Extracted services
     private let postgresService: PostgreSQLService
     private let minioService: MinIOService
     private let lambdaContainerService: LambdaContainerService
@@ -18,10 +17,10 @@ public actor LocalDevelopmentService {
     private let workingDirectory: String
 
     // Public accessors for configuration
-    nonisolated public var port: Int { lambdaHostPort }
+    public var port: Int { lambdaHostPort }
 
     /// Get the local Lambda endpoint URL
-    nonisolated public var localEndpoint: String {
+    public var localEndpoint: String {
         "http://localhost:\(lambdaHostPort)/invoke"
     }
 
@@ -30,7 +29,6 @@ public actor LocalDevelopmentService {
         self.cliService = CLIService.shared
         self.workingDirectory = workingDirectory
 
-        // Initialize extracted services
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
             workingDirectory: workingDirectory
@@ -40,7 +38,6 @@ public actor LocalDevelopmentService {
             networkName: "lambda-local"
         )
 
-        // Initialize Lambda container service
         let containerConfig = LambdaContainerConfig(
             containerName: "lambda-test-container",
             swiftImage: "swift:6.2.0-amazonlinux2",
@@ -136,7 +133,7 @@ public actor LocalDevelopmentService {
     }
 
     /// Check if Lambda is already built
-    public nonisolated func isLambdaBuilt() -> Bool {
+    public func isLambdaBuilt() -> Bool {
         let lambdaDir = "\(workingDirectory)/lambda"
         let bootstrapPath = "\(lambdaDir)/bootstrap"
         let zipPath = "\(workingDirectory)/lambda.zip"
@@ -188,8 +185,6 @@ public actor LocalDevelopmentService {
         print("→ Starting Lambda on port \(lambdaHostPort)...")
 
         var env = getLambdaEnvironmentVariables()
-        env["LOCAL_LAMBDA_SERVER_ENABLED"] = "true"
-        env["LOCAL_LAMBDA_HOST"] = "0.0.0.0"
         env["LOCAL_LAMBDA_PORT"] = "\(lambdaHostPort)"
 
         // Build environment variable string for shell
@@ -289,8 +284,7 @@ public actor LocalDevelopmentService {
         try await lambdaContainerService.setupNetwork()
     }
 
-    /// Run Lambda in interactive Linux container (complete setup)
-    /// This command does everything: stops existing containers, starts services, sets up network, runs container
+    /// Run Lambda in Linux container
     public func runLambdaContainer() async throws {
         print("\n🚀 Setting up complete Lambda container environment...")
 
@@ -363,7 +357,7 @@ public actor LocalDevelopmentService {
 
     /// Get standard Lambda environment variables for local testing
     private func getLambdaEnvironmentVariables() -> [String: String] {
-        return lambdaContainerService.getEnvironmentVariables()
+        return createEnvironmentVariables(postgresService: postgresService, minioService: minioService)
     }
 
     /// Create an API client configured for local Lambda testing
