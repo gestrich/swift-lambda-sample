@@ -222,11 +222,13 @@ public class XcodeLocalService: LambdaService {
 
         if lsofResult.isSuccess && !lsofResult.stdout.isEmpty {
             // Split PIDs by newlines in case there are multiple processes
+            // Filter out current process to avoid killing ourselves (e.g., MacApp running from Xcode)
+            let currentPID = String(ProcessInfo.processInfo.processIdentifier)
             let pids = lsofResult.stdout
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .split(separator: "\n")
                 .map(String.init)
-                .filter { !$0.isEmpty }
+                .filter { !$0.isEmpty && $0 != currentPID }
 
             guard !pids.isEmpty else {
                 print("⚠️  No Lambda process found on port \(lambdaHostPort)")
