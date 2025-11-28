@@ -6,11 +6,14 @@
 //
 
 import Foundation
+import LocalStorageService
 
 /// AWS authentication configuration for SwiftDeploy CLI
 public struct AWSAuthConfiguration: Codable, Sendable {
     public let profileName: String
     public let useAWSVault: Bool
+
+    private static let storageService = LocalStorageService()
 
     public init(profileName: String, useAWSVault: Bool = false) {
         self.profileName = profileName
@@ -21,8 +24,7 @@ public struct AWSAuthConfiguration: Codable, Sendable {
 
     /// Path to AWS configuration file
     public static var configPath: String {
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser
-        return homeDir.appendingPathComponent(".swiftSampleDemo/aws-config.json").path
+        storageService.filePath(for: AWSConfigFileKey.self)
     }
 
     /// Load AWS auth configuration from file
@@ -40,4 +42,11 @@ public struct AWSAuthConfiguration: Codable, Sendable {
             return nil
         }
     }
+}
+
+// MARK: - Storage Keys
+
+/// Storage key for AWS configuration file
+public struct AWSConfigFileKey: StorageFileKey {
+    public static let filename = "aws-config.json"
 }

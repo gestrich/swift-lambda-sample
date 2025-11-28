@@ -1,53 +1,16 @@
 import Foundation
-
-/// Configuration for PostgreSQL service per deployment mode
-public enum PostgreSQLConfig: Sendable {
-    case xcode
-    case linux
-
-    var containerName: String {
-        switch self {
-        case .xcode: return "postgres-xcode"
-        case .linux: return "postgres-linux"
-        }
-    }
-
-    var imageName: String { "postgres:11" }
-
-    var port: Int {
-        switch self {
-        case .xcode: return 5432
-        case .linux: return 5433
-        }
-    }
-
-    var dataDirectoryName: String {
-        switch self {
-        case .xcode: return "xcode-data"
-        case .linux: return "linux-data"
-        }
-    }
-
-    // Use same database name for both modes - data isolation comes from separate containers
-    var database: String { "docker" }
-
-    var username: String { "docker" }
-    var password: String { "docker" }
-
-    // PostgreSQL always listens on port 5432 internally
-    var internalPort: Int { 5432 }
-}
+import LocalStorageService
 
 /// Service for managing local PostgreSQL database via Docker
 public actor PostgreSQLService {
     private let dockerService: DockerService
     private let config: PostgreSQLConfig
-    private let dataDirectory: String
+    private let storageService: LocalStorageService
 
-    public init(dockerService: DockerService, config: PostgreSQLConfig, baseDataDirectory: String) {
+    public init(dockerService: DockerService, config: PostgreSQLConfig, storageService: LocalStorageService) {
         self.dockerService = dockerService
         self.config = config
-        self.dataDirectory = "\(baseDataDirectory)/postgres/\(config.dataDirectoryName)"
+        self.storageService = storageService
     }
 
     /// Get connection information
@@ -68,13 +31,10 @@ public actor PostgreSQLService {
         print("\n🗄️  Starting PostgreSQL (\(config.containerName))...")
 
         // Create data directory if it doesn't exist
-        if !FileManager.default.fileExists(atPath: dataDirectory) {
-            print("→ Creating PostgreSQL data directory at \(dataDirectory)...")
-            try FileManager.default.createDirectory(
-                atPath: dataDirectory,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
+        let dataDir = storageService.dataDirectory(for: config.storageKeyType)
+        if !FileManager.default.fileExists(atPath: dataDir) {
+            print("→ Creating PostgreSQL data directory at \(dataDir)...")
+            try storageService.ensureDataDirectoryExists(for: config.storageKeyType)
         }
 
         // Run PostgreSQL container with host directory for data persistence
@@ -84,7 +44,7 @@ public actor PostgreSQLService {
         runOptions.detached = true
         runOptions.ports = [(config.port, config.internalPort)]
         runOptions.name = config.containerName
-        runOptions.volumes = [(dataDirectory, "/var/lib/postgresql/data")]
+        runOptions.volumes = [(dataDir, "/var/lib/postgresql/data")]
         runOptions.environment = [
             "POSTGRES_USER": config.username,
             "POSTGRES_PASSWORD": config.password,
@@ -100,7 +60,7 @@ public actor PostgreSQLService {
         print("   - Host: localhost:\(config.port)")
         print("   - Database: \(config.database)")
         print("   - Credentials: \(config.username)/\(config.password)")
-        print("   - Data: \(dataDirectory)")
+        print("   - Data: \(dataDir)")
     }
 
     /// Stop PostgreSQL database
@@ -129,6 +89,8 @@ public actor PostgreSQLService {
     }
 }
 
+// MARK: - Supporting Types
+
 /// Connection information for PostgreSQL
 public struct PostgreSQLConnectionInfo: Sendable {
     public let host: String
@@ -138,4 +100,54 @@ public struct PostgreSQLConnectionInfo: Sendable {
     public let password: String
     public let database: String
     public let containerName: String
+}
+
+/// Configuration for PostgreSQL service per deployment mode
+public enum PostgreSQLConfig: Sendable {
+    case xcode
+    case linux
+
+    var containerName: String {
+        switch self {
+        case .xcode: return "postgres-xcode"
+        case .linux: return "postgres-linux"
+        }
+    }
+
+    var imageName: String { "postgres:11" }
+
+    var port: Int {
+        switch self {
+        case .xcode: return 5432
+        case .linux: return 5433
+        }
+    }
+
+    var storageKeyType: any StoragePathKey.Type {
+        switch self {
+        case .xcode: return PostgreSQLXcodeStorageKey.self
+        case .linux: return PostgreSQLLinuxStorageKey.self
+        }
+    }
+
+    // Use same database name for both modes - data isolation comes from separate containers
+    var database: String { "docker" }
+
+    var username: String { "docker" }
+    var password: String { "docker" }
+
+    // PostgreSQL always listens on port 5432 internally
+    var internalPort: Int { 5432 }
+}
+
+// MARK: - Storage Keys
+
+/// Storage key for PostgreSQL Xcode workflow data
+public struct PostgreSQLXcodeStorageKey: StoragePathKey {
+    public static let pathComponent = "postgres/xcode-data"
+}
+
+/// Storage key for PostgreSQL Linux workflow data
+public struct PostgreSQLLinuxStorageKey: StoragePathKey {
+    public static let pathComponent = "postgres/linux-data"
 }

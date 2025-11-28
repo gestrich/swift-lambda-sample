@@ -1,59 +1,18 @@
 import Foundation
-
-/// Configuration for MinIO service per deployment mode
-public enum MinIOConfig: Sendable {
-    case xcode
-    case linux
-
-    var containerName: String {
-        switch self {
-        case .xcode: return "minio-xcode"
-        case .linux: return "minio-linux"
-        }
-    }
-
-    var s3Port: Int {
-        switch self {
-        case .xcode: return 9000
-        case .linux: return 9002
-        }
-    }
-
-    var consolePort: Int {
-        switch self {
-        case .xcode: return 9001
-        case .linux: return 9003
-        }
-    }
-
-    var dataDirectoryName: String {
-        switch self {
-        case .xcode: return "xcode-data"
-        case .linux: return "linux-data"
-        }
-    }
-
-    // Use same bucket name for both modes - data isolation comes from separate containers/data directories
-    var bucketName: String { "org.gestrich.sandbox" }
-
-    var imageName: String { "quay.io/minio/minio" }
-    var rootUser: String { "admin" }
-    var rootPassword: String { "password" }
-    var region: String { "us-east-1" }
-}
+import LocalStorageService
 
 /// Service for managing local MinIO S3 service via Docker
 public actor MinIOService {
     private let dockerService: DockerService
     private let networkName: String
     private let config: MinIOConfig
-    private let dataDirectory: String
+    private let storageService: LocalStorageService
 
-    public init(dockerService: DockerService, networkName: String, config: MinIOConfig, baseDataDirectory: String) {
+    public init(dockerService: DockerService, networkName: String, config: MinIOConfig, storageService: LocalStorageService) {
         self.dockerService = dockerService
         self.networkName = networkName
         self.config = config
-        self.dataDirectory = "\(baseDataDirectory)/minio/\(config.dataDirectoryName)"
+        self.storageService = storageService
     }
 
     /// Get S3 endpoint URL
@@ -102,13 +61,10 @@ public actor MinIOService {
 
         // Create MinIO data directory if it doesn't exist
         // Don't remove existing data - let MinIO reuse it
-        if !FileManager.default.fileExists(atPath: dataDirectory) {
-            print("→ Creating MinIO data directory at \(dataDirectory)...")
-            try FileManager.default.createDirectory(
-                atPath: dataDirectory,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
+        let dataDir = storageService.dataDirectory(for: config.storageKeyType)
+        if !FileManager.default.fileExists(atPath: dataDir) {
+            print("→ Creating MinIO data directory at \(dataDir)...")
+            try storageService.ensureDataDirectoryExists(for: config.storageKeyType)
         }
 
         // Get user ID and group ID
@@ -132,7 +88,7 @@ public actor MinIOService {
             "MINIO_ROOT_PASSWORD": config.rootPassword,
             "MINIO_REGION_NAME": config.region  // Modern MinIO uses MINIO_REGION_NAME
         ]
-        options.volumes = [(dataDirectory, "/data")]
+        options.volumes = [(dataDir, "/data")]
 
         try await dockerService.run(
             image: config.imageName,
@@ -202,9 +158,65 @@ public actor MinIOService {
     }
 }
 
+// MARK: - Supporting Types
+
 /// Credentials for MinIO S3 service
 public struct MinIOCredentials: Sendable {
     public let accessKeyId: String
     public let secretAccessKey: String
     public let region: String
+}
+
+/// Configuration for MinIO service per deployment mode
+public enum MinIOConfig: Sendable {
+    case xcode
+    case linux
+
+    var containerName: String {
+        switch self {
+        case .xcode: return "minio-xcode"
+        case .linux: return "minio-linux"
+        }
+    }
+
+    var s3Port: Int {
+        switch self {
+        case .xcode: return 9000
+        case .linux: return 9002
+        }
+    }
+
+    var consolePort: Int {
+        switch self {
+        case .xcode: return 9001
+        case .linux: return 9003
+        }
+    }
+
+    var storageKeyType: any StoragePathKey.Type {
+        switch self {
+        case .xcode: return MinIOXcodeStorageKey.self
+        case .linux: return MinIOLinuxStorageKey.self
+        }
+    }
+
+    // Use same bucket name for both modes - data isolation comes from separate containers/data directories
+    var bucketName: String { "org.gestrich.sandbox" }
+
+    var imageName: String { "quay.io/minio/minio" }
+    var rootUser: String { "admin" }
+    var rootPassword: String { "password" }
+    var region: String { "us-east-1" }
+}
+
+// MARK: - Storage Keys
+
+/// Storage key for MinIO Xcode workflow data
+public struct MinIOXcodeStorageKey: StoragePathKey {
+    public static let pathComponent = "minio/xcode-data"
+}
+
+/// Storage key for MinIO Linux workflow data
+public struct MinIOLinuxStorageKey: StoragePathKey {
+    public static let pathComponent = "minio/linux-data"
 }

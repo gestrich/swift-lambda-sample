@@ -22,6 +22,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
     ],
     targets: [
+        .target(
+            name: "LocalStorageService"
+        ),
         .executableTarget(
             name: "SwiftDeployCLI",
             dependencies: [
@@ -35,7 +38,8 @@ let package = Package(
         .target(
             name: "SwiftDeploy",
             dependencies: [
-                .target(name: "Client")
+                .target(name: "Client"),
+                .target(name: "LocalStorageService")
             ]
         ),
         .executableTarget(

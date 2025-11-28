@@ -1,6 +1,7 @@
 import Client
 import Combine
 import Foundation
+import LocalStorageService
 
 /// Service for native macOS Xcode development workflow (fast iteration)
 /// Uses native Swift toolchain for builds and direct process execution
@@ -14,6 +15,8 @@ public class XcodeLocalService: LambdaService {
 
     // Lambda configuration
     private let lambdaHostPort = 8080
+    private let lambdaProductName = "SwiftLambda"
+    private let lambdaProcessPattern = "swiftlamb"  // lsof truncates process names
 
     // Working directory
     private let workingDirectory: String
@@ -60,19 +63,18 @@ public class XcodeLocalService: LambdaService {
         self.cliService = CLIService.shared
         self.workingDirectory = workingDirectory
 
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let baseDataDirectory = "\(homeDir)/.swiftSampleDemo"
+        let storageService = LocalStorageService()
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
             config: .xcode,
-            baseDataDirectory: baseDataDirectory
+            storageService: storageService
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
             networkName: "lambda-xcode",
             config: .xcode,
-            baseDataDirectory: baseDataDirectory
+            storageService: storageService
         )
     }
 
@@ -132,33 +134,33 @@ public class XcodeLocalService: LambdaService {
 
     // MARK: - LambdaService Protocol: Build
 
-    /// Build Lambda for Linux
+    /// Build Lambda for macOS (native Swift build)
     public func buildLambda(clean: Bool = false) async throws {
-        print("\n🔨 Building Lambda for Linux...")
+        print("\n🔨 Building Lambda for macOS (native)...")
 
         // Clean if requested
         if clean {
             print("🧹 Cleaning previous build artifacts...")
             _ = try await cliService.execute(
-                command: "rm",
-                arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
+                command: "swift",
+                arguments: ["package", "clean"],
                 workingDirectory: workingDirectory,
                 printCommand: false
             )
             print("  ✅ Cleaned")
         }
 
-        // Build
+        // Build using native Swift toolchain (--product to get linked executable)
         let buildResult = try await cliService.execute(
-            command: "./build.sh",
-            arguments: ["SwiftLambda"],
+            command: "swift",
+            arguments: ["build", "--product", lambdaProductName],
             workingDirectory: workingDirectory,
             inheritIO: true  // Show build output in real-time
         )
 
         guard buildResult.isSuccess else {
             throw CLIError.commandFailed(
-                command: "build.sh SwiftLambda",
+                command: "swift build --product \(lambdaProductName)",
                 exitCode: buildResult.exitCode,
                 stderr: buildResult.stderr
             )
@@ -167,15 +169,45 @@ public class XcodeLocalService: LambdaService {
         print("✅ Build completed")
     }
 
-    /// Check if Lambda is already built
-    public func isLambdaBuilt() -> Bool {
-        let lambdaDir = "\(workingDirectory)/lambda"
-        let bootstrapPath = "\(lambdaDir)/bootstrap"
-        let zipPath = "\(workingDirectory)/lambda.zip"
+    /// Get the path to the built executable
+    private func getExecutablePath() async throws -> String {
+        // Get the bin path from Swift build
+        let result = try await cliService.execute(
+            command: "swift",
+            arguments: ["build", "--product", lambdaProductName, "--show-bin-path"],
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
 
-        return FileManager.default.fileExists(atPath: lambdaDir) &&
-               FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: zipPath)
+        guard result.isSuccess else {
+            throw CLIError.commandFailed(
+                command: "swift build --show-bin-path",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        let binPath = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(binPath)/\(lambdaProductName)"
+    }
+
+    /// Check if Lambda is already built (native macOS build)
+    public func isLambdaBuilt() -> Bool {
+        // Check synchronously using a known path pattern
+        // The actual architecture-specific path is determined at runtime
+        let debugDir = "\(workingDirectory)/.build"
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: debugDir) else {
+            return false
+        }
+
+        // Look for any architecture directory containing SwiftLambda
+        for item in contents {
+            let executablePath = "\(debugDir)/\(item)/debug/\(lambdaProductName)"
+            if FileManager.default.fileExists(atPath: executablePath) {
+                return true
+            }
+        }
+        return false
     }
 
     // MARK: - LambdaService Protocol: Lifecycle
@@ -190,7 +222,7 @@ public class XcodeLocalService: LambdaService {
         }
 
         // Get the built executable path
-        let executablePath = "\(workingDirectory)/.build/debug/SwiftLambda"
+        let executablePath = try await getExecutablePath()
 
         // Start Lambda in background with environment variables
         print("→ Starting Lambda on port \(lambdaHostPort)...")
@@ -395,19 +427,14 @@ public class XcodeLocalService: LambdaService {
     public func copyConfig(sourcePath: String? = nil) async throws {
         print("\n📝 Copying runtime config file...")
 
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let configDir = "\(homeDir)/.swiftSampleDemo"
+        let storageService = LocalStorageService()
 
-        // Create directory
-        try FileManager.default.createDirectory(
-            atPath: configDir,
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
+        // Ensure base directory exists
+        try storageService.ensureDirectoryExists(at: storageService.baseDataDirectory)
 
         // Copy swiftLambdaDemo.json (runtime app config)
-        let appConfigSource = sourcePath ?? "swiftLambdaDemo.json"
-        let appConfigDest = "\(configDir)/swiftLambdaDemo.json"
+        let appConfigSource = sourcePath ?? AppConfigFileKey.filename
+        let appConfigDest = storageService.filePath(for: AppConfigFileKey.self)
 
         guard FileManager.default.fileExists(atPath: appConfigSource) else {
             throw CLIError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
@@ -419,7 +446,7 @@ public class XcodeLocalService: LambdaService {
         try FileManager.default.copyItem(atPath: appConfigSource, toPath: appConfigDest)
         print("  ✓ Runtime config: \(appConfigDest)")
 
-        print("\n✅ Runtime config copied to ~/.swiftSampleDemo/")
+        print("\n✅ Runtime config copied to \(storageService.baseDataDirectory)/")
     }
 
     // MARK: - LambdaService Protocol: Status
@@ -467,14 +494,14 @@ public class XcodeLocalService: LambdaService {
                 arguments: ["-i", ":\(lambdaHostPort)"],
                 printCommand: false
             )
-            // Check if there's a native SwiftLambda process (not Docker)
+            // Check if there's a native Lambda process (not Docker)
             // Docker processes show as "com.docke" or "docker" in lsof output
             if result.isSuccess && !result.stdout.isEmpty {
                 let lines = result.stdout.components(separatedBy: "\n")
                 for line in lines {
                     let lowercased = line.lowercased()
-                    // Look for SwiftLambda process, exclude Docker
-                    if lowercased.contains("swiftlamb") && !lowercased.contains("docker") {
+                    // Look for Lambda process, exclude Docker
+                    if lowercased.contains(lambdaProcessPattern) && !lowercased.contains("docker") {
                         return true
                     }
                 }
@@ -563,4 +590,11 @@ public class XcodeLocalService: LambdaService {
             throw CLIError.testFailed(message: "Database endpoint test failed")
         }
     }
+}
+
+// MARK: - Storage Keys
+
+/// Storage key for app configuration file
+public struct AppConfigFileKey: StorageFileKey {
+    public static let filename = "swiftLambdaDemo.json"
 }

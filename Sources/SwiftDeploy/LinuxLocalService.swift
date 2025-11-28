@@ -1,6 +1,7 @@
 import Client
 import Combine
 import Foundation
+import LocalStorageService
 
 /// Service for Linux container deployment workflow (AWS Lambda compatible)
 /// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
@@ -57,19 +58,18 @@ public class LinuxLocalService: LambdaService {
         self.cliService = CLIService.shared
         self.config = .default(workingDirectory: workingDirectory)
 
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let baseDataDirectory = "\(homeDir)/.swiftSampleDemo"
+        let storageService = LocalStorageService()
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
             config: .linux,
-            baseDataDirectory: baseDataDirectory
+            storageService: storageService
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
             networkName: config.networkName,
             config: .linux,
-            baseDataDirectory: baseDataDirectory
+            storageService: storageService
         )
     }
 
