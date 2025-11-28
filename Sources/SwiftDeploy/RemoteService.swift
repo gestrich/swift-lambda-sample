@@ -111,16 +111,9 @@ public class RemoteService: LambdaService {
 
     // MARK: - LambdaService Protocol: Build
 
-    /// Build is handled via CI/CD pipeline (GitHub Actions)
-    /// This triggers a Lambda code update via git push
-    public func buildLambda(clean: Bool = false) async throws {
-        print("ℹ️  Remote Lambda is built via CI/CD pipeline")
-        print("   Use 'aws update-lambda' to deploy code changes")
-    }
-
-    /// Build with streaming output - for remote, just emit info message
-    public func buildWithStreaming(clean: Bool = false) async {
-        buildState.reset()
+    /// Build is handled via CI/CD pipeline (GitHub Actions), updating buildState
+    public func build(clean: Bool = false) async throws {
+        buildState.startBuild()
         buildState.appendOutput("ℹ️  Remote Lambda is built via CI/CD pipeline\n")
         buildState.appendOutput("   Use 'aws update-lambda' to deploy code changes\n")
         buildState.markSuccess()

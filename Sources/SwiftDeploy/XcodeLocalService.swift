@@ -138,44 +138,9 @@ public class XcodeLocalService: LambdaService {
 
     // MARK: - LambdaService Protocol: Build
 
-    /// Build Lambda for macOS (native Swift build)
-    public func buildLambda(clean: Bool = false) async throws {
-        print("\n🔨 Building Lambda for macOS (native)...")
-
-        // Clean if requested
-        if clean {
-            print("🧹 Cleaning previous build artifacts...")
-            _ = try await cliService.execute(
-                command: "swift",
-                arguments: ["package", "clean"],
-                workingDirectory: workingDirectory,
-                printCommand: false
-            )
-            print("  ✅ Cleaned")
-        }
-
-        // Build using native Swift toolchain (--product to get linked executable)
-        let buildResult = try await cliService.execute(
-            command: "swift",
-            arguments: ["build", "--product", lambdaProductName],
-            workingDirectory: workingDirectory,
-            inheritIO: true  // Show build output in real-time
-        )
-
-        guard buildResult.isSuccess else {
-            throw CLIError.commandFailed(
-                command: "swift build --product \(lambdaProductName)",
-                exitCode: buildResult.exitCode,
-                stderr: buildResult.stderr
-            )
-        }
-
-        print("✅ Build completed")
-    }
-
-    /// Build Lambda with streaming output, updating buildState
-    public func buildWithStreaming(clean: Bool = false) async {
-        buildState.reset()
+    /// Build Lambda for macOS (native Swift build), updating buildState
+    public func build(clean: Bool = false) async throws {
+        buildState.startBuild()
 
         // Clean if requested
         if clean {
@@ -191,7 +156,7 @@ public class XcodeLocalService: LambdaService {
             } catch {
                 buildState.appendOutput("  ❌ Clean failed: \(error)\n")
                 buildState.markFailed(exitCode: 1)
-                return
+                throw BuildError.failed(exitCode: 1)
             }
         }
 
@@ -216,6 +181,7 @@ public class XcodeLocalService: LambdaService {
             buildState.markSuccess()
         } else {
             buildState.markFailed(exitCode: exitCode)
+            throw BuildError.failed(exitCode: exitCode)
         }
     }
 
@@ -268,7 +234,7 @@ public class XcodeLocalService: LambdaService {
 
         // Build Lambda if not already built
         if !isLambdaBuilt() {
-            try await buildLambda()
+            try await build()
         }
 
         // Get the built executable path

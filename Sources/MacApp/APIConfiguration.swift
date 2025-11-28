@@ -47,12 +47,8 @@ enum ConnectionMode: LambdaService {
         service.isLoadingStatusPublisher
     }
 
-    func buildLambda(clean: Bool) async throws {
-        try await service.buildLambda(clean: clean)
-    }
-
-    func buildWithStreaming(clean: Bool) async {
-        await service.buildWithStreaming(clean: clean)
+    func build(clean: Bool) async throws {
+        try await service.build(clean: clean)
     }
 
     func isLambdaBuilt() -> Bool {
@@ -261,11 +257,11 @@ class APIConfiguration: LambdaService {
         }
     }
 
-    // MARK: - Build with Streaming Output
+    // MARK: - Build
 
-    /// Build Lambda with streaming output
-    func buildLambdaWithStreaming(clean: Bool = false) async {
-        await mode.buildWithStreaming(clean: clean)
+    /// Build Lambda, updating buildState
+    func buildLambda(clean: Bool = false) async throws {
+        try await mode.build(clean: clean)
     }
 
     private func subscribeToService(_ service: any LambdaService) {
@@ -326,12 +322,8 @@ class APIConfiguration: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
-    func buildLambda(clean: Bool) async throws {
-        try await mode.buildLambda(clean: clean)
-    }
-
-    func buildWithStreaming(clean: Bool) async {
-        await mode.buildWithStreaming(clean: clean)
+    func build(clean: Bool) async throws {
+        try await mode.build(clean: clean)
     }
 
     func isLambdaBuilt() -> Bool {

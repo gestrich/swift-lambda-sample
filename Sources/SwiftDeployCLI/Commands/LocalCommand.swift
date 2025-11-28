@@ -157,7 +157,7 @@ extension LocalCommand.XcodeCommand {
         func run() async throws {
             let clean = self.clean
             let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.buildLambda(clean: clean)
+            try await service.build(clean: clean)
         }
     }
 
@@ -280,7 +280,7 @@ extension LocalCommand.LinuxCommand {
         func run() async throws {
             let clean = self.clean
             let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.buildLambda(clean: clean)
+            try await service.build(clean: clean)
         }
     }
 

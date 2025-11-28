@@ -133,44 +133,9 @@ public class LinuxLocalService: LambdaService {
 
     // MARK: - LambdaService Protocol: Build
 
-    /// Build Lambda for Linux (AMD64) using Docker
-    public func buildLambda(clean: Bool = false) async throws {
-        print("\n🔨 Building Lambda for Linux...")
-
-        // Clean if requested
-        if clean {
-            print("🧹 Cleaning previous build artifacts...")
-            _ = try await cliService.execute(
-                command: "rm",
-                arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
-                workingDirectory: workingDirectory,
-                printCommand: false
-            )
-            print("  ✅ Cleaned")
-        }
-
-        // Build using build.sh (Docker-based build)
-        let buildResult = try await cliService.execute(
-            command: "./build.sh",
-            arguments: ["SwiftLambda"],
-            workingDirectory: workingDirectory,
-            inheritIO: true
-        )
-
-        guard buildResult.isSuccess else {
-            throw CLIError.commandFailed(
-                command: "build.sh SwiftLambda",
-                exitCode: buildResult.exitCode,
-                stderr: buildResult.stderr
-            )
-        }
-
-        print("✅ Build completed")
-    }
-
-    /// Build Lambda with streaming output, updating buildState
-    public func buildWithStreaming(clean: Bool = false) async {
-        buildState.reset()
+    /// Build Lambda for Linux (AMD64) using Docker, updating buildState
+    public func build(clean: Bool = false) async throws {
+        buildState.startBuild()
 
         // Clean if requested
         if clean {
@@ -186,7 +151,7 @@ public class LinuxLocalService: LambdaService {
             } catch {
                 buildState.appendOutput("  ❌ Clean failed: \(error)\n")
                 buildState.markFailed(exitCode: 1)
-                return
+                throw BuildError.failed(exitCode: 1)
             }
         }
 
@@ -211,6 +176,7 @@ public class LinuxLocalService: LambdaService {
             buildState.markSuccess()
         } else {
             buildState.markFailed(exitCode: exitCode)
+            throw BuildError.failed(exitCode: exitCode)
         }
     }
 

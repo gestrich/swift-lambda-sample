@@ -5,6 +5,17 @@ import SwiftDeploy
 struct BuildOutputView: View {
     let buildState: BuildState
 
+    /// Maximum number of lines to display
+    private let maxDisplayLines = 500
+
+    /// Lines to display (capped at maxDisplayLines, showing most recent)
+    private var displayLines: [String] {
+        if buildState.outputLines.count > maxDisplayLines {
+            return Array(buildState.outputLines.suffix(maxDisplayLines))
+        }
+        return buildState.outputLines
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Header with status
@@ -22,7 +33,7 @@ struct BuildOutputView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(buildState.outputLines.enumerated()), id: \.offset) { index, line in
+                        ForEach(Array(displayLines.enumerated()), id: \.offset) { index, line in
                             Text(line)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(lineColor(for: line))
@@ -41,9 +52,9 @@ struct BuildOutputView: View {
                 )
                 .onChange(of: buildState.outputLines.count) { _, _ in
                     // Auto-scroll to bottom when new output arrives
-                    if !buildState.outputLines.isEmpty {
+                    if !displayLines.isEmpty {
                         withAnimation(.easeOut(duration: 0.1)) {
-                            proxy.scrollTo(buildState.outputLines.count - 1, anchor: .bottom)
+                            proxy.scrollTo(displayLines.count - 1, anchor: .bottom)
                         }
                     }
                 }
@@ -52,13 +63,19 @@ struct BuildOutputView: View {
 
             // Line count indicator
             HStack {
-                Text("\(buildState.outputLines.count) lines")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                if buildState.outputLines.count > maxDisplayLines {
+                    Text("\(displayLines.count) of \(buildState.outputLines.count) lines (showing latest)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("\(displayLines.count) lines")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
 
                 Spacer()
 
-                if !buildState.outputLines.isEmpty && !buildState.status.isBuilding {
+                if !displayLines.isEmpty && !buildState.status.isBuilding {
                     Button("Clear") {
                         buildState.clear()
                     }

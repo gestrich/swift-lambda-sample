@@ -66,7 +66,7 @@ struct LinuxContainerIntegrationTests {
             print("  ✅ Lambda already built, skipping build step")
         } else {
             print("  → Lambda not built, building now...")
-            try await linuxService.buildLambda()
+            try await linuxService.build()
             // Give filesystem time to sync after build
             try await Task.sleep(for: .seconds(2))
         }

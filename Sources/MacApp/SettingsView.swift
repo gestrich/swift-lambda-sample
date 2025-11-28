@@ -109,47 +109,8 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // Build Section (only for Xcode mode)
-                if config.mode.isLocalXcode {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Build")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            Spacer()
-
-                            Button(action: {
-                                Task {
-                                    await config.buildLambdaWithStreaming(clean: false)
-                                }
-                            }) {
-                                if config.mode.buildState.status.isBuilding {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                } else {
-                                    Image(systemName: "hammer")
-                                }
-                            }
-                            .buttonStyle(.borderless)
-                            .disabled(config.mode.buildState.status.isBuilding)
-                            .help("Build Lambda")
-
-                            Button(action: {
-                                Task {
-                                    await config.buildLambdaWithStreaming(clean: true)
-                                }
-                            }) {
-                                Image(systemName: "sparkles")
-                            }
-                            .buttonStyle(.borderless)
-                            .disabled(config.mode.buildState.status.isBuilding)
-                            .help("Clean and Build Lambda")
-                        }
-
-                        BuildOutputView(buildState: config.mode.buildState)
-                    }
-                }
+                // Build Section
+                buildSection
 
                 Divider()
                     .padding(.top)
@@ -213,6 +174,48 @@ struct SettingsView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    var buildSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Build")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: {
+                    Task {
+                        try? await config.buildLambda(clean: false)
+                    }
+                }) {
+                    if config.mode.buildState.status.isBuilding {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "hammer")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(config.mode.buildState.status.isBuilding)
+                .help("Build Lambda")
+
+                Button(action: {
+                    Task {
+                        try? await config.buildLambda(clean: true)
+                    }
+                }) {
+                    Image(systemName: "sparkles")
+                }
+                .buttonStyle(.borderless)
+                .disabled(config.mode.buildState.status.isBuilding)
+                .help("Clean and Build Lambda")
+            }
+
+            BuildOutputView(buildState: config.mode.buildState)
+        }
     }
 }
 
