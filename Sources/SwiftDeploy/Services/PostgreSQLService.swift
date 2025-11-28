@@ -26,6 +26,13 @@ public enum PostgreSQLConfig: Sendable {
         }
     }
 
+    var volumeName: String {
+        switch self {
+        case .xcode: return "postgres-xcode-data"
+        case .linux: return "postgres-linux-data"
+        }
+    }
+
     // Use same database name for both modes - data isolation comes from separate containers
     var database: String { "docker" }
 
@@ -79,13 +86,15 @@ public actor PostgreSQLService {
 
         try await dockerService.build(context: ".", options: buildOptions)
 
-        // Run PostgreSQL container
-        // Map external port to internal port (PostgreSQL always listens on 5432 internally)
+        // Run PostgreSQL container with a named volume for data persistence
+        // Named volumes preserve data across container restarts and allow Docker
+        // to copy initial data from the image on first run
         print("→ Starting PostgreSQL container...")
         var runOptions = DockerService.RunOptions()
         runOptions.detached = true
         runOptions.ports = [(config.port, config.internalPort)]
         runOptions.name = config.containerName
+        runOptions.volumes = [(config.volumeName, "/var/lib/postgresql")]
 
         try await dockerService.run(
             image: config.imageName,
@@ -96,6 +105,7 @@ public actor PostgreSQLService {
         print("   - Host: localhost:\(config.port)")
         print("   - Database: \(config.database)")
         print("   - Credentials: \(config.username)/\(config.password)")
+        print("   - Volume: \(config.volumeName)")
     }
 
     /// Stop PostgreSQL database
