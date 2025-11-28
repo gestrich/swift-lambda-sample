@@ -68,11 +68,13 @@ public final class ConfigurationService: Sendable {
 
         // Get password - check for direct password first (local development), then fall back to Secrets Manager
         let databasePassword: String
+        let enableTLS: Bool
         if let directPassword = try? getEnvironmentVariable(key: "POSTGRES_PASSWORD") {
-            // Local development mode - use direct password
+            // Local development mode - use direct password, disable TLS
             databasePassword = directPassword
+            enableTLS = false
         } else {
-            // Production mode - fetch from Secrets Manager
+            // Production mode - fetch from Secrets Manager, enable TLS
             let secretString = try await secretsService.getSecret(identifier: try Self.postgresUserPasswordIdentifierKey)
 
             // Parse the secret as JSON to extract the password
@@ -82,9 +84,10 @@ public final class ConfigurationService: Sendable {
                 throw ConfigurationError.typeConversion("Failed to parse database password from Secrets Manager JSON. Expected JSON with 'password' field.")
             }
             databasePassword = password
+            enableTLS = true
         }
 
-        return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: databasePassword)
+        return PostgresConfiguration(name: databaseName, identifier: databaseIdentifier, host: databaseHost, port: port, tableName: tableName, userName: databaseUserName, userPassword: databasePassword, enableTLS: enableTLS)
     }
 
     //MARK: S3

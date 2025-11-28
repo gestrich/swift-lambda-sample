@@ -19,8 +19,10 @@ public struct PostgresConfiguration: Codable {
     public var tableName: String
     public var username: String
     public var userPassword: String
-    
-    public init(name: String, identifier: String, host: String, port: Int, tableName: String, userName: String, userPassword: String){
+    /// When true, TLS is enabled (production/AWS RDS). When false, TLS is disabled (local development).
+    public var enableTLS: Bool
+
+    public init(name: String, identifier: String, host: String, port: Int, tableName: String, userName: String, userPassword: String, enableTLS: Bool) {
         self.name = name
         self.identifier = identifier
         self.host = host
@@ -28,6 +30,7 @@ public struct PostgresConfiguration: Codable {
         self.tableName = tableName
         self.username = userName
         self.userPassword = userPassword
+        self.enableTLS = enableTLS
     }
-    
+
 }

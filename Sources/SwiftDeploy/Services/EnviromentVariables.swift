@@ -10,7 +10,7 @@ import Foundation
 /// Execution context for Lambda - determines how to connect to services
 enum LambdaExecutionContext {
     /// Native macOS process (Xcode mode) - connects via localhost
-    case native
+    case xcode
     /// Docker container (Linux mode) - connects via Docker network DNS
     case container
 }
@@ -31,7 +31,7 @@ func createEnvironmentVariables(
     let minioPort: Int
 
     switch context {
-    case .native:
+    case .xcode:
         // Native process connects via localhost (services expose ports to host)
         postgresHost = "localhost"
         postgresPort = postgresInfo.port  // External/host port

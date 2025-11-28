@@ -489,7 +489,7 @@ public class XcodeLocalService: LambdaService {
         return createEnvironmentVariables(
             postgresService: postgresService,
             minioService: minioService,
-            context: .native  // Native process connects via localhost
+            context: .xcode  // Native process connects via localhost
         )
     }
 

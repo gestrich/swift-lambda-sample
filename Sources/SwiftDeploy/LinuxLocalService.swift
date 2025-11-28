@@ -2,32 +2,6 @@ import Client
 import Combine
 import Foundation
 
-/// Configuration for Lambda container
-public struct LinuxContainerConfig: Sendable {
-    public let containerName: String
-    public let swiftImage: String
-    public let hostPort: Int
-    public let containerPort: Int
-    public let networkName: String
-    public let workingDirectory: String
-
-    public init(
-        containerName: String = "lambda-linux-container",
-        swiftImage: String = "swift:6.2.0-amazonlinux2",
-        hostPort: Int = 8080,
-        containerPort: Int = 7000,
-        networkName: String,
-        workingDirectory: String
-    ) {
-        self.containerName = containerName
-        self.swiftImage = swiftImage
-        self.hostPort = hostPort
-        self.containerPort = containerPort
-        self.networkName = networkName
-        self.workingDirectory = workingDirectory
-    }
-}
-
 /// Service for Linux container deployment workflow (AWS Lambda compatible)
 /// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
 @MainActor
@@ -81,6 +55,7 @@ public class LinuxLocalService: LambdaService {
         self.workingDirectory = workingDirectory
         self.dockerService = DockerService()
         self.cliService = CLIService.shared
+        self.config = .default(workingDirectory: workingDirectory)
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
@@ -89,12 +64,8 @@ public class LinuxLocalService: LambdaService {
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
-            networkName: "lambda-linux",
+            networkName: config.networkName,
             config: .linux
-        )
-        self.config = LinuxContainerConfig(
-            networkName: "lambda-linux",
-            workingDirectory: workingDirectory
         )
     }
 
@@ -596,5 +567,27 @@ public class LinuxLocalService: LambdaService {
             print("  ❌ Database test failed: \(dbResult)")
             throw CLIError.testFailed(message: "Database endpoint test failed")
         }
+    }
+}
+
+/// Configuration for Lambda container
+struct LinuxContainerConfig: Sendable {
+    let containerName: String
+    let swiftImage: String
+    let hostPort: Int
+    let containerPort: Int
+    let networkName: String
+    let workingDirectory: String
+
+    /// Create the default Linux container configuration
+    static func `default`(workingDirectory: String) -> LinuxContainerConfig {
+        LinuxContainerConfig(
+            containerName: "lambda-linux-container",
+            swiftImage: "swift:6.2.0-amazonlinux2",
+            hostPort: 8080,
+            containerPort: 7000,
+            networkName: "lambda-linux",
+            workingDirectory: workingDirectory
+        )
     }
 }
