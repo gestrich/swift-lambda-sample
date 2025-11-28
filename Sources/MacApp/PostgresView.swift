@@ -123,6 +123,7 @@ struct PostgresView: View {
             users = try await apiClient.listUsers()
         } catch {
             errorMessage = error.localizedDescription
+            users = []
         }
 
         isLoading = false
