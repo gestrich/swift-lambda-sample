@@ -2,148 +2,33 @@ import ArgumentParser
 import Foundation
 import SwiftDeploy
 
-/// Top-level command for local development operations
-struct LocalCommand: AsyncParsableCommand {
+// MARK: - Local Mac Command (Native macOS)
+
+/// Native macOS development workflow (fast iteration)
+struct LocalMacCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "local",
-        abstract: "Local development environment management",
+        commandName: "local-mac",
+        abstract: "Native macOS development workflow (fast iteration)",
         subcommands: [
-            ServicesCommand.self,
-            XcodeCommand.self,
-            LinuxCommand.self,
-            CopyConfigCommand.self
+            BuildCommand.self,
+            CopyConfigCommand.self,
+            StartAllCommand.self,
+            StartCommand.self,
+            StartDatabaseCommand.self,
+            StartS3Command.self,
+            StatusCommand.self,
+            StopAllCommand.self,
+            StopCommand.self,
+            StopDatabaseCommand.self,
+            StopS3Command.self,
+            TestCommand.self
         ]
     )
 }
 
-// MARK: - Services Management
+// MARK: - Local Mac Subcommands
 
-extension LocalCommand {
-    /// Manage local development services (PostgreSQL + MinIO)
-    struct ServicesCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "services",
-            abstract: "Manage local development services (PostgreSQL + MinIO)",
-            subcommands: [
-                StartAllCommand.self,
-                StopAllCommand.self,
-                StartDatabaseCommand.self,
-                StopDatabaseCommand.self,
-                StartS3Command.self,
-                StopS3Command.self
-            ]
-        )
-    }
-}
-
-// MARK: - Services Subcommands
-
-extension LocalCommand.ServicesCommand {
-    /// Start all local services (PostgreSQL + MinIO)
-    struct StartAllCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "start-all",
-            abstract: "Start all local services (PostgreSQL + MinIO)"
-        )
-
-        func run() async throws {
-            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.stopAllServices()
-            try await service.startS3()
-            try await service.startDatabase()
-        }
-    }
-
-    /// Stop all local services
-    struct StopAllCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "stop-all",
-            abstract: "Stop all local services (PostgreSQL + MinIO)"
-        )
-
-        func run() async throws {
-            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.stopAllServices()
-        }
-    }
-
-    /// Start PostgreSQL database
-    struct StartDatabaseCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "start-database",
-            abstract: "Start local PostgreSQL database"
-        )
-
-        func run() async throws {
-            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.startDatabase()
-        }
-    }
-
-    /// Stop PostgreSQL database
-    struct StopDatabaseCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "stop-database",
-            abstract: "Stop local PostgreSQL database"
-        )
-
-        func run() async throws {
-            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.stopDatabase()
-        }
-    }
-
-    /// Start MinIO S3
-    struct StartS3Command: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "start-s3",
-            abstract: "Start local MinIO S3 service"
-        )
-
-        func run() async throws {
-            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.startS3()
-        }
-    }
-
-    /// Stop MinIO S3
-    struct StopS3Command: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "stop-s3",
-            abstract: "Stop local MinIO S3 service"
-        )
-
-        func run() async throws {
-            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
-            try await service.stopS3()
-        }
-    }
-}
-
-// MARK: - Xcode Local Development (Native macOS)
-
-extension LocalCommand {
-    /// Native macOS Xcode development workflow (fast iteration)
-    struct XcodeCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "xcode",
-            abstract: "Native macOS Xcode development workflow (fast iteration)",
-            subcommands: [
-                BuildCommand.self,
-                StartAllCommand.self,
-                StartCommand.self,
-                StatusCommand.self,
-                StopCommand.self,
-                StopAllCommand.self,
-                TestCommand.self
-            ]
-        )
-    }
-}
-
-// MARK: - Xcode Subcommands
-
-extension LocalCommand.XcodeCommand {
+extension LocalMacCommand {
     /// Build Lambda for macOS (native)
     struct BuildCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -213,6 +98,58 @@ extension LocalCommand.XcodeCommand {
         }
     }
 
+    /// Start PostgreSQL database
+    struct StartDatabaseCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-database",
+            abstract: "Start local PostgreSQL database"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.startDatabase()
+        }
+    }
+
+    /// Stop PostgreSQL database
+    struct StopDatabaseCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-database",
+            abstract: "Stop local PostgreSQL database"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.stopDatabase()
+        }
+    }
+
+    /// Start MinIO S3
+    struct StartS3Command: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-s3",
+            abstract: "Start local MinIO S3 service"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.startS3()
+        }
+    }
+
+    /// Stop MinIO S3
+    struct StopS3Command: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-s3",
+            abstract: "Stop local MinIO S3 service"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.stopS3()
+        }
+    }
+
     /// Test local Lambda
     struct TestCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -236,37 +173,53 @@ extension LocalCommand.XcodeCommand {
         func run() async throws {
             let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             let status = try await service.status()
-            printStatus(status, mode: "Xcode (Native)")
+            printStatus(status, mode: "Mac (Native)")
+        }
+    }
+
+    /// Copy config file
+    struct CopyConfigCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "copy-config",
+            abstract: "Copy runtime config file to ~/.swiftSampleDemo/"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.copyConfig()
         }
     }
 }
 
-// MARK: - Linux Container Development (AWS-compatible)
+// MARK: - Local Linux Command (Container)
 
-extension LocalCommand {
-    /// Linux container deployment workflow (AWS Lambda compatible)
-    struct LinuxCommand: AsyncParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "linux",
-            abstract: "Linux container deployment workflow (AWS Lambda compatible)",
-            subcommands: [
-                BuildCommand.self,
-                RunInteractiveCommand.self,
-                SetupNetworkCommand.self,
-                StartAllCommand.self,
-                StartCommand.self,
-                StatusCommand.self,
-                StopAllCommand.self,
-                StopCommand.self,
-                TestCommand.self
-            ]
-        )
-    }
+/// Linux container deployment workflow (AWS Lambda compatible)
+struct LocalLinuxCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "local-linux",
+        abstract: "Linux container deployment workflow (AWS Lambda compatible)",
+        subcommands: [
+            BuildCommand.self,
+            CopyConfigCommand.self,
+            RunInteractiveCommand.self,
+            SetupNetworkCommand.self,
+            StartAllCommand.self,
+            StartCommand.self,
+            StartDatabaseCommand.self,
+            StartS3Command.self,
+            StatusCommand.self,
+            StopAllCommand.self,
+            StopCommand.self,
+            StopDatabaseCommand.self,
+            StopS3Command.self,
+            TestCommand.self
+        ]
+    )
 }
 
-// MARK: - Linux Subcommands
+// MARK: - Local Linux Subcommands
 
-extension LocalCommand.LinuxCommand {
+extension LocalLinuxCommand {
     /// Build Lambda for Linux (Docker-based)
     struct BuildCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -336,6 +289,58 @@ extension LocalCommand.LinuxCommand {
         }
     }
 
+    /// Start PostgreSQL database
+    struct StartDatabaseCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-database",
+            abstract: "Start local PostgreSQL database"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.startDatabase()
+        }
+    }
+
+    /// Stop PostgreSQL database
+    struct StopDatabaseCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-database",
+            abstract: "Stop local PostgreSQL database"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.stopDatabase()
+        }
+    }
+
+    /// Start MinIO S3
+    struct StartS3Command: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-s3",
+            abstract: "Start local MinIO S3 service"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.startS3()
+        }
+    }
+
+    /// Stop MinIO S3
+    struct StopS3Command: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-s3",
+            abstract: "Stop local MinIO S3 service"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.stopS3()
+        }
+    }
+
     /// Test Lambda container
     struct TestCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -388,11 +393,7 @@ extension LocalCommand.LinuxCommand {
             try await service.runInteractive()
         }
     }
-}
 
-// MARK: - Configuration Management
-
-extension LocalCommand {
     /// Copy config file
     struct CopyConfigCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -401,6 +402,7 @@ extension LocalCommand {
         )
 
         func run() async throws {
+            // Reuse XcodeLocalService for config copy - same operation
             let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
             try await service.copyConfig()
         }

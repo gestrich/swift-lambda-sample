@@ -10,7 +10,8 @@ struct SwiftDeployCLI: AsyncParsableCommand {
         version: "2.0.0",
         subcommands: [
             AWSCommand.self,
-            LocalCommand.self
+            LocalLinuxCommand.self,
+            LocalMacCommand.self
         ]
     )
 }
