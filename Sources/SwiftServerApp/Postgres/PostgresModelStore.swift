@@ -33,7 +33,7 @@ public actor PostgresModelStore: PostgresModelStoreInterface {
         // - Local development (localhost/postgres-lambda): Disable TLS (local Postgres has no valid certificate)
         // - AWS RDS (production): Use .prefer (attempts TLS, required by RDS)
         let tls: PostgresConnection.Configuration.TLS
-        let localHosts = ["localhost", "127.0.0.1", "postgres-lambda"]
+        let localHosts = ["localhost", "127.0.0.1", "postgres-lambda", "postgres-xcode", "postgres-linux"]
         if localHosts.contains(configuration.host) {
             // Local development: disable TLS
             tls = .disable
