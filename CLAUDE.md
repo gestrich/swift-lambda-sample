@@ -60,6 +60,33 @@ tools.sh           → Convenience aliases (Bash wrapper)
 | Check logs | `swift run SwiftDeploy aws logs` | `./tools.sh aws logs` |
 | Check status | `swift run SwiftDeploy aws status` | `./tools.sh aws status` |
 
+### LocalStorageService
+
+A lightweight module for managing local file system paths under `~/.swiftSampleDemo/`.
+
+**Purpose**: Centralize path resolution for local development data (PostgreSQL, MinIO, config files) without the service knowing about specific clients.
+
+**Design**: Uses a SwiftUI EnvironmentKey-inspired pattern where clients define their own storage keys:
+
+```swift
+// Client defines its own key
+public struct PostgreSQLXcodeStorageKey: StoragePathKey {
+    public static let pathComponent = "postgres/xcode-data"
+}
+
+// Usage
+let dataDir = storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
+// -> ~/.swiftSampleDemo/postgres/xcode-data
+```
+
+**When to use**:
+- Adding a new service that needs persistent local data
+- Accessing config files in the shared data directory
+
+**Key protocols**:
+- `StoragePathKey` - For directories (e.g., service data with workflow isolation)
+- `StorageFileKey` - For files (e.g., config files, no workflow subdivision)
+
 ## Project Structure
 
 ### Nested CDK Directory
