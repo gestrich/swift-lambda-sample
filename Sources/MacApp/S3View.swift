@@ -2,7 +2,7 @@ import AppKit
 import Client
 import SwiftUI
 
-struct FileView: View {
+struct S3View: View {
     @Environment(APIClient.self) var apiClient
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -11,95 +11,86 @@ struct FileView: View {
     @State private var showingImagePreview = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text("S3 File Operations")
-                .font(.title)
-                .padding(.top)
-
-            Divider()
-
-            // Upload Section
-            VStack(spacing: 15) {
-                Text("Upload File")
-                    .font(.headline)
-
-                Button("Upload") {
+        VStack(spacing: 12) {
+            // Toolbar
+            HStack {
+                Button(action: {
                     selectAndUploadFile()
+                }) {
+                    Image(systemName: "plus")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.borderless)
                 .disabled(isLoading)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(8)
-            .padding(.horizontal)
+                .help("Upload File")
 
-            Divider()
+                Spacer()
 
-            // Uploaded Files Section
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Uploaded Files")
-                        .font(.headline)
-                    Spacer()
-                    Button(action: {
-                        Task {
-                            await loadFiles()
-                        }
-                    }) {
-                        Image(systemName: "arrow.clockwise")
+                Button(action: {
+                    Task {
+                        await loadFiles()
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(isLoading)
+                }) {
+                    Image(systemName: "arrow.clockwise")
                 }
-                .padding(.horizontal)
+                .buttonStyle(.borderless)
+                .disabled(isLoading)
 
                 if isLoading {
                     ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding()
+                        .scaleEffect(0.7)
                 }
+            }
 
-                if uploadedFiles.isEmpty && !isLoading {
-                    Text("No files uploaded yet")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding()
-                } else {
-                    List(uploadedFiles, id: \.self) { fileName in
-                        HStack {
-                            Image(systemName: iconForFile(fileName))
-                                .foregroundColor(.blue)
-                            Text(fileName)
-                            Spacer()
-                            if fileName.lowercased().hasSuffix(".png") ||
-                               fileName.lowercased().hasSuffix(".jpg") ||
-                               fileName.lowercased().hasSuffix(".jpeg") {
-                                Button("Preview") {
-                                    Task {
-                                        await previewImage(fileName)
-                                    }
-                                }
-                                .buttonStyle(.borderless)
-                            }
-                            Button("Download") {
+            Divider()
+
+            // Files List
+            if uploadedFiles.isEmpty && !isLoading {
+                Text("No files uploaded yet")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(uploadedFiles, id: \.self) { fileName in
+                    HStack {
+                        Image(systemName: iconForFile(fileName))
+                            .foregroundColor(.blue)
+                        Text(fileName)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        if fileName.lowercased().hasSuffix(".png") ||
+                            fileName.lowercased().hasSuffix(".jpg") ||
+                            fileName.lowercased().hasSuffix(".jpeg") {
+                            Button(action: {
                                 Task {
-                                    await downloadFile(fileName)
+                                    await previewImage(fileName)
                                 }
+                            }) {
+                                Image(systemName: "eye")
                             }
                             .buttonStyle(.borderless)
-                            Button("Delete") {
-                                Task {
-                                    await deleteFile(fileName)
-                                }
-                            }
-                            .buttonStyle(.borderless)
-                            .foregroundColor(.red)
+                            .help("Preview")
                         }
-                        .padding(.vertical, 2)
+                        Button(action: {
+                            Task {
+                                await downloadFile(fileName)
+                            }
+                        }) {
+                            Image(systemName: "arrow.down.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Download")
                     }
-                    .listStyle(.inset)
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                await deleteFile(fileName)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -107,12 +98,9 @@ struct FileView: View {
                 Text(errorMessage)
                     .foregroundColor(.red)
                     .font(.caption)
-                    .padding(.horizontal)
             }
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 8)
         .sheet(isPresented: $showingImagePreview) {
             if let selectedImage = selectedImage {
                 ImagePreviewView(image: selectedImage, fileName: "Preview")
@@ -253,5 +241,5 @@ struct ImagePreviewView: View {
 }
 
 #Preview {
-    FileView()
+    S3View()
 }
