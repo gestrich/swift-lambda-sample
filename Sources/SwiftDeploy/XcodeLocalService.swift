@@ -36,6 +36,10 @@ public class XcodeLocalService: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
+    // MARK: - Build State
+
+    public let buildState = BuildState()
+
     // MARK: - LambdaService Protocol
 
     public static let persistenceKey = "localXcode"
@@ -167,6 +171,52 @@ public class XcodeLocalService: LambdaService {
         }
 
         print("✅ Build completed")
+    }
+
+    /// Build Lambda with streaming output, updating buildState
+    public func buildWithStreaming(clean: Bool = false) async {
+        buildState.reset()
+
+        // Clean if requested
+        if clean {
+            buildState.appendOutput("🧹 Cleaning previous build artifacts...\n")
+            do {
+                _ = try await cliService.execute(
+                    command: "swift",
+                    arguments: ["package", "clean"],
+                    workingDirectory: workingDirectory,
+                    printCommand: false
+                )
+                buildState.appendOutput("  ✅ Cleaned\n")
+            } catch {
+                buildState.appendOutput("  ❌ Clean failed: \(error)\n")
+                buildState.markFailed(exitCode: 1)
+                return
+            }
+        }
+
+        buildState.appendOutput("🔨 Building Lambda for macOS (native)...\n")
+
+        // Stream the build output
+        let stream = await cliService.stream(
+            command: "swift",
+            arguments: ["build", "--product", lambdaProductName],
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+
+        var exitCode: Int32 = 0
+        for await output in stream {
+            if let code = buildState.processStreamOutput(output) {
+                exitCode = code
+            }
+        }
+
+        if exitCode == 0 {
+            buildState.markSuccess()
+        } else {
+            buildState.markFailed(exitCode: exitCode)
+        }
     }
 
     /// Get the path to the built executable

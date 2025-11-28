@@ -37,6 +37,7 @@ enum ConnectionMode: LambdaService {
     var endpointHelpText: String { service.endpointHelpText }
     var apiClient: APIClient { service.apiClient }
     var isConfigured: Bool { service.isConfigured }
+    var buildState: BuildState { service.buildState }
 
     var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         service.statusPublisher
@@ -48,6 +49,10 @@ enum ConnectionMode: LambdaService {
 
     func buildLambda(clean: Bool) async throws {
         try await service.buildLambda(clean: clean)
+    }
+
+    func buildWithStreaming(clean: Bool) async {
+        await service.buildWithStreaming(clean: clean)
     }
 
     func isLambdaBuilt() -> Bool {
@@ -158,6 +163,10 @@ class APIConfiguration: LambdaService {
     private(set) var status: DeploymentStatus = .stopped
     private(set) var isLoadingStatus: Bool = false
 
+    // MARK: - Build State
+
+    var buildState: BuildState { mode.buildState }
+
     // MARK: - Private
 
     private var cancellables = Set<AnyCancellable>()
@@ -252,6 +261,13 @@ class APIConfiguration: LambdaService {
         }
     }
 
+    // MARK: - Build with Streaming Output
+
+    /// Build Lambda with streaming output
+    func buildLambdaWithStreaming(clean: Bool = false) async {
+        await mode.buildWithStreaming(clean: clean)
+    }
+
     private func subscribeToService(_ service: any LambdaService) {
         // Relay status updates to @Observable property and own publisher
         service.statusPublisher
@@ -312,6 +328,10 @@ class APIConfiguration: LambdaService {
 
     func buildLambda(clean: Bool) async throws {
         try await mode.buildLambda(clean: clean)
+    }
+
+    func buildWithStreaming(clean: Bool) async {
+        await mode.buildWithStreaming(clean: clean)
     }
 
     func isLambdaBuilt() -> Bool {

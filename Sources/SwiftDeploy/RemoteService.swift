@@ -42,6 +42,10 @@ public class RemoteService: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
+    // MARK: - Build State
+
+    public let buildState = BuildState()
+
     // MARK: - LambdaService Protocol Properties
 
     public static let persistenceKey = "remote"
@@ -112,6 +116,14 @@ public class RemoteService: LambdaService {
     public func buildLambda(clean: Bool = false) async throws {
         print("ℹ️  Remote Lambda is built via CI/CD pipeline")
         print("   Use 'aws update-lambda' to deploy code changes")
+    }
+
+    /// Build with streaming output - for remote, just emit info message
+    public func buildWithStreaming(clean: Bool = false) async {
+        buildState.reset()
+        buildState.appendOutput("ℹ️  Remote Lambda is built via CI/CD pipeline\n")
+        buildState.appendOutput("   Use 'aws update-lambda' to deploy code changes\n")
+        buildState.markSuccess()
     }
 
     /// Check if Lambda is deployed (stack exists with endpoint)

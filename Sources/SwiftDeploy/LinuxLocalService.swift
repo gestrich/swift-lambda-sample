@@ -30,6 +30,10 @@ public class LinuxLocalService: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
+    // MARK: - Build State
+
+    public let buildState = BuildState()
+
     // MARK: - LambdaService Protocol
 
     public static let persistenceKey = "localLinux"
@@ -162,6 +166,52 @@ public class LinuxLocalService: LambdaService {
         }
 
         print("✅ Build completed")
+    }
+
+    /// Build Lambda with streaming output, updating buildState
+    public func buildWithStreaming(clean: Bool = false) async {
+        buildState.reset()
+
+        // Clean if requested
+        if clean {
+            buildState.appendOutput("🧹 Cleaning previous build artifacts...\n")
+            do {
+                _ = try await cliService.execute(
+                    command: "rm",
+                    arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
+                    workingDirectory: workingDirectory,
+                    printCommand: false
+                )
+                buildState.appendOutput("  ✅ Cleaned\n")
+            } catch {
+                buildState.appendOutput("  ❌ Clean failed: \(error)\n")
+                buildState.markFailed(exitCode: 1)
+                return
+            }
+        }
+
+        buildState.appendOutput("🔨 Building Lambda for Linux (Docker)...\n")
+
+        // Stream the build output
+        let stream = await cliService.stream(
+            command: "./build.sh",
+            arguments: ["SwiftLambda"],
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+
+        var exitCode: Int32 = 0
+        for await output in stream {
+            if let code = buildState.processStreamOutput(output) {
+                exitCode = code
+            }
+        }
+
+        if exitCode == 0 {
+            buildState.markSuccess()
+        } else {
+            buildState.markFailed(exitCode: exitCode)
+        }
     }
 
     /// Check if Lambda is already built (Linux artifacts)
