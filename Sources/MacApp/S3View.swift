@@ -221,14 +221,23 @@ struct S3View: View {
 }
 
 struct ImagePreviewView: View {
+    @Environment(\.dismiss) private var dismiss
     let image: NSImage
     let fileName: String
 
     var body: some View {
         VStack {
-            Text(fileName)
-                .font(.headline)
-                .padding()
+            HStack {
+                Text(fileName)
+                    .font(.headline)
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding()
 
             Image(nsImage: image)
                 .resizable()
