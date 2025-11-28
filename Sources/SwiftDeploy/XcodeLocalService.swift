@@ -62,22 +62,35 @@ public class XcodeLocalService: LambdaService {
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            config: .xcode
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
-            networkName: "lambda-local"
+            networkName: "lambda-xcode",
+            config: .xcode
         )
     }
 
     // MARK: - Service Management
 
     /// Start all services (PostgreSQL + MinIO)
+    /// Services persist between mode switches - only starts if not already running
     public func startAllServices() async throws {
         try await dockerService.ensureDockerRunning()
-        try await stopAllServices()
-        try await minioService.start()
-        try await postgresService.start()
+
+        // Only start services if not already running (persist between sessions)
+        if !(try await minioService.isRunning()) {
+            try await minioService.start()
+        } else {
+            print("✓ MinIO (xcode) already running")
+        }
+
+        if !(try await postgresService.isRunning()) {
+            try await postgresService.start()
+        } else {
+            print("✓ PostgreSQL (xcode) already running")
+        }
     }
 
     /// Stop all services
@@ -271,10 +284,38 @@ public class XcodeLocalService: LambdaService {
         print("\n📦 Starting local services...")
         try await startAllServices()
 
+        // Setup network and bucket for Xcode mode
+        try await setupNetworkAndBucket()
+
         // Then start Lambda
         try await startLambda()
 
         refreshStatus()
+    }
+
+    /// Setup Docker network and S3 bucket for Xcode mode
+    private func setupNetworkAndBucket() async throws {
+        let networkName = "lambda-xcode"
+
+        // Create network if it doesn't exist
+        if !(try await dockerService.networkExists(name: networkName)) {
+            print("→ Creating Docker network: \(networkName)")
+            try await dockerService.createNetwork(name: networkName)
+        }
+
+        // Connect MinIO to network (needed for bucket creation via aws-cli container)
+        let minioContainer = minioService.minioContainerName
+        let isConnected = try await dockerService.isConnectedToNetwork(
+            container: minioContainer,
+            network: networkName
+        )
+        if !isConnected {
+            print("→ Connecting \(minioContainer) to \(networkName)")
+            try await dockerService.connectToNetwork(container: minioContainer, network: networkName)
+        }
+
+        // Create bucket if needed
+        try await minioService.createBucket(bucketName: nil)
     }
 
     /// Stop Lambda and all services (complete flow)
@@ -443,9 +484,13 @@ public class XcodeLocalService: LambdaService {
 
     // MARK: - Private Helpers
 
-    /// Get standard Lambda environment variables for local testing
+    /// Get standard Lambda environment variables for local testing (native macOS process)
     private func getLambdaEnvironmentVariables() -> [String: String] {
-        return createEnvironmentVariables(postgresService: postgresService, minioService: minioService)
+        return createEnvironmentVariables(
+            postgresService: postgresService,
+            minioService: minioService,
+            context: .native  // Native process connects via localhost
+        )
     }
 
     /// Create an API client configured for local Lambda testing

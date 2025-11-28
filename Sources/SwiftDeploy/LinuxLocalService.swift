@@ -12,11 +12,11 @@ public struct LinuxContainerConfig: Sendable {
     public let workingDirectory: String
 
     public init(
-        containerName: String = "lambda-test-container",
+        containerName: String = "lambda-linux-container",
         swiftImage: String = "swift:6.2.0-amazonlinux2",
         hostPort: Int = 8080,
         containerPort: Int = 7000,
-        networkName: String = "lambda-local",
+        networkName: String,
         workingDirectory: String
     ) {
         self.containerName = containerName
@@ -84,23 +84,39 @@ public class LinuxLocalService: LambdaService {
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            config: .linux
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
-            networkName: "lambda-local"
+            networkName: "lambda-linux",
+            config: .linux
         )
-        self.config = LinuxContainerConfig(workingDirectory: workingDirectory)
+        self.config = LinuxContainerConfig(
+            networkName: "lambda-linux",
+            workingDirectory: workingDirectory
+        )
     }
 
     // MARK: - Service Management
 
     /// Start all services (PostgreSQL + MinIO)
+    /// Services persist between mode switches - only starts if not already running
     public func startAllServices() async throws {
         try await dockerService.ensureDockerRunning()
-        try await stopAllServices()
-        try await minioService.start()
-        try await postgresService.start()
+
+        // Only start services if not already running (persist between sessions)
+        if !(try await minioService.isRunning()) {
+            try await minioService.start()
+        } else {
+            print("✓ MinIO (linux) already running")
+        }
+
+        if !(try await postgresService.isRunning()) {
+            try await postgresService.start()
+        } else {
+            print("✓ PostgreSQL (linux) already running")
+        }
     }
 
     /// Stop all services
@@ -480,9 +496,13 @@ public class LinuxLocalService: LambdaService {
 
     // MARK: - Private Helpers
 
-    /// Get environment variables for Lambda container
+    /// Get environment variables for Lambda container (Docker network)
     public func getEnvironmentVariables() -> [String: String] {
-        return createEnvironmentVariables(postgresService: postgresService, minioService: minioService)
+        return createEnvironmentVariables(
+            postgresService: postgresService,
+            minioService: minioService,
+            context: .container  // Container connects via Docker network DNS
+        )
     }
 
     /// Connect a container to the Lambda network

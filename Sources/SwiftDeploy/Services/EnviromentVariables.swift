@@ -7,34 +7,69 @@
 
 import Foundation
 
-func createEnvironmentVariables(postgresService: PostgreSQLService, minioService: MinIOService) -> [String: String] {
-        let postgresInfo = postgresService.connectionInfo
-        let minioCreds = minioService.credentials
+/// Execution context for Lambda - determines how to connect to services
+enum LambdaExecutionContext {
+    /// Native macOS process (Xcode mode) - connects via localhost
+    case native
+    /// Docker container (Linux mode) - connects via Docker network DNS
+    case container
+}
 
-        return [
-            // PostgreSQL configuration
-            "POSTGRES_HOST": postgresInfo.containerName,
-            "POSTGRES_PORT": "\(postgresInfo.port)",
-            "POSTGRES_USER_NAME": postgresInfo.username,
-            "POSTGRES_DBNAME": postgresInfo.database,
-            "POSTGRES_PASSWORD": postgresInfo.password,
-            "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
+/// Create environment variables for Lambda based on execution context
+func createEnvironmentVariables(
+    postgresService: PostgreSQLService,
+    minioService: MinIOService,
+    context: LambdaExecutionContext = .container
+) -> [String: String] {
+    let postgresInfo = postgresService.connectionInfo
+    let minioCreds = minioService.credentials
 
-            // S3/MinIO configuration
-            "S3_BUCKET_NAME": minioService.bucketName,
-            "AWS_ENDPOINT_URL": "http://\(minioService.minioContainerName):9000",
-            "AWS_ACCESS_KEY_ID": minioCreds.accessKeyId,
-            "AWS_SECRET_ACCESS_KEY": minioCreds.secretAccessKey,
-            "AWS_REGION": minioCreds.region,
-            "AWS_DEFAULT_REGION": minioCreds.region,
+    // Determine host and port based on execution context
+    let postgresHost: String
+    let postgresPort: Int
+    let minioHost: String
+    let minioPort: Int
 
-            // Disable AWS credential chain for local testing
-            "AWS_EC2_METADATA_DISABLED": "true",
-            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",  // Disable ECS credentials
-
-            // Local Lambda server configuration
-            "MOCK_AWS_CREDENTIALS": "true",
-            "LOCAL_LAMBDA_SERVER_ENABLED": "true",
-            "LOCAL_LAMBDA_HOST": "0.0.0.0"
-        ]
+    switch context {
+    case .native:
+        // Native process connects via localhost (services expose ports to host)
+        postgresHost = "localhost"
+        postgresPort = postgresInfo.port  // External/host port
+        minioHost = "localhost"
+        minioPort = minioService.s3Port  // External/host port
+    case .container:
+        // Container connects via Docker network DNS (container names)
+        // Use internal ports since we're connecting container-to-container
+        postgresHost = postgresInfo.containerName
+        postgresPort = postgresInfo.internalPort  // Internal port (always 5432)
+        minioHost = minioService.minioContainerName
+        minioPort = minioService.internalS3Port  // Internal port (always 9000)
     }
+
+    return [
+        // PostgreSQL configuration
+        "POSTGRES_HOST": postgresHost,
+        "POSTGRES_PORT": "\(postgresPort)",
+        "POSTGRES_USER_NAME": postgresInfo.username,
+        "POSTGRES_DBNAME": postgresInfo.database,
+        "POSTGRES_PASSWORD": postgresInfo.password,
+        "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
+
+        // S3/MinIO configuration
+        "S3_BUCKET_NAME": minioService.bucketName,
+        "AWS_ENDPOINT_URL": "http://\(minioHost):\(minioPort)",
+        "AWS_ACCESS_KEY_ID": minioCreds.accessKeyId,
+        "AWS_SECRET_ACCESS_KEY": minioCreds.secretAccessKey,
+        "AWS_REGION": minioCreds.region,
+        "AWS_DEFAULT_REGION": minioCreds.region,
+
+        // Disable AWS credential chain for local testing
+        "AWS_EC2_METADATA_DISABLED": "true",
+        "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",  // Disable ECS credentials
+
+        // Local Lambda server configuration
+        "MOCK_AWS_CREDENTIALS": "true",
+        "LOCAL_LAMBDA_SERVER_ENABLED": "true",
+        "LOCAL_LAMBDA_HOST": "0.0.0.0"
+    ]
+}

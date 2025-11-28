@@ -1,73 +1,114 @@
 import Foundation
 
+/// Configuration for MinIO service per deployment mode
+public enum MinIOConfig: Sendable {
+    case xcode
+    case linux
+
+    var containerName: String {
+        switch self {
+        case .xcode: return "minio-xcode"
+        case .linux: return "minio-linux"
+        }
+    }
+
+    var s3Port: Int {
+        switch self {
+        case .xcode: return 9000
+        case .linux: return 9002
+        }
+    }
+
+    var consolePort: Int {
+        switch self {
+        case .xcode: return 9001
+        case .linux: return 9003
+        }
+    }
+
+    var dataDirectoryName: String {
+        switch self {
+        case .xcode: return "xcode-data"
+        case .linux: return "linux-data"
+        }
+    }
+
+    // Use same bucket name for both modes - data isolation comes from separate containers/data directories
+    var bucketName: String { "org.gestrich.sandbox" }
+
+    var imageName: String { "quay.io/minio/minio" }
+    var rootUser: String { "admin" }
+    var rootPassword: String { "password" }
+    var region: String { "us-east-1" }
+}
+
 /// Service for managing local MinIO S3 service via Docker
 public actor MinIOService {
     private let dockerService: DockerService
     private let networkName: String
-
-    // Configuration
-    private let imageName = "quay.io/minio/minio"
-    private let containerName = "minio-lambda"  // Use hyphen not underscore for valid HTTP hostname
-    private let s3Port = 9000
-    private let consolePort = 9001
-    private let rootUser = "admin"
-    private let rootPassword = "password"
-    private let region = "us-east-1"
-    private let defaultBucketName = "org.gestrich.sandbox"
+    private let config: MinIOConfig
 
     // Data directory
     private let dataDirectory: String
 
-    public init(dockerService: DockerService, networkName: String) {
+    public init(dockerService: DockerService, networkName: String, config: MinIOConfig) {
         self.dockerService = dockerService
         self.networkName = networkName
+        self.config = config
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        self.dataDirectory = "\(homeDir)/minio/data"
+        self.dataDirectory = "\(homeDir)/minio/\(config.dataDirectoryName)"
     }
 
     /// Get S3 endpoint URL
     nonisolated public var endpoint: String {
-        "http://localhost:\(s3Port)"
+        "http://localhost:\(config.s3Port)"
     }
 
     /// Get MinIO console URL
     nonisolated public var consoleURL: String {
-        "http://localhost:\(consolePort)"
+        "http://localhost:\(config.consolePort)"
     }
 
     /// Get MinIO credentials
     nonisolated public var credentials: MinIOCredentials {
         MinIOCredentials(
-            accessKeyId: rootUser,
-            secretAccessKey: rootPassword,
-            region: region
+            accessKeyId: config.rootUser,
+            secretAccessKey: config.rootPassword,
+            region: config.region
         )
     }
 
     /// Get container name for networking
     nonisolated public var minioContainerName: String {
-        containerName
+        config.containerName
     }
 
     /// Get default bucket name
     nonisolated public var bucketName: String {
-        defaultBucketName
+        config.bucketName
+    }
+
+    /// Get S3 port for host networking (external port)
+    nonisolated public var s3Port: Int {
+        config.s3Port
+    }
+
+    /// Get S3 port for container-to-container networking (internal port)
+    /// MinIO always listens on port 9000 internally
+    nonisolated public var internalS3Port: Int {
+        9000
     }
 
     /// Start MinIO S3 service
     public func start() async throws {
-        print("\n🗄️  Starting MinIO S3...")
-
-        // Create data directory
-        let minioRootPath = "\(FileManager.default.homeDirectoryForCurrentUser.path)/minio"
-        let minioDataPath = "\(minioRootPath)/data"
+        print("\n🗄️  Starting MinIO S3 (\(config.containerName))...")
 
         // Create MinIO data directory if it doesn't exist
         // Don't remove existing data - let MinIO reuse it
-        if !FileManager.default.fileExists(atPath: minioDataPath) {
-            print("→ Creating MinIO data directory...")
+        if !FileManager.default.fileExists(atPath: dataDirectory) {
+            print("→ Creating MinIO data directory at \(dataDirectory)...")
             try FileManager.default.createDirectory(
-                atPath: minioDataPath,
+                atPath: dataDirectory,
                 withIntermediateDirectories: true,
                 attributes: nil
             )
@@ -78,50 +119,57 @@ public actor MinIOService {
         let groupId = try await dockerService.getCurrentGroupId()
 
         // Run MinIO container
+        // MinIO S3 API always listens on port 9000 internally
+        // Console port is configurable via --console-address
+        let internalS3Port = 9000
+        let internalConsolePort = 9001
+
         var options = DockerService.RunOptions()
         options.detached = true
-        options.ports = [(s3Port, s3Port), (consolePort, consolePort)]
+        // Map external ports to internal ports (MinIO always uses 9000 for S3, 9001 for console internally)
+        options.ports = [(config.s3Port, internalS3Port), (config.consolePort, internalConsolePort)]
         options.user = "\(userId):\(groupId)"
-        options.name = containerName
+        options.name = config.containerName
         options.environment = [
-            "MINIO_ROOT_USER": rootUser,
-            "MINIO_ROOT_PASSWORD": rootPassword,
-            "MINIO_REGION_NAME": region  // Modern MinIO uses MINIO_REGION_NAME
+            "MINIO_ROOT_USER": config.rootUser,
+            "MINIO_ROOT_PASSWORD": config.rootPassword,
+            "MINIO_REGION_NAME": config.region  // Modern MinIO uses MINIO_REGION_NAME
         ]
-        options.volumes = [(minioDataPath, "/data")]
+        options.volumes = [(dataDirectory, "/data")]
 
         try await dockerService.run(
-            image: imageName,
-            command: ["server", "/data", "--console-address", ":\(consolePort)"],
+            image: config.imageName,
+            command: ["server", "/data", "--console-address", ":\(internalConsolePort)"],
             options: options
         )
 
         print("✅ MinIO started successfully")
         print("   - S3 endpoint: \(endpoint)")
         print("   - Console: \(consoleURL)")
-        print("   - Credentials: \(rootUser)/\(rootPassword)")
+        print("   - Credentials: \(config.rootUser)/\(config.rootPassword)")
     }
 
     /// Create S3 bucket in MinIO
     public func createBucket(bucketName: String? = nil) async throws {
-        let bucket = bucketName ?? defaultBucketName
+        let bucket = bucketName ?? config.bucketName
         print("📦 Creating S3 bucket in MinIO...")
 
         // Run AWS CLI in a container to create the bucket
+        // Use internal port (9000) since we're connecting container-to-container via Docker network
         var options = DockerService.RunOptions()
         options.remove = true
         options.network = networkName
         options.environment = [
-            "AWS_ACCESS_KEY_ID": rootUser,
-            "AWS_SECRET_ACCESS_KEY": rootPassword,
-            "AWS_REGION": region,
-            "AWS_DEFAULT_REGION": region
+            "AWS_ACCESS_KEY_ID": config.rootUser,
+            "AWS_SECRET_ACCESS_KEY": config.rootPassword,
+            "AWS_REGION": config.region,
+            "AWS_DEFAULT_REGION": config.region
         ]
 
         do {
             try await dockerService.run(
                 image: "amazon/aws-cli",
-                command: ["--endpoint-url", "http://\(containerName):\(s3Port)", "s3", "mb", "s3://\(bucket)"],
+                command: ["--endpoint-url", "http://\(config.containerName):\(internalS3Port)", "s3", "mb", "s3://\(bucket)"],
                 options: options
             )
             print("  ✅ S3 bucket '\(bucket)' created")
@@ -133,12 +181,12 @@ public actor MinIOService {
 
     /// Stop MinIO S3 service
     public func stop() async throws {
-        try await stopContainer(named: containerName)
+        try await stopContainer(named: config.containerName)
     }
 
     /// Check if MinIO container is running
     public func isRunning() async throws -> Bool {
-        return try await dockerService.containerIsRunning(name: containerName)
+        return try await dockerService.containerIsRunning(name: config.containerName)
     }
 
     // MARK: - Private Helpers
