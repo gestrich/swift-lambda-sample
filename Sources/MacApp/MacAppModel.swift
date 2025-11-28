@@ -38,6 +38,7 @@ enum ConnectionMode: LambdaService {
     var apiClient: APIClient { service.apiClient }
     var isConfigured: Bool { service.isConfigured }
     var buildState: BuildState { service.buildState }
+    var lambdaState: LambdaState { service.lambdaState }
 
     var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         service.statusPublisher
@@ -239,6 +240,7 @@ class MacAppModel: LambdaService {
     // MARK: - Build State
 
     var buildState: BuildState { mode.buildState }
+    var lambdaState: LambdaState { mode.lambdaState }
 
     // MARK: - Private
 

@@ -1,15 +1,15 @@
-import SwiftUI
 import SwiftDeploy
+import SwiftUI
 
-/// View displaying streaming build output with auto-scroll
-struct BuildOutputView: View {
-    let buildState: BuildState
+/// View displaying streaming Lambda lifecycle output with auto-scroll
+struct LambdaOutputView: View {
+    let lambdaState: LambdaState
 
     @State private var isExpanded = false
 
     /// Whether there's content to show
     private var hasOutput: Bool {
-        !buildState.outputLines.isEmpty
+        !lambdaState.outputLines.isEmpty
     }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct BuildOutputView: View {
                     .buttonStyle(.plain)
                 }
 
-                Text("Build Output")
+                Text("Lambda Output")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -38,17 +38,17 @@ struct BuildOutputView: View {
             // Output area (collapsible)
             if isExpanded && hasOutput {
                 StreamingTextView(
-                    lines: buildState.outputLines,
-                    isClearDisabled: buildState.status.isBuilding
+                    lines: lambdaState.outputLines,
+                    isClearDisabled: lambdaState.status.isTransitioning
                 ) {
-                    buildState.clear()
+                    lambdaState.clear()
                     isExpanded = false
                 }
             }
         }
-        .onChange(of: buildState.status.isBuilding) { _, isBuilding in
-            // Auto-expand when build starts
-            if isBuilding {
+        .onChange(of: lambdaState.status.isTransitioning) { _, isTransitioning in
+            // Auto-expand when Lambda is starting or stopping
+            if isTransitioning {
                 withAnimation {
                     isExpanded = true
                 }
@@ -58,40 +58,40 @@ struct BuildOutputView: View {
 
     @ViewBuilder
     private var statusBadge: some View {
-        switch buildState.status {
-        case .notBuilt:
+        switch lambdaState.status {
+        case .stopped:
             HStack(spacing: 4) {
-                Image(systemName: "minus.circle")
+                Image(systemName: "stop.circle")
                     .foregroundColor(.secondary)
-                Text("Not Built")
+                Text("Stopped")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-        case .available:
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle")
-                    .foregroundColor(.blue)
-                Text("Available")
-                    .font(.caption2)
-                    .foregroundColor(.blue)
-            }
-        case .building:
+        case .starting:
             HStack(spacing: 4) {
                 ProgressView()
                     .scaleEffect(0.6)
-                Text("Building...")
+                Text("Starting...")
                     .font(.caption2)
                     .foregroundColor(.orange)
             }
-        case .success:
+        case .running:
             HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: "play.circle.fill")
                     .foregroundColor(.green)
-                Text("Success")
+                Text("Running")
                     .font(.caption2)
                     .foregroundColor(.green)
             }
-        case .failed:
+        case .stopping:
+            HStack(spacing: 4) {
+                ProgressView()
+                    .scaleEffect(0.6)
+                Text("Stopping...")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+            }
+        case .failed(let reason):
             HStack(spacing: 4) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.red)
@@ -99,12 +99,13 @@ struct BuildOutputView: View {
                     .font(.caption2)
                     .foregroundColor(.red)
             }
+            .help(reason)
         }
     }
 }
 
 #Preview {
-    BuildOutputView(buildState: BuildState())
+    LambdaOutputView(lambdaState: LambdaState())
         .padding()
         .frame(width: 500)
 }

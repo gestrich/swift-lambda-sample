@@ -40,6 +40,11 @@ public protocol LambdaService {
     /// - Throws: BuildError.failed if the build fails
     func build(clean: Bool) async throws
 
+    // MARK: - Lambda Lifecycle State
+
+    /// Observable Lambda state for UI (streaming lifecycle output)
+    var lambdaState: LambdaState { get }
+
     /// Check if Lambda is already built
     func isLambdaBuilt() -> Bool
 

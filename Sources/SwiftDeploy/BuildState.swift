@@ -132,3 +132,120 @@ public class BuildState {
         }
     }
 }
+
+// MARK: - Lambda State
+
+/// Encapsulates all Lambda lifecycle state with streaming output
+@MainActor
+@Observable
+public class LambdaState {
+    /// Lambda output lines
+    public private(set) var outputLines: [String] = []
+
+    /// Current Lambda status
+    public private(set) var status: LambdaStatus = .stopped
+
+    public init() {}
+
+    /// Start Lambda - clears output and sets status to starting
+    public func startLambda() {
+        outputLines = []
+        status = .starting
+    }
+
+    /// Begin stopping Lambda
+    public func beginStop() {
+        status = .stopping
+    }
+
+    /// Set status to running (for remote services that are always running when deployed)
+    public func setRunning() {
+        status = .running
+    }
+
+    /// Clear all output and reset to stopped
+    public func clear() {
+        outputLines = []
+        status = .stopped
+    }
+
+    /// Mark Lambda as running
+    public func markRunning() {
+        appendOutput("\n✅ Lambda is running\n")
+        status = .running
+    }
+
+    /// Mark Lambda as stopped
+    public func markStopped() {
+        appendOutput("\n✅ Lambda stopped\n")
+        status = .stopped
+    }
+
+    /// Mark Lambda as failed
+    public func markFailed(reason: String) {
+        appendOutput("\n❌ Lambda failed: \(reason)\n")
+        status = .failed(reason)
+    }
+
+    /// Append text to Lambda output, splitting by newlines
+    public func appendOutput(_ text: String) {
+        // Split text into lines, preserving empty lines
+        let newLines = text.components(separatedBy: "\n")
+
+        // If the last line in outputLines is incomplete (no trailing newline),
+        // append the first part of new text to it
+        if !outputLines.isEmpty && !text.isEmpty {
+            let lastIndex = outputLines.count - 1
+            outputLines[lastIndex] += newLines[0]
+
+            // Add remaining lines
+            if newLines.count > 1 {
+                outputLines.append(contentsOf: newLines.dropFirst())
+            }
+        } else {
+            outputLines.append(contentsOf: newLines)
+        }
+    }
+
+    /// Process a stream output event
+    public func processStreamOutput(_ output: StreamOutput) -> Int32? {
+        switch output {
+        case .stdout(let text):
+            appendOutput(text)
+            return nil
+        case .stderr(let text):
+            appendOutput(text)
+            return nil
+        case .exit(let code):
+            return code
+        case .error(let error):
+            appendOutput("Error: \(error.localizedDescription)\n")
+            return 1
+        }
+    }
+}
+
+// MARK: - Lambda Status
+
+/// Lambda lifecycle status
+public enum LambdaStatus: Equatable, Sendable {
+    case stopped
+    case starting
+    case running
+    case stopping
+    case failed(String)
+
+    public var isTransitioning: Bool {
+        switch self {
+        case .starting, .stopping:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public var isRunning: Bool {
+        if case .running = self { return true }
+        return false
+    }
+}

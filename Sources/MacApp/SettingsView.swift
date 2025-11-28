@@ -203,7 +203,7 @@ struct SettingsView: View {
                         await model.startServices()
                     }
                 }) {
-                    if model.status.lambdaState.isTransitioning {
+                    if model.mode.lambdaState.status.isTransitioning {
                         ProgressView()
                             .scaleEffect(0.7)
                     } else {
@@ -211,21 +211,30 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.borderless)
-                .disabled(model.status.lambdaState.isTransitioning)
+                .disabled(model.mode.lambdaState.status.isTransitioning)
                 .help("Start Lambda")
+
+                Button(action: {
+                    Task {
+                        try? await model.stopWithServices()
+                    }
+                }) {
+                    Image(systemName: "stop.circle")
+                }
+                .buttonStyle(.borderless)
+                .disabled(model.mode.lambdaState.status.isTransitioning || model.mode.lambdaState.status == .stopped)
+                .help("Stop Lambda")
 
                 Button(action: { model.refreshStatus() }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .disabled(model.status.lambdaState.isTransitioning)
+                .disabled(model.mode.lambdaState.status.isTransitioning)
                 .help("Refresh status")
             }
 
-            // Status
-            HStack {
-                StatusIndicator(label: "Lambda", state: model.status.lambdaState)
-            }
+            // Lambda Output View with streaming
+            LambdaOutputView(lambdaState: model.mode.lambdaState)
 
             // Endpoint
             VStack(alignment: .leading, spacing: 5) {

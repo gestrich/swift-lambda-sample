@@ -45,6 +45,10 @@ public class LinuxLocalService: LambdaService {
 
     public let buildState = BuildState()
 
+    // MARK: - Lambda State
+
+    public let lambdaState = LambdaState()
+
     // MARK: - LambdaService Protocol
 
     public static let persistenceKey = "localLinux"
@@ -225,12 +229,33 @@ public class LinuxLocalService: LambdaService {
 
     /// Start Lambda container in detached mode
     public func startLambda() async throws {
-        try await startDetached(lambdaPath: nil)
+        lambdaState.startLambda()
+        lambdaState.appendOutput("🚀 Starting Lambda container...\n")
+
+        do {
+            try await startDetached(lambdaPath: nil)
+            lambdaState.appendOutput("   Container: \(config.containerName)\n")
+            lambdaState.appendOutput("   Port: http://localhost:\(port)\n")
+            lambdaState.markRunning()
+        } catch {
+            lambdaState.markFailed(reason: error.localizedDescription)
+            throw error
+        }
     }
 
     /// Stop Lambda container
     public func stopLambda() async throws {
-        try await dockerService.stop(container: config.containerName)
+        lambdaState.beginStop()
+        lambdaState.appendOutput("🛑 Stopping Lambda container...\n")
+
+        do {
+            try await dockerService.stop(container: config.containerName)
+            lambdaState.markStopped()
+        } catch {
+            // Container may already be stopped
+            lambdaState.appendOutput("⚠️  Container may already be stopped\n")
+            lambdaState.markStopped()
+        }
     }
 
     /// Start Lambda container with all services (complete flow)

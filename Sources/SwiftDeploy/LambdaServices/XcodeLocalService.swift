@@ -41,6 +41,10 @@ public class XcodeLocalService: LambdaService {
 
     public let buildState = BuildState()
 
+    // MARK: - Lambda State
+
+    public let lambdaState = LambdaState()
+
     // MARK: - LambdaService Protocol
 
     public static let persistenceKey = "localXcode"
@@ -254,10 +258,12 @@ public class XcodeLocalService: LambdaService {
 
     /// Start Lambda locally (native process)
     public func startLambda() async throws {
-        print("\n🚀 Starting Lambda locally (native)...")
+        lambdaState.startLambda()
+        lambdaState.appendOutput("🚀 Starting Lambda locally (native)...\n")
 
         // Build Lambda if not already built
         if !isLambdaBuilt() {
+            lambdaState.appendOutput("→ Building Lambda first...\n")
             try await build()
         }
 
@@ -265,7 +271,7 @@ public class XcodeLocalService: LambdaService {
         let executablePath = try await getExecutablePath()
 
         // Start Lambda in background with environment variables
-        print("→ Starting Lambda on port \(lambdaHostPort)...")
+        lambdaState.appendOutput("→ Starting Lambda on port \(lambdaHostPort)...\n")
 
         var env = getLambdaEnvironmentVariables()
         env["LOCAL_LAMBDA_PORT"] = "\(lambdaHostPort)"
@@ -282,7 +288,7 @@ public class XcodeLocalService: LambdaService {
         )
 
         // Wait a bit for Lambda to start
-        print("→ Waiting for Lambda to start...")
+        lambdaState.appendOutput("→ Waiting for Lambda to start...\n")
         try await Task.sleep(for: .seconds(3))
 
         // Check if it's running
@@ -293,17 +299,19 @@ public class XcodeLocalService: LambdaService {
         )
 
         if checkResult.isSuccess && !checkResult.stdout.isEmpty {
-            print("\n✅ Lambda is running on port \(lambdaHostPort)")
-            print("   Test with: ./tools.sh local xcode test")
-            print("   Stop with: ./tools.sh local xcode stop")
+            lambdaState.appendOutput("   Test with: ./tools.sh local xcode test\n")
+            lambdaState.appendOutput("   Stop with: ./tools.sh local xcode stop\n")
+            lambdaState.markRunning()
         } else {
+            lambdaState.markFailed(reason: "Failed to start on port \(lambdaHostPort)")
             throw CLIError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
         }
     }
 
     /// Stop locally running Lambda
     public func stopLambda() async throws {
-        print("\n🛑 Stopping Lambda...")
+        lambdaState.beginStop()
+        lambdaState.appendOutput("🛑 Stopping Lambda...\n")
 
         // Find process on port
         let lsofResult = try await cliService.execute(
@@ -323,11 +331,12 @@ public class XcodeLocalService: LambdaService {
                 .filter { !$0.isEmpty && $0 != currentPID }
 
             guard !pids.isEmpty else {
-                print("⚠️  No Lambda process found on port \(lambdaHostPort)")
+                lambdaState.appendOutput("⚠️  No Lambda process found on port \(lambdaHostPort)\n")
+                lambdaState.markStopped()
                 return
             }
 
-            print("→ Killing process(es): \(pids.joined(separator: ", "))...")
+            lambdaState.appendOutput("→ Killing process(es): \(pids.joined(separator: ", "))...\n")
 
             // Kill each process
             for pid in pids {
@@ -338,6 +347,7 @@ public class XcodeLocalService: LambdaService {
                 )
 
                 if !killResult.isSuccess {
+                    lambdaState.markFailed(reason: "Failed to kill process \(pid)")
                     throw CLIError.commandFailed(
                         command: "kill",
                         exitCode: killResult.exitCode,
@@ -346,9 +356,11 @@ public class XcodeLocalService: LambdaService {
                 }
             }
 
-            print("✅ Lambda stopped (\(pids.count) process\(pids.count == 1 ? "" : "es"))")
+            lambdaState.appendOutput("Stopped \(pids.count) process\(pids.count == 1 ? "" : "es")\n")
+            lambdaState.markStopped()
         } else {
-            print("⚠️  No Lambda process found on port \(lambdaHostPort)")
+            lambdaState.appendOutput("⚠️  No Lambda process found on port \(lambdaHostPort)\n")
+            lambdaState.markStopped()
         }
     }
 

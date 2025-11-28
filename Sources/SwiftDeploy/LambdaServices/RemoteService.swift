@@ -46,6 +46,10 @@ public class RemoteService: LambdaService {
 
     public let buildState = BuildState()
 
+    // MARK: - Lambda State
+
+    public let lambdaState = LambdaState()
+
     // MARK: - LambdaService Protocol Properties
 
     public static let persistenceKey = "remote"
@@ -133,26 +137,33 @@ public class RemoteService: LambdaService {
 
     /// Start is not applicable for remote services - Lambda runs on-demand
     public func startLambda() async throws {
-        print("ℹ️  Remote Lambda is managed by AWS - cannot start manually")
-        print("   Lambda runs automatically when invoked via API Gateway")
+        lambdaState.appendOutput("ℹ️  Remote Lambda is managed by AWS\n")
+        lambdaState.appendOutput("   Lambda runs automatically when invoked via API Gateway\n")
+        // Remote Lambda is always "running" when stack is deployed
+        if _endpoint != nil {
+            lambdaState.setRunning()
+        }
     }
 
     /// Stop is not applicable for remote services
     public func stopLambda() async throws {
-        print("ℹ️  Remote Lambda is managed by AWS - cannot stop manually")
-        print("   Use 'aws tear-down' to remove all infrastructure")
+        lambdaState.appendOutput("ℹ️  Remote Lambda is managed by AWS\n")
+        lambdaState.appendOutput("   Use 'aws tear-down' to remove all infrastructure\n")
     }
 
     /// Start with services is not applicable for remote
     public func startWithServices() async throws {
-        print("ℹ️  Remote services are managed by AWS - cannot start manually")
-        print("   Services (RDS, S3) run continuously when deployed")
+        lambdaState.appendOutput("ℹ️  Remote services are managed by AWS\n")
+        lambdaState.appendOutput("   Services (RDS, S3) run continuously when deployed\n")
+        if _endpoint != nil {
+            lambdaState.setRunning()
+        }
     }
 
     /// Stop with services is not applicable for remote
     public func stopWithServices() async throws {
-        print("ℹ️  Remote services are managed by AWS - cannot stop manually")
-        print("   Use 'aws tear-down' to remove all infrastructure")
+        lambdaState.appendOutput("ℹ️  Remote services are managed by AWS\n")
+        lambdaState.appendOutput("   Use 'aws tear-down' to remove all infrastructure\n")
     }
 
     // MARK: - LambdaService Protocol: Testing
