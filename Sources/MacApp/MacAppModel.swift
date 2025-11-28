@@ -147,11 +147,12 @@ enum ConnectionMode: LambdaService {
     }
 }
 
-/// Manages API configuration and service state for the MacApp.
+/// Main model for the MacApp using MV (Model-View) architecture.
+/// Manages connection mode, service state, and build operations.
 /// Conforms to LambdaService, delegating to the underlying service based on current mode.
 @MainActor
 @Observable
-class APIConfiguration: LambdaService {
+class MacAppModel: LambdaService {
     // MARK: - Persisted State
 
     var mode: ConnectionMode {
@@ -313,7 +314,7 @@ class APIConfiguration: LambdaService {
 
     // MARK: - LambdaService Protocol (delegated to mode)
 
-    static let persistenceKey = "apiConfiguration"
+    static let persistenceKey = "macAppModel"
 
     var port: Int { mode.port }
     var endpoint: String { mode.endpoint }

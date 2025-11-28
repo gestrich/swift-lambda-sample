@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct MacAppMain: App {
-    @State private var config = APIConfiguration()
+    @State private var model = MacAppModel()
 
     init() {
         // Set activation policy to make app appear in Dock and Cmd+Tab
@@ -15,10 +15,10 @@ struct MacAppMain: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(config)
-                .environment(config.apiClient)
+                .environment(model)
+                .environment(model.apiClient)
                 .onAppear {
-                    config.refreshStatus()
+                    model.refreshStatus()
                 }
         }
         .defaultSize(width: 700, height: 600)

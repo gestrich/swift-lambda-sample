@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(APIConfiguration.self) var config
+    @Environment(MacAppModel.self) var model
 
     var body: some View {
         TabView {
             // Only show Client tab if configured
-            if config.isConfigured {
+            if model.isConfigured {
                 ClientView()
                     .tabItem {
                         Label("Client", systemImage: "network")
@@ -23,7 +23,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    let config = APIConfiguration()
+    let model = MacAppModel()
     return ContentView()
-        .environment(config)
+        .environment(model)
 }

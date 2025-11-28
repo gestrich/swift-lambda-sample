@@ -3,19 +3,19 @@ import SwiftUI
 import SwiftDeploy
 
 struct SettingsView: View {
-    @Environment(APIConfiguration.self) var config
+    @Environment(MacAppModel.self) var model
 
     private var modeBinding: Binding<String> {
         Binding(
-            get: { config.mode.persistenceKey },
+            get: { model.mode.persistenceKey },
             set: { key in
                 switch key {
                 case RemoteService.persistenceKey:
-                    config.setRemote()
+                    model.setRemote()
                 case XcodeLocalService.persistenceKey:
-                    config.setLocalXcode()
+                    model.setLocalXcode()
                 case LinuxLocalService.persistenceKey:
-                    config.setLocalLinux()
+                    model.setLocalLinux()
                 default:
                     break
                 }
@@ -48,22 +48,22 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    Text(config.mode.detailText)
+                    Text(model.mode.detailText)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
 
                 // Endpoint section
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(config.endpointLabel)
+                    Text(model.endpointLabel)
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    TextField("Endpoint", text: .constant(config.endpoint))
+                    TextField("Endpoint", text: .constant(model.endpoint))
                         .textFieldStyle(.roundedBorder)
                         .disabled(true)
 
-                    Text(config.endpointHelpText)
+                    Text(model.endpointHelpText)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -79,10 +79,10 @@ struct SettingsView: View {
 
                         Button(action: {
                             Task {
-                                await config.startServices()
+                                await model.startServices()
                             }
                         }) {
-                            if config.status.lambdaState.isTransitioning {
+                            if model.status.lambdaState.isTransitioning {
                                 ProgressView()
                                     .scaleEffect(0.7)
                             } else {
@@ -90,21 +90,21 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.borderless)
-                        .disabled(config.status.lambdaState.isTransitioning)
+                        .disabled(model.status.lambdaState.isTransitioning)
                         .help("Start services")
 
-                        Button(action: { config.refreshStatus() }) {
+                        Button(action: { model.refreshStatus() }) {
                             Image(systemName: "arrow.clockwise")
                         }
                         .buttonStyle(.borderless)
-                        .disabled(config.status.lambdaState.isTransitioning)
+                        .disabled(model.status.lambdaState.isTransitioning)
                         .help("Refresh status")
                     }
 
                     HStack(spacing: 20) {
-                        StatusIndicator(label: "Lambda", state: config.status.lambdaState)
-                        StatusIndicator(label: "S3", state: config.status.s3State)
-                        StatusIndicator(label: "PostgreSQL", state: config.status.postgresState)
+                        StatusIndicator(label: "Lambda", state: model.status.lambdaState)
+                        StatusIndicator(label: "S3", state: model.status.s3State)
+                        StatusIndicator(label: "PostgreSQL", state: model.status.postgresState)
                     }
                     .padding(.vertical, 4)
                 }
@@ -125,7 +125,7 @@ struct SettingsView: View {
                             Text("Mode:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text(config.mode.displayName)
+                            Text(model.mode.displayName)
                                 .font(.caption)
                                 .textSelection(.enabled)
                         }
@@ -133,15 +133,15 @@ struct SettingsView: View {
                             Text("Configured:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text(config.isConfigured ? "Yes" : "No")
+                            Text(model.isConfigured ? "Yes" : "No")
                                 .font(.caption)
-                                .foregroundColor(config.isConfigured ? .green : .red)
+                                .foregroundColor(model.isConfigured ? .green : .red)
                         }
                         HStack {
                             Text("Endpoint:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text(config.endpoint)
+                            Text(model.endpoint)
                                 .font(.caption)
                                 .textSelection(.enabled)
                         }
@@ -151,7 +151,7 @@ struct SettingsView: View {
                     .cornerRadius(8)
                 }
                 .onAppear {
-                    config.refreshStatus()
+                    model.refreshStatus()
                 }
 
                 Divider()
@@ -188,10 +188,10 @@ struct SettingsView: View {
 
                 Button(action: {
                     Task {
-                        try? await config.buildLambda(clean: false)
+                        try? await model.buildLambda(clean: false)
                     }
                 }) {
-                    if config.mode.buildState.status.isBuilding {
+                    if model.mode.buildState.status.isBuilding {
                         ProgressView()
                             .scaleEffect(0.7)
                     } else {
@@ -199,35 +199,35 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.borderless)
-                .disabled(config.mode.buildState.status.isBuilding)
+                .disabled(model.mode.buildState.status.isBuilding)
                 .help("Build Lambda")
 
                 Button(action: {
                     Task {
-                        try? await config.buildLambda(clean: true)
+                        try? await model.buildLambda(clean: true)
                     }
                 }) {
                     Image(systemName: "sparkles")
                 }
                 .buttonStyle(.borderless)
-                .disabled(config.mode.buildState.status.isBuilding)
+                .disabled(model.mode.buildState.status.isBuilding)
                 .help("Clean and Build Lambda")
 
-                if config.mode.buildState.status.hasArtifact {
+                if model.mode.buildState.status.hasArtifact {
                     Button(action: {
                         Task {
-                            try? await config.deleteBuild()
+                            try? await model.deleteBuild()
                         }
                     }) {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
-                    .disabled(config.mode.buildState.status.isBuilding)
+                    .disabled(model.mode.buildState.status.isBuilding)
                     .help("Delete Build")
                 }
             }
 
-            BuildOutputView(buildState: config.mode.buildState)
+            BuildOutputView(buildState: model.mode.buildState)
         }
     }
 }
@@ -258,7 +258,7 @@ private struct StatusIndicator: View {
 }
 
 #Preview {
-    let config = APIConfiguration()
+    let model = MacAppModel()
     return SettingsView()
-        .environment(config)
+        .environment(model)
 }
