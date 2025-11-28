@@ -1,6 +1,7 @@
+import AppKit
 import Client
-import SwiftUI
 import SwiftDeploy
+import SwiftUI
 
 struct SettingsView: View {
     @Environment(MacAppModel.self) var model
@@ -24,165 +25,120 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Settings")
-                .font(.title)
-                .padding(.top)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // MARK: - Mode Picker
+                modePickerSection
 
-            Divider()
+                Divider()
 
-            VStack(alignment: .leading, spacing: 15) {
-                Text("API Configuration")
-                    .font(.headline)
+                // MARK: - About Section
+                aboutSection
 
-                // Mode Picker
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Lambda Mode")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Divider()
 
-                    Picker("Lambda Mode", selection: modeBinding) {
-                        Text("Remote").tag(RemoteService.persistenceKey)
-                        Text("Local Xcode").tag(XcodeLocalService.persistenceKey)
-                        Text("Local Linux").tag(LinuxLocalService.persistenceKey)
-                    }
-                    .pickerStyle(.segmented)
+                // MARK: - Docker Services Section
+                dockerServicesSection
 
-                    Text(model.mode.detailText)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+                Divider()
 
-                // Endpoint section
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(model.endpointLabel)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    TextField("Endpoint", text: .constant(model.endpoint))
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(true)
-
-                    Text(model.endpointHelpText)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-
-                // Service Status Section
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Service Status")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        Button(action: {
-                            Task {
-                                await model.startServices()
-                            }
-                        }) {
-                            if model.status.lambdaState.isTransitioning {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                            } else {
-                                Image(systemName: "play.circle")
-                            }
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(model.status.lambdaState.isTransitioning)
-                        .help("Start services")
-
-                        Button(action: { model.refreshStatus() }) {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(model.status.lambdaState.isTransitioning)
-                        .help("Refresh status")
-                    }
-
-                    HStack(spacing: 20) {
-                        StatusIndicator(label: "Lambda", state: model.status.lambdaState)
-                        StatusIndicator(label: "S3", state: model.status.s3State)
-                        StatusIndicator(label: "PostgreSQL", state: model.status.postgresState)
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                // Build Section
+                // MARK: - Build Section
                 buildSection
 
                 Divider()
-                    .padding(.top)
 
-                // Current Configuration
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Current Configuration")
-                        .font(.headline)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text("Mode:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(model.mode.displayName)
-                                .font(.caption)
-                                .textSelection(.enabled)
-                        }
-                        HStack {
-                            Text("Configured:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(model.isConfigured ? "Yes" : "No")
-                                .font(.caption)
-                                .foregroundColor(model.isConfigured ? .green : .red)
-                        }
-                        HStack {
-                            Text("Endpoint:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(model.endpoint)
-                                .font(.caption)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
-                }
-                .onAppear {
-                    model.refreshStatus()
-                }
-
-                Divider()
-                    .padding(.top)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("About")
-                        .font(.headline)
-
-                    Text("Swift Lambda Sample - MacApp")
-                        .font(.body)
-
-                    Text("This application connects to either a remote AWS Lambda API Gateway or a local Lambda instance for managing users and testing S3 file operations.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                // MARK: - Lambda Section
+                lambdaSection
             }
-            .padding(.horizontal, 20)
-
-            Spacer()
+            .padding(20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            model.refreshStatus()
+        }
     }
 
+    // MARK: - Mode Picker Section
+
     @ViewBuilder
-    var buildSection: some View {
+    private var modePickerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Build")
+            Text("Lambda Mode")
+                .font(.headline)
+
+            Picker("Lambda Mode", selection: modeBinding) {
+                Text("Remote").tag(RemoteService.persistenceKey)
+                Text("Local Xcode").tag(XcodeLocalService.persistenceKey)
+                Text("Local Linux").tag(LinuxLocalService.persistenceKey)
+            }
+            .pickerStyle(.segmented)
+
+            Text(model.mode.detailText)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - About Section
+
+    @ViewBuilder
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("About")
+                .font(.headline)
+
+            Text("Swift Lambda Sample")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Text("This application connects to either a remote AWS Lambda API Gateway or a local Lambda instance for managing users and testing S3 file operations.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Docker Services Section
+
+    @ViewBuilder
+    private var dockerServicesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Docker Services")
+                .font(.headline)
+
+            // S3 (MinIO) Row
+            DockerServiceRow(
+                name: "S3 (MinIO)",
+                state: model.status.s3State,
+                dataDirectory: model.s3DataDirectory,
+                onStart: { try await model.startS3() },
+                onStop: { try await model.stopS3() }
+            )
+
+            // PostgreSQL Row
+            DockerServiceRow(
+                name: "PostgreSQL",
+                state: model.status.postgresState,
+                dataDirectory: model.postgresDataDirectory,
+                onStart: { try await model.startDatabase() },
+                onStop: { try await model.stopDatabase() }
+            )
+
+            if model.mode.isRemote {
+                Text("Docker services are only available in local modes.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Build Section
+
+    @ViewBuilder
+    private var buildSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Build")
+                    .font(.headline)
 
                 Spacer()
 
@@ -229,6 +185,159 @@ struct SettingsView: View {
 
             BuildOutputView(buildState: model.mode.buildState)
         }
+    }
+
+    // MARK: - Lambda Section
+
+    @ViewBuilder
+    private var lambdaSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Lambda")
+                    .font(.headline)
+
+                Spacer()
+
+                Button(action: {
+                    Task {
+                        await model.startServices()
+                    }
+                }) {
+                    if model.status.lambdaState.isTransitioning {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "play.circle")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(model.status.lambdaState.isTransitioning)
+                .help("Start Lambda")
+
+                Button(action: { model.refreshStatus() }) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(model.status.lambdaState.isTransitioning)
+                .help("Refresh status")
+            }
+
+            // Status
+            HStack {
+                StatusIndicator(label: "Lambda", state: model.status.lambdaState)
+            }
+
+            // Endpoint
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Endpoint")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                TextField("Endpoint", text: .constant(model.endpoint))
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(true)
+
+                Text(model.endpointHelpText)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+// MARK: - Docker Service Row
+
+private struct DockerServiceRow: View {
+    let name: String
+    let state: ServiceState
+    let dataDirectory: String?
+    let onStart: () async throws -> Void
+    let onStop: () async throws -> Void
+
+    @State private var isLoading = false
+
+    private var stateColor: Color {
+        switch state {
+        case .running: return .green
+        case .starting, .stopping: return .orange
+        case .stopped: return .gray
+        }
+    }
+
+    private var stateText: String {
+        switch state {
+        case .running: return "Running"
+        case .starting: return "Starting..."
+        case .stopping: return "Stopping..."
+        case .stopped: return "Stopped"
+        }
+    }
+
+    var body: some View {
+        HStack {
+            // Status indicator
+            Circle()
+                .fill(stateColor)
+                .frame(width: 8, height: 8)
+
+            // Service name and status
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(stateText)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Data directory button
+            if let dataDir = dataDirectory {
+                Button(action: {
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dataDir)
+                }) {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.borderless)
+                .help("Open data directory: \(dataDir)")
+            }
+
+            // Start/Stop button
+            if isLoading || state.isTransitioning {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .frame(width: 20)
+            } else if state == .running {
+                Button(action: {
+                    Task {
+                        isLoading = true
+                        defer { isLoading = false }
+                        try? await onStop()
+                    }
+                }) {
+                    Image(systemName: "stop.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Stop \(name)")
+            } else {
+                Button(action: {
+                    Task {
+                        isLoading = true
+                        defer { isLoading = false }
+                        try? await onStart()
+                    }
+                }) {
+                    Image(systemName: "play.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Start \(name)")
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(6)
     }
 }
 

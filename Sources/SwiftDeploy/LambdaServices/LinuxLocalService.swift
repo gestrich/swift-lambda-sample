@@ -9,6 +9,7 @@ import LocalStorageService
 public class LinuxLocalService: LambdaService {
     private let dockerService: DockerService
     private let cliService: CLIService
+    private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLService
     private let minioService: MinIOService
@@ -71,8 +72,7 @@ public class LinuxLocalService: LambdaService {
         self.dockerService = DockerService()
         self.cliService = CLIService.shared
         self.config = .default(workingDirectory: workingDirectory)
-
-        let storageService = LocalStorageService()
+        self.storageService = LocalStorageService()
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
@@ -142,6 +142,16 @@ public class LinuxLocalService: LambdaService {
     /// Stop PostgreSQL database
     public func stopDatabase() async throws {
         try await postgresService.stop()
+    }
+
+    /// Data directory for S3 (MinIO)
+    public var s3DataDirectory: String {
+        storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+    }
+
+    /// Data directory for PostgreSQL
+    public var postgresDataDirectory: String {
+        storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
     }
 
     // MARK: - LambdaService Protocol: Build
