@@ -17,7 +17,8 @@ public enum BuildError: Error, LocalizedError {
 
 /// Build status for Lambda
 public enum BuildStatus: Equatable, Sendable {
-    case idle
+    case notBuilt
+    case available
     case building
     case success
     case failed(Int32)
@@ -25,6 +26,16 @@ public enum BuildStatus: Equatable, Sendable {
     public var isBuilding: Bool {
         if case .building = self { return true }
         return false
+    }
+
+    /// Whether a build artifact exists (available or just built successfully)
+    public var hasArtifact: Bool {
+        switch self {
+        case .available, .success:
+            return true
+        default:
+            return false
+        }
     }
 }
 
@@ -38,7 +49,7 @@ public class BuildState {
     public private(set) var outputLines: [String] = []
 
     /// Current build status
-    public private(set) var status: BuildStatus = .idle
+    public private(set) var status: BuildStatus = .notBuilt
 
     public init() {}
 
@@ -48,10 +59,28 @@ public class BuildState {
         status = .building
     }
 
-    /// Clear all build output and reset to idle
+    /// Clear all build output and reset to notBuilt
     public func clear() {
         outputLines = []
-        status = .idle
+        status = .notBuilt
+    }
+
+    /// Update status based on whether a build artifact exists
+    /// - Parameter exists: Whether a build artifact exists on disk
+    public func updateFromDisk(buildExists: Bool) {
+        // Only update if not currently building
+        guard !status.isBuilding else { return }
+
+        if buildExists {
+            // If we just successfully built, keep .success status
+            // Otherwise show .available
+            if case .success = status {
+                return
+            }
+            status = .available
+        } else {
+            status = .notBuilt
+        }
     }
 
     /// Mark build as successful

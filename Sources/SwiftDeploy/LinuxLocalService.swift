@@ -17,6 +17,16 @@ public class LinuxLocalService: LambdaService {
     // Working directory
     private let workingDirectory: String
 
+    // MARK: - Build Artifact Paths
+
+    private var lambdaDir: String { "\(workingDirectory)/lambda" }
+    private var lambdaZipPath: String { "\(workingDirectory)/lambda.zip" }
+    private var bootstrapPath: String { "\(lambdaDir)/bootstrap" }
+    private var awsSamBuildDir: String { ".aws-sam/build-SwiftLambda" }
+
+    /// Paths to clean when deleting build artifacts (relative to workingDirectory)
+    private var buildArtifactPaths: [String] { ["lambda", "lambda.zip", awsSamBuildDir] }
+
     // MARK: - Combine Publishers
 
     private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
@@ -75,6 +85,9 @@ public class LinuxLocalService: LambdaService {
             config: .linux,
             storageService: storageService
         )
+
+        // Check for existing build artifacts
+        refreshBuildStatus()
     }
 
     // MARK: - Service Management
@@ -143,7 +156,7 @@ public class LinuxLocalService: LambdaService {
             do {
                 _ = try await cliService.execute(
                     command: "rm",
-                    arguments: ["-rf", ".aws-sam/build-SwiftLambda", "lambda", "lambda.zip"],
+                    arguments: ["-rf"] + buildArtifactPaths,
                     workingDirectory: workingDirectory,
                     printCommand: false
                 )
@@ -182,13 +195,20 @@ public class LinuxLocalService: LambdaService {
 
     /// Check if Lambda is already built (Linux artifacts)
     public func isLambdaBuilt() -> Bool {
-        let lambdaDir = "\(workingDirectory)/lambda"
-        let bootstrapPath = "\(lambdaDir)/bootstrap"
-        let zipPath = "\(workingDirectory)/lambda.zip"
-
         return FileManager.default.fileExists(atPath: lambdaDir) &&
                FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: zipPath)
+               FileManager.default.fileExists(atPath: lambdaZipPath)
+    }
+
+    /// Delete build artifacts and reset build state
+    public func deleteBuild() async throws {
+        _ = try await cliService.execute(
+            command: "rm",
+            arguments: ["-rf"] + buildArtifactPaths,
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+        buildState.clear()
     }
 
     // MARK: - LambdaService Protocol: Lifecycle
@@ -392,7 +412,7 @@ public class LinuxLocalService: LambdaService {
     /// Print the Docker command to run Lambda interactively
     public func printRunCommand() async throws {
         // Check if lambda directory exists
-        guard FileManager.default.fileExists(atPath: "\(workingDirectory)/lambda") else {
+        guard FileManager.default.fileExists(atPath: lambdaDir) else {
             print("❌ Error: lambda directory not found!")
             print("Build the Lambda first with: ./tools.sh local linux build")
             throw CLIError.invalidWorkingDirectory("lambda directory not found")
@@ -407,7 +427,7 @@ public class LinuxLocalService: LambdaService {
             --network \(config.networkName) \\
             --name \(config.containerName) \\
             -p \(config.hostPort):\(config.containerPort) \\
-            -v \(workingDirectory)/lambda:/var/task \\
+            -v \(lambdaDir):/var/task \\
             \(envFlags) \\
             \(config.swiftImage) \\
             bash -c 'cd /var/task && chmod +x bootstrap && echo "✅ Lambda ready! Run: ./bootstrap" && bash'
@@ -420,7 +440,7 @@ public class LinuxLocalService: LambdaService {
     /// Run Lambda in interactive container (direct execution - may have TTY issues)
     public func runInteractive() async throws {
         // Check if lambda directory exists
-        guard FileManager.default.fileExists(atPath: "\(workingDirectory)/lambda") else {
+        guard FileManager.default.fileExists(atPath: lambdaDir) else {
             print("❌ Error: lambda directory not found!")
             print("Build the Lambda first with: ./tools.sh local linux build")
             throw CLIError.invalidWorkingDirectory("lambda directory not found")
@@ -436,7 +456,7 @@ public class LinuxLocalService: LambdaService {
         options.remove = true
         options.platform = "linux/amd64"
         options.network = config.networkName
-        options.volumes = [("\(workingDirectory)/lambda", "/var/task")]
+        options.volumes = [(lambdaDir, "/var/task")]
         options.ports = [(config.hostPort, config.containerPort)]
         options.environment = getEnvironmentVariables()
 
@@ -458,11 +478,11 @@ public class LinuxLocalService: LambdaService {
         try await dockerService.ensureDockerRunning()
 
         // Determine lambda path
-        let lambdaDir = lambdaPath ?? "\(workingDirectory)/lambda"
+        let effectiveLambdaDir = lambdaPath ?? lambdaDir
 
         // Check if lambda directory exists
-        guard FileManager.default.fileExists(atPath: lambdaDir) else {
-            print("❌ Error: lambda directory not found at \(lambdaDir)!")
+        guard FileManager.default.fileExists(atPath: effectiveLambdaDir) else {
+            print("❌ Error: lambda directory not found at \(effectiveLambdaDir)!")
             print("Build the Lambda first with: ./tools.sh local linux build")
             throw CLIError.invalidWorkingDirectory("lambda directory not found")
         }
@@ -475,7 +495,7 @@ public class LinuxLocalService: LambdaService {
         options.platform = "linux/amd64"
         options.network = config.networkName
         options.ports = [(config.hostPort, config.containerPort)]
-        options.volumes = [(lambdaDir, "/var/task")]
+        options.volumes = [(effectiveLambdaDir, "/var/task")]
         options.environment = getEnvironmentVariables()
 
         try await dockerService.run(

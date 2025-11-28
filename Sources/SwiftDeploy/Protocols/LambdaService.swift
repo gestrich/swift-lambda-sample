@@ -43,6 +43,12 @@ public protocol LambdaService {
     /// Check if Lambda is already built
     func isLambdaBuilt() -> Bool
 
+    /// Delete build artifacts and reset build state
+    func deleteBuild() async throws
+
+    /// Refresh build status by checking if artifacts exist on disk
+    func refreshBuildStatus()
+
     // MARK: - Lifecycle
 
     /// Start Lambda process/container only
@@ -94,6 +100,11 @@ extension LambdaService {
     /// Default implementation for build without clean parameter
     public func build() async throws {
         try await build(clean: false)
+    }
+
+    /// Default implementation for refreshing build status
+    public func refreshBuildStatus() {
+        buildState.updateFromDisk(buildExists: isLambdaBuilt())
     }
 }
 

@@ -89,8 +89,22 @@ struct BuildOutputView: View {
     @ViewBuilder
     private var statusBadge: some View {
         switch buildState.status {
-        case .idle:
-            EmptyView()
+        case .notBuilt:
+            HStack(spacing: 4) {
+                Image(systemName: "minus.circle")
+                    .foregroundColor(.secondary)
+                Text("Not Built")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        case .available:
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle")
+                    .foregroundColor(.blue)
+                Text("Available")
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+            }
         case .building:
             HStack(spacing: 4) {
                 ProgressView()

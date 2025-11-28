@@ -124,6 +124,11 @@ public class RemoteService: LambdaService {
         return _endpoint != nil
     }
 
+    /// Delete build is not applicable for remote - just clears state
+    public func deleteBuild() async throws {
+        buildState.clear()
+    }
+
     // MARK: - LambdaService Protocol: Lifecycle
 
     /// Start is not applicable for remote services - Lambda runs on-demand

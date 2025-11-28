@@ -55,6 +55,14 @@ enum ConnectionMode: LambdaService {
         service.isLambdaBuilt()
     }
 
+    func deleteBuild() async throws {
+        try await service.deleteBuild()
+    }
+
+    func refreshBuildStatus() {
+        service.refreshBuildStatus()
+    }
+
     func startLambda() async throws {
         try await service.startLambda()
     }
@@ -328,6 +336,14 @@ class APIConfiguration: LambdaService {
 
     func isLambdaBuilt() -> Bool {
         mode.isLambdaBuilt()
+    }
+
+    func deleteBuild() async throws {
+        try await mode.deleteBuild()
+    }
+
+    func refreshBuildStatus() {
+        mode.refreshBuildStatus()
     }
 
     func startLambda() async throws {

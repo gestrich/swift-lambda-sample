@@ -212,6 +212,19 @@ struct SettingsView: View {
                 .buttonStyle(.borderless)
                 .disabled(config.mode.buildState.status.isBuilding)
                 .help("Clean and Build Lambda")
+
+                if config.mode.buildState.status.hasArtifact {
+                    Button(action: {
+                        Task {
+                            try? await config.deleteBuild()
+                        }
+                    }) {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(config.mode.buildState.status.isBuilding)
+                    .help("Delete Build")
+                }
             }
 
             BuildOutputView(buildState: config.mode.buildState)

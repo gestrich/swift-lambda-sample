@@ -80,6 +80,9 @@ public class XcodeLocalService: LambdaService {
             config: .xcode,
             storageService: storageService
         )
+
+        // Check for existing build artifacts
+        refreshBuildStatus()
     }
 
     // MARK: - Service Management
@@ -224,6 +227,17 @@ public class XcodeLocalService: LambdaService {
             }
         }
         return false
+    }
+
+    /// Delete build artifacts and reset build state
+    public func deleteBuild() async throws {
+        _ = try await cliService.execute(
+            command: "swift",
+            arguments: ["package", "clean"],
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+        buildState.clear()
     }
 
     // MARK: - LambdaService Protocol: Lifecycle
