@@ -60,15 +60,19 @@ public class XcodeLocalService: LambdaService {
         self.cliService = CLIService.shared
         self.workingDirectory = workingDirectory
 
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let baseDataDirectory = "\(homeDir)/.swiftSampleDemo"
+
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
-            workingDirectory: workingDirectory,
-            config: .xcode
+            config: .xcode,
+            baseDataDirectory: baseDataDirectory
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
             networkName: "lambda-xcode",
-            config: .xcode
+            config: .xcode,
+            baseDataDirectory: baseDataDirectory
         )
     }
 

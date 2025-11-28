@@ -57,15 +57,19 @@ public class LinuxLocalService: LambdaService {
         self.cliService = CLIService.shared
         self.config = .default(workingDirectory: workingDirectory)
 
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let baseDataDirectory = "\(homeDir)/.swiftSampleDemo"
+
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
-            workingDirectory: workingDirectory,
-            config: .linux
+            config: .linux,
+            baseDataDirectory: baseDataDirectory
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
             networkName: config.networkName,
-            config: .linux
+            config: .linux,
+            baseDataDirectory: baseDataDirectory
         )
     }
 

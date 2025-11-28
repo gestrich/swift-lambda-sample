@@ -12,12 +12,7 @@ public enum PostgreSQLConfig: Sendable {
         }
     }
 
-    var imageName: String {
-        switch self {
-        case .xcode: return "postgres-xcode"
-        case .linux: return "postgres-linux"
-        }
-    }
+    var imageName: String { "postgres:11" }
 
     var port: Int {
         switch self {
@@ -26,10 +21,10 @@ public enum PostgreSQLConfig: Sendable {
         }
     }
 
-    var volumeName: String {
+    var dataDirectoryName: String {
         switch self {
-        case .xcode: return "postgres-xcode-data"
-        case .linux: return "postgres-linux-data"
+        case .xcode: return "xcode-data"
+        case .linux: return "linux-data"
         }
     }
 
@@ -46,13 +41,13 @@ public enum PostgreSQLConfig: Sendable {
 /// Service for managing local PostgreSQL database via Docker
 public actor PostgreSQLService {
     private let dockerService: DockerService
-    private let workingDirectory: String
     private let config: PostgreSQLConfig
+    private let dataDirectory: String
 
-    public init(dockerService: DockerService, workingDirectory: String, config: PostgreSQLConfig) {
+    public init(dockerService: DockerService, config: PostgreSQLConfig, baseDataDirectory: String) {
         self.dockerService = dockerService
-        self.workingDirectory = workingDirectory
         self.config = config
+        self.dataDirectory = "\(baseDataDirectory)/postgres/\(config.dataDirectoryName)"
     }
 
     /// Get connection information
@@ -72,29 +67,29 @@ public actor PostgreSQLService {
     public func start() async throws {
         print("\n🗄️  Starting PostgreSQL (\(config.containerName))...")
 
-        // Build PostgreSQL image
-        print("→ Building PostgreSQL Docker image...")
-        var buildOptions = DockerService.BuildOptions()
-        buildOptions.tag = config.imageName
-        buildOptions.file = "PostgresDockerfile"
-        buildOptions.buildArgs = [
-            "EXPOSE_PORT": "\(config.port)",
-            "USERNAME": config.username,
-            "PASSWORD": config.password
-        ]
-        buildOptions.workingDirectory = workingDirectory
+        // Create data directory if it doesn't exist
+        if !FileManager.default.fileExists(atPath: dataDirectory) {
+            print("→ Creating PostgreSQL data directory at \(dataDirectory)...")
+            try FileManager.default.createDirectory(
+                atPath: dataDirectory,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+        }
 
-        try await dockerService.build(context: ".", options: buildOptions)
-
-        // Run PostgreSQL container with a named volume for data persistence
-        // Named volumes preserve data across container restarts and allow Docker
-        // to copy initial data from the image on first run
+        // Run PostgreSQL container with host directory for data persistence
+        // The official postgres image handles initialization automatically
         print("→ Starting PostgreSQL container...")
         var runOptions = DockerService.RunOptions()
         runOptions.detached = true
         runOptions.ports = [(config.port, config.internalPort)]
         runOptions.name = config.containerName
-        runOptions.volumes = [(config.volumeName, "/var/lib/postgresql")]
+        runOptions.volumes = [(dataDirectory, "/var/lib/postgresql/data")]
+        runOptions.environment = [
+            "POSTGRES_USER": config.username,
+            "POSTGRES_PASSWORD": config.password,
+            "POSTGRES_DB": config.database
+        ]
 
         try await dockerService.run(
             image: config.imageName,
@@ -105,7 +100,7 @@ public actor PostgreSQLService {
         print("   - Host: localhost:\(config.port)")
         print("   - Database: \(config.database)")
         print("   - Credentials: \(config.username)/\(config.password)")
-        print("   - Volume: \(config.volumeName)")
+        print("   - Data: \(dataDirectory)")
     }
 
     /// Stop PostgreSQL database

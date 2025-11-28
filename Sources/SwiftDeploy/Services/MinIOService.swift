@@ -47,16 +47,13 @@ public actor MinIOService {
     private let dockerService: DockerService
     private let networkName: String
     private let config: MinIOConfig
-
-    // Data directory
     private let dataDirectory: String
 
-    public init(dockerService: DockerService, networkName: String, config: MinIOConfig) {
+    public init(dockerService: DockerService, networkName: String, config: MinIOConfig, baseDataDirectory: String) {
         self.dockerService = dockerService
         self.networkName = networkName
         self.config = config
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        self.dataDirectory = "\(homeDir)/minio/\(config.dataDirectoryName)"
+        self.dataDirectory = "\(baseDataDirectory)/minio/\(config.dataDirectoryName)"
     }
 
     /// Get S3 endpoint URL
