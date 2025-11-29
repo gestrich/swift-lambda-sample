@@ -64,7 +64,7 @@ struct CLIPlaygroundView: View {
 
     private func runCommand(_ command: String, arguments: [String]) {
         isRunning = true
-        outputLines.append("→ \(command) \(arguments.joined(separator: " "))")
+        outputLines.append("$ \(command) \(arguments.joined(separator: " "))")
 
         Task {
             do {
