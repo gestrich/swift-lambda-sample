@@ -400,19 +400,22 @@ public actor CLIService {
     ///   - workingDirectory: Working directory for execution
     ///   - environment: Custom environment variables
     ///   - printCommand: Whether to print the command before execution
+    ///   - inheritIO: If true, inherits stdin/stdout/stderr from parent process (for interactive commands)
     /// - Returns: ExecutionResult containing exit code, stdout, stderr, and duration
     public func executeForResult<C: CLICommand>(
         _ command: C,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        inheritIO: Bool = false
     ) async throws -> ExecutionResult {
         try await execute(
             command: C.Program.programName,
             arguments: command.commandArguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            printCommand: printCommand
+            printCommand: printCommand,
+            inheritIO: inheritIO
         )
     }
 

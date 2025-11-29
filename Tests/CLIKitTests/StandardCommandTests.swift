@@ -197,6 +197,45 @@ struct ShCommandTests {
     }
 }
 
+@Suite("Open Command Tests")
+struct OpenCommandTests {
+
+    @Test("Open program name")
+    func testProgramName() {
+        #expect(Open.programName == "open")
+    }
+
+    @Test("Open command line with application")
+    func testOpenWithApplication() {
+        let cmd = Open(application: "Docker")
+        #expect(cmd.commandLine == ["open", "-a", "Docker"])
+    }
+
+    @Test("Open command line with path")
+    func testOpenWithPath() {
+        let cmd = Open(path: "/path/to/file.txt")
+        #expect(cmd.commandLine == ["open", "/path/to/file.txt"])
+    }
+
+    @Test("Open command line with application and path")
+    func testOpenWithAppAndPath() {
+        let cmd = Open(application: "TextEdit", path: "/path/to/file.txt")
+        #expect(cmd.commandLine == ["open", "-a", "TextEdit", "/path/to/file.txt"])
+    }
+
+    @Test("Open command line with no arguments")
+    func testOpenNoArgs() {
+        let cmd = Open()
+        #expect(cmd.commandLine == ["open"])
+    }
+
+    @Test("Open command string")
+    func testOpenCommandString() {
+        let cmd = Open(application: "Docker")
+        #expect(cmd.commandString == "open -a Docker")
+    }
+}
+
 @Suite("Rm Command Tests")
 struct RmCommandTests {
 

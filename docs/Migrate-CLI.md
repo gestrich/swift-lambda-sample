@@ -142,19 +142,34 @@ For each CLI program:
     - Uses `executeForResult()` from CLIService to get full ExecutionResult
   - Tests: `Tests/SwiftDeployTests/GitHubCLITests.swift` (45 tests)
 
-- [ ] **11. Docker** - Container operations
+- [x] **11. Docker** - Container operations
   - File: `DockerService.swift`
-  - Commands:
-    - `info`
-    - `run` (complex with many options: `-d`, `--rm`, `-i`, `-t`, `--platform`, `--name`, `--network`, `-p`, `-v`, `-e`, `--user`, `-w`)
-    - `stop`
-    - `rm`
-    - `ps`
-    - `build`
-    - `network create`
-    - `network inspect`
-    - `network connect`
-    - `logs`
+  - Location: `SwiftDeploy/CLI/Docker.swift`
+  - Commands implemented:
+    - `Info` - `docker info`
+    - `Run` - `docker run` with flags: `-d`, `--rm`, `-i`, `-t`, `--platform`, `--name`, `--network`, `-p` (multiple), `-v` (multiple), `-e` (multiple), `--user`, `-w`
+    - `Stop` - `docker stop`
+    - `Rm` - `docker rm`
+    - `Ps` - `docker ps` with flags: `-a`, `--filter` (multiple), `--format`
+    - `Logs` - `docker logs` with flags: `-f`, `-t`, `--tail`
+    - `Build` - `docker build` with options: `--platform`, `-t`, `-f`, `--build-arg` (multiple), `--secret` (multiple)
+    - `NetworkCreate` - `docker network create`
+    - `NetworkInspect` - `docker network inspect` with `--format` option
+    - `NetworkConnect` - `docker network connect`
+  - Output types:
+    - `DockerContainer` - Container name from ps command
+    - `DockerNetworkContainer` - Container name from network inspect
+  - Parsers:
+    - `DockerPsNamesParser` - Parses `docker ps --format {{.Names}}` output
+    - `DockerNetworkContainersParser` - Parses network inspect container names output
+  - Additional:
+    - Created `Open` command in `CLIKit/standard/Open.swift` for macOS app launcher (used by `startDockerDesktop()`)
+    - Added `inheritIO` parameter to `CLIService.executeForResult()` for typed commands
+  - Technical notes:
+    - Array options (publish, volume, env, filter, buildArg, secret) use CLIKit's variadic `@Option` support
+    - `Docker.Run` supports positional array for command arguments after image
+    - `DockerService.build()` uses `commandString` property to wrap in shell command for working directory support
+  - Tests: `Tests/SwiftDeployTests/DockerTests.swift` (73 tests)
 
 - [ ] **12. Swift** - Swift build operations
   - File: `XcodeLocalService.swift`
@@ -244,11 +259,11 @@ We'll proceed program-by-program in this order:
 | `Sh` | `CLIKit/standard/Sh.swift` | New - shell execution |
 | `Which` | `CLIKit/standard/Which.swift` | New - command lookup |
 | `Open` | `CLIKit/standard/Open.swift` | New - macOS app launcher |
+| `Docker` | `SwiftDeploy/CLI/Docker.swift` | New - Docker |
 | `Aws` | `SwiftDeploy/CLI/Aws.swift` | New - AWS CLI |
 | `Cdk` | `SwiftDeploy/CLI/Cdk.swift` | New - AWS CDK |
 | `Npm` | `SwiftDeploy/CLI/Npm.swift` | New - Node package manager |
 | `Gh` | `SwiftDeploy/CLI/Gh.swift` | New - GitHub CLI |
-| `Docker` | `SwiftDeploy/CLI/Docker.swift` | New - Docker |
 | `Swift` | `SwiftDeploy/CLI/Swift.swift` | New - Swift toolchain |
 | `Curl` | `SwiftDeploy/CLI/Curl.swift` | New - HTTP requests |
 

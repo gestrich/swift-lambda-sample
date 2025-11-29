@@ -14,11 +14,7 @@ public actor DockerService {
     /// Check if Docker daemon is running
     public func isDockerRunning() async -> Bool {
         do {
-            let result = try await cliService.execute(
-                command: "docker",
-                arguments: ["info"],
-                printCommand: false
-            )
+            let result = try await cliService.executeForResult(Docker.Info(), printCommand: false)
             return result.isSuccess
         } catch {
             return false
@@ -30,9 +26,8 @@ public actor DockerService {
         print("🐳 Starting Docker Desktop...")
 
         // Open Docker Desktop app
-        let result = try await cliService.execute(
-            command: "open",
-            arguments: ["-a", "Docker"],
+        let result = try await cliService.executeForResult(
+            Open(application: "Docker"),
             printCommand: false
         )
 
@@ -100,63 +95,34 @@ public actor DockerService {
         command: [String] = [],
         options: RunOptions = RunOptions()
     ) async throws {
-        var arguments = ["run"]
+        // Build port mappings as strings
+        let portMappings = options.ports.map { "\($0.host):\($0.container)" }
 
-        // Flags
-        if options.detached { arguments.append("-d") }
-        if options.remove { arguments.append("--rm") }
-        if options.interactive { arguments.append("-i") }
-        if options.tty { arguments.append("-t") }
+        // Build volume mappings as strings
+        let volumeMappings = options.volumes.map { "\($0.host):\($0.container)" }
 
-        // Platform
-        if let platform = options.platform {
-            arguments.append(contentsOf: ["--platform", platform])
-        }
+        // Build environment variables as KEY=value strings
+        let envVars = options.environment.map { "\($0.key)=\($0.value)" }
 
-        // Name
-        if let name = options.name {
-            arguments.append(contentsOf: ["--name", name])
-        }
+        let dockerRun = Docker.Run(
+            detached: options.detached,
+            remove: options.remove,
+            interactive: options.interactive,
+            tty: options.tty,
+            platform: options.platform,
+            name: options.name,
+            network: options.network,
+            publish: portMappings,
+            volume: volumeMappings,
+            env: envVars,
+            user: options.user,
+            workdir: options.workingDirectory,
+            image: image,
+            command: command
+        )
 
-        // Network
-        if let network = options.network {
-            arguments.append(contentsOf: ["--network", network])
-        }
-
-        // Ports
-        for (host, container) in options.ports {
-            arguments.append(contentsOf: ["-p", "\(host):\(container)"])
-        }
-
-        // Volumes
-        for (host, container) in options.volumes {
-            arguments.append(contentsOf: ["-v", "\(host):\(container)"])
-        }
-
-        // Environment variables
-        for (key, value) in options.environment {
-            arguments.append(contentsOf: ["-e", "\(key)=\(value)"])
-        }
-
-        // User
-        if let user = options.user {
-            arguments.append(contentsOf: ["--user", user])
-        }
-
-        // Working directory
-        if let workDir = options.workingDirectory {
-            arguments.append(contentsOf: ["-w", workDir])
-        }
-
-        // Image
-        arguments.append(image)
-
-        // Command
-        arguments.append(contentsOf: command)
-
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: arguments,
+        let result = try await cliService.executeForResult(
+            dockerRun,
             inheritIO: options.interactive && options.tty
         )
 
@@ -171,9 +137,8 @@ public actor DockerService {
 
     /// Stop a container
     public func stop(container: String) async throws {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: ["stop", container],
+        let result = try await cliService.executeForResult(
+            Docker.Stop(container: container),
             printCommand: false
         )
 
@@ -188,9 +153,8 @@ public actor DockerService {
 
     /// Remove a container
     public func remove(container: String) async throws {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: ["rm", container],
+        let result = try await cliService.executeForResult(
+            Docker.Rm(container: container),
             printCommand: false
         )
 
@@ -205,13 +169,8 @@ public actor DockerService {
 
     /// Check if a container exists
     public func containerExists(name: String) async throws -> Bool {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: [
-                "ps", "-a",
-                "--filter", "name=^\(name)$",
-                "--format", "{{.Names}}"
-            ],
+        let result = try await cliService.executeForResult(
+            Docker.Ps(all: true, filter: ["name=^\(name)$"], format: "{{.Names}}"),
             printCommand: false
         )
 
@@ -224,13 +183,8 @@ public actor DockerService {
 
     /// Check if a container is running
     public func containerIsRunning(name: String) async throws -> Bool {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: [
-                "ps",
-                "--filter", "name=^\(name)$",
-                "--format", "{{.Names}}"
-            ],
+        let result = try await cliService.executeForResult(
+            Docker.Ps(filter: ["name=^\(name)$"], format: "{{.Names}}"),
             printCommand: false
         )
 
@@ -259,39 +213,24 @@ public actor DockerService {
         context: String = ".",
         options: BuildOptions = BuildOptions()
     ) async throws {
-        var dockerArgs = ["build"]
+        // Build buildArg as KEY=value strings
+        let buildArgStrings = options.buildArgs.map { "\($0.key)=\($0.value)" }
 
-        // Platform
-        if let platform = options.platform {
-            dockerArgs.append(contentsOf: ["--platform", platform])
-        }
+        // Build secrets as id=X,src=Y strings
+        let secretStrings = options.secrets.map { "id=\($0.id),src=\($0.src)" }
 
-        // Tag
-        if let tag = options.tag {
-            dockerArgs.append(contentsOf: ["-t", tag])
-        }
-
-        // Dockerfile
-        if let file = options.file {
-            dockerArgs.append(contentsOf: ["-f", file])
-        }
-
-        // Build args
-        for (key, value) in options.buildArgs {
-            dockerArgs.append(contentsOf: ["--build-arg", "\(key)=\(value)"])
-        }
-
-        // Secrets
-        for (id, src) in options.secrets {
-            dockerArgs.append(contentsOf: ["--secret", "id=\(id),src=\(src)"])
-        }
-
-        // Context
-        dockerArgs.append(context)
+        let dockerBuild = Docker.Build(
+            platform: options.platform,
+            tag: options.tag,
+            file: options.file,
+            buildArg: buildArgStrings,
+            secret: secretStrings,
+            context: context
+        )
 
         // Use shell with cd to ensure we're in the right directory
         // Docker buildkit can have issues with process.currentDirectoryURL
-        let dockerCommand = "docker " + dockerArgs.joined(separator: " ")
+        let dockerCommand = dockerBuild.commandString
         let fullCommand: String
         if let workDir = options.workingDirectory {
             fullCommand = "cd \"\(workDir)\" && \(dockerCommand)"
@@ -314,9 +253,8 @@ public actor DockerService {
 
     /// Create a network
     public func createNetwork(name: String) async throws {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: ["network", "create", name]
+        let result = try await cliService.executeForResult(
+            Docker.NetworkCreate(name: name)
         )
 
         guard result.isSuccess else {
@@ -330,9 +268,8 @@ public actor DockerService {
 
     /// Check if a network exists
     public func networkExists(name: String) async throws -> Bool {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: ["network", "inspect", name],
+        let result = try await cliService.executeForResult(
+            Docker.NetworkInspect(name: name),
             printCommand: false
         )
 
@@ -341,9 +278,8 @@ public actor DockerService {
 
     /// Connect a container to a network
     public func connectToNetwork(container: String, network: String) async throws {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: ["network", "connect", network, container]
+        let result = try await cliService.executeForResult(
+            Docker.NetworkConnect(network: network, container: container)
         )
 
         guard result.isSuccess else {
@@ -357,12 +293,8 @@ public actor DockerService {
 
     /// Check if a container is connected to a network
     public func isConnectedToNetwork(container: String, network: String) async throws -> Bool {
-        let result = try await cliService.execute(
-            command: "docker",
-            arguments: [
-                "network", "inspect", network,
-                "--format", "{{range .Containers}}{{.Name}}\n{{end}}"
-            ],
+        let result = try await cliService.executeForResult(
+            Docker.NetworkInspect(name: network, format: "{{range .Containers}}{{.Name}}\n{{end}}"),
             printCommand: false
         )
 
