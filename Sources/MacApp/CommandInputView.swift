@@ -89,31 +89,34 @@ struct CommandInputView: View {
                     .onSubmit {
                         submitCommand()
                     }
-                    .onKeyPress(.downArrow) {
-                        if showSuggestions && !suggestions.isEmpty {
-                            selectedIndex = min(selectedIndex + 1, suggestions.count - 1)
-                        }
-                        return .handled
-                    }
-                    .onKeyPress(.upArrow) {
-                        if showSuggestions && !suggestions.isEmpty {
-                            selectedIndex = max(selectedIndex - 1, 0)
-                        }
-                        return .handled
-                    }
-                    .onKeyPress(.tab) {
-                        if showSuggestions && !suggestions.isEmpty {
-                            text = suggestions[selectedIndex]
-                            // Add space after command if it's just the command name
-                            if !text.contains(" ") {
-                                text += " "
+                    .onKeyPress { press in
+                        switch press.key {
+                        case .downArrow:
+                            if showSuggestions && !suggestions.isEmpty {
+                                selectedIndex = min(selectedIndex + 1, suggestions.count - 1)
                             }
+                            return .handled
+                        case .upArrow:
+                            if showSuggestions && !suggestions.isEmpty {
+                                selectedIndex = max(selectedIndex - 1, 0)
+                            }
+                            return .handled
+                        case .tab:
+                            if showSuggestions && !suggestions.isEmpty {
+                                text = suggestions[selectedIndex]
+                                // Add space after command if it's just the command name
+                                if !text.contains(" ") {
+                                    text += " "
+                                }
+                                return .handled
+                            }
+                            return .ignored
+                        case .escape:
+                            showSuggestions = false
+                            return .handled
+                        default:
+                            return .ignored
                         }
-                        return .handled
-                    }
-                    .onKeyPress(.escape) {
-                        showSuggestions = false
-                        return .handled
                     }
 
                 if !text.isEmpty {
