@@ -60,6 +60,7 @@ The building blocks of commands:
 |------|-------------|---------|
 | `CLIFlag` | Boolean flag | `--force`, `-f` |
 | `CLIOption` | Option with value | `--message "text"` |
+| `CLIPrefixOption` | Joined prefix + value | `-9`, `-TERM` |
 | `CLIPositional` | Positional argument | `feature-branch` |
 
 ### CLIService
@@ -128,9 +129,39 @@ Override with explicit names:
 @Option("-o") var output: String?                  // -o only
 @Option("--output", "-o") var output: String?      // --output and -o
 
+// Prefix Options (joined prefix + value, for old-style Unix options)
+@PrefixOption("-") var signal: String?             // -9, -TERM (joined)
+
 // Positional (ordered by declaration)
 @Positional var source: String                     // first
 @Positional var destination: String                // second
+```
+
+### Prefix Options
+
+Some Unix commands use old-style options where the prefix and value are combined into a single argument:
+
+```swift
+@CLIProgram
+struct Kill {
+    @PrefixOption("-") var signal: String?    // produces "-9" not "-" "9"
+    @Positional var pid: String
+}
+
+Kill(signal: "9", pid: "12345").commandLine
+// → ["kill", "-9", "12345"]
+```
+
+Common use cases:
+- `kill -9 PID` (signal)
+- `nice -10 command` (priority)
+- `head -20 file` (line count)
+- `renice -5 PID` (priority)
+
+This differs from `@Option` which produces separate arguments:
+```swift
+@Option("-n") var count: String?   // produces ["-n", "20"]
+@PrefixOption("-") var count: String?  // produces ["-20"]
 ```
 
 ## Usage
