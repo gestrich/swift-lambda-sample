@@ -165,8 +165,7 @@ public class XcodeLocalService: LambdaService {
             buildState.appendOutput("🧹 Cleaning previous build artifacts...\n")
             do {
                 _ = try await cliService.execute(
-                    command: "swift",
-                    arguments: ["package", "clean"],
+                    SwiftCLI.PackageClean(),
                     workingDirectory: workingDirectory,
                     printCommand: false
                 )
@@ -181,9 +180,9 @@ public class XcodeLocalService: LambdaService {
         buildState.appendOutput("🔨 Building Lambda for macOS (native)...\n")
 
         // Stream the build output
+        let buildCommand = SwiftCLI.Build(product: lambdaProductName)
         let stream = await cliService.stream(
-            command: "swift",
-            arguments: ["build", "--product", lambdaProductName],
+            buildCommand,
             workingDirectory: workingDirectory,
             printCommand: false
         )
@@ -206,16 +205,16 @@ public class XcodeLocalService: LambdaService {
     /// Get the path to the built executable
     private func getExecutablePath() async throws -> String {
         // Get the bin path from Swift build
-        let result = try await cliService.execute(
-            command: "swift",
-            arguments: ["build", "--product", lambdaProductName, "--show-bin-path"],
+        let showBinPathCommand = SwiftCLI.Build(product: lambdaProductName, showBinPath: true)
+        let result = try await cliService.executeForResult(
+            showBinPathCommand,
             workingDirectory: workingDirectory,
             printCommand: false
         )
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
-                command: "swift build --show-bin-path",
+                command: showBinPathCommand.commandString,
                 exitCode: result.exitCode,
                 stderr: result.stderr
             )
@@ -247,8 +246,7 @@ public class XcodeLocalService: LambdaService {
     /// Delete build artifacts and reset build state
     public func deleteBuild() async throws {
         _ = try await cliService.execute(
-            command: "swift",
-            arguments: ["package", "clean"],
+            SwiftCLI.PackageClean(),
             workingDirectory: workingDirectory,
             printCommand: false
         )

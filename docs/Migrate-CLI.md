@@ -171,12 +171,17 @@ For each CLI program:
     - `DockerService.build()` uses `commandString` property to wrap in shell command for working directory support
   - Tests: `Tests/SwiftDeployTests/DockerTests.swift` (73 tests)
 
-- [ ] **12. Swift** - Swift build operations
+- [x] **12. Swift** - Swift build operations
   - File: `XcodeLocalService.swift`
-  - Commands:
-    - `package clean`
-    - `build --product`
-    - `build --show-bin-path`
+  - Location: `SwiftDeploy/CLI/SwiftCLI.swift`
+  - Commands implemented:
+    - `PackageClean` - `swift package clean`
+    - `Build` - `swift build` with `--product` and `--show-bin-path` options
+  - Technical notes:
+    - Uses `@CLIProgram("swift")` with explicit program name since "SwiftCLI" would convert to "swift-c-l-i" via kebab-case conversion
+    - Added generic `stream<C: CLICommand>()` method to CLIService for streaming typed commands
+    - Service uses `execute()` for fire-and-forget clean, `stream()` for build output, and `executeForResult()` for getting bin path
+  - Tests: `Tests/SwiftDeployTests/SwiftCLITests.swift` (11 tests)
 
 - [ ] **13. curl** - HTTP requests
   - Files: `AWSTestingService.swift`, `RemoteService.swift`

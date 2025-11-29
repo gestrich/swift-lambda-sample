@@ -1,0 +1,82 @@
+import CLIKit
+@testable import SwiftDeploy
+import Testing
+
+@Suite("Swift CLI Command Tests")
+struct SwiftCLITests {
+
+    @Test("Swift program name")
+    func testProgramName() {
+        #expect(SwiftCLI.programName == "swift")
+    }
+}
+
+// MARK: - Package Commands
+
+@Suite("Swift Package Clean Tests")
+struct SwiftPackageCleanTests {
+
+    @Test("PackageClean command name")
+    func testCommandName() {
+        #expect(SwiftCLI.PackageClean.commandName == "package clean")
+    }
+
+    @Test("PackageClean command line")
+    func testCommandLine() {
+        let cmd = SwiftCLI.PackageClean()
+        #expect(cmd.commandLine == ["swift", "package", "clean"])
+    }
+
+    @Test("PackageClean command string")
+    func testCommandString() {
+        let cmd = SwiftCLI.PackageClean()
+        #expect(cmd.commandString == "swift package clean")
+    }
+}
+
+// MARK: - Build Commands
+
+@Suite("Swift Build Tests")
+struct SwiftBuildTests {
+
+    @Test("Build command name")
+    func testCommandName() {
+        #expect(SwiftCLI.Build.commandName == "build")
+    }
+
+    @Test("Build minimal command line")
+    func testMinimalCommandLine() {
+        let cmd = SwiftCLI.Build()
+        #expect(cmd.commandLine == ["swift", "build"])
+    }
+
+    @Test("Build with product option")
+    func testWithProduct() {
+        let cmd = SwiftCLI.Build(product: "SwiftLambda")
+        #expect(cmd.commandLine == ["swift", "build", "--product", "SwiftLambda"])
+    }
+
+    @Test("Build with showBinPath flag")
+    func testWithShowBinPath() {
+        let cmd = SwiftCLI.Build(showBinPath: true)
+        #expect(cmd.commandLine == ["swift", "build", "--show-bin-path"])
+    }
+
+    @Test("Build with product and showBinPath")
+    func testWithProductAndShowBinPath() {
+        let cmd = SwiftCLI.Build(product: "SwiftLambda", showBinPath: true)
+        #expect(cmd.commandLine == ["swift", "build", "--product", "SwiftLambda", "--show-bin-path"])
+    }
+
+    @Test("Build command string with product")
+    func testCommandStringWithProduct() {
+        let cmd = SwiftCLI.Build(product: "MyApp")
+        #expect(cmd.commandString == "swift build --product MyApp")
+    }
+
+    @Test("Build command string with all options")
+    func testCommandStringWithAllOptions() {
+        let cmd = SwiftCLI.Build(product: "SwiftLambda", showBinPath: true)
+        #expect(cmd.commandString == "swift build --product SwiftLambda --show-bin-path")
+    }
+}

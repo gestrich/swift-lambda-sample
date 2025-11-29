@@ -169,6 +169,36 @@ public actor CLIService {
         }
     }
 
+    /// Execute a typed CLI command and stream its output
+    /// - Parameters:
+    ///   - command: The typed CLI command to execute
+    ///   - workingDirectory: Working directory for the command
+    ///   - environment: Custom environment variables
+    ///   - printCommand: If true, prints the formatted command before execution
+    /// - Returns: AsyncStream of output lines
+    public func stream<C: CLICommand>(
+        _ command: C,
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) -> AsyncStream<StreamOutput> {
+        let commandLine = command.commandLine
+        guard let programName = commandLine.first else {
+            return AsyncStream { continuation in
+                continuation.yield(.error(CLIServiceError.invalidCommand("Empty command line")))
+                continuation.finish()
+            }
+        }
+        let arguments = Array(commandLine.dropFirst())
+        return stream(
+            command: programName,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            printCommand: printCommand
+        )
+    }
+
     // MARK: - Private Methods
 
     private func formatCommand(
