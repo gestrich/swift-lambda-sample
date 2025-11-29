@@ -1,0 +1,205 @@
+# CLIKit
+
+A Swift framework for building type-safe command-line tool wrappers using macros.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        CLIService                           │
+│  - Executes commands                                        │
+│  - Returns ExecutionResult or typed Output                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        CLIProgram                           │
+│  - Represents an executable (e.g., Git, Docker)             │
+│  - programName: String                                      │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │                    CLICommand                       │   │
+│   │  - Nested subcommand (e.g., Git.Merge)              │   │
+│   │  - commandLine: [String]                            │   │
+│   │  - Optional: parse() for structured output          │   │
+│   └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Core Types
+
+### CLIProgram
+
+Represents an executable (git, docker, aws). Contains nested command types.
+
+```swift
+@CLIProgram
+struct Git {
+    // commands nested here
+}
+```
+
+### CLICommand
+
+Represents a subcommand with its arguments. Uses macros for declarative definition.
+
+```swift
+@CLICommand
+struct Merge {
+    @Flag var noFastForward: Bool = false
+    @Option("-m") var message: String?
+    @Positional var branch: String
+}
+```
+
+### CLIArgument
+
+The building blocks of commands:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `CLIFlag` | Boolean flag | `--force`, `-f` |
+| `CLIOption` | Option with value | `--message "text"` |
+| `CLIPositional` | Positional argument | `feature-branch` |
+
+### CLIService
+
+Executes commands and returns results. Currently provides a `CLIService.shared` singleton for convenience, but this should be refactored to use dependency injection.
+
+### CLIOutputParser
+
+Protocol for reusable parsers (StringParser, LinesParser, JSONOutputParser).
+
+## Macro-Based API
+
+### Command Definition
+
+```swift
+@CLIProgram
+struct Git {
+    @CLICommand
+    struct Merge {
+        @Flag var noFastForward: Bool = false          // --no-fast-forward
+        @Option("-m") var message: String?             // -m only
+        @Positional var branch: String
+    }
+
+    @CLICommand
+    struct Log {
+        @Option var format: String = "%H|%an|%s"       // --format
+        @Option("-n") var maxCount: String?            // -n only
+
+        // Output type inferred from return type
+        func parse(_ output: String) throws -> [GitCommit] {
+            // parse output into structs
+        }
+    }
+}
+```
+
+### Name Inference
+
+Names are inferred from struct/property names (kebab-cased):
+
+| Declaration | Inferred Name |
+|-------------|---------------|
+| `@CLIProgram struct Git` | `git` |
+| `@CLICommand struct UpdateIndex` | `update-index` |
+| `@Flag var noFastForward` | `--no-fast-forward` |
+
+Override with explicit names:
+
+```swift
+@CLIProgram("custom-name")
+@CLICommand("custom-cmd")
+@Flag("--noFF") var noFF  // --noFF (explicit, no kebab conversion)
+```
+
+### Flags and Options
+
+```swift
+// Flags (boolean)
+@Flag var force: Bool = false                      // --force (inferred)
+@Flag("-f") var force: Bool = false                // -f only
+@Flag("--force", "-f") var force: Bool = false     // --force and -f
+
+// Options (with value)
+@Option var output: String?                        // --output (inferred)
+@Option("-o") var output: String?                  // -o only
+@Option("--output", "-o") var output: String?      // --output and -o
+
+// Positional (ordered by declaration)
+@Positional var source: String                     // first
+@Positional var destination: String                // second
+```
+
+## Usage
+
+### Basic Execution
+
+```swift
+let service = CLIService.shared
+
+// Run a command, get raw result
+let result = try await service.execute(
+    command: "git",
+    arguments: ["status", "--porcelain"]
+)
+print(result.stdout)
+
+// Run a typed command
+let merge = Git.Merge(noFastForward: true, message: "Merge feature", branch: "feature")
+print(merge.commandLine)  // ["git", "merge", "--no-fast-forward", "-m", "Merge feature", "feature"]
+```
+
+### Structured Output
+
+By default, `execute()` returns a trimmed `String`. Use a parser for structured output:
+
+```swift
+// Default: returns trimmed String
+let output = try await service.execute(Git.Diff())
+
+// With parser: returns [GitCommit]
+let commits = try await service.execute(Git.Log(maxCount: "10"), parser: GitLogParser())
+
+for commit in commits {
+    print("\(commit.hash.prefix(7)) - \(commit.subject)")
+}
+
+// With parser: returns GitStatusResult
+let status = try await service.execute(Git.StatusPorcelain(), parser: GitStatusParser())
+```
+
+### Built-in Parsers
+
+| Parser | Output | Description |
+|--------|--------|-------------|
+| `StringParser` | `String` | Trimmed string (default) |
+| `LinesParser` | `[String]` | Split by newlines |
+| `JSONOutputParser<T>` | `T` | Decoded JSON |
+
+## File Structure
+
+```
+CLIKit/
+├── Macros.swift              # @CLIProgram, @CLICommand, @Flag, etc.
+├── CLIProgram.swift          # CLIProgram protocol
+├── CLICommand.swift          # CLICommand protocol
+├── CLIArgument.swift         # CLIFlag, CLIOption, CLIPositional
+├── CLIService.swift          # Command execution service
+├── CLIServiceError.swift     # Error types
+├── CLIOutputParser.swift     # Parser protocol + built-ins
+├── ExecutionResult.swift     # Execution result types
+├── StringUtils.swift         # Kebab-case conversion
+└── Examples/
+    └── Git.swift             # Example Git commands
+```
+
+## Planned Features
+
+See `docs/CLI-refactor.md` for planned features:
+
+1. **CLIService Events Stream** - Observable stream of all command execution
+2. **Flows** - Define sequences of commands
+3. **Interactive Flow Runner** - Step-by-step command execution UI

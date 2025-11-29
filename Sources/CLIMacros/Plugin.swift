@@ -7,9 +7,7 @@ struct CLIMacrosPlugin: CompilerPlugin {
         CLIProgramMacro.self,
         CLICommandMacro.self,
         FlagMacro.self,
-        ShortFlagMacro.self,
         OptionMacro.self,
-        ShortOptionMacro.self,
         PositionalMacro.self,
     ]
 }

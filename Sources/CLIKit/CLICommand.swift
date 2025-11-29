@@ -10,10 +10,16 @@ public protocol CLICommand: Sendable {
     var arguments: [CLIArgument] { get }
 }
 
+// MARK: - Default Implementations
+
 extension CLICommand {
     /// Build the full command line as an array of strings
     public var commandLine: [String] {
-        var result = [Program.programName, Self.commandName]
+        var result = [Program.programName]
+        // Only add command name if it's not empty (for programs without subcommands like ls)
+        if !Self.commandName.isEmpty {
+            result.append(Self.commandName)
+        }
         for arg in arguments {
             result.append(contentsOf: arg.components)
         }

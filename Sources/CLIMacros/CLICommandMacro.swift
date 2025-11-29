@@ -110,10 +110,10 @@ struct ParsedProperty {
 }
 
 enum PropertyAttribute {
-    case flag(shortFlag: String?, verbatim: Bool)
-    case shortFlag(String)
-    case option(shortFlag: String?, verbatim: Bool)
-    case shortOption(String)
+    /// Flag with explicit names (can be empty for inferred, one name, or two names)
+    case flag(names: [String])
+    /// Option with explicit names (can be empty for inferred, one name, or two names)
+    case option(names: [String])
     case positional
     case none
 }
@@ -178,22 +178,12 @@ func parseAttribute(from varDecl: VariableDeclSyntax) -> PropertyAttribute {
 
         switch attrName {
         case "Flag":
-            let (shortFlag, verbatim) = parseFlagOrOptionArgs(from: attribute)
-            return .flag(shortFlag: shortFlag, verbatim: verbatim)
-
-        case "ShortFlag":
-            if let flag = parseStringArg(from: attribute) {
-                return .shortFlag(flag)
-            }
+            let names = parseVariadicStringArgs(from: attribute)
+            return .flag(names: names)
 
         case "Option":
-            let (shortFlag, verbatim) = parseFlagOrOptionArgs(from: attribute)
-            return .option(shortFlag: shortFlag, verbatim: verbatim)
-
-        case "ShortOption":
-            if let option = parseStringArg(from: attribute) {
-                return .shortOption(option)
-            }
+            let names = parseVariadicStringArgs(from: attribute)
+            return .option(names: names)
 
         case "Positional":
             return .positional
@@ -206,38 +196,23 @@ func parseAttribute(from varDecl: VariableDeclSyntax) -> PropertyAttribute {
     return .none
 }
 
-func parseFlagOrOptionArgs(from attribute: AttributeSyntax) -> (shortFlag: String?, verbatim: Bool) {
+/// Parse variadic string arguments from an attribute
+/// Handles: @Flag, @Flag("-f"), @Flag("--force", "-f")
+func parseVariadicStringArgs(from attribute: AttributeSyntax) -> [String] {
     guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
-        return (nil, false)
+        return []
     }
 
-    var shortFlag: String? = nil
-    var verbatim = false
+    var names: [String] = []
 
     for arg in arguments {
-        if arg.label?.text == "shortFlag",
-           let stringLiteral = arg.expression.as(StringLiteralExprSyntax.self),
+        if let stringLiteral = arg.expression.as(StringLiteralExprSyntax.self),
            let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self) {
-            shortFlag = segment.content.text
-        }
-
-        if arg.label?.text == "verbatim",
-           let boolLiteral = arg.expression.as(BooleanLiteralExprSyntax.self) {
-            verbatim = boolLiteral.literal.text == "true"
+            names.append(segment.content.text)
         }
     }
 
-    return (shortFlag, verbatim)
-}
-
-func parseStringArg(from attribute: AttributeSyntax) -> String? {
-    guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
-          let firstArg = arguments.first,
-          let stringLiteral = firstArg.expression.as(StringLiteralExprSyntax.self),
-          let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self) else {
-        return nil
-    }
-    return segment.content.text
+    return names
 }
 
 // MARK: - Code Generation
@@ -248,28 +223,34 @@ func generateArgumentsCode(properties: [ParsedProperty]) -> String {
     // First add flags and options, then positionals
     for prop in properties {
         switch prop.attribute {
-        case .flag(let shortFlag, let verbatim):
-            let flagName = verbatim ? "--\(prop.name)" : "--\(toKebabCase(prop.name))"
-            let actualFlag = shortFlag ?? flagName
-            lines.append("if self.\(prop.name) { args.append(.flag(CLIFlag(\"\(actualFlag)\"))) }")
-
-        case .shortFlag(let flag):
-            lines.append("if self.\(prop.name) { args.append(.flag(CLIFlag(\"\(flag)\"))) }")
-
-        case .option(let shortFlag, let verbatim):
-            let optionName = verbatim ? "--\(prop.name)" : "--\(toKebabCase(prop.name))"
-            let actualOption = shortFlag ?? optionName
-            if prop.isOptional {
-                lines.append("if let value = self.\(prop.name) { args.append(.option(CLIOption(\"\(actualOption)\", value: value))) }")
+        case .flag(let names):
+            // Determine the flag name to use:
+            // - Empty names: infer from property name (--kebab-case)
+            // - One name: use that exact name
+            // - Two names: use the first (long form)
+            let flagName: String
+            if names.isEmpty {
+                flagName = "--\(toKebabCase(prop.name))"
             } else {
-                lines.append("args.append(.option(CLIOption(\"\(actualOption)\", value: self.\(prop.name))))")
+                flagName = names[0]
             }
+            lines.append("if self.\(prop.name) { args.append(.flag(CLIFlag(\"\(flagName)\"))) }")
 
-        case .shortOption(let option):
-            if prop.isOptional {
-                lines.append("if let value = self.\(prop.name) { args.append(.option(CLIOption(\"\(option)\", value: value))) }")
+        case .option(let names):
+            // Determine the option name to use:
+            // - Empty names: infer from property name (--kebab-case)
+            // - One name: use that exact name
+            // - Two names: use the first (long form)
+            let optionName: String
+            if names.isEmpty {
+                optionName = "--\(toKebabCase(prop.name))"
             } else {
-                lines.append("args.append(.option(CLIOption(\"\(option)\", value: self.\(prop.name))))")
+                optionName = names[0]
+            }
+            if prop.isOptional {
+                lines.append("if let value = self.\(prop.name) { args.append(.option(CLIOption(\"\(optionName)\", value: value))) }")
+            } else {
+                lines.append("args.append(.option(CLIOption(\"\(optionName)\", value: self.\(prop.name))))")
             }
 
         case .positional:

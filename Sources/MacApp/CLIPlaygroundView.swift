@@ -19,12 +19,6 @@ struct CLIPlaygroundView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            // Command input
-            CommandInputView(text: $commandText) { command in
-                runCommand(command)
-            }
-            .disabled(isRunning)
-
             // Output view
             StreamingTextView(
                 lines: outputLines,
@@ -33,7 +27,11 @@ struct CLIPlaygroundView: View {
                 outputLines.removeAll()
             }
 
-            Spacer()
+            // Command input
+            CommandInputView(text: $commandText) { command in
+                runCommand(command)
+            }
+            .disabled(isRunning)
         }
         .padding()
     }

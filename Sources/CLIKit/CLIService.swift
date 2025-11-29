@@ -357,6 +357,60 @@ public actor CLIService {
         )
     }
 
+    // MARK: - Typed Command Execution
+
+    /// Execute a typed command and return trimmed string output
+    /// - Parameters:
+    ///   - command: The command to execute
+    ///   - workingDirectory: Working directory for execution
+    ///   - environment: Custom environment variables
+    ///   - printCommand: Whether to print the command before execution
+    /// - Returns: Trimmed stdout string
+    public func execute<C: CLICommand>(
+        _ command: C,
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) async throws -> String {
+        try await execute(command, parser: StringParser(), workingDirectory: workingDirectory, environment: environment, printCommand: printCommand)
+    }
+
+    /// Execute a command with a parser
+    /// - Parameters:
+    ///   - command: The command to execute
+    ///   - parser: Parser to use for output transformation
+    ///   - workingDirectory: Working directory for execution
+    ///   - environment: Custom environment variables
+    ///   - printCommand: Whether to print the command before execution
+    /// - Returns: Parsed output of type `P.Output`
+    public func execute<C: CLICommand, P: CLIOutputParser>(
+        _ command: C,
+        parser: P,
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) async throws -> P.Output {
+        let result = try await execute(
+            command: C.Program.programName,
+            arguments: Array(command.commandLine.dropFirst()),
+            workingDirectory: workingDirectory,
+            environment: environment,
+            printCommand: printCommand
+        )
+
+        guard result.isSuccess else {
+            throw CLIServiceError.executionFailed(
+                command: command.commandString,
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        return try parser.parse(result.stdout)
+    }
+
+    // MARK: - Private Streaming
+
     private func streamProcess(
         command: String,
         arguments: [String],

@@ -15,30 +15,8 @@ public struct FlagMacro: PeerMacro {
     }
 }
 
-/// Marker macro for short-flag-only properties
-public struct ShortFlagMacro: PeerMacro {
-    public static func expansion(
-        of node: AttributeSyntax,
-        providingPeersOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        return []
-    }
-}
-
 /// Marker macro for option properties
 public struct OptionMacro: PeerMacro {
-    public static func expansion(
-        of node: AttributeSyntax,
-        providingPeersOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        return []
-    }
-}
-
-/// Marker macro for short-option-only properties
-public struct ShortOptionMacro: PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingPeersOf declaration: some DeclSyntaxProtocol,

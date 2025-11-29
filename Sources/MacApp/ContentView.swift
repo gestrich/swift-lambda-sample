@@ -19,6 +19,12 @@ struct ContentView: View {
                     Label("CLI Playground", systemImage: "terminal")
                 }
 
+            // CLIKit Tutorial
+            CLIKitTutorialView()
+                .tabItem {
+                    Label("CLIKit Tutorial", systemImage: "book")
+                }
+
             // Settings is always available
             SettingsView()
                 .tabItem {

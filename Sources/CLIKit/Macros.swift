@@ -33,50 +33,36 @@ public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "CLIMacr
 public macro CLICommand(_ name: String? = nil) = #externalMacro(module: "CLIMacros", type: "CLICommandMacro")
 
 /// Marks a property as a boolean flag
-/// Long form is inferred from property name (kebab-cased by default)
+///
+/// - No arguments: infers `--kebab-case` from property name
+/// - One argument: uses that exact string (e.g., "-f" or "--force")
+/// - Two arguments: uses both forms (e.g., "--force", "-f")
 ///
 /// Example:
 /// ```swift
-/// @Flag var force: Bool = false                    // --force
-/// @Flag var noFastForward: Bool = false            // --no-fast-forward
-/// @Flag(shortFlag: "-f") var force: Bool = false   // --force and -f
-/// @Flag(verbatim: true) var noFF: Bool = false     // --noFF (no conversion)
+/// @Flag var force: Bool = false                    // --force (inferred)
+/// @Flag("-f") var force: Bool = false              // -f only
+/// @Flag("--force", "-f") var force: Bool = false   // --force and -f
+/// @Flag("-version") var version: Bool = false      // -version (java style)
 /// ```
 @attached(peer)
-public macro Flag(shortFlag: String? = nil, verbatim: Bool = false) = #externalMacro(module: "CLIMacros", type: "FlagMacro")
-
-/// Marks a property as a short-form-only flag (no long form)
-///
-/// Example:
-/// ```swift
-/// @ShortFlag("-v") var verbose: Bool = false  // -v only
-/// @ShortFlag("-a") var all: Bool = false      // -a only
-/// ```
-@attached(peer)
-public macro ShortFlag(_ flag: String) = #externalMacro(module: "CLIMacros", type: "ShortFlagMacro")
+public macro Flag(_ names: String...) = #externalMacro(module: "CLIMacros", type: "FlagMacro")
 
 /// Marks a property as an option with a value
-/// Long form is inferred from property name (kebab-cased by default)
+///
+/// - No arguments: infers `--kebab-case` from property name
+/// - One argument: uses that exact string (e.g., "-m" or "--message")
+/// - Two arguments: uses both forms (e.g., "--message", "-m")
 ///
 /// Example:
 /// ```swift
-/// @Option var output: String?                      // --output
-/// @Option var message: String?                     // --message
-/// @Option(shortFlag: "-o") var output: String?     // --output and -o
-/// @Option(verbatim: true) var outputFile: String?  // --outputFile (no conversion)
+/// @Option var output: String?                        // --output (inferred)
+/// @Option("-o") var output: String?                  // -o only
+/// @Option("--output", "-o") var output: String?      // --output and -o
+/// @Option("-m") var message: String?                 // -m only
 /// ```
 @attached(peer)
-public macro Option(shortFlag: String? = nil, verbatim: Bool = false) = #externalMacro(module: "CLIMacros", type: "OptionMacro")
-
-/// Marks a property as a short-form-only option (no long form)
-///
-/// Example:
-/// ```swift
-/// @ShortOption("-m") var message: String?  // -m only
-/// @ShortOption("-o") var output: String?   // -o only
-/// ```
-@attached(peer)
-public macro ShortOption(_ option: String) = #externalMacro(module: "CLIMacros", type: "ShortOptionMacro")
+public macro Option(_ names: String...) = #externalMacro(module: "CLIMacros", type: "OptionMacro")
 
 /// Marks a property as a positional argument
 /// Positionals are ordered by declaration order
