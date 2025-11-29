@@ -200,15 +200,25 @@ For each CLI program:
     - URL is a positional argument at the end of command line
   - Tests: `Tests/SwiftDeployTests/CurlTests.swift` (24 tests)
 
-- [ ] **14. open** - macOS app launcher
+- [x] **14. open** - macOS app launcher
   - File: `DockerService.swift`
-  - Commands:
-    - `-a Docker` (open Docker Desktop)
+  - Location: `CLIKit/standard/Open.swift`
+  - Commands implemented:
+    - `Open` - with `-a` (application) option and path positional
+  - Technical notes:
+    - Already implemented during Docker migration (item 11)
+    - Used by `DockerService.startDockerDesktop()` to open Docker Desktop
+  - Tests: `Tests/CLIKitTests/StandardCommandTests.swift` (OpenCommandTests - 6 tests)
 
-- [ ] **15. which** - Command lookup
+- [x] **15. which** - Command lookup
   - File: `AWSVaultService.swift`
-  - Commands:
-    - Check if command exists
+  - Location: `CLIKit/standard/Which.swift`
+  - Commands implemented:
+    - `Which` - with `-a` (all matches) flag and command positional
+  - Technical notes:
+    - Used by `AWSVaultService.checkInstallation()` to verify aws-vault is installed
+    - Simple `@CLIProgram` with one flag and one positional argument
+  - Tests: `Tests/CLIKitTests/StandardCommandTests.swift` (WhichCommandTests - 5 tests)
 
 - [ ] **16. Build Script** - Custom build script
   - File: `LinuxLocalService.swift`

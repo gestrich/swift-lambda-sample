@@ -286,3 +286,36 @@ struct RmCommandTests {
         #expect(cmd.commandString == "rm -r -f dir/")
     }
 }
+
+@Suite("Which Command Tests")
+struct WhichCommandTests {
+
+    @Test("Which program name")
+    func testProgramName() {
+        #expect(Which.programName == "which")
+    }
+
+    @Test("Which command line with command only")
+    func testWhichCommandOnly() {
+        let cmd = Which(command: "aws-vault")
+        #expect(cmd.commandLine == ["which", "aws-vault"])
+    }
+
+    @Test("Which command line with all flag")
+    func testWhichWithAllFlag() {
+        let cmd = Which(all: true, command: "python")
+        #expect(cmd.commandLine == ["which", "-a", "python"])
+    }
+
+    @Test("Which command string")
+    func testWhichCommandString() {
+        let cmd = Which(command: "aws-vault")
+        #expect(cmd.commandString == "which aws-vault")
+    }
+
+    @Test("Which command string with all flag")
+    func testWhichCommandStringWithAll() {
+        let cmd = Which(all: true, command: "python")
+        #expect(cmd.commandString == "which -a python")
+    }
+}

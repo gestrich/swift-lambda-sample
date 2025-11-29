@@ -1,3 +1,4 @@
+import CLIKit
 import Foundation
 
 /// Service for wrapping AWS commands with aws-vault
@@ -30,9 +31,8 @@ public struct AWSVaultService {
     /// - Throws: CLIError if aws-vault is not found
     public static func checkInstallation() async throws {
         let cliService = CLIService.shared
-        let result = try? await cliService.execute(
-            command: "which",
-            arguments: ["aws-vault"],
+        let result = try? await cliService.executeForResult(
+            Which(command: "aws-vault"),
             printCommand: false
         )
 
