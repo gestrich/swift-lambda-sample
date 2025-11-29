@@ -183,16 +183,22 @@ For each CLI program:
     - Service uses `execute()` for fire-and-forget clean, `stream()` for build output, and `executeForResult()` for getting bin path
   - Tests: `Tests/SwiftDeployTests/SwiftCLITests.swift` (11 tests)
 
-- [ ] **13. curl** - HTTP requests
+- [x] **13. curl** - HTTP requests
   - Files: `AWSTestingService.swift`, `RemoteService.swift`
-  - Commands:
-    - `-X POST/GET`
-    - `-H` (headers)
-    - `-d` (data)
-    - `-v` (verbose)
-    - `-s` (silent)
-    - `-o /dev/null`
-    - `-w %{http_code}`
+  - Location: `SwiftDeploy/CLI/Curl.swift`
+  - Commands implemented:
+    - `Request` - `curl` with flags: `-X` (method), `-H` (headers, multiple), `-d` (data), `-v` (verbose), `-s` (silent), `-o` (output file), `-w` (write-out format)
+  - Convenience initializers:
+    - `get(url:silent:verbose:)` - Simple GET request
+    - `post(url:data:silent:verbose:)` - Simple POST request
+    - `postJSON(url:data:silent:verbose:)` - POST request with JSON Content-Type header
+    - `checkStatus(url:)` - Request that returns only HTTP status code (`-s -o /dev/null -w %{http_code}`)
+  - Technical notes:
+    - Uses empty command name (`@CLICommand("")`) since curl is invoked directly with options
+    - Single-character flags require `-` prefix in `@Flag`/`@Option` annotations (e.g., `@Flag("-v")`)
+    - Headers option uses array type for multiple `-H` flags
+    - URL is a positional argument at the end of command line
+  - Tests: `Tests/SwiftDeployTests/CurlTests.swift` (24 tests)
 
 - [ ] **14. open** - macOS app launcher
   - File: `DockerService.swift`

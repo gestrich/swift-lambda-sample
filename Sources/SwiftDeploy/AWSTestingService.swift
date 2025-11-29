@@ -97,16 +97,8 @@ public actor AWSTestingService {
         print("→ POST \(endpoint)")
         print("")
 
-        _ = try await cliService.execute(
-            command: "curl",
-            arguments: [
-                "-v",
-                "-X", "POST",
-                "-H", "Content-Type: application/json",
-                "-d", uploadJsonString,
-                endpoint
-            ]
-        )
+        let curlCommand = Curl.Request.postJSON(url: endpoint, data: uploadJsonString, verbose: true)
+        _ = try await cliService.execute(curlCommand)
     }
 
     /// Verify S3 file was created and show content

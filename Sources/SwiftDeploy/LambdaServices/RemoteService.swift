@@ -202,11 +202,8 @@ public class RemoteService: LambdaService {
 
         while attempts < maxAttempts && !ready {
             do {
-                let result = try await cliService.execute(
-                    command: "curl",
-                    arguments: ["-s", "-o", "/dev/null", "-w", "%{http_code}", "\(apiUrl)api/health"],
-                    printCommand: false
-                )
+                let curlCommand = Curl.Request.checkStatus(url: "\(apiUrl)api/health")
+                let result = try await cliService.executeForResult(curlCommand, printCommand: false)
 
                 if result.isSuccess && (result.stdout == "200" || result.stdout == "404") {
                     ready = true
@@ -575,15 +572,12 @@ public class RemoteService: LambdaService {
 
         print("  → POST \(apiUrl)api/database")
 
-        let result = try await cliService.execute(
-            command: "curl",
-            arguments: ["-s", "-X", "POST", "\(apiUrl)api/database"],
-            printCommand: false
-        )
+        let curlCommand = Curl.Request.post(url: "\(apiUrl)api/database", silent: true)
+        let result = try await cliService.executeForResult(curlCommand, printCommand: false)
 
         guard result.isSuccess else {
             throw CLIServiceError.executionFailed(
-                command: "curl",
+                command: curlCommand.commandString,
                 exitCode: result.exitCode,
                 stderr: result.stderr
             )
@@ -607,15 +601,12 @@ public class RemoteService: LambdaService {
         print("  Testing health endpoint...")
         print("  → GET \(apiUrl)api/health")
 
-        let testResult = try await cliService.execute(
-            command: "curl",
-            arguments: ["-s", "-X", "GET", "\(apiUrl)api/health"],
-            printCommand: false
-        )
+        let healthCommand = Curl.Request.get(url: "\(apiUrl)api/health", silent: true)
+        let testResult = try await cliService.executeForResult(healthCommand, printCommand: false)
 
         guard testResult.isSuccess else {
             throw CLIServiceError.executionFailed(
-                command: "curl",
+                command: healthCommand.commandString,
                 exitCode: testResult.exitCode,
                 stderr: testResult.stderr
             )
@@ -636,15 +627,12 @@ public class RemoteService: LambdaService {
             print("\n  Testing database endpoints...")
             print("  → GET \(apiUrl)api/users")
 
-            let usersResult = try await cliService.execute(
-                command: "curl",
-                arguments: ["-s", "-X", "GET", "\(apiUrl)api/users"],
-                printCommand: false
-            )
+            let usersCommand = Curl.Request.get(url: "\(apiUrl)api/users", silent: true)
+            let usersResult = try await cliService.executeForResult(usersCommand, printCommand: false)
 
             guard usersResult.isSuccess else {
                 throw CLIServiceError.executionFailed(
-                    command: "curl",
+                    command: usersCommand.commandString,
                     exitCode: usersResult.exitCode,
                     stderr: usersResult.stderr
                 )
