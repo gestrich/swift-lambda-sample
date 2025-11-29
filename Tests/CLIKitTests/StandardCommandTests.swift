@@ -1,6 +1,39 @@
 import Testing
 import CLIKit
 
+@Suite("Kill Command Tests")
+struct KillCommandTests {
+
+    @Test("Kill program name")
+    func testProgramName() {
+        #expect(Kill.programName == "kill")
+    }
+
+    @Test("Kill command line with PID only")
+    func testKillPidOnly() {
+        let cmd = Kill(pid: "12345")
+        #expect(cmd.commandLine == ["kill", "12345"])
+    }
+
+    @Test("Kill command line with signal")
+    func testKillWithSignal() {
+        let cmd = Kill(signal: "9", pid: "12345")
+        #expect(cmd.commandLine == ["kill", "-9", "12345"])
+    }
+
+    @Test("Kill command line with TERM signal")
+    func testKillWithTermSignal() {
+        let cmd = Kill(signal: "TERM", pid: "12345")
+        #expect(cmd.commandLine == ["kill", "-TERM", "12345"])
+    }
+
+    @Test("Kill command string")
+    func testKillCommandString() {
+        let cmd = Kill(signal: "9", pid: "12345")
+        #expect(cmd.commandString == "kill -9 12345")
+    }
+}
+
 @Suite("Lsof Command Tests")
 struct LsofCommandTests {
 

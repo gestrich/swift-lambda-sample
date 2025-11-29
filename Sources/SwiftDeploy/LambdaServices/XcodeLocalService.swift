@@ -316,16 +316,15 @@ public class XcodeLocalService: LambdaService {
 
             // Kill each process
             for pid in pids {
-                let killResult = try await cliService.execute(
-                    command: "kill",
-                    arguments: [pid],
+                let killResult = try await cliService.executeForResult(
+                    Kill(pid: pid),
                     printCommand: false
                 )
 
                 if !killResult.isSuccess {
                     lambdaState.markFailed(reason: "Failed to kill process \(pid)")
                     throw DeployError.commandFailed(
-                        command: "kill",
+                        command: Kill(pid: pid).commandString,
                         exitCode: killResult.exitCode,
                         stderr: killResult.stderr
                     )

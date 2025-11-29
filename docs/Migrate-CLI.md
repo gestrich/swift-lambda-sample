@@ -35,7 +35,7 @@ For each CLI program:
   - Files: `XcodeLocalService.swift`, `LinuxLocalService.swift`
   - Commands: `-i` (check port)
 
-- [ ] **2. kill** - Process termination (`kill PID`)
+- [x] **2. kill** - Process termination (`kill PID`)
   - Files: `XcodeLocalService.swift`
   - Commands: send signal to PID
 
