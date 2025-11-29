@@ -120,4 +120,40 @@ struct LsofCommandTests {
         let cmd = Lsof(port: ":8080", pidOnly: true)
         #expect(cmd.commandString == "lsof -i :8080 -t")
     }
+
+    @Test("LsofPidParser parses multiple PIDs")
+    func testLsofPidParserMultiple() throws {
+        let parser = LsofPidParser()
+        let result = try parser.parse("12345\n67890\n")
+        #expect(result == [12345, 67890])
+    }
+
+    @Test("LsofPidParser handles single PID")
+    func testLsofPidParserSingle() throws {
+        let parser = LsofPidParser()
+        let result = try parser.parse("501\n")
+        #expect(result == [501])
+    }
+
+    @Test("LsofPidParser handles empty output")
+    func testLsofPidParserEmpty() throws {
+        let parser = LsofPidParser()
+        let result = try parser.parse("")
+        #expect(result == [])
+    }
+
+    @Test("LsofPidParser handles whitespace")
+    func testLsofPidParserWhitespace() throws {
+        let parser = LsofPidParser()
+        let result = try parser.parse("  123\n456  \n")
+        #expect(result == [123, 456])
+    }
+
+    @Test("LsofPidParser throws on invalid input")
+    func testLsofPidParserInvalid() {
+        let parser = LsofPidParser()
+        #expect(throws: CLIServiceError.self) {
+            try parser.parse("not-a-pid")
+        }
+    }
 }
