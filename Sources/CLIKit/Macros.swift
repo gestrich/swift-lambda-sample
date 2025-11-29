@@ -2,14 +2,30 @@
 /// The program name is inferred from the struct name (lowercased, kebab-cased)
 /// or can be explicitly provided.
 ///
-/// Example:
+/// If the struct contains `@Flag`, `@Option`, or `@Positional` properties,
+/// it becomes both a program AND a command (for simple CLIs without subcommands).
+///
+/// Example (program with subcommands):
 /// ```swift
 /// @CLIProgram
 /// struct Git {
-///     // commands go here
+///     @CLICommand
+///     struct Merge { ... }
 /// }
 /// ```
-@attached(extension, conformances: CLIProgram, names: named(programName))
+///
+/// Example (simple program without subcommands):
+/// ```swift
+/// @CLIProgram
+/// struct Lsof {
+///     @Option("-i") var port: String
+///     @Flag("-t") var pidOnly: Bool = false
+/// }
+/// // Usage: Lsof(port: ":8080")
+/// // commandLine: ["lsof", "-i", ":8080"]
+/// ```
+@attached(extension, conformances: CLIProgram, CLICommand, names: named(programName), named(commandName), named(arguments), named(Program))
+@attached(member, names: named(init))
 public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "CLIMacros", type: "CLIProgramMacro")
 
 /// Marks a struct as a CLI command (subcommand)

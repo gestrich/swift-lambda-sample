@@ -13,9 +13,9 @@ public protocol CLICommand: Sendable {
 // MARK: - Default Implementations
 
 extension CLICommand {
-    /// Build the full command line as an array of strings
-    public var commandLine: [String] {
-        var result = [Program.programName]
+    /// The arguments to pass after the program name (includes subcommand and all flags/options)
+    public var commandArguments: [String] {
+        var result: [String] = []
         // Only add command name if it's not empty (for programs without subcommands like ls)
         if !Self.commandName.isEmpty {
             result.append(Self.commandName)
@@ -24,6 +24,11 @@ extension CLICommand {
             result.append(contentsOf: arg.components)
         }
         return result
+    }
+
+    /// Build the full command line as an array of strings
+    public var commandLine: [String] {
+        [Program.programName] + commandArguments
     }
 
     /// Build the full command line as a single string

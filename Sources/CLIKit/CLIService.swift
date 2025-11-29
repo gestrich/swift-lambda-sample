@@ -359,7 +359,101 @@ public actor CLIService {
 
     // MARK: - Typed Command Execution
 
-    /// Execute a typed command and return trimmed string output
+    /// Execute a typed command and return both the parsed output and execution result.
+    /// This is the lowest-level typed command API - use when you need both the parsed result
+    /// and execution metadata (exit code, stderr, duration).
+    /// - Parameters:
+    ///   - command: The command to execute
+    ///   - parser: Parser to transform stdout into the desired type
+    ///   - workingDirectory: Working directory for execution
+    ///   - environment: Custom environment variables
+    ///   - printCommand: Whether to print the command before execution
+    /// - Returns: Tuple of (parsed output, execution result). Parse only attempted if command succeeds.
+    /// - Throws: CLIServiceError if command not found or parsing fails
+    public func executeWithResult<C: CLICommand, P: CLIOutputParser>(
+        _ command: C,
+        parser: P,
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) async throws -> (P.Output?, ExecutionResult) {
+        let result = try await execute(
+            command: C.Program.programName,
+            arguments: command.commandArguments,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            printCommand: printCommand
+        )
+
+        if result.isSuccess {
+            let parsed = try parser.parse(result.stdout)
+            return (parsed, result)
+        } else {
+            return (nil, result)
+        }
+    }
+
+    /// Execute a typed command and return just the ExecutionResult.
+    /// Use when you only need to check exit codes or inspect stdout/stderr directly.
+    /// - Parameters:
+    ///   - command: The command to execute
+    ///   - workingDirectory: Working directory for execution
+    ///   - environment: Custom environment variables
+    ///   - printCommand: Whether to print the command before execution
+    /// - Returns: ExecutionResult containing exit code, stdout, stderr, and duration
+    public func executeForResult<C: CLICommand>(
+        _ command: C,
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) async throws -> ExecutionResult {
+        try await execute(
+            command: C.Program.programName,
+            arguments: command.commandArguments,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            printCommand: printCommand
+        )
+    }
+
+    /// Execute a typed command and return parsed output.
+    /// Throws if the command fails (non-zero exit code).
+    /// - Parameters:
+    ///   - command: The command to execute
+    ///   - parser: Parser to transform stdout into the desired type
+    ///   - workingDirectory: Working directory for execution
+    ///   - environment: Custom environment variables
+    ///   - printCommand: Whether to print the command before execution
+    /// - Returns: Parsed output of type `P.Output`
+    /// - Throws: CLIServiceError if command fails or parsing fails
+    public func execute<C: CLICommand, P: CLIOutputParser>(
+        _ command: C,
+        parser: P,
+        workingDirectory: String? = nil,
+        environment: [String: String]? = nil,
+        printCommand: Bool = true
+    ) async throws -> P.Output {
+        let (parsed, result) = try await executeWithResult(
+            command,
+            parser: parser,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            printCommand: printCommand
+        )
+
+        guard let parsed else {
+            throw CLIServiceError.executionFailed(
+                command: command.commandString,
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        return parsed
+    }
+
+    /// Execute a typed command and return trimmed string output.
+    /// Throws if the command fails (non-zero exit code).
     /// - Parameters:
     ///   - command: The command to execute
     ///   - workingDirectory: Working directory for execution
@@ -372,41 +466,13 @@ public actor CLIService {
         environment: [String: String]? = nil,
         printCommand: Bool = true
     ) async throws -> String {
-        try await execute(command, parser: StringParser(), workingDirectory: workingDirectory, environment: environment, printCommand: printCommand)
-    }
-
-    /// Execute a command with a parser
-    /// - Parameters:
-    ///   - command: The command to execute
-    ///   - parser: Parser to use for output transformation
-    ///   - workingDirectory: Working directory for execution
-    ///   - environment: Custom environment variables
-    ///   - printCommand: Whether to print the command before execution
-    /// - Returns: Parsed output of type `P.Output`
-    public func execute<C: CLICommand, P: CLIOutputParser>(
-        _ command: C,
-        parser: P,
-        workingDirectory: String? = nil,
-        environment: [String: String]? = nil,
-        printCommand: Bool = true
-    ) async throws -> P.Output {
-        let result = try await execute(
-            command: C.Program.programName,
-            arguments: Array(command.commandLine.dropFirst()),
+        try await execute(
+            command,
+            parser: StringParser(),
             workingDirectory: workingDirectory,
             environment: environment,
             printCommand: printCommand
         )
-
-        guard result.isSuccess else {
-            throw CLIServiceError.executionFailed(
-                command: command.commandString,
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return try parser.parse(result.stdout)
     }
 
     // MARK: - Private Streaming

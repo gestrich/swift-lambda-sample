@@ -31,7 +31,7 @@ For each CLI program:
 
 ### Standard Unix Commands (→ CLIKit/standard/)
 
-- [ ] **1. lsof** - Port checking (`lsof -i :PORT`)
+- [x] **1. lsof** - Port checking (`lsof -i :PORT`)
   - Files: `XcodeLocalService.swift`, `LinuxLocalService.swift`
   - Commands: `-i` (check port)
 
@@ -312,3 +312,4 @@ For each `@CLICommand`:
 - Services will be updated to use typed commands instead of string arrays
 - The `aws-vault` wrapping pattern in `AWSCLIService` needs special handling
 - Docker's `run` command has the most complex option set
+- **Imports should be in alphabetical order**

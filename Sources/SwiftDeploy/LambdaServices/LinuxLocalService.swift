@@ -1,3 +1,4 @@
+import CLIKit
 import Client
 import Combine
 import Foundation
@@ -338,9 +339,8 @@ public class LinuxLocalService: LambdaService {
         var ready = false
 
         while attempts < maxAttempts && !ready {
-            let portCheck = try await cliService.execute(
-                command: "lsof",
-                arguments: ["-i", ":\(config.hostPort)"],
+            let portCheck = try await cliService.executeForResult(
+                Lsof(port: ":\(config.hostPort)"),
                 printCommand: false
             )
 

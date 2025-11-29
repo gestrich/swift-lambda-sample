@@ -1,3 +1,4 @@
+import CLIKit
 import Client
 import Combine
 import Foundation
@@ -292,13 +293,7 @@ public class XcodeLocalService: LambdaService {
         try await Task.sleep(for: .seconds(3))
 
         // Check if it's running
-        let checkResult = try await cliService.execute(
-            command: "lsof",
-            arguments: ["-i", ":\(lambdaHostPort)"],
-            printCommand: false
-        )
-
-        if checkResult.isSuccess && !checkResult.stdout.isEmpty {
+        if await isPortInUse(lambdaHostPort) {
             lambdaState.appendOutput("   Test with: ./tools.sh local xcode test\n")
             lambdaState.appendOutput("   Stop with: ./tools.sh local xcode stop\n")
             lambdaState.markRunning()
@@ -314,28 +309,9 @@ public class XcodeLocalService: LambdaService {
         lambdaState.appendOutput("🛑 Stopping Lambda...\n")
 
         // Find process on port
-        let lsofResult = try await cliService.execute(
-            command: "lsof",
-            arguments: ["-i", ":\(lambdaHostPort)", "-t"],
-            printCommand: false
-        )
+        let pids = await getProcessIDsOnPort(lambdaHostPort)
 
-        if lsofResult.isSuccess && !lsofResult.stdout.isEmpty {
-            // Split PIDs by newlines in case there are multiple processes
-            // Filter out current process to avoid killing ourselves (e.g., MacApp running from Xcode)
-            let currentPID = String(ProcessInfo.processInfo.processIdentifier)
-            let pids = lsofResult.stdout
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .split(separator: "\n")
-                .map(String.init)
-                .filter { !$0.isEmpty && $0 != currentPID }
-
-            guard !pids.isEmpty else {
-                lambdaState.appendOutput("⚠️  No Lambda process found on port \(lambdaHostPort)\n")
-                lambdaState.markStopped()
-                return
-            }
-
+        if !pids.isEmpty {
             lambdaState.appendOutput("→ Killing process(es): \(pids.joined(separator: ", "))...\n")
 
             // Kill each process
@@ -431,13 +407,7 @@ public class XcodeLocalService: LambdaService {
         var ready = false
 
         while attempts < maxAttempts && !ready {
-            let portCheck = try await cliService.execute(
-                command: "lsof",
-                arguments: ["-i", ":\(lambdaHostPort)"],
-                printCommand: false
-            )
-
-            if portCheck.isSuccess && !portCheck.stdout.isEmpty {
+            if await isPortInUse(lambdaHostPort) {
                 ready = true
                 break
             }
@@ -540,32 +510,64 @@ public class XcodeLocalService: LambdaService {
 
     /// Check if Lambda is running (native process on port, not Docker)
     private func isLambdaRunning() async -> Bool {
-        do {
-            let result = try await cliService.execute(
-                command: "lsof",
-                arguments: ["-i", ":\(lambdaHostPort)"],
-                printCommand: false
-            )
-            // Check if there's a native Lambda process (not Docker)
-            // Docker processes show as "com.docke" or "docker" in lsof output
-            if result.isSuccess && !result.stdout.isEmpty {
-                let lines = result.stdout.components(separatedBy: "\n")
-                for line in lines {
-                    let lowercased = line.lowercased()
-                    // Look for Lambda process, exclude Docker
-                    if lowercased.contains(lambdaProcessPattern) && !lowercased.contains("docker") {
-                        return true
-                    }
-                }
+        let output = await getPortInfo(lambdaHostPort)
+        guard !output.isEmpty else { return false }
+
+        // Check if there's a native Lambda process (not Docker)
+        // Docker processes show as "com.docke" or "docker" in lsof output
+        let lines = output.components(separatedBy: "\n")
+        for line in lines {
+            let lowercased = line.lowercased()
+            // Look for Lambda process, exclude Docker
+            if lowercased.contains(lambdaProcessPattern) && !lowercased.contains("docker") {
+                return true
             }
-            return false
-        } catch {
-            print("⚠️  Error checking Lambda status: \(error)")
-            return false
         }
+        return false
     }
 
     // MARK: - Private Helpers
+
+    /// Check if any process is using the specified port
+    private func isPortInUse(_ port: Int) async -> Bool {
+        let output = await getPortInfo(port)
+        return !output.isEmpty
+    }
+
+    /// Get lsof output for processes using the specified port
+    private func getPortInfo(_ port: Int) async -> String {
+        do {
+            let result = try await cliService.executeForResult(
+                Lsof(port: ":\(port)"),
+                printCommand: false
+            )
+            guard result.isSuccess else { return "" }
+            return result.stdout
+        } catch {
+            return ""
+        }
+    }
+
+    /// Get PIDs of processes using the specified port (excluding current process)
+    private func getProcessIDsOnPort(_ port: Int) async -> [String] {
+        do {
+            let result = try await cliService.executeForResult(
+                Lsof(port: ":\(port)", pidOnly: true),
+                printCommand: false
+            )
+            guard result.isSuccess && !result.stdout.isEmpty else {
+                return []
+            }
+            let currentPID = String(ProcessInfo.processInfo.processIdentifier)
+            return result.stdout
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .split(separator: "\n")
+                .map(String.init)
+                .filter { !$0.isEmpty && $0 != currentPID }
+        } catch {
+            return []
+        }
+    }
 
     /// Get standard Lambda environment variables for local testing (native macOS process)
     private func getLambdaEnvironmentVariables() -> [String: String] {
