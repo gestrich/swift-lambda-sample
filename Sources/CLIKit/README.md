@@ -195,11 +195,3 @@ CLIKit/
 └── Examples/
     └── Git.swift             # Example Git commands
 ```
-
-## Planned Features
-
-See `docs/CLI-refactor.md` for planned features:
-
-1. **CLIService Events Stream** - Observable stream of all command execution
-2. **Flows** - Define sequences of commands
-3. **Interactive Flow Runner** - Step-by-step command execution UI
