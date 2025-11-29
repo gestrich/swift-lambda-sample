@@ -3,20 +3,11 @@ import SwiftDeploy
 
 /// Playground view for testing CLI commands
 struct CLIPlaygroundView: View {
+    @State private var commandText = ""
     @State private var outputLines: [String] = []
     @State private var isRunning = false
 
     private let cliService = CLIService.shared
-
-    /// Demo commands to show
-    private let demoCommands: [(name: String, command: String, args: [String])] = [
-        ("List Files", "ls", ["-la"]),
-        ("Current Directory", "pwd", []),
-        ("Date", "date", []),
-        ("Who Am I", "whoami", []),
-        ("Disk Usage", "df", ["-h"]),
-        ("Environment", "env", []),
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -24,30 +15,15 @@ struct CLIPlaygroundView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Test CLI command execution with streaming output")
+            Text("Type a command and press Enter. Use Tab to autocomplete, arrow keys to navigate suggestions.")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            // Command buttons
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(demoCommands, id: \.name) { cmd in
-                        Button(action: { runCommand(cmd.command, arguments: cmd.args) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "terminal")
-                                Text(cmd.name)
-                            }
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(isRunning)
-                    }
-                }
+            // Command input
+            CommandInputView(text: $commandText) { command in
+                runCommand(command)
             }
-
-            Divider()
+            .disabled(isRunning)
 
             // Output view
             StreamingTextView(
@@ -62,9 +38,13 @@ struct CLIPlaygroundView: View {
         .padding()
     }
 
-    private func runCommand(_ command: String, arguments: [String]) {
+    private func runCommand(_ commandString: String) {
+        let parts = commandString.components(separatedBy: " ").filter { !$0.isEmpty }
+        guard let command = parts.first else { return }
+        let arguments = Array(parts.dropFirst())
+
         isRunning = true
-        outputLines.append("$ \(command) \(arguments.joined(separator: " "))")
+        outputLines.append("$ \(commandString)")
 
         Task {
             do {
