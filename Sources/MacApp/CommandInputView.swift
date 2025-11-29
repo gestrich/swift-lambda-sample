@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// A command input field with autocomplete suggestions
 struct CommandInputView: View {
@@ -7,7 +8,7 @@ struct CommandInputView: View {
 
     @State private var selectedIndex: Int = 0
     @State private var showSuggestions = false
-    @FocusState private var isFocused: Bool
+    @State private var isFocused = false
 
     /// Known commands with their common arguments
     private let commandSuggestions: [(command: String, description: String, args: [[String]])] = [
@@ -82,42 +83,41 @@ struct CommandInputView: View {
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(.green)
 
-                TextField("Enter command...", text: $text)
-                    .font(.system(.body, design: .monospaced))
-                    .textFieldStyle(.plain)
-                    .focused($isFocused)
-                    .onSubmit {
+                CommandTextField(
+                    text: $text,
+                    isFocused: $isFocused,
+                    onTab: {
+                        if showSuggestions && !suggestions.isEmpty {
+                            text = suggestions[selectedIndex]
+                            if !text.contains(" ") {
+                                text += " "
+                            }
+                            return true
+                        }
+                        return false
+                    },
+                    onUpArrow: {
+                        if showSuggestions && !suggestions.isEmpty {
+                            selectedIndex = max(selectedIndex - 1, 0)
+                            return true
+                        }
+                        return false
+                    },
+                    onDownArrow: {
+                        if showSuggestions && !suggestions.isEmpty {
+                            selectedIndex = min(selectedIndex + 1, suggestions.count - 1)
+                            return true
+                        }
+                        return false
+                    },
+                    onEscape: {
+                        showSuggestions = false
+                        return true
+                    },
+                    onSubmit: {
                         submitCommand()
                     }
-                    .onKeyPress { press in
-                        switch press.key {
-                        case .downArrow:
-                            if showSuggestions && !suggestions.isEmpty {
-                                selectedIndex = min(selectedIndex + 1, suggestions.count - 1)
-                            }
-                            return .handled
-                        case .upArrow:
-                            if showSuggestions && !suggestions.isEmpty {
-                                selectedIndex = max(selectedIndex - 1, 0)
-                            }
-                            return .handled
-                        case .tab:
-                            if showSuggestions && !suggestions.isEmpty {
-                                text = suggestions[selectedIndex]
-                                // Add space after command if it's just the command name
-                                if !text.contains(" ") {
-                                    text += " "
-                                }
-                                return .handled
-                            }
-                            return .ignored
-                        case .escape:
-                            showSuggestions = false
-                            return .handled
-                        default:
-                            return .ignored
-                        }
-                    }
+                )
 
                 if !text.isEmpty {
                     Button(action: { text = "" }) {
@@ -200,6 +200,128 @@ private struct SuggestionRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Custom NSTextField for Tab key handling
+
+/// NSViewRepresentable wrapper for NSTextField that can intercept Tab key
+private struct CommandTextField: NSViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    let onTab: () -> Bool
+    let onUpArrow: () -> Bool
+    let onDownArrow: () -> Bool
+    let onEscape: () -> Bool
+    let onSubmit: () -> Void
+
+    func makeNSView(context: Context) -> NSTextField {
+        let textField = CustomTextField()
+        textField.delegate = context.coordinator
+        textField.stringValue = text
+        textField.placeholderString = "Enter command..."
+        textField.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textField.isBordered = false
+        textField.backgroundColor = .clear
+        textField.focusRingType = .none
+        textField.customDelegate = context.coordinator
+        return textField
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    @MainActor
+    class Coordinator: NSObject, NSTextFieldDelegate, CustomTextFieldDelegate {
+        var parent: CommandTextField
+
+        init(_ parent: CommandTextField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            if let textField = obj.object as? NSTextField {
+                parent.text = textField.stringValue
+            }
+        }
+
+        func controlTextDidBeginEditing(_ obj: Notification) {
+            parent.isFocused = true
+        }
+
+        func controlTextDidEndEditing(_ obj: Notification) {
+            parent.isFocused = false
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                parent.onSubmit()
+                return true
+            }
+            return false
+        }
+
+        // CustomTextFieldDelegate
+        func handleTab() -> Bool {
+            parent.onTab()
+        }
+
+        func handleUpArrow() -> Bool {
+            parent.onUpArrow()
+        }
+
+        func handleDownArrow() -> Bool {
+            parent.onDownArrow()
+        }
+
+        func handleEscape() -> Bool {
+            parent.onEscape()
+        }
+    }
+}
+
+/// Protocol for custom key handling
+@MainActor
+private protocol CustomTextFieldDelegate: AnyObject {
+    func handleTab() -> Bool
+    func handleUpArrow() -> Bool
+    func handleDownArrow() -> Bool
+    func handleEscape() -> Bool
+}
+
+/// Custom NSTextField that intercepts Tab and arrow keys
+private class CustomTextField: NSTextField {
+    weak var customDelegate: CustomTextFieldDelegate?
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 48: // Tab
+            if customDelegate?.handleTab() == true {
+                return
+            }
+        case 126: // Up arrow
+            if customDelegate?.handleUpArrow() == true {
+                return
+            }
+        case 125: // Down arrow
+            if customDelegate?.handleDownArrow() == true {
+                return
+            }
+        case 53: // Escape
+            if customDelegate?.handleEscape() == true {
+                return
+            }
+        default:
+            break
+        }
+        super.keyDown(with: event)
     }
 }
 
