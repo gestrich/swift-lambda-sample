@@ -47,7 +47,7 @@ For each CLI program:
   - Files: `LinuxLocalService.swift`
   - Commands: `-rf` (recursive force)
 
-- [ ] **5. sh** - Shell execution (`sh -c "command"`)
+- [x] **5. sh** - Shell execution (`sh -c "command"`)
   - Files: `DockerService.swift`, `XcodeLocalService.swift`
   - Commands: `-c` (execute command string)
 

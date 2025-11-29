@@ -299,10 +299,7 @@ public actor DockerService {
             fullCommand = dockerCommand
         }
 
-        let result = try await cliService.execute(
-            command: "/bin/sh",
-            arguments: ["-c", fullCommand]
-        )
+        let result = try await cliService.executeForResult(Sh(command: fullCommand))
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(

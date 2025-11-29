@@ -158,6 +158,45 @@ struct LsofCommandTests {
     }
 }
 
+@Suite("Sh Command Tests")
+struct ShCommandTests {
+
+    @Test("Sh program name")
+    func testProgramName() {
+        #expect(Sh.programName == "sh")
+    }
+
+    @Test("Sh command line with simple command")
+    func testShSimpleCommand() {
+        let cmd = Sh(command: "echo hello")
+        #expect(cmd.commandLine == ["sh", "-c", "echo hello"])
+    }
+
+    @Test("Sh command line with complex command")
+    func testShComplexCommand() {
+        let cmd = Sh(command: "cd /tmp && ls -la")
+        #expect(cmd.commandLine == ["sh", "-c", "cd /tmp && ls -la"])
+    }
+
+    @Test("Sh command line with environment variables")
+    func testShWithEnvVars() {
+        let cmd = Sh(command: "FOO=bar ./script.sh")
+        #expect(cmd.commandLine == ["sh", "-c", "FOO=bar ./script.sh"])
+    }
+
+    @Test("Sh command line with background process")
+    func testShBackgroundProcess() {
+        let cmd = Sh(command: "./process > /tmp/out.log 2>&1 & echo $!")
+        #expect(cmd.commandLine == ["sh", "-c", "./process > /tmp/out.log 2>&1 & echo $!"])
+    }
+
+    @Test("Sh command string")
+    func testShCommandString() {
+        let cmd = Sh(command: "echo hello")
+        #expect(cmd.commandString == "sh -c \"echo hello\"")
+    }
+}
+
 @Suite("Rm Command Tests")
 struct RmCommandTests {
 

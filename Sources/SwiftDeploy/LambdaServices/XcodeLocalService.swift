@@ -282,8 +282,7 @@ public class XcodeLocalService: LambdaService {
 
         // Run in background using nohup
         _ = try await cliService.execute(
-            command: "sh",
-            arguments: ["-c", "\(envVars) \(executablePath) > /tmp/lambda.log 2>&1 & echo $!"],
+            Sh(command: "\(envVars) \(executablePath) > /tmp/lambda.log 2>&1 & echo $!"),
             workingDirectory: workingDirectory,
             printCommand: false
         )
