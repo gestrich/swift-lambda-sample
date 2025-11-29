@@ -30,6 +30,15 @@ struct CLIKitTests {
         #expect(positional.components == ["feature-branch"])
     }
 
+    @Test("CLIPrefixOption components")
+    func testPrefixOptionComponents() {
+        let prefixOption = CLIPrefixOption("-", value: "9")
+        #expect(prefixOption.components == ["-9"])
+
+        let termOption = CLIPrefixOption("-", value: "TERM")
+        #expect(termOption.components == ["-TERM"])
+    }
+
     @Test("CLIArgument enum")
     func testArgumentComponents() {
         let flagArg = CLIArgument.flag(CLIFlag("--force"))
@@ -37,6 +46,9 @@ struct CLIKitTests {
 
         let optionArg = CLIArgument.option(CLIOption("-m", value: "message"))
         #expect(optionArg.components == ["-m", "message"])
+
+        let prefixOptionArg = CLIArgument.prefixOption(CLIPrefixOption("-", value: "9"))
+        #expect(prefixOptionArg.components == ["-9"])
 
         let positionalArg = CLIArgument.positional(CLIPositional("branch"))
         #expect(positionalArg.components == ["branch"])

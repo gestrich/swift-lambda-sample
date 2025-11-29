@@ -4,10 +4,11 @@ import SwiftSyntaxMacros
 @main
 struct CLIMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
-        CLIProgramMacro.self,
         CLICommandMacro.self,
+        CLIProgramMacro.self,
         FlagMacro.self,
         OptionMacro.self,
         PositionalMacro.self,
+        PrefixOptionMacro.self,
     ]
 }

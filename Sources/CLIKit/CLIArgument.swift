@@ -2,6 +2,7 @@
 public enum CLIArgument: Equatable, Sendable {
     case flag(CLIFlag)
     case option(CLIOption)
+    case prefixOption(CLIPrefixOption)
     case positional(CLIPositional)
 
     /// Convert to command-line string components
@@ -11,6 +12,8 @@ public enum CLIArgument: Equatable, Sendable {
             return flag.components
         case .option(let option):
             return option.components
+        case .prefixOption(let prefixOption):
+            return prefixOption.components
         case .positional(let positional):
             return positional.components
         }
@@ -42,6 +45,22 @@ public struct CLIOption: Equatable, Sendable {
 
     public var components: [String] {
         [name, value]
+    }
+}
+
+/// A prefix option where prefix and value are joined (e.g., -9, -TERM for kill signals)
+/// Used for old-style Unix options like: kill -9, nice -10, head -20
+public struct CLIPrefixOption: Equatable, Sendable {
+    public let prefix: String
+    public let value: String
+
+    public init(_ prefix: String, value: String) {
+        self.prefix = prefix
+        self.value = value
+    }
+
+    public var components: [String] {
+        [prefix + value]
     }
 }
 

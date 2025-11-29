@@ -80,6 +80,20 @@ public macro Flag(_ names: String...) = #externalMacro(module: "CLIMacros", type
 @attached(peer)
 public macro Option(_ names: String...) = #externalMacro(module: "CLIMacros", type: "OptionMacro")
 
+/// Marks a property as a prefix option where prefix and value are joined
+///
+/// Used for old-style Unix options where the prefix and value form a single argument:
+/// - `kill -9` (signal)
+/// - `nice -10` (priority)
+/// - `head -20` (line count)
+///
+/// Example:
+/// ```swift
+/// @PrefixOption("-") var signal: String?  // Produces "-9" not "-" "9"
+/// ```
+@attached(peer)
+public macro PrefixOption(_ prefix: String) = #externalMacro(module: "CLIMacros", type: "PrefixOptionMacro")
+
 /// Marks a property as a positional argument
 /// Positionals are ordered by declaration order
 ///

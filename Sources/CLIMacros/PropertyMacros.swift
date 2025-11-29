@@ -26,6 +26,17 @@ public struct OptionMacro: PeerMacro {
     }
 }
 
+/// Marker macro for prefix option properties (joined prefix+value like -9 for kill)
+public struct PrefixOptionMacro: PeerMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        return []
+    }
+}
+
 /// Marker macro for positional arguments
 public struct PositionalMacro: PeerMacro {
     public static func expansion(

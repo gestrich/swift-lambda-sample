@@ -114,6 +114,8 @@ enum PropertyAttribute {
     case flag(names: [String])
     /// Option with explicit names (can be empty for inferred, one name, or two names)
     case option(names: [String])
+    /// Prefix option where prefix and value are joined (e.g., -9 for kill)
+    case prefixOption(prefix: String)
     case positional
     case none
 }
@@ -185,6 +187,11 @@ func parseAttribute(from varDecl: VariableDeclSyntax) -> PropertyAttribute {
             let names = parseVariadicStringArgs(from: attribute)
             return .option(names: names)
 
+        case "PrefixOption":
+            let args = parseVariadicStringArgs(from: attribute)
+            let prefix = args.first ?? "-"
+            return .prefixOption(prefix: prefix)
+
         case "Positional":
             return .positional
 
@@ -251,6 +258,14 @@ func generateArgumentsCode(properties: [ParsedProperty]) -> String {
                 lines.append("if let value = self.\(prop.name) { args.append(.option(CLIOption(\"\(optionName)\", value: value))) }")
             } else {
                 lines.append("args.append(.option(CLIOption(\"\(optionName)\", value: self.\(prop.name))))")
+            }
+
+        case .prefixOption(let prefix):
+            // Prefix option joins prefix and value (e.g., -9 for kill)
+            if prop.isOptional {
+                lines.append("if let value = self.\(prop.name) { args.append(.prefixOption(CLIPrefixOption(\"\(prefix)\", value: value))) }")
+            } else {
+                lines.append("args.append(.prefixOption(CLIPrefixOption(\"\(prefix)\", value: self.\(prop.name))))")
             }
 
         case .positional:
