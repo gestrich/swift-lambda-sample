@@ -253,17 +253,15 @@ public class RemoteService: LambdaService {
     }
 
     /// Refresh status and publish results via Combine publishers
-    /// Also fetches endpoint from CDK if not configured
+    /// Always fetches the latest endpoint from CDK stack
     public func refreshStatus() {
         let statusSubject = self.statusSubject
         let isLoadingStatusSubject = self.isLoadingStatusSubject
 
         isLoadingStatusSubject.send(true)
         Task {
-            // Fetch endpoint if not configured
-            if !isConfigured {
-                try? await fetchEndpoint()
-            }
+            // Always fetch the latest endpoint from AWS
+            try? await fetchEndpoint()
 
             do {
                 let newStatus = try await self.status()
