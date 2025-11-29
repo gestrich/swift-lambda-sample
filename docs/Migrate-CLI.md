@@ -16,7 +16,7 @@ For each CLI program:
 1. Create the `@CLIProgram` struct with `@CLICommand` definitions
 2. Add unit tests for the new commands
 3. Update the service to use the new typed commands (this is part of step 1 - we create commands and immediately use them)
-4. Run tests to verify (`swift test`)
+4. Run tests to verify (`swift test`) but only run the tests for CLIKit. Make sure you can build other targets you cahnged but don't run all their tests as they take too long.
 5. Prompt user for approval
 6. Mark the checkbox as complete: `- [x]`
 7. Commit before moving to the next program
@@ -240,19 +240,28 @@ For each CLI program:
 
 ## MacApp Settings View Update
 
-- [ ] **17. Unify Output Views**
-  - Current state: Two separate output views
+- [x] **17. Unify Output Views**
+  - Previous state: Two separate output views
     - `BuildOutputView` - Shows build streaming output
     - `LambdaOutputView` - Shows Lambda lifecycle output
-  - Target state: Single unified output view
-    - Connect to CLIService async sequence
-    - All CLI operations stream to the same view
-    - Remove duplicate views from Settings
-  - Implementation:
-    - Add AsyncSequence support to CLIService for global output streaming
-    - Create unified `CLIOutputView` component
-    - Update `SettingsView` to use single output view
-    - Remove `BuildOutputView` and `LambdaOutputView`
+  - New state: Single unified generic output view
+    - `CLIOutputView<State: CLIOutputState>` - Generic view for any CLI output state
+    - Type aliases preserve backward compatibility: `BuildOutputView`, `LambdaOutputView`
+  - Files created:
+    - `Sources/SwiftDeploy/CLIOutputState.swift` - Protocol and status conformances
+    - `Sources/MacApp/CLIOutputView.swift` - Unified generic view component
+  - Files removed:
+    - `Sources/MacApp/BuildOutputView.swift`
+    - `Sources/MacApp/LambdaOutputView.swift`
+  - Technical notes:
+    - Created `CLIOutputStatus` protocol with properties: `isActive`, `iconName`, `displayText`, `colorName`, `showProgress`, `helpText`
+    - Created `CLIOutputState` protocol requiring `outputLines`, `status`, and `clear()` method
+    - `BuildStatus` and `LambdaStatus` conform to `CLIOutputStatus`
+    - `BuildState` and `LambdaState` conform to `CLIOutputState`
+    - Generic `CLIOutputView<State: CLIOutputState>` replaces both specific views
+    - Type aliases (`BuildOutputView`, `LambdaOutputView`) and convenience initializers maintain API compatibility
+    - SettingsView unchanged - uses same initializer syntax via convenience initializers
+    - Auto-expand on status change: `onChange(of: state.status.isActive)`
 
 ---
 
@@ -299,6 +308,8 @@ We'll proceed program-by-program in this order:
 | `Swift` | `SwiftDeploy/CLI/Swift.swift` | New - Swift toolchain |
 | `Curl` | `SwiftDeploy/CLI/Curl.swift` | New - HTTP requests |
 | `BuildScript` | `SwiftDeploy/CLI/BuildScript.swift` | New - Build script wrapper |
+| `CLIOutputState` | `SwiftDeploy/CLIOutputState.swift` | Protocol for unified output views |
+| `CLIOutputView` | `MacApp/CLIOutputView.swift` | Unified generic output view |
 
 ---
 
