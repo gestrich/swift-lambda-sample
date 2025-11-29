@@ -17,8 +17,9 @@ extension CLICommand {
     public var commandArguments: [String] {
         var result: [String] = []
         // Only add command name if it's not empty (for programs without subcommands like ls)
+        // Split by spaces to support multi-word commands like "cloudformation describe-stacks"
         if !Self.commandName.isEmpty {
-            result.append(Self.commandName)
+            result.append(contentsOf: Self.commandName.split(separator: " ").map(String.init))
         }
         for arg in arguments {
             result.append(contentsOf: arg.components)

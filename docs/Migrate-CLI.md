@@ -66,18 +66,31 @@ For each CLI program:
 
 ### Project-Specific Commands (→ SwiftDeploy target)
 
-- [ ] **7. AWS CLI** - AWS operations
+- [x] **7. AWS CLI** - AWS operations
   - File: `AWSCLIService.swift`
-  - Commands:
-    - `cloudformation describe-stacks`
-    - `cloudformation describe-stack-resources`
-    - `lambda update-function-code`
-    - `lambda get-function`
-    - `logs tail`
-    - `s3 ls`
-    - `s3 cp`
-    - `secretsmanager get-secret-value`
-    - `secretsmanager list-secrets`
+  - Location: `SwiftDeploy/CLI/Aws.swift`
+  - Commands implemented:
+    - `CloudFormationDescribeStacks` - `aws cloudformation describe-stacks`
+    - `CloudFormationDescribeStackResources` - `aws cloudformation describe-stack-resources`
+    - `LambdaUpdateFunctionCode` - `aws lambda update-function-code`
+    - `LambdaGetFunction` - `aws lambda get-function`
+    - `LogsTail` - `aws logs tail`
+    - `S3Ls` - `aws s3 ls`
+    - `S3Cp` - `aws s3 cp`
+    - `SecretsManagerGetSecretValue` - `aws secretsmanager get-secret-value`
+    - `SecretsManagerListSecrets` - `aws secretsmanager list-secrets`
+  - Parsers:
+    - `CloudFormationStackParser` - Parses stack JSON with outputs
+    - `CloudFormationStackResourcesParser` - Parses stack resources JSON
+  - Output types:
+    - `CloudFormationStack` - Stack status and outputs
+    - `CloudFormationStackOutput` - Individual stack output (key, value, description, exportName)
+    - `CloudFormationStackResource` - Resource info (logicalResourceId, resourceType, resourceStatus)
+  - Technical notes:
+    - Multi-word command names (e.g., "cloudformation describe-stacks") are now supported via space-splitting in `CLICommand.commandArguments`
+    - `AWSCLIService` maintains aws-vault wrapping support via `buildCommandLine()` method
+    - Profile flags are automatically removed when using aws-vault
+    - Tests: `Tests/SwiftDeployTests/AWSCLITests.swift` (42 tests)
 
 - [ ] **8. CDK** - AWS CDK operations
   - File: `CDKService.swift`

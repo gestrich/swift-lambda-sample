@@ -1,3 +1,4 @@
+import CLIKit
 import Foundation
 
 /// Service for interacting with AWS CLI
@@ -12,48 +13,107 @@ public actor AWSCLIService {
         self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil
     }
 
-    // MARK: - Command Building
+    // MARK: - Command Execution
 
-    /// Build AWS CLI command with optional aws-vault wrapping
-    /// - Parameter arguments: AWS CLI arguments (without "aws" command)
-    /// - Returns: Tuple with command and full arguments
-    private func buildCommand(arguments: [String]) -> (command: String, arguments: [String]) {
+    /// Execute a typed AWS CLI command
+    /// - Parameters:
+    ///   - command: The AWS CLI command to execute
+    ///   - parser: Parser to transform output
+    ///   - printCommand: Whether to print the command
+    /// - Returns: Parsed output
+    private func execute<C: CLICommand, P: CLIOutputParser>(
+        _ command: C,
+        parser: P,
+        printCommand: Bool = false
+    ) async throws -> P.Output where C.Program == Aws {
+        let (execCommand, arguments) = buildCommandLine(command)
+
+        let result = try await cliService.execute(
+            command: execCommand,
+            arguments: arguments,
+            environment: ["AWS_PROFILE": profile],
+            printCommand: printCommand
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: command.commandString,
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+
+        return try parser.parse(result.stdout)
+    }
+
+    /// Execute a typed AWS CLI command and return raw output
+    /// - Parameters:
+    ///   - command: The AWS CLI command to execute
+    ///   - printCommand: Whether to print the command
+    /// - Returns: Trimmed stdout string
+    private func execute<C: CLICommand>(
+        _ command: C,
+        printCommand: Bool = false
+    ) async throws -> String where C.Program == Aws {
+        try await execute(command, parser: StringParser(), printCommand: printCommand)
+    }
+
+    /// Execute a typed AWS CLI command without returning output (for side-effect commands)
+    /// - Parameters:
+    ///   - command: The AWS CLI command to execute
+    ///   - printCommand: Whether to print the command
+    private func executeForSideEffect<C: CLICommand>(
+        _ command: C,
+        printCommand: Bool = true
+    ) async throws where C.Program == Aws {
+        let (execCommand, arguments) = buildCommandLine(command)
+
+        let result = try await cliService.execute(
+            command: execCommand,
+            arguments: arguments,
+            environment: ["AWS_PROFILE": profile],
+            printCommand: printCommand
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: command.commandString,
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+    }
+
+    /// Build command line with optional aws-vault wrapping
+    /// - Parameter command: The AWS CLI command
+    /// - Returns: Tuple with executable command and arguments
+    private func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) where C.Program == Aws {
+        let arguments = command.commandArguments
+
         if let vaultService = vaultService {
             // Remove --profile flags (aws-vault handles auth via environment)
             let filteredArgs = AWSVaultService.removeProfileFlags(from: arguments)
             return vaultService.wrapCommand(command: "aws", arguments: filteredArgs)
         } else {
-            // Traditional approach with --profile
+            // Traditional approach
             return ("aws", arguments)
         }
     }
 
     // MARK: - CloudFormation
 
-    public struct StackOutput {
-        public let key: String
-        public let value: String
-        public let description: String?
-        public let exportName: String?
-    }
-
-    public struct StackResource: Sendable {
-        public let logicalResourceId: String
-        public let resourceType: String
-        public let resourceStatus: String
-    }
-
     /// Describe a CloudFormation stack
     public func describeStack(name: String) async throws -> [String: Any] {
-        let (command, arguments) = buildCommand(arguments: [
-            "cloudformation", "describe-stacks",
-            "--stack-name", name,
-            "--profile", profile,
-            "--output", "json"
-        ])
+        let command = Aws.CloudFormationDescribeStacks(
+            stackName: name,
+            profile: profile,
+            output: "json"
+        )
+
+        let (execCommand, arguments) = buildCommandLine(command)
 
         let result = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
             printCommand: false
@@ -79,30 +139,14 @@ public actor AWSCLIService {
 
     /// Get stack status
     public func getStackStatus(name: String) async throws -> String {
-        let (command, arguments) = buildCommand(arguments: [
-            "cloudformation", "describe-stacks",
-            "--stack-name", name,
-            "--profile", profile,
-            "--query", "Stacks[0].StackStatus",
-            "--output", "text"
-        ])
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile],
-            printCommand: false
+        let command = Aws.CloudFormationDescribeStacks(
+            stackName: name,
+            profile: profile,
+            output: "text",
+            query: "Stacks[0].StackStatus"
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws cloudformation describe-stacks",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await execute(command)
     }
 
     /// Get stack outputs
@@ -126,30 +170,14 @@ public actor AWSCLIService {
 
     /// Get a specific stack output value
     public func getStackOutput(stackName: String, outputKey: String) async throws -> String {
-        let (command, arguments) = buildCommand(arguments: [
-            "cloudformation", "describe-stacks",
-            "--stack-name", stackName,
-            "--profile", profile,
-            "--query", "Stacks[0].Outputs[?OutputKey==`\(outputKey)`].OutputValue",
-            "--output", "text"
-        ])
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile],
-            printCommand: false
+        let command = Aws.CloudFormationDescribeStacks(
+            stackName: stackName,
+            profile: profile,
+            output: "text",
+            query: "Stacks[0].Outputs[?OutputKey==`\(outputKey)`].OutputValue"
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws cloudformation describe-stacks",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        let value = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = try await execute(command)
 
         guard !value.isEmpty else {
             throw CLIServiceError.invalidOutput(reason: "Output key '\(outputKey)' not found in stack '\(stackName)'")
@@ -159,48 +187,14 @@ public actor AWSCLIService {
     }
 
     /// Describe stack resources to detect what's deployed
-    public func describeStackResources(name: String) async throws -> [StackResource] {
-        let (command, arguments) = buildCommand(arguments: [
-            "cloudformation", "describe-stack-resources",
-            "--stack-name", name,
-            "--profile", profile,
-            "--output", "json"
-        ])
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile],
-            printCommand: false
+    public func describeStackResources(name: String) async throws -> [CloudFormationStackResource] {
+        let command = Aws.CloudFormationDescribeStackResources(
+            stackName: name,
+            profile: profile,
+            output: "json"
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws cloudformation describe-stack-resources",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        guard let data = result.stdout.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let resourcesArray = json["StackResources"] as? [[String: Any]] else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse CloudFormation stack resources")
-        }
-
-        return resourcesArray.compactMap { resource in
-            guard let logicalId = resource["LogicalResourceId"] as? String,
-                  let resourceType = resource["ResourceType"] as? String,
-                  let resourceStatus = resource["ResourceStatus"] as? String else {
-                return nil
-            }
-
-            return StackResource(
-                logicalResourceId: logicalId,
-                resourceType: resourceType,
-                resourceStatus: resourceStatus
-            )
-        }
+        return try await execute(command, parser: CloudFormationStackResourcesParser())
     }
 
     // MARK: - Lambda
@@ -210,39 +204,27 @@ public actor AWSCLIService {
         functionName: String,
         zipFile: String
     ) async throws {
-        let (command, arguments) = buildCommand(arguments: [
-            "lambda", "update-function-code",
-            "--function-name", functionName,
-            "--zip-file", "fileb://\(zipFile)",
-            "--profile", profile
-        ])
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile]
+        let command = Aws.LambdaUpdateFunctionCode(
+            functionName: functionName,
+            zipFile: "fileb://\(zipFile)",
+            profile: profile
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws lambda update-function-code",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
+        try await executeForSideEffect(command)
     }
 
     /// Get Lambda function configuration
     public func getLambdaFunction(name: String) async throws -> [String: Any] {
-        let (command, arguments) = buildCommand(arguments: [
-            "lambda", "get-function",
-            "--function-name", name,
-            "--profile", profile,
-            "--output", "json"
-        ])
+        let command = Aws.LambdaGetFunction(
+            functionName: name,
+            profile: profile,
+            output: "json"
+        )
+
+        let (execCommand, arguments) = buildCommandLine(command)
 
         let result = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
             printCommand: false
@@ -273,33 +255,15 @@ public actor AWSCLIService {
         format: String = "short",
         follow: Bool = false
     ) async throws {
-        var awsArguments = [
-            "logs", "tail",
-            logGroup,
-            "--since", since,
-            "--format", format,
-            "--profile", profile
-        ]
-
-        if follow {
-            awsArguments.append("--follow")
-        }
-
-        let (command, arguments) = buildCommand(arguments: awsArguments)
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile]
+        let command = Aws.LogsTail(
+            logGroup: logGroup,
+            since: since,
+            format: format,
+            follow: follow,
+            profile: profile
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws logs tail",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
+        try await executeForSideEffect(command)
     }
 
     // MARK: - S3
@@ -311,28 +275,9 @@ public actor AWSCLIService {
             path += prefix
         }
 
-        let (command, arguments) = buildCommand(arguments: [
-            "s3", "ls",
-            path,
-            "--profile", profile
-        ])
+        let command = Aws.S3Ls(path: path, profile: profile)
 
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile],
-            printCommand: false
-        )
-
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws s3 ls",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return result.stdout
+        return try await execute(command, printCommand: false)
     }
 
     /// Copy a file from S3 to local or stdout
@@ -340,71 +285,40 @@ public actor AWSCLIService {
         source: String,
         destination: String
     ) async throws -> String {
-        let (command, arguments) = buildCommand(arguments: [
-            "s3", "cp",
-            source,
-            destination,
-            "--profile", profile
-        ])
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile],
-            printCommand: false
+        let command = Aws.S3Cp(
+            source: source,
+            destination: destination,
+            profile: profile
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws s3 cp",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return result.stdout
+        return try await execute(command, printCommand: false)
     }
 
     // MARK: - Secrets Manager
 
     /// Get a secret value
     public func getSecretValue(secretId: String) async throws -> String {
-        let (command, arguments) = buildCommand(arguments: [
-            "secretsmanager", "get-secret-value",
-            "--secret-id", secretId,
-            "--profile", profile,
-            "--query", "SecretString",
-            "--output", "text"
-        ])
-
-        let result = try await cliService.execute(
-            command: command,
-            arguments: arguments,
-            environment: ["AWS_PROFILE": profile],
-            printCommand: false
+        let command = Aws.SecretsManagerGetSecretValue(
+            secretId: secretId,
+            profile: profile,
+            query: "SecretString",
+            output: "text"
         )
 
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "aws secretsmanager get-secret-value",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await execute(command, printCommand: false)
     }
 
     /// List secrets
     public func listSecrets() async throws -> [[String: Any]] {
-        let (command, arguments) = buildCommand(arguments: [
-            "secretsmanager", "list-secrets",
-            "--profile", profile,
-            "--output", "json"
-        ])
+        let command = Aws.SecretsManagerListSecrets(
+            profile: profile,
+            output: "json"
+        )
+
+        let (execCommand, arguments) = buildCommandLine(command)
 
         let result = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
             printCommand: false
@@ -426,4 +340,11 @@ public actor AWSCLIService {
 
         return secrets
     }
+}
+
+// MARK: - Legacy Types (for backward compatibility)
+
+extension AWSCLIService {
+    public typealias StackOutput = CloudFormationStackOutput
+    public typealias StackResource = CloudFormationStackResource
 }
