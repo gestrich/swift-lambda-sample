@@ -157,3 +157,54 @@ struct LsofCommandTests {
         }
     }
 }
+
+@Suite("Rm Command Tests")
+struct RmCommandTests {
+
+    @Test("Rm program name")
+    func testProgramName() {
+        #expect(Rm.programName == "rm")
+    }
+
+    @Test("Rm command line with single path")
+    func testRmSinglePath() {
+        let cmd = Rm(paths: ["file.txt"])
+        #expect(cmd.commandLine == ["rm", "file.txt"])
+    }
+
+    @Test("Rm command line with multiple paths")
+    func testRmMultiplePaths() {
+        let cmd = Rm(paths: ["file1.txt", "file2.txt", "dir/"])
+        #expect(cmd.commandLine == ["rm", "file1.txt", "file2.txt", "dir/"])
+    }
+
+    @Test("Rm command line with recursive flag")
+    func testRmRecursive() {
+        let cmd = Rm(recursive: true, paths: ["dir/"])
+        #expect(cmd.commandLine == ["rm", "-r", "dir/"])
+    }
+
+    @Test("Rm command line with force flag")
+    func testRmForce() {
+        let cmd = Rm(force: true, paths: ["file.txt"])
+        #expect(cmd.commandLine == ["rm", "-f", "file.txt"])
+    }
+
+    @Test("Rm command line with recursive and force flags")
+    func testRmRecursiveForce() {
+        let cmd = Rm(recursive: true, force: true, paths: ["dir/"])
+        #expect(cmd.commandLine == ["rm", "-r", "-f", "dir/"])
+    }
+
+    @Test("Rm command line with multiple paths and flags")
+    func testRmFullUsage() {
+        let cmd = Rm(recursive: true, force: true, paths: [".build", "lambda.zip", "bootstrap"])
+        #expect(cmd.commandLine == ["rm", "-r", "-f", ".build", "lambda.zip", "bootstrap"])
+    }
+
+    @Test("Rm command string")
+    func testRmCommandString() {
+        let cmd = Rm(recursive: true, force: true, paths: ["dir/"])
+        #expect(cmd.commandString == "rm -r -f dir/")
+    }
+}

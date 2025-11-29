@@ -269,7 +269,12 @@ func generateArgumentsCode(properties: [ParsedProperty]) -> String {
             }
 
         case .positional:
-            if prop.isOptional {
+            // Check if this is an array type (e.g., [String])
+            let isArray = prop.type.hasPrefix("[") && prop.type.hasSuffix("]")
+            if isArray {
+                // For array positionals, iterate and add each element
+                lines.append("for value in self.\(prop.name) { args.append(.positional(CLIPositional(value))) }")
+            } else if prop.isOptional {
                 lines.append("if let value = self.\(prop.name) { args.append(.positional(CLIPositional(value))) }")
             } else {
                 lines.append("args.append(.positional(CLIPositional(self.\(prop.name))))")

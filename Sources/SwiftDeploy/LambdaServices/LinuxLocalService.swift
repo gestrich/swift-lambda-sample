@@ -169,9 +169,9 @@ public class LinuxLocalService: LambdaService {
         if clean {
             buildState.appendOutput("🧹 Cleaning previous build artifacts...\n")
             do {
+                let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
                 _ = try await cliService.execute(
-                    command: "rm",
-                    arguments: ["-rf"] + buildArtifactPaths,
+                    rmCmd,
                     workingDirectory: workingDirectory,
                     printCommand: false
                 )
@@ -217,9 +217,9 @@ public class LinuxLocalService: LambdaService {
 
     /// Delete build artifacts and reset build state
     public func deleteBuild() async throws {
+        let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
         _ = try await cliService.execute(
-            command: "rm",
-            arguments: ["-rf"] + buildArtifactPaths,
+            rmCmd,
             workingDirectory: workingDirectory,
             printCommand: false
         )

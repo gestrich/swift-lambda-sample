@@ -43,7 +43,7 @@ For each CLI program:
   - Files: `DockerService.swift`
   - Commands: `-u` (user ID), `-g` (group ID)
 
-- [ ] **4. rm** - Remove files/directories (`rm -rf`)
+- [x] **4. rm** - Remove files/directories (`rm -rf`)
   - Files: `LinuxLocalService.swift`
   - Commands: `-rf` (recursive force)
 
@@ -309,6 +309,7 @@ For each `@CLICommand`:
 
 - Each `@CLIProgram` should implement only the commands/options actually used
 - Parsers should be created where structured output is needed
+- **Add structured outputs for any command output that has structure** (i.e., not just a single string). If the output contains multiple fields, lists, or parseable data, create a typed output struct and parser.
 - Services will be updated to use typed commands instead of string arrays
 - The `aws-vault` wrapping pattern in `AWSCLIService` needs special handling
 - Docker's `run` command has the most complex option set
