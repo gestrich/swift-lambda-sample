@@ -13,6 +13,12 @@ struct ContentView: View {
                     }
             }
 
+            // CLI Playground
+            CLIPlaygroundView()
+                .tabItem {
+                    Label("CLI Playground", systemImage: "terminal")
+                }
+
             // Settings is always available
             SettingsView()
                 .tabItem {
