@@ -185,10 +185,10 @@ public class LinuxLocalService: LambdaService {
 
         buildState.appendOutput("🔨 Building Lambda for Linux (Docker)...\n")
 
-        // Stream the build output
+        // Stream the build output using typed command
+        let buildCmd = BuildScript.Build.lambda(target: "SwiftLambda")
         let stream = await cliService.stream(
-            command: "./build.sh",
-            arguments: ["SwiftLambda"],
+            buildCmd,
             workingDirectory: workingDirectory,
             printCommand: false
         )

@@ -220,10 +220,21 @@ For each CLI program:
     - Simple `@CLIProgram` with one flag and one positional argument
   - Tests: `Tests/CLIKitTests/StandardCommandTests.swift` (WhichCommandTests - 5 tests)
 
-- [ ] **16. Build Script** - Custom build script
+- [x] **16. Build Script** - Custom build script
   - File: `LinuxLocalService.swift`
-  - Commands:
-    - `./build.sh SwiftLambda`
+  - Location: `SwiftDeploy/CLI/BuildScript.swift`
+  - Commands implemented:
+    - `Build` - `./build.sh <target> [platform] [githubToken]` with all three positional arguments
+  - Convenience initializers:
+    - `lambda(target:)` - Simple build for default AWS Lambda platform (linux/amd64)
+    - `forPlatform(target:platform:)` - Build with specific platform (e.g., "linux/arm64")
+    - `withToken(target:platform:githubToken:)` - Build with GitHub token for private dependencies
+  - Technical notes:
+    - Uses `@CLIProgram("./build.sh")` with explicit program name for the shell script path
+    - Uses `@CLICommand("")` (empty command name) since the script is invoked directly with positional arguments
+    - All three arguments (`target`, `platform`, `githubToken`) are positional via `@Positional`
+    - `LinuxLocalService.build()` uses `cliService.stream()` for streaming build output to the UI
+  - Tests: `Tests/SwiftDeployTests/BuildScriptTests.swift` (15 tests)
 
 ---
 
@@ -287,6 +298,7 @@ We'll proceed program-by-program in this order:
 | `Gh` | `SwiftDeploy/CLI/Gh.swift` | New - GitHub CLI |
 | `Swift` | `SwiftDeploy/CLI/Swift.swift` | New - Swift toolchain |
 | `Curl` | `SwiftDeploy/CLI/Curl.swift` | New - HTTP requests |
+| `BuildScript` | `SwiftDeploy/CLI/BuildScript.swift` | New - Build script wrapper |
 
 ---
 
@@ -344,6 +356,7 @@ struct LsofCommandTests {
 | Docker | `Tests/SwiftDeployTests/DockerTests.swift` |
 | Swift | `Tests/SwiftDeployTests/SwiftCLITests.swift` |
 | curl | `Tests/SwiftDeployTests/CurlTests.swift` |
+| BuildScript | `Tests/SwiftDeployTests/BuildScriptTests.swift` |
 
 ### Running Tests
 
