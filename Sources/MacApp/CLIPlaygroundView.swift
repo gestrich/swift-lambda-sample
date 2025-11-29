@@ -89,10 +89,8 @@ struct CLIPlaygroundView: View {
                         }
                     }
 
-                    // Add status
-                    if result.isSuccess {
-                        outputLines.append("✅ Completed (exit code: \(result.exitCode), duration: \(String(format: "%.2f", result.duration))s)")
-                    } else {
+                    // Only show error status
+                    if !result.isSuccess {
                         outputLines.append("❌ Failed (exit code: \(result.exitCode))")
                     }
 
