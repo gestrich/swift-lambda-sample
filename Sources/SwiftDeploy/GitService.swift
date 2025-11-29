@@ -1,3 +1,4 @@
+import CLIKit
 import Foundation
 
 /// Service for Git operations
@@ -12,22 +13,19 @@ public actor GitService {
 
     /// Check if there are uncommitted changes
     public func hasUncommittedChanges() async throws -> Bool {
-        let result = try await cliService.execute(
-            command: "git",
-            arguments: ["status", "--porcelain"],
+        let status: GitStatusResult = try await cliService.execute(
+            Git.Status(porcelain: true),
+            parser: GitStatusParser(),
             workingDirectory: repoPath,
             printCommand: false
         )
-
-        return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return status.hasChanges
     }
 
     /// Check if there are commits to push
     public func hasCommitsToPush() async throws -> Bool {
-        // Check if there are commits to push
-        let result = try await cliService.execute(
-            command: "git",
-            arguments: ["rev-list", "@{u}..HEAD", "--count"],
+        let result = try await cliService.executeForResult(
+            Git.RevList(count: true, range: "@{u}..HEAD"),
             workingDirectory: repoPath,
             printCommand: false
         )
@@ -43,9 +41,8 @@ public actor GitService {
 
     /// Get current branch name
     public func getCurrentBranch() async throws -> String {
-        let result = try await cliService.execute(
-            command: "git",
-            arguments: ["branch", "--show-current"],
+        let result = try await cliService.executeForResult(
+            Git.Branch(showCurrent: true),
             workingDirectory: repoPath,
             printCommand: false
         )
@@ -61,9 +58,8 @@ public actor GitService {
     public func push() async throws {
         print("\n📤 Pushing commits to remote...")
 
-        let result = try await cliService.execute(
-            command: "git",
-            arguments: ["push"],
+        let result = try await cliService.executeForResult(
+            Git.Push(),
             workingDirectory: repoPath
         )
 
@@ -76,9 +72,8 @@ public actor GitService {
 
     /// Get repository owner and name from remote URL
     public func getRepoInfo() async throws -> (owner: String, name: String) {
-        let result = try await cliService.execute(
-            command: "git",
-            arguments: ["config", "--get", "remote.origin.url"],
+        let result = try await cliService.executeForResult(
+            Git.Config(get: true, key: "remote.origin.url"),
             workingDirectory: repoPath,
             printCommand: false
         )

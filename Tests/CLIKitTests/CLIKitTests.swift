@@ -118,15 +118,124 @@ struct GitCommandTests {
         #expect(log.commandLine == ["git", "log", "--format", "%H|%an|%ae|%s|%aI", "-n", "5"])
     }
 
-    @Test("Git.StatusPorcelain command line")
-    func testStatusPorcelainCommandLine() {
-        let status = Git.StatusPorcelain()
-        #expect(status.commandLine == ["git", "status-porcelain", "--porcelain"])
+    @Test("Git.Status simple command line")
+    func testStatusSimple() {
+        let status = Git.Status()
+        #expect(status.commandLine == ["git", "status"])
+    }
+
+    @Test("Git.Status with porcelain flag")
+    func testStatusPorcelain() {
+        let status = Git.Status(porcelain: true)
+        #expect(status.commandLine == ["git", "status", "--porcelain"])
+    }
+
+    @Test("Git.RevList command name")
+    func testRevListCommandName() {
+        #expect(Git.RevList.commandName == "rev-list")
+    }
+
+    @Test("Git.RevList simple usage")
+    func testRevListSimple() {
+        let cmd = Git.RevList(range: "HEAD~5..HEAD")
+        #expect(cmd.commandLine == ["git", "rev-list", "HEAD~5..HEAD"])
+    }
+
+    @Test("Git.RevList with count flag")
+    func testRevListWithCount() {
+        let cmd = Git.RevList(count: true, range: "@{u}..HEAD")
+        #expect(cmd.commandLine == ["git", "rev-list", "--count", "@{u}..HEAD"])
+    }
+
+    @Test("Git.Branch command name")
+    func testBranchCommandName() {
+        #expect(Git.Branch.commandName == "branch")
+    }
+
+    @Test("Git.Branch simple usage")
+    func testBranchSimple() {
+        let cmd = Git.Branch()
+        #expect(cmd.commandLine == ["git", "branch"])
+    }
+
+    @Test("Git.Branch with showCurrent flag")
+    func testBranchShowCurrent() {
+        let cmd = Git.Branch(showCurrent: true)
+        #expect(cmd.commandLine == ["git", "branch", "--show-current"])
+    }
+
+    @Test("Git.Push command name")
+    func testPushCommandName() {
+        #expect(Git.Push.commandName == "push")
+    }
+
+    @Test("Git.Push simple usage")
+    func testPushSimple() {
+        let cmd = Git.Push()
+        #expect(cmd.commandLine == ["git", "push"])
+    }
+
+    @Test("Git.Push with setUpstream flag")
+    func testPushWithSetUpstream() {
+        let cmd = Git.Push(setUpstream: true, remote: "origin", branch: "feature")
+        #expect(cmd.commandLine == ["git", "push", "-u", "origin", "feature"])
+    }
+
+    @Test("Git.Push with remote only")
+    func testPushWithRemote() {
+        let cmd = Git.Push(remote: "origin")
+        #expect(cmd.commandLine == ["git", "push", "origin"])
+    }
+
+    @Test("Git.Config command name")
+    func testConfigCommandName() {
+        #expect(Git.Config.commandName == "config")
+    }
+
+    @Test("Git.Config with get flag")
+    func testConfigGet() {
+        let cmd = Git.Config(get: true, key: "remote.origin.url")
+        #expect(cmd.commandLine == ["git", "config", "--get", "remote.origin.url"])
+    }
+
+    @Test("Git.Config command string")
+    func testConfigCommandString() {
+        let cmd = Git.Config(get: true, key: "user.email")
+        #expect(cmd.commandString == "git config --get user.email")
     }
 }
 
 @Suite("Parser Tests")
 struct ParserTests {
+
+    @Test("GitRevListCountParser parses count")
+    func testRevListCountParse() throws {
+        let parser = GitRevListCountParser()
+        let count = try parser.parse("42\n")
+        #expect(count == 42)
+    }
+
+    @Test("GitRevListCountParser parses zero")
+    func testRevListCountParseZero() throws {
+        let parser = GitRevListCountParser()
+        let count = try parser.parse("0")
+        #expect(count == 0)
+    }
+
+    @Test("GitRevListCountParser handles whitespace")
+    func testRevListCountParseWhitespace() throws {
+        let parser = GitRevListCountParser()
+        let count = try parser.parse("  15  \n")
+        #expect(count == 15)
+    }
+
+    @Test("GitRevListCountParser throws on invalid input")
+    func testRevListCountParseInvalid() {
+        let parser = GitRevListCountParser()
+        #expect(throws: CLIServiceError.self) {
+            _ = try parser.parse("not a number")
+        }
+    }
 
     @Test("GitLogParser parses commits")
     func testLogParse() throws {

@@ -31,11 +31,12 @@ public struct Git {
         @Positional public var revision: String?
     }
 
-    /// Git status with porcelain format for machine parsing
-    /// Use with GitStatusParser to get structured output
+    /// Git status command
+    /// Use with GitStatusParser to get structured output when using --porcelain
     @CLICommand
-    public struct StatusPorcelain {
-        @Flag public var porcelain: Bool = true
+    public struct Status {
+        /// Use porcelain format for machine parsing
+        @Flag public var porcelain: Bool = false
     }
 
     /// Git diff command
@@ -44,9 +45,68 @@ public struct Git {
         @Flag public var staged: Bool = false
         @Positional public var path: String?
     }
+
+    /// Git rev-list command for counting commits
+    /// Example: git rev-list @{u}..HEAD --count
+    @CLICommand
+    public struct RevList {
+        /// Count commits instead of listing them
+        @Flag public var count: Bool = false
+
+        /// Revision range (e.g., "@{u}..HEAD" for commits ahead of upstream)
+        @Positional public var range: String
+    }
+
+    /// Git branch command
+    /// Example: git branch --show-current
+    @CLICommand
+    public struct Branch {
+        /// Show only the current branch name
+        @Flag public var showCurrent: Bool = false
+    }
+
+    /// Git push command
+    /// Example: git push
+    @CLICommand
+    public struct Push {
+        /// Set upstream for the branch
+        @Flag("-u") public var setUpstream: Bool = false
+
+        /// Remote name (optional, defaults to origin)
+        @Positional public var remote: String?
+
+        /// Branch name (optional)
+        @Positional public var branch: String?
+    }
+
+    /// Git config command
+    /// Example: git config --get remote.origin.url
+    @CLICommand
+    public struct Config {
+        /// Get the value for a given key
+        @Flag public var get: Bool = false
+
+        /// Configuration key
+        @Positional public var key: String
+    }
 }
 
 // MARK: - Parsers
+
+/// Parser for git rev-list --count output
+public struct GitRevListCountParser: CLIOutputParser {
+    public init() {}
+
+    public func parse(_ output: String) throws -> Int {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let count = Int(trimmed) else {
+            throw CLIServiceError.invalidOutput(
+                reason: "Expected integer from git rev-list --count, got '\(trimmed)'"
+            )
+        }
+        return count
+    }
+}
 
 /// Parser for git log output with pipe-delimited format
 public struct GitLogParser: CLIOutputParser {

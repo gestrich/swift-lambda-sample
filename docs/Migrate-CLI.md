@@ -53,15 +53,16 @@ For each CLI program:
 
 ### Already in CLIKit/standard/ (Extend as needed)
 
-- [ ] **6. Git** - Extend existing `Git.swift`
+- [x] **6. Git** - Extend existing `Git.swift`
   - Files: `GitService.swift`
-  - Current CLIKit: `Merge`, `Log`, `StatusPorcelain`, `Diff`
-  - Missing commands to add:
-    - `status --porcelain` (already have StatusPorcelain)
-    - `rev-list @{u}..HEAD --count`
-    - `branch --show-current`
-    - `push`
-    - `config --get`
+  - Current CLIKit: `Merge`, `Log`, `Status`, `Diff`, `RevList`, `Branch`, `Push`, `Config`
+  - Added commands:
+    - `Status` (with `--porcelain` flag) - renamed from `StatusPorcelain` to fix command generation
+    - `RevList` (with `--count` flag) - for counting commits ahead of upstream
+    - `Branch` (with `--show-current` flag) - get current branch name
+    - `Push` (with `-u`, remote, branch options) - push to remote
+    - `Config` (with `--get` flag) - get config values
+  - Added parser: `GitRevListCountParser` for parsing `git rev-list --count` output
 
 ### Project-Specific Commands (→ SwiftDeploy target)
 
