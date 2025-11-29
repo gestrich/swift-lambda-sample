@@ -172,7 +172,7 @@ public class RemoteService: LambdaService {
     public func testLambda() async throws {
         let apiUrl = endpoint
         guard !apiUrl.contains("<not-configured>") else {
-            throw CLIError.testFailed(message: "Remote endpoint not configured. Deploy first or run fetchEndpoint().")
+            throw DeployError.testFailed(message: "Remote endpoint not configured. Deploy first or run fetchEndpoint().")
         }
 
         print("\n🧪 Testing remote Lambda at \(apiUrl)...")
@@ -181,7 +181,7 @@ public class RemoteService: LambdaService {
         do {
             try await performRemoteLambdaTests(apiUrl: apiUrl)
         } catch let error as APIError {
-            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+            throw DeployError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
 
         print("")
@@ -192,7 +192,7 @@ public class RemoteService: LambdaService {
     public func waitForReady(maxAttempts: Int = 30) async throws {
         let apiUrl = endpoint
         guard !apiUrl.contains("<not-configured>") else {
-            throw CLIError.testFailed(message: "Remote endpoint not configured")
+            throw DeployError.testFailed(message: "Remote endpoint not configured")
         }
 
         print("🔍 Checking remote Lambda availability...")
@@ -225,7 +225,7 @@ public class RemoteService: LambdaService {
         }
 
         if !ready {
-            throw CLIError.testFailed(message: "Remote Lambda not responding after \(maxAttempts) seconds")
+            throw DeployError.testFailed(message: "Remote Lambda not responding after \(maxAttempts) seconds")
         }
 
         print("  ✅ Remote Lambda is available")
@@ -342,7 +342,7 @@ public class RemoteService: LambdaService {
                 return
 
             case "CREATE_FAILED", "UPDATE_FAILED", "ROLLBACK_COMPLETE", "ROLLBACK_FAILED":
-                throw CLIError.deploymentFailed(reason: "Stack deployment failed with status: \(status)")
+                throw DeployError.deploymentFailed(reason: "Stack deployment failed with status: \(status)")
 
             case "CREATE_IN_PROGRESS", "UPDATE_IN_PROGRESS", "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS":
                 break
@@ -355,7 +355,7 @@ public class RemoteService: LambdaService {
             try await Task.sleep(nanoseconds: pollInterval)
         }
 
-        throw CLIError.timeout(command: "CloudFormation stack deployment", duration: Double(maxAttempts * 5))
+        throw CLIServiceError.timeout(command: "CloudFormation stack deployment", duration: Double(maxAttempts * 5))
     }
 
     /// Tear down CDK stack
@@ -364,7 +364,7 @@ public class RemoteService: LambdaService {
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: cdkPath, isDirectory: &isDirectory), isDirectory.boolValue else {
-            throw CLIError.invalidWorkingDirectory("CDK directory not found at: \(cdkPath)")
+            throw CLIServiceError.invalidWorkingDirectory("CDK directory not found at: \(cdkPath)")
         }
 
         try await cdkService.destroy(force: true)
@@ -467,7 +467,7 @@ public class RemoteService: LambdaService {
             if state.hasDatabase && options.skipPostgres {
                 print("\n❌ ERROR: This would DELETE your database!")
                 print("   Use 'tear-down' first if you want to remove the database.")
-                throw CLIError.invalidConfiguration("Cannot remove database with deploy-init")
+                throw DeployError.invalidConfiguration("Cannot remove database with deploy-init")
             }
 
             print("\n   Updating existing stack...\n")
@@ -545,7 +545,7 @@ public class RemoteService: LambdaService {
         print("→ Testing file upload...")
         let testContent = "Hello from remote test!"
         guard let testData = testContent.data(using: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create test data")
+            throw DeployError.testFailed(message: "Failed to create test data")
         }
 
         let uploadResponse = try await client.uploadFile(fileName: "test-remote.txt", data: testData)
@@ -553,7 +553,7 @@ public class RemoteService: LambdaService {
             print("  ✅ File upload test passed")
         } else {
             print("  ❌ File upload test failed: \(uploadResponse)")
-            throw CLIError.testFailed(message: "File upload endpoint test failed")
+            throw DeployError.testFailed(message: "File upload endpoint test failed")
         }
 
         print("")
@@ -564,7 +564,7 @@ public class RemoteService: LambdaService {
             print("  ✅ List files test passed (found \(fileList.count) files)")
         } else {
             print("  ❌ List files test failed: \(fileList)")
-            throw CLIError.testFailed(message: "List files endpoint test failed")
+            throw DeployError.testFailed(message: "List files endpoint test failed")
         }
     }
 
@@ -572,7 +572,7 @@ public class RemoteService: LambdaService {
         let outputs = try await getStackOutputs(stackName: stackName)
 
         guard let apiUrl = outputs["ApiGatewayUrl"] else {
-            throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+            throw CLIServiceError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
         print("  → POST \(apiUrl)api/database")
@@ -584,7 +584,7 @@ public class RemoteService: LambdaService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.executionFailed(
+            throw CLIServiceError.executionFailed(
                 command: "curl",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -595,7 +595,7 @@ public class RemoteService: LambdaService {
         print("  Response: \(response)")
 
         if !response.contains("Database Initialized") {
-            throw CLIError.deploymentFailed(reason: "Unexpected database init response: \(response)")
+            throw DeployError.deploymentFailed(reason: "Unexpected database init response: \(response)")
         }
     }
 
@@ -603,7 +603,7 @@ public class RemoteService: LambdaService {
         let outputs = try await getStackOutputs(stackName: stackName)
 
         guard let apiUrl = outputs["ApiGatewayUrl"] else {
-            throw CLIError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+            throw CLIServiceError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
         print("  Testing health endpoint...")
@@ -616,7 +616,7 @@ public class RemoteService: LambdaService {
         )
 
         guard testResult.isSuccess else {
-            throw CLIError.executionFailed(
+            throw CLIServiceError.executionFailed(
                 command: "curl",
                 exitCode: testResult.exitCode,
                 stderr: testResult.stderr
@@ -627,7 +627,7 @@ public class RemoteService: LambdaService {
         print("  Response: \(response)")
 
         if !response.contains("healthy") {
-            throw CLIError.deploymentFailed(reason: "Unexpected API response: \(response)")
+            throw DeployError.deploymentFailed(reason: "Unexpected API response: \(response)")
         }
 
         print("  ✓ API Gateway working")
@@ -645,7 +645,7 @@ public class RemoteService: LambdaService {
             )
 
             guard usersResult.isSuccess else {
-                throw CLIError.executionFailed(
+                throw CLIServiceError.executionFailed(
                     command: "curl",
                     exitCode: usersResult.exitCode,
                     stderr: usersResult.stderr
@@ -660,7 +660,7 @@ public class RemoteService: LambdaService {
                 print("  ✓ Database connection working")
                 print("  ✓ User endpoint responding")
             } else {
-                throw CLIError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
+                throw DeployError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
             }
         }
     }

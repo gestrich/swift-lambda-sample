@@ -43,7 +43,7 @@ public actor GitHubService {
             }
 
             guard let id = Int(latestRun.id) else {
-                throw CLIError.invalidOutput(reason: "Could not parse workflow run ID")
+                throw CLIServiceError.invalidOutput(reason: "Could not parse workflow run ID")
             }
 
             // Check if this is a new run (greater ID = newer)
@@ -68,7 +68,7 @@ public actor GitHubService {
                     print("\n✅ Workflow completed successfully")
                     return
                 } else {
-                    throw CLIError.deploymentFailed(reason: "Workflow failed with conclusion: \(latestRun.conclusion ?? "unknown")")
+                    throw DeployError.deploymentFailed(reason: "Workflow failed with conclusion: \(latestRun.conclusion ?? "unknown")")
                 }
             }
 
@@ -76,13 +76,13 @@ public actor GitHubService {
             try await Task.sleep(nanoseconds: pollInterval)
         }
 
-        throw CLIError.timeout(command: "GitHub Actions workflow", duration: Double(timeoutMinutes * 60))
+        throw CLIServiceError.timeout(command: "GitHub Actions workflow", duration: Double(timeoutMinutes * 60))
     }
 
     /// Get the latest workflow run status
     public func getLatestRunStatus(branch: String) async throws -> (status: String, conclusion: String?) {
         guard let run = try await ghService.getLatestWorkflowRun(branch: branch) else {
-            throw CLIError.invalidOutput(reason: "No workflow runs found")
+            throw CLIServiceError.invalidOutput(reason: "No workflow runs found")
         }
 
         return (run.status, run.conclusion)

@@ -55,7 +55,8 @@ let package = Package(
             name: "SwiftDeploy",
             dependencies: [
                 .target(name: "Client"),
-                .target(name: "LocalStorageService")
+                .target(name: "LocalStorageService"),
+                .target(name: "CLIKit"),
             ]
         ),
         .executableTarget(

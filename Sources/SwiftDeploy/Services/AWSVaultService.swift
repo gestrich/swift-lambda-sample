@@ -37,7 +37,7 @@ public struct AWSVaultService {
         )
 
         guard let result = result, result.isSuccess else {
-            throw CLIError.invalidCommand(
+            throw CLIServiceError.invalidCommand(
                 "aws-vault is not installed. Install it with:\n" +
                 "  brew install --cask aws-vault\n\n" +
                 "Or disable aws-vault in ~/.swiftSampleDemo/aws-config.json by setting:\n" +

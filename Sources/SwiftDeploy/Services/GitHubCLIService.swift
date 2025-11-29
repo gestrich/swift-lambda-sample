@@ -58,7 +58,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh run list",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -67,7 +67,7 @@ public actor GitHubCLIService {
 
         guard let data = result.stdout.data(using: .utf8),
               let runs = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw CLIError.invalidOutput(reason: "Failed to parse workflow runs")
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse workflow runs")
         }
 
         return runs.compactMap { run in
@@ -115,7 +115,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh run watch",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -142,7 +142,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh run view",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -168,7 +168,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh workflow run",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -203,7 +203,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh pr create",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -228,7 +228,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh pr list",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -237,7 +237,7 @@ public actor GitHubCLIService {
 
         guard let data = result.stdout.data(using: .utf8),
               let prs = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw CLIError.invalidOutput(reason: "Failed to parse pull requests")
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse pull requests")
         }
 
         return prs
@@ -258,7 +258,7 @@ public actor GitHubCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "gh issue create",
                 exitCode: result.exitCode,
                 stderr: result.stderr

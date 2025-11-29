@@ -36,7 +36,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "open -a Docker",
                 exitCode: result.exitCode,
                 stderr: "Failed to start Docker Desktop. Is it installed?"
@@ -57,7 +57,7 @@ public actor DockerService {
             }
         }
 
-        throw CLIError.commandFailed(
+        throw DeployError.commandFailed(
             command: "docker",
             exitCode: 1,
             stderr: "Docker Desktop started but daemon did not become ready within 60 seconds."
@@ -160,7 +160,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "docker run",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -177,7 +177,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "docker stop",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -194,7 +194,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "docker rm",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -304,7 +304,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "docker build",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -322,7 +322,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "docker network create",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -349,7 +349,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "docker network connect",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -387,7 +387,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "id -u",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -406,7 +406,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "id -g",
                 exitCode: result.exitCode,
                 stderr: result.stderr

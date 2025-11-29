@@ -39,7 +39,7 @@ public actor AWSTestingService {
         let testContent = "Hello World! This data was written/read from S3."
 
         guard let data = testContent.data(using: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create test data")
+            throw DeployError.testFailed(message: "Failed to create test data")
         }
 
         let endpoint = "\(apiUrl)api/files"
@@ -55,10 +55,10 @@ public actor AWSTestingService {
                 print("✅ File endpoint test passed!")
             } else {
                 print("❌ File endpoint test failed!")
-                throw CLIError.testFailed(message: "File endpoint did not return expected response: \(response)")
+                throw DeployError.testFailed(message: "File endpoint did not return expected response: \(response)")
             }
         } catch let error as APIError {
-            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+            throw DeployError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
     }
 
@@ -78,7 +78,7 @@ public actor AWSTestingService {
 
         // Create base64 encoded test data
         guard let data = testContent.data(using: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create test data")
+            throw DeployError.testFailed(message: "Failed to create test data")
         }
         let base64Data = data.base64EncodedString()
 
@@ -90,7 +90,7 @@ public actor AWSTestingService {
 
         guard let uploadJson = try? JSONSerialization.data(withJSONObject: uploadRequest),
               let uploadJsonString = String(data: uploadJson, encoding: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create upload JSON")
+            throw DeployError.testFailed(message: "Failed to create upload JSON")
         }
 
         let endpoint = "\(apiUrl)api/files"
@@ -143,13 +143,13 @@ public actor AWSTestingService {
         let testContent = "Hello World! This is a test file with spaces in the name."
 
         guard let data = testContent.data(using: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create test data")
+            throw DeployError.testFailed(message: "Failed to create test data")
         }
 
         do {
             try await performFileWithSpacesTest(fileName: fileName, data: data, expectedContent: testContent)
         } catch let error as APIError {
-            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+            throw DeployError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
     }
 
@@ -168,7 +168,7 @@ public actor AWSTestingService {
         print("  Files: \(fileList)")
 
         guard fileList.contains(fileName) else {
-            throw CLIError.testFailed(message: "Uploaded file '\(fileName)' not found in file list")
+            throw DeployError.testFailed(message: "Uploaded file '\(fileName)' not found in file list")
         }
 
         // Step 3: Download file
@@ -177,14 +177,14 @@ public actor AWSTestingService {
 
         // Step 4: Verify downloaded content
         guard let downloadedContent = String(data: downloadedData, encoding: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to decode downloaded content")
+            throw DeployError.testFailed(message: "Failed to decode downloaded content")
         }
 
         print("  Downloaded content: \"\(downloadedContent)\"")
 
         // Verify content matches
         guard downloadedContent == expectedContent else {
-            throw CLIError.testFailed(message: "Downloaded content does not match uploaded content. Expected: '\(expectedContent)', Got: '\(downloadedContent)'")
+            throw DeployError.testFailed(message: "Downloaded content does not match uploaded content. Expected: '\(expectedContent)', Got: '\(downloadedContent)'")
         }
 
         print("✅ File with spaces test passed!")
@@ -199,7 +199,7 @@ public actor AWSTestingService {
         do {
             try await performUserEndpointTest()
         } catch let error as APIError {
-            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+            throw DeployError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
     }
 
@@ -284,7 +284,7 @@ public actor AWSTestingService {
             print("✅ All tests passed!")
         } else {
             print("❌ Some tests failed")
-            throw CLIError.testFailed(message: "One or more deployment tests failed")
+            throw DeployError.testFailed(message: "One or more deployment tests failed")
         }
     }
 }

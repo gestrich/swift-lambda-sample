@@ -213,7 +213,7 @@ public class XcodeLocalService: LambdaService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "swift build --show-bin-path",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -304,7 +304,7 @@ public class XcodeLocalService: LambdaService {
             lambdaState.markRunning()
         } else {
             lambdaState.markFailed(reason: "Failed to start on port \(lambdaHostPort)")
-            throw CLIError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
+            throw DeployError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
         }
     }
 
@@ -348,7 +348,7 @@ public class XcodeLocalService: LambdaService {
 
                 if !killResult.isSuccess {
                     lambdaState.markFailed(reason: "Failed to kill process \(pid)")
-                    throw CLIError.commandFailed(
+                    throw DeployError.commandFailed(
                         command: "kill",
                         exitCode: killResult.exitCode,
                         stderr: killResult.stderr
@@ -451,7 +451,7 @@ public class XcodeLocalService: LambdaService {
         }
 
         if !ready {
-            throw CLIError.testFailed(message: "Lambda failed to be ready on port \(lambdaHostPort) after \(maxAttempts) seconds")
+            throw DeployError.testFailed(message: "Lambda failed to be ready on port \(lambdaHostPort) after \(maxAttempts) seconds")
         }
 
         print("  ✅ Lambda is running and ready")
@@ -465,7 +465,7 @@ public class XcodeLocalService: LambdaService {
         do {
             try await performLocalLambdaTests()
         } catch let error as APIError {
-            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+            throw DeployError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
 
         print("")
@@ -489,7 +489,7 @@ public class XcodeLocalService: LambdaService {
         let appConfigDest = storageService.filePath(for: AppConfigFileKey.self)
 
         guard FileManager.default.fileExists(atPath: appConfigSource) else {
-            throw CLIError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
+            throw CLIServiceError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
         }
 
         if FileManager.default.fileExists(atPath: appConfigDest) {
@@ -590,7 +590,7 @@ public class XcodeLocalService: LambdaService {
         print("→ Testing file upload...")
         let testContent = "Hello from test file!"
         guard let testData = testContent.data(using: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create test data")
+            throw DeployError.testFailed(message: "Failed to create test data")
         }
 
         let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
@@ -598,7 +598,7 @@ public class XcodeLocalService: LambdaService {
             print("  ✅ File upload test passed")
         } else {
             print("  ❌ File upload test failed: \(uploadResponse)")
-            throw CLIError.testFailed(message: "File upload endpoint test failed")
+            throw DeployError.testFailed(message: "File upload endpoint test failed")
         }
 
         print("")
@@ -610,7 +610,7 @@ public class XcodeLocalService: LambdaService {
             print("  ✅ List files test passed (found \(fileList.count) files)")
         } else {
             print("  ❌ List files test failed: \(fileList)")
-            throw CLIError.testFailed(message: "List files endpoint test failed")
+            throw DeployError.testFailed(message: "List files endpoint test failed")
         }
 
         print("")
@@ -623,11 +623,11 @@ public class XcodeLocalService: LambdaService {
                 print("  ✅ File download test passed")
             } else {
                 print("  ❌ File download test failed: unexpected content")
-                throw CLIError.testFailed(message: "File download endpoint test failed")
+                throw DeployError.testFailed(message: "File download endpoint test failed")
             }
         } else {
             print("  ❌ File download test failed: could not decode content")
-            throw CLIError.testFailed(message: "File download endpoint test failed")
+            throw DeployError.testFailed(message: "File download endpoint test failed")
         }
 
         print("")
@@ -639,7 +639,7 @@ public class XcodeLocalService: LambdaService {
             print("  ✅ Database test passed")
         } else {
             print("  ❌ Database test failed: \(dbResult)")
-            throw CLIError.testFailed(message: "Database endpoint test failed")
+            throw DeployError.testFailed(message: "Database endpoint test failed")
         }
     }
 }

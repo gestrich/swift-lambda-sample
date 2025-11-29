@@ -94,7 +94,7 @@ public actor CLIService {
     ) async throws -> String {
         let components = command.components(separatedBy: " ")
         guard !components.isEmpty else {
-            throw CLIError.invalidCommand("Empty command")
+            throw CLIServiceError.invalidCommand("Empty command")
         }
 
         let executable = components[0]
@@ -107,7 +107,7 @@ public actor CLIService {
         )
 
         if result.exitCode != 0 {
-            throw CLIError.executionFailed(
+            throw CLIServiceError.executionFailed(
                 command: command,
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -206,7 +206,7 @@ public actor CLIService {
         // If it's already an absolute path, use it
         if command.starts(with: "/") {
             guard FileManager.default.fileExists(atPath: command) else {
-                throw CLIError.commandNotFound(command)
+                throw CLIServiceError.commandNotFound(command)
             }
             return command
         }
@@ -253,7 +253,7 @@ public actor CLIService {
             }
         }
 
-        throw CLIError.commandNotFound(command)
+        throw CLIServiceError.commandNotFound(command)
     }
 
     private func executeProcess(
@@ -346,7 +346,7 @@ public actor CLIService {
         let duration = Date().timeIntervalSince(startTime)
 
         if let timeout, duration >= timeout && process.terminationStatus != 0 {
-            throw CLIError.timeout(command: "\(command) \(arguments.joined(separator: " "))", duration: timeout)
+            throw CLIServiceError.timeout(command: "\(command) \(arguments.joined(separator: " "))", duration: timeout)
         }
 
         return ExecutionResult(

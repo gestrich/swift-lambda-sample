@@ -330,7 +330,7 @@ public class LinuxLocalService: LambdaService {
         // Check container is running
         let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
         guard isRunning else {
-            throw CLIError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
+            throw DeployError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
         }
 
         // Wait for Lambda to be ready on the port
@@ -367,7 +367,7 @@ public class LinuxLocalService: LambdaService {
             )
             print(logsResult.stdout)
             print(logsResult.stderr)
-            throw CLIError.testFailed(message: "Lambda failed to be ready on port \(config.hostPort) after \(maxAttempts) seconds")
+            throw DeployError.testFailed(message: "Lambda failed to be ready on port \(config.hostPort) after \(maxAttempts) seconds")
         }
 
         print("  ✅ Lambda is running and ready")
@@ -381,7 +381,7 @@ public class LinuxLocalService: LambdaService {
         do {
             try await performLocalLambdaTests()
         } catch let error as APIError {
-            throw CLIError.testFailed(message: "API Error: \(error.localizedDescription)")
+            throw DeployError.testFailed(message: "API Error: \(error.localizedDescription)")
         }
 
         print("")
@@ -450,7 +450,7 @@ public class LinuxLocalService: LambdaService {
         guard FileManager.default.fileExists(atPath: lambdaDir) else {
             print("❌ Error: lambda directory not found!")
             print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
         }
 
         let env = getEnvironmentVariables()
@@ -478,7 +478,7 @@ public class LinuxLocalService: LambdaService {
         guard FileManager.default.fileExists(atPath: lambdaDir) else {
             print("❌ Error: lambda directory not found!")
             print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
         }
 
         print("\n✅ Starting interactive container...")
@@ -519,7 +519,7 @@ public class LinuxLocalService: LambdaService {
         guard FileManager.default.fileExists(atPath: effectiveLambdaDir) else {
             print("❌ Error: lambda directory not found at \(effectiveLambdaDir)!")
             print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIError.invalidWorkingDirectory("lambda directory not found")
+            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
         }
 
         // Run detached container
@@ -591,7 +591,7 @@ public class LinuxLocalService: LambdaService {
         print("→ Testing file upload...")
         let testContent = "Hello from test file!"
         guard let testData = testContent.data(using: .utf8) else {
-            throw CLIError.testFailed(message: "Failed to create test data")
+            throw DeployError.testFailed(message: "Failed to create test data")
         }
 
         let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
@@ -599,7 +599,7 @@ public class LinuxLocalService: LambdaService {
             print("  ✅ File upload test passed")
         } else {
             print("  ❌ File upload test failed: \(uploadResponse)")
-            throw CLIError.testFailed(message: "File upload endpoint test failed")
+            throw DeployError.testFailed(message: "File upload endpoint test failed")
         }
 
         print("")
@@ -611,7 +611,7 @@ public class LinuxLocalService: LambdaService {
             print("  ✅ List files test passed (found \(fileList.count) files)")
         } else {
             print("  ❌ List files test failed: \(fileList)")
-            throw CLIError.testFailed(message: "List files endpoint test failed")
+            throw DeployError.testFailed(message: "List files endpoint test failed")
         }
 
         print("")
@@ -624,11 +624,11 @@ public class LinuxLocalService: LambdaService {
                 print("  ✅ File download test passed")
             } else {
                 print("  ❌ File download test failed: unexpected content")
-                throw CLIError.testFailed(message: "File download endpoint test failed")
+                throw DeployError.testFailed(message: "File download endpoint test failed")
             }
         } else {
             print("  ❌ File download test failed: could not decode content")
-            throw CLIError.testFailed(message: "File download endpoint test failed")
+            throw DeployError.testFailed(message: "File download endpoint test failed")
         }
 
         print("")
@@ -640,7 +640,7 @@ public class LinuxLocalService: LambdaService {
             print("  ✅ Database test passed")
         } else {
             print("  ❌ Database test failed: \(dbResult)")
-            throw CLIError.testFailed(message: "Database endpoint test failed")
+            throw DeployError.testFailed(message: "Database endpoint test failed")
         }
     }
 }

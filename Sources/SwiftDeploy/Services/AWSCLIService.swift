@@ -60,7 +60,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws cloudformation describe-stacks",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -71,7 +71,7 @@ public actor AWSCLIService {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let stacks = json["Stacks"] as? [[String: Any]],
               let stack = stacks.first else {
-            throw CLIError.invalidOutput(reason: "Failed to parse CloudFormation stack")
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse CloudFormation stack")
         }
 
         return stack
@@ -95,7 +95,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws cloudformation describe-stacks",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -142,7 +142,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws cloudformation describe-stacks",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -152,7 +152,7 @@ public actor AWSCLIService {
         let value = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !value.isEmpty else {
-            throw CLIError.invalidOutput(reason: "Output key '\(outputKey)' not found in stack '\(stackName)'")
+            throw CLIServiceError.invalidOutput(reason: "Output key '\(outputKey)' not found in stack '\(stackName)'")
         }
 
         return value
@@ -175,7 +175,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws cloudformation describe-stack-resources",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -185,7 +185,7 @@ public actor AWSCLIService {
         guard let data = result.stdout.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let resourcesArray = json["StackResources"] as? [[String: Any]] else {
-            throw CLIError.invalidOutput(reason: "Failed to parse CloudFormation stack resources")
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse CloudFormation stack resources")
         }
 
         return resourcesArray.compactMap { resource in
@@ -224,7 +224,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws lambda update-function-code",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -249,7 +249,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws lambda get-function",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -258,7 +258,7 @@ public actor AWSCLIService {
 
         guard let data = result.stdout.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw CLIError.invalidOutput(reason: "Failed to parse Lambda function")
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse Lambda function")
         }
 
         return json
@@ -294,7 +294,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws logs tail",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -325,7 +325,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws s3 ls",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -355,7 +355,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws s3 cp",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -385,7 +385,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws secretsmanager get-secret-value",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -411,7 +411,7 @@ public actor AWSCLIService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "aws secretsmanager list-secrets",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -421,7 +421,7 @@ public actor AWSCLIService {
         guard let data = result.stdout.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let secrets = json["SecretList"] as? [[String: Any]] else {
-            throw CLIError.invalidOutput(reason: "Failed to parse secrets list")
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse secrets list")
         }
 
         return secrets

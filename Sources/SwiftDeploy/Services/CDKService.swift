@@ -133,7 +133,7 @@ public actor CDKService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "cdk diff",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -159,7 +159,7 @@ public actor CDKService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "cdk synth",
                 exitCode: result.exitCode,
                 stderr: result.stderr
@@ -185,7 +185,7 @@ public actor CDKService {
         )
 
         guard result.isSuccess else {
-            throw CLIError.commandFailed(
+            throw DeployError.commandFailed(
                 command: "cdk list",
                 exitCode: result.exitCode,
                 stderr: result.stderr
