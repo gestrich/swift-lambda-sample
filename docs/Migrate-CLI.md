@@ -92,21 +92,30 @@ For each CLI program:
     - Profile flags are automatically removed when using aws-vault
     - Tests: `Tests/SwiftDeployTests/AWSCLITests.swift` (42 tests)
 
-- [ ] **8. CDK** - AWS CDK operations
+- [x] **8. CDK** - AWS CDK operations
   - File: `CDKService.swift`
-  - Commands:
-    - `deploy` (with `--context` flags)
-    - `destroy`
-    - `diff`
-    - `synth`
-    - `list`
-    - `bootstrap`
+  - Location: `SwiftDeploy/CLI/Cdk.swift`
+  - Commands implemented:
+    - `Deploy` - deploy with profile, require-approval, context, outputs-file options
+    - `Destroy` - destroy with profile, force flag
+    - `Diff` - diff with profile
+    - `Synth` - synth with profile
+    - `List` - list with profile
+    - `Bootstrap` - bootstrap with profile
+  - Technical notes:
+    - Added support for variadic `@Option` (array types) in CLICommandMacro - arrays are automatically detected and expanded to repeated flags (e.g., `--context foo --context bar`)
+    - Array options default to empty array `[]` in generated initializer
+    - `CDKService` maintains aws-vault wrapping support via `buildCommandLine()` method
+    - Profile flags are automatically removed when using aws-vault
+  - Tests: `Tests/SwiftDeployTests/CDKTests.swift` (31 tests)
 
-- [ ] **9. npm** - Node package manager
+- [x] **9. npm** - Node package manager
   - File: `CDKService.swift`
-  - Commands:
-    - `run build`
-    - `install`
+  - Location: `SwiftDeploy/CLI/Npm.swift`
+  - Commands implemented:
+    - `Run` - npm run with script positional argument
+    - `Install` - npm install with optional package positional argument
+  - Tests: `Tests/SwiftDeployTests/NpmTests.swift` (12 tests)
 
 - [ ] **10. GitHub CLI (gh)** - GitHub operations
   - File: `GitHubCLIService.swift`

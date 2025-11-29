@@ -1,3 +1,4 @@
+import CLIKit
 import Foundation
 
 /// Service for interacting with AWS CDK
@@ -19,18 +20,25 @@ public actor CDKService {
 
     // MARK: - Command Building
 
-    /// Build CDK command with optional aws-vault wrapping
-    /// - Parameter arguments: CDK arguments (without "cdk" command)
-    /// - Returns: Tuple with command and full arguments
-    private func buildCommand(arguments: [String]) -> (command: String, arguments: [String]) {
+    /// Build command line with optional aws-vault wrapping
+    /// - Parameter command: The CDK command
+    /// - Returns: Tuple with executable command and arguments
+    private func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) where C.Program == Cdk {
+        let arguments = command.commandArguments
+
         if let vaultService = vaultService {
             // Remove --profile flags (aws-vault handles auth via environment)
             let filteredArgs = AWSVaultService.removeProfileFlags(from: arguments)
             return vaultService.wrapCommand(command: "cdk", arguments: filteredArgs)
         } else {
-            // Traditional approach with --profile
+            // Traditional approach
             return ("cdk", arguments)
         }
+    }
+
+    /// Build npm command line
+    private func buildNpmCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) where C.Program == Npm {
+        return ("npm", command.commandArguments)
     }
 
     // MARK: - Build Operations
@@ -39,9 +47,12 @@ public actor CDKService {
     public func build() async throws {
         print("\n🔨 Building CDK TypeScript...")
 
+        let command = Npm.Run(script: "build")
+        let (execCommand, arguments) = buildNpmCommandLine(command)
+
         _ = try await cliService.execute(
-            command: "npm",
-            arguments: ["run", "build"],
+            command: execCommand,
+            arguments: arguments,
             workingDirectory: cdkDirectory,
             inheritIO: true
         )
@@ -69,24 +80,25 @@ public actor CDKService {
     public func deploy(options: DeployOptions = DeployOptions()) async throws {
         print("\n🚀 Deploying CDK stack...")
 
-        var cdkArguments = [
-            "deploy",
-            "--profile", awsProfile,
-            "--require-approval", options.requireApproval ? "any" : "never"
-        ]
-
-        // Add context parameters
+        // Build context array
+        var context: [String] = []
         if options.skipPostgres {
-            cdkArguments.append(contentsOf: ["--context", "skipPostgres=true"])
+            context.append("skipPostgres=true")
         }
         if options.skipNATGateway {
-            cdkArguments.append(contentsOf: ["--context", "skipNATGateway=true"])
+            context.append("skipNATGateway=true")
         }
 
-        let (command, arguments) = buildCommand(arguments: cdkArguments)
+        let command = Cdk.Deploy(
+            profile: awsProfile,
+            requireApproval: options.requireApproval ? "any" : "never",
+            context: context
+        )
+
+        let (execCommand, arguments) = buildCommandLine(command)
 
         _ = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile],
@@ -98,19 +110,15 @@ public actor CDKService {
     public func destroy(force: Bool = false) async throws {
         print("\n🗑️  Destroying CDK stack...")
 
-        var cdkArguments = [
-            "destroy",
-            "--profile", awsProfile
-        ]
+        let command = Cdk.Destroy(
+            profile: awsProfile,
+            force: force
+        )
 
-        if force {
-            cdkArguments.append("--force")
-        }
-
-        let (command, arguments) = buildCommand(arguments: cdkArguments)
+        let (execCommand, arguments) = buildCommandLine(command)
 
         _ = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile],
@@ -120,13 +128,11 @@ public actor CDKService {
 
     /// Show differences between deployed stack and local code
     public func diff() async throws -> String {
-        let (command, arguments) = buildCommand(arguments: [
-            "diff",
-            "--profile", awsProfile
-        ])
+        let command = Cdk.Diff(profile: awsProfile)
+        let (execCommand, arguments) = buildCommandLine(command)
 
         let result = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile]
@@ -134,7 +140,7 @@ public actor CDKService {
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
-                command: "cdk diff",
+                command: command.commandString,
                 exitCode: result.exitCode,
                 stderr: result.stderr
             )
@@ -145,13 +151,11 @@ public actor CDKService {
 
     /// Synthesize CloudFormation template
     public func synth() async throws -> String {
-        let (command, arguments) = buildCommand(arguments: [
-            "synth",
-            "--profile", awsProfile
-        ])
+        let command = Cdk.Synth(profile: awsProfile)
+        let (execCommand, arguments) = buildCommandLine(command)
 
         let result = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile],
@@ -160,7 +164,7 @@ public actor CDKService {
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
-                command: "cdk synth",
+                command: command.commandString,
                 exitCode: result.exitCode,
                 stderr: result.stderr
             )
@@ -171,13 +175,11 @@ public actor CDKService {
 
     /// List all stacks in the app
     public func listStacks() async throws -> [String] {
-        let (command, arguments) = buildCommand(arguments: [
-            "list",
-            "--profile", awsProfile
-        ])
+        let command = Cdk.List(profile: awsProfile)
+        let (execCommand, arguments) = buildCommandLine(command)
 
         let result = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile],
@@ -186,7 +188,7 @@ public actor CDKService {
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
-                command: "cdk list",
+                command: command.commandString,
                 exitCode: result.exitCode,
                 stderr: result.stderr
             )
@@ -204,9 +206,12 @@ public actor CDKService {
     public func install() async throws {
         print("\n📦 Installing CDK dependencies...")
 
+        let command = Npm.Install()
+        let (execCommand, arguments) = buildNpmCommandLine(command)
+
         _ = try await cliService.execute(
-            command: "npm",
-            arguments: ["install"],
+            command: execCommand,
+            arguments: arguments,
             workingDirectory: cdkDirectory
         )
     }
@@ -215,13 +220,11 @@ public actor CDKService {
     public func bootstrap() async throws {
         print("\n🔧 Bootstrapping CDK...")
 
-        let (command, arguments) = buildCommand(arguments: [
-            "bootstrap",
-            "--profile", awsProfile
-        ])
+        let command = Cdk.Bootstrap(profile: awsProfile)
+        let (execCommand, arguments) = buildCommandLine(command)
 
         _ = try await cliService.execute(
-            command: command,
+            command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile]

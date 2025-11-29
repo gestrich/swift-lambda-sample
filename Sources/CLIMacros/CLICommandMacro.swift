@@ -254,7 +254,12 @@ func generateArgumentsCode(properties: [ParsedProperty]) -> String {
             } else {
                 optionName = names[0]
             }
-            if prop.isOptional {
+            // Check if this is an array type (variadic option like --context foo --context bar)
+            let isArray = prop.type.hasPrefix("[") && prop.type.hasSuffix("]")
+            if isArray {
+                // For array options, iterate and add each element with the same flag
+                lines.append("for value in self.\(prop.name) { args.append(.option(CLIOption(\"\(optionName)\", value: value))) }")
+            } else if prop.isOptional {
                 lines.append("if let value = self.\(prop.name) { args.append(.option(CLIOption(\"\(optionName)\", value: value))) }")
             } else {
                 lines.append("args.append(.option(CLIOption(\"\(optionName)\", value: self.\(prop.name))))")
@@ -296,10 +301,15 @@ func generateInitializer(properties: [ParsedProperty]) -> InitializerDeclSyntax 
         // Skip properties without CLI attributes
         guard case .none = prop.attribute else {
             let paramType = prop.isOptional ? "\(prop.type)?" : prop.type
+            // Check if this is an array type
+            let isArray = prop.type.hasPrefix("[") && prop.type.hasSuffix("]")
             if let defaultValue = prop.defaultValue {
                 params.append("\(prop.name): \(paramType) = \(defaultValue)")
             } else if prop.isOptional {
                 params.append("\(prop.name): \(paramType) = nil")
+            } else if isArray {
+                // For array types without a default, default to empty array
+                params.append("\(prop.name): \(paramType) = []")
             } else {
                 params.append("\(prop.name): \(paramType)")
             }
