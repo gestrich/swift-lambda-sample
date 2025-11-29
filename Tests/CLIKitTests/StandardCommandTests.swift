@@ -1,5 +1,60 @@
-import Testing
 import CLIKit
+import Testing
+
+@Suite("Id Command Tests")
+struct IdCommandTests {
+
+    @Test("Id program name")
+    func testProgramName() {
+        #expect(Id.programName == "id")
+    }
+
+    @Test("Id command line with userId flag")
+    func testIdUserId() {
+        let cmd = Id(userId: true)
+        #expect(cmd.commandLine == ["id", "-u"])
+    }
+
+    @Test("Id command line with groupId flag")
+    func testIdGroupId() {
+        let cmd = Id(groupId: true)
+        #expect(cmd.commandLine == ["id", "-g"])
+    }
+
+    @Test("Id command line with no flags")
+    func testIdNoFlags() {
+        let cmd = Id()
+        #expect(cmd.commandLine == ["id"])
+    }
+
+    @Test("Id command string with userId")
+    func testIdCommandString() {
+        let cmd = Id(userId: true)
+        #expect(cmd.commandString == "id -u")
+    }
+
+    @Test("IdParser parses valid integer")
+    func testIdParserValid() throws {
+        let parser = IdParser()
+        let result = try parser.parse("501\n")
+        #expect(result == 501)
+    }
+
+    @Test("IdParser handles whitespace")
+    func testIdParserWhitespace() throws {
+        let parser = IdParser()
+        let result = try parser.parse("  20  \n")
+        #expect(result == 20)
+    }
+
+    @Test("IdParser throws on invalid input")
+    func testIdParserInvalid() {
+        let parser = IdParser()
+        #expect(throws: CLIServiceError.self) {
+            try parser.parse("not-a-number")
+        }
+    }
+}
 
 @Suite("Kill Command Tests")
 struct KillCommandTests {

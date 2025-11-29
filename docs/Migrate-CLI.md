@@ -39,7 +39,7 @@ For each CLI program:
   - Files: `XcodeLocalService.swift`
   - Commands: send signal to PID
 
-- [ ] **3. id** - User/group ID lookup (`id -u`, `id -g`)
+- [x] **3. id** - User/group ID lookup (`id -u`, `id -g`)
   - Files: `DockerService.swift`
   - Commands: `-u` (user ID), `-g` (group ID)
 

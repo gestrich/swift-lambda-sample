@@ -1,3 +1,4 @@
+import CLIKit
 import Foundation
 
 /// Service for interacting with Docker
@@ -379,40 +380,12 @@ public actor DockerService {
     // MARK: - Helper Operations
 
     /// Get user ID
-    public func getCurrentUserId() async throws -> String {
-        let result = try await cliService.execute(
-            command: "id",
-            arguments: ["-u"],
-            printCommand: false
-        )
-
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "id -u",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    public func getCurrentUserId() async throws -> Int {
+        try await cliService.execute(Id(userId: true), parser: IdParser(), printCommand: false)
     }
 
     /// Get group ID
-    public func getCurrentGroupId() async throws -> String {
-        let result = try await cliService.execute(
-            command: "id",
-            arguments: ["-g"],
-            printCommand: false
-        )
-
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "id -g",
-                exitCode: result.exitCode,
-                stderr: result.stderr
-            )
-        }
-
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    public func getCurrentGroupId() async throws -> Int {
+        try await cliService.execute(Id(groupId: true), parser: IdParser(), printCommand: false)
     }
 }
