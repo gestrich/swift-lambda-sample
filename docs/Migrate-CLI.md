@@ -117,17 +117,30 @@ For each CLI program:
     - `Install` - npm install with optional package positional argument
   - Tests: `Tests/SwiftDeployTests/NpmTests.swift` (12 tests)
 
-- [ ] **10. GitHub CLI (gh)** - GitHub operations
+- [x] **10. GitHub CLI (gh)** - GitHub operations
   - File: `GitHubCLIService.swift`
-  - Commands:
-    - `run list`
-    - `run watch`
-    - `run view`
-    - `workflow run`
-    - `pr create`
-    - `pr list`
-    - `issue create`
-    - `auth status`
+  - Location: `SwiftDeploy/CLI/Gh.swift`
+  - Commands implemented:
+    - `RunList` - `gh run list` with repo, branch, limit, workflow, json options
+    - `RunWatch` - `gh run watch` with optional run ID positional, repo option
+    - `RunView` - `gh run view` with run ID positional, repo, log flag
+    - `WorkflowRun` - `gh workflow run` with workflow positional, repo, ref options
+    - `PrCreate` - `gh pr create` with repo, title, body, base, head options
+    - `PrList` - `gh pr list` with repo, state, json, limit options
+    - `IssueCreate` - `gh issue create` with repo, title, body options
+    - `AuthStatus` - `gh auth status` (no arguments)
+  - Output types:
+    - `GitHubWorkflowRun` - Workflow run info (databaseId, status, conclusion, createdAt, headBranch, event, displayTitle) with computed `id`, `isCompleted`, `wasSuccessful` properties
+    - `GitHubPullRequest` - PR info (number, title, state, headRefName, createdAt)
+  - Parsers:
+    - `GitHubWorkflowRunsParser` - Parses JSON array of workflow runs
+    - `GitHubPullRequestsParser` - Parses JSON array of pull requests
+  - Technical notes:
+    - Numeric options (limit) must use String type due to CLIKit macro limitation with Int
+    - Service converts Int limit parameter to String when building command
+    - `GitHubWorkflowRun` includes `id` computed property for backwards compatibility with existing code
+    - Uses `executeForResult()` from CLIService to get full ExecutionResult
+  - Tests: `Tests/SwiftDeployTests/GitHubCLITests.swift` (45 tests)
 
 - [ ] **11. Docker** - Container operations
   - File: `DockerService.swift`
