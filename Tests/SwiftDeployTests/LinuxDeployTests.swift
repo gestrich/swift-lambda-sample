@@ -10,6 +10,7 @@ import Testing
 @testable import SwiftDeploy
 
 @Suite("Linux Lambda Container Integration Tests")
+@MainActor
 struct LinuxContainerIntegrationTests {
 
     let linuxService: LinuxLocalService

@@ -1,5 +1,6 @@
 // swift-tools-version: 6.2
 
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -20,8 +21,23 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", "2.2.0"..<"3.0.0"),
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", "4.0.0"..<"5.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
+        // MARK: - CLI Macros
+        .macro(
+            name: "CLIMacros",
+            dependencies: [
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+            ]
+        ),
+        .target(
+            name: "CLIKit",
+            dependencies: [
+                .target(name: "CLIMacros"),
+            ]
+        ),
         .target(
             name: "LocalStorageService"
         ),
@@ -83,6 +99,14 @@ let package = Package(
             name: "SwiftServerAppTests",
             dependencies: [
                 .target(name: "SwiftServerApp")
+            ]
+        ),
+        .testTarget(
+            name: "CLIKitTests",
+            dependencies: [
+                .target(name: "CLIKit"),
+                .target(name: "CLIMacros"),
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         )
     ]
