@@ -35,12 +35,61 @@ public struct ExecutionResult: Sendable {
 
 // MARK: - Stream Output
 
-/// Output type for streaming commands
+/// Unique identifier for a CLI command execution
+public struct CommandID: Hashable, Sendable {
+    public let value: UUID
+
+    public init() {
+        self.value = UUID()
+    }
+}
+
+/// Output type for streaming commands with command ID tracking.
+/// Each command gets a unique ID, and all output references that ID.
+/// This allows subscribers to filter out output from commands that started
+/// before they subscribed (orphaned output).
 public enum StreamOutput: Sendable {
-    case stdout(String)
-    case stderr(String)
-    case exit(Int32)
-    case error(Error)
+    /// A command is starting (includes the formatted command string)
+    case command(id: CommandID, text: String)
+
+    /// Standard output from a command
+    case stdout(commandID: CommandID, text: String)
+
+    /// Standard error from a command
+    case stderr(commandID: CommandID, text: String)
+
+    /// Command exited with code
+    case exit(commandID: CommandID, code: Int32)
+
+    /// Error occurred during command execution
+    case error(commandID: CommandID, error: Error)
+
+    /// The command ID associated with this output
+    public var commandID: CommandID {
+        switch self {
+        case .command(let id, _): return id
+        case .stdout(let id, _): return id
+        case .stderr(let id, _): return id
+        case .exit(let id, _): return id
+        case .error(let id, _): return id
+        }
+    }
+
+    /// Whether this is a command start event
+    public var isCommand: Bool {
+        if case .command = self { return true }
+        return false
+    }
+
+    /// The text content (for command, stdout, stderr)
+    public var text: String? {
+        switch self {
+        case .command(_, let text): return text
+        case .stdout(_, let text): return text
+        case .stderr(_, let text): return text
+        case .exit, .error: return nil
+        }
+    }
 }
 
 // MARK: - CustomStringConvertible

@@ -5,6 +5,12 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
+            // Deploy is always available
+            DeployView()
+                .tabItem {
+                    Label("Deploy", systemImage: "shippingbox")
+                }
+
             // Only show Client tab if configured
             if model.isConfigured {
                 ClientView()
@@ -12,24 +18,6 @@ struct ContentView: View {
                         Label("Client", systemImage: "network")
                     }
             }
-
-            // CLI Playground
-            CLIPlaygroundView()
-                .tabItem {
-                    Label("CLI Playground", systemImage: "terminal")
-                }
-
-            // CLIKit Tutorial
-            CLIKitTutorialView()
-                .tabItem {
-                    Label("CLIKit Tutorial", systemImage: "book")
-                }
-
-            // Settings is always available
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
         }
     }
 }

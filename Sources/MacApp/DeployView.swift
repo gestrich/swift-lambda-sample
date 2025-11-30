@@ -4,7 +4,7 @@ import CLIKit
 import SwiftDeploy
 import SwiftUI
 
-struct SettingsView: View {
+struct DeployView: View {
     @Environment(MacAppModel.self) var model
 
     private var modeBinding: Binding<String> {
@@ -26,37 +26,44 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // MARK: - Mode Picker
-                modePickerSection
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // MARK: - Mode Picker
+                    modePickerSection
 
-                Divider()
+                    Divider()
 
-                // MARK: - About Section
-                aboutSection
+                    // MARK: - About Section
+                    aboutSection
 
-                Divider()
+                    Divider()
 
-                // MARK: - Docker Services Section
-                dockerServicesSection
+                    // MARK: - Docker Services Section
+                    dockerServicesSection
 
-                Divider()
+                    Divider()
 
-                // MARK: - Build Section
-                buildSection
+                    // MARK: - Build Section
+                    buildSection
 
-                Divider()
+                    Divider()
 
-                // MARK: - Lambda Section
-                lambdaSection
+                    // MARK: - Lambda Section
+                    lambdaSection
+                }
+                .padding(20)
+            }
 
-                Divider()
+            Divider()
 
-                // MARK: - Unified Output Section
+            // Output and command input pinned to bottom
+            VStack(alignment: .leading, spacing: 8) {
                 unifiedOutputSection
+                commandInputSection
             }
             .padding(20)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
@@ -328,6 +335,36 @@ struct SettingsView: View {
             StreamingTextView(streamProvider: { await CLIService.shared.outputStream() })
         }
     }
+
+    // MARK: - Command Input Section
+
+    @State private var commandText = ""
+
+    @ViewBuilder
+    private var commandInputSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            CommandInputView(text: $commandText) { command in
+                runCommand(command)
+            }
+
+            Text("Type a command and press Enter. Tab to autocomplete, arrows to navigate.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func runCommand(_ commandString: String) {
+        let parts = commandString.components(separatedBy: " ").filter { !$0.isEmpty }
+        guard let command = parts.first else { return }
+        let arguments = Array(parts.dropFirst())
+
+        Task {
+            _ = try? await CLIService.shared.execute(
+                command: command,
+                arguments: arguments
+            )
+        }
+    }
 }
 
 // MARK: - Docker Service Row
@@ -453,6 +490,6 @@ private struct StatusIndicator: View {
 
 #Preview {
     let model = MacAppModel()
-    return SettingsView()
+    return DeployView()
         .environment(model)
 }

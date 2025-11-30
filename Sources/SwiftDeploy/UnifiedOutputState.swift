@@ -51,15 +51,18 @@ public class UnifiedOutputState {
     /// - Returns: Exit code if the event was an exit, nil otherwise
     public func processStreamOutput(_ output: StreamOutput) -> Int32? {
         switch output {
-        case .stdout(let text):
+        case .command(_, let text):
             appendOutput(text)
             return nil
-        case .stderr(let text):
+        case .stdout(_, let text):
             appendOutput(text)
             return nil
-        case .exit(let code):
+        case .stderr(_, let text):
+            appendOutput(text)
+            return nil
+        case .exit(_, let code):
             return code
-        case .error(let error):
+        case .error(_, let error):
             appendOutput("Error: \(error.localizedDescription)\n")
             return 1
         }

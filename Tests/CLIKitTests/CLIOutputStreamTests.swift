@@ -1,19 +1,27 @@
 import Testing
 @testable import CLIKit
 
+// Test command ID for consistent testing
+private let testCommandID = CommandID()
+
 // Helper to check StreamOutput values
+private func isCommand(_ output: StreamOutput, _ expected: String) -> Bool {
+    if case .command(_, let text) = output { return text == expected }
+    return false
+}
+
 private func isStdout(_ output: StreamOutput, _ expected: String) -> Bool {
-    if case .stdout(let text) = output { return text == expected }
+    if case .stdout(_, let text) = output { return text == expected }
     return false
 }
 
 private func isStderr(_ output: StreamOutput, _ expected: String) -> Bool {
-    if case .stderr(let text) = output { return text == expected }
+    if case .stderr(_, let text) = output { return text == expected }
     return false
 }
 
 private func isExit(_ output: StreamOutput, _ expected: Int32) -> Bool {
-    if case .exit(let code) = output { return code == expected }
+    if case .exit(_, let code) = output { return code == expected }
     return false
 }
 
@@ -38,9 +46,10 @@ struct CLIOutputStreamTests {
         try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
 
         // Send output
-        await output.send(.stdout("hello"))
-        await output.send(.stderr("error"))
-        await output.send(.exit(0))
+        let cmdID = CommandID()
+        await output.send(.stdout(commandID: cmdID, text: "hello"))
+        await output.send(.stderr(commandID: cmdID, text: "error"))
+        await output.send(.exit(commandID: cmdID, code: 0))
 
         let received = await task.value
 
@@ -77,8 +86,9 @@ struct CLIOutputStreamTests {
         try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
 
         // Send output
-        await output.send(.stdout("message"))
-        await output.send(.exit(0))
+        let cmdID = CommandID()
+        await output.send(.stdout(commandID: cmdID, text: "message"))
+        await output.send(.exit(commandID: cmdID, code: 0))
 
         let received1 = await task1.value
         let received2 = await task2.value
@@ -109,7 +119,8 @@ struct CLIOutputStreamTests {
         #expect(await output.subscriberCount == 1)
 
         // End the stream
-        await output.send(.exit(0))
+        let cmdID = CommandID()
+        await output.send(.exit(commandID: cmdID, code: 0))
         await task.value
 
         // Give time for cleanup
@@ -123,7 +134,8 @@ struct CLIOutputStreamTests {
         let output = CLIOutputStream()
 
         // Send before any subscriber
-        await output.send(.stdout("missed"))
+        let missedCmdID = CommandID()
+        await output.send(.stdout(commandID: missedCmdID, text: "missed"))
 
         // Now subscribe
         let task = Task {
@@ -139,8 +151,9 @@ struct CLIOutputStreamTests {
         try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
 
         // Send after subscriber
-        await output.send(.stdout("received"))
-        await output.send(.exit(0))
+        let cmdID = CommandID()
+        await output.send(.stdout(commandID: cmdID, text: "received"))
+        await output.send(.exit(commandID: cmdID, code: 0))
 
         let received = await task.value
 
@@ -175,7 +188,8 @@ struct CLIOutputStreamTests {
         #expect(await output.subscriberCount == 2)
 
         // Send one message then finish
-        await output.send(.stdout("test"))
+        let cmdID = CommandID()
+        await output.send(.stdout(commandID: cmdID, text: "test"))
         await output.finishAll()
 
         // Wait for tasks to complete - they should exit when stream finishes

@@ -72,14 +72,19 @@ public actor CLIService {
             }
         }
 
-        // Print command if requested
+        // Generate unique ID for this command execution
+        let commandID = CommandID()
+
+        // Always send command to stream; optionally print to terminal
+        let formattedCommand = formatCommand(
+            command: resolvedCommand,
+            arguments: arguments,
+            environment: environment
+        )
+        let commandLine = "→ \(formattedCommand)\n"
+        await globalOutput.send(.command(id: commandID, text: commandLine))
         if printCommand {
-            let formattedCommand = formatCommand(
-                command: resolvedCommand,
-                arguments: arguments,
-                environment: environment
-            )
-            print("→ \(formattedCommand)")
+            print(commandLine, terminator: "")
         }
 
         return try await executeProcess(
@@ -89,7 +94,8 @@ public actor CLIService {
             environment: processEnvironment,
             timeout: timeout,
             startTime: startTime,
-            inheritIO: inheritIO
+            inheritIO: inheritIO,
+            commandID: commandID
         )
     }
 
@@ -154,25 +160,34 @@ public actor CLIService {
                         }
                     }
 
-                    // Print command if requested
+                    // Generate unique ID for this command execution
+                    let commandID = CommandID()
+
+                    // Always send command to stream; optionally print to terminal
+                    let formattedCommand = self.formatCommand(
+                        command: resolvedCommand,
+                        arguments: arguments,
+                        environment: environment
+                    )
+                    let commandLine = "→ \(formattedCommand)\n"
+                    await self.globalOutput.send(.command(id: commandID, text: commandLine))
+                    continuation.yield(.command(id: commandID, text: commandLine))
                     if printCommand {
-                        let formattedCommand = formatCommand(
-                            command: resolvedCommand,
-                            arguments: arguments,
-                            environment: environment
-                        )
-                        print("→ \(formattedCommand)")
+                        print(commandLine, terminator: "")
                     }
 
-                    try streamProcess(
+                    try self.streamProcess(
                         command: resolvedCommand,
                         arguments: arguments,
                         workingDirectory: workingDirectory,
                         environment: processEnvironment,
+                        commandID: commandID,
                         continuation: continuation
                     )
                 } catch {
-                    continuation.yield(.error(error))
+                    // For errors before command starts, use a placeholder ID
+                    let errorID = CommandID()
+                    continuation.yield(.error(commandID: errorID, error: error))
                     continuation.finish()
                 }
             }
@@ -194,8 +209,9 @@ public actor CLIService {
     ) -> AsyncStream<StreamOutput> {
         let commandLine = command.commandLine
         guard let programName = commandLine.first else {
-            return AsyncStream { continuation in
-                continuation.yield(.error(CLIServiceError.invalidCommand("Empty command line")))
+            let errorID = CommandID()
+            return AsyncStream { (continuation: AsyncStream<StreamOutput>.Continuation) in
+                continuation.yield(.error(commandID: errorID, error: CLIServiceError.invalidCommand("Empty command line")))
                 continuation.finish()
             }
         }
@@ -303,16 +319,18 @@ public actor CLIService {
         environment: [String: String],
         timeout: TimeInterval?,
         startTime: Date,
-        inheritIO: Bool
+        inheritIO: Bool,
+        commandID: CommandID
     ) async throws -> ExecutionResult {
-        return try self.executeProcessInternal(
+        return try self.runProcess(
             command: command,
             arguments: arguments,
             workingDirectory: workingDirectory,
             environment: environment,
             timeout: timeout,
-            startTime: startTime,
-            inheritIO: inheritIO
+            inheritIO: inheritIO,
+            commandID: commandID,
+            commandContinuation: nil
         )
     }
 
@@ -324,6 +342,7 @@ public actor CLIService {
     ///   - environment: Environment variables
     ///   - timeout: Optional timeout
     ///   - inheritIO: If true, inherit stdin/stdout/stderr (no capture)
+    ///   - commandID: Unique ID for this command execution
     ///   - commandContinuation: Optional per-command stream continuation
     /// - Returns: ExecutionResult with accumulated stdout/stderr
     private func runProcess(
@@ -333,6 +352,7 @@ public actor CLIService {
         environment: [String: String],
         timeout: TimeInterval?,
         inheritIO: Bool,
+        commandID: CommandID,
         commandContinuation: AsyncStream<StreamOutput>.Continuation?
     ) throws -> ExecutionResult {
         let startTime = Date()
@@ -348,6 +368,9 @@ public actor CLIService {
         // Thread-safe accumulators for ExecutionResult
         let stdoutAccumulator = OutputAccumulator()
         let stderrAccumulator = OutputAccumulator()
+
+        // Capture globalOutput for use in closures
+        let output = self.globalOutput
 
         let outputPipe: Pipe?
         let errorPipe: Pipe?
@@ -366,9 +389,6 @@ public actor CLIService {
             outputPipe = outPipe
             errorPipe = errPipe
 
-            // Capture globalOutput for use in closures
-            let output = self.globalOutput
-
             // Real-time output handling (always)
             outPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
@@ -377,11 +397,11 @@ public actor CLIService {
                     print(text, terminator: "")
 
                     // Yield to per-command stream (if provided)
-                    commandContinuation?.yield(.stdout(text))
+                    commandContinuation?.yield(.stdout(commandID: commandID, text: text))
 
                     // Broadcast to global stream
                     Task {
-                        await output.send(.stdout(text))
+                        await output.send(.stdout(commandID: commandID, text: text))
                     }
                 }
             }
@@ -392,11 +412,11 @@ public actor CLIService {
                     stderrAccumulator.append(text)
                     print(text, terminator: "")
 
-                    commandContinuation?.yield(.stderr(text))
+                    commandContinuation?.yield(.stderr(commandID: commandID, text: text))
 
                     // Broadcast to global stream
                     Task {
-                        await output.send(.stderr(text))
+                        await output.send(.stderr(commandID: commandID, text: text))
                     }
                 }
             }
@@ -425,12 +445,23 @@ public actor CLIService {
         let exitCode = process.terminationStatus
         let duration = Date().timeIntervalSince(startTime)
 
+        // Ensure output ends with newline for clean separation between commands
+        let stdout = stdoutAccumulator.value
+        if !stdout.isEmpty && !stdout.hasSuffix("\n") {
+            let newline = "\n"
+            print(newline, terminator: "")
+            commandContinuation?.yield(.stdout(commandID: commandID, text: newline))
+            Task {
+                await output.send(.stdout(commandID: commandID, text: newline))
+            }
+        }
+
         // Yield exit to streams
-        commandContinuation?.yield(.exit(exitCode))
+        commandContinuation?.yield(.exit(commandID: commandID, code: exitCode))
         commandContinuation?.finish()
 
         Task {
-            await self.globalOutput.send(.exit(exitCode))
+            await self.globalOutput.send(.exit(commandID: commandID, code: exitCode))
         }
 
         // Check timeout
@@ -446,26 +477,6 @@ public actor CLIService {
             stdout: stdoutAccumulator.value,
             stderr: stderrAccumulator.value,
             duration: duration
-        )
-    }
-
-    private func executeProcessInternal(
-        command: String,
-        arguments: [String],
-        workingDirectory: String?,
-        environment: [String: String],
-        timeout: TimeInterval?,
-        startTime _: Date,
-        inheritIO: Bool
-    ) throws -> ExecutionResult {
-        try runProcess(
-            command: command,
-            arguments: arguments,
-            workingDirectory: workingDirectory,
-            environment: environment,
-            timeout: timeout,
-            inheritIO: inheritIO,
-            commandContinuation: nil
         )
     }
 
@@ -597,6 +608,7 @@ public actor CLIService {
         arguments: [String],
         workingDirectory: String?,
         environment: [String: String],
+        commandID: CommandID,
         continuation: AsyncStream<StreamOutput>.Continuation
     ) throws {
         // Use unified runProcess - it handles continuation and global broadcast
@@ -607,6 +619,7 @@ public actor CLIService {
             environment: environment,
             timeout: nil,
             inheritIO: false,
+            commandID: commandID,
             commandContinuation: continuation
         )
     }
