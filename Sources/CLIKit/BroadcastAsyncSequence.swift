@@ -29,6 +29,7 @@ import Foundation
 @MainActor
 public final class BroadcastAsyncSequence<Element: Sendable>: AsyncSequence, Sendable {
     public typealias AsyncIterator = Iterator
+    public typealias Failure = Never
 
     private var continuations: [UUID: AsyncStream<Element>.Continuation] = [:]
 

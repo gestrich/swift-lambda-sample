@@ -71,7 +71,8 @@ let package = Package(
             name: "MacApp",
             dependencies: [
                 .target(name: "Client"),
-                .target(name: "SwiftDeploy")
+                .target(name: "SwiftDeploy"),
+                .target(name: "CLIKit"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

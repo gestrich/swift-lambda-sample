@@ -6,7 +6,7 @@
 |-------|--------|-------|
 | Step 1: BroadcastAsyncSequence | ✅ Complete | Created `Sources/CLIKit/BroadcastAsyncSequence.swift` |
 | Step 2: Unified Process Execution | ✅ Complete | Added `runProcess()`, `globalOutput`, `OutputAccumulator` |
-| Step 3: StreamingTextView | ⏳ Pending | |
+| Step 3: StreamingTextView | ✅ Complete | Added async sequence initializer with closure-based type erasure |
 | Step 4: SettingsView Integration | ⏳ Pending | |
 
 ### Implementation Notes
@@ -18,6 +18,17 @@
 - Unified `executeProcessInternal` and `streamProcess` into single `runProcess()` method
 - All CLI output now broadcasts to `CLIService.globalOutput` automatically
 - Added dev test command: `swift run SwiftDeployCLI dev test-global-stream`
+
+**Step 3 (Completed 2024-11-30):**
+
+- Updated `StreamingTextView` to support two modes: static lines and async sequence consumption
+- Added `typealias Failure = Never` to `BroadcastAsyncSequence` for Swift 6 typed throws compatibility
+- Used closure-based type erasure pattern to avoid SwiftUI generic view complexity:
+  - Store a `@Sendable` closure that captures the stream iteration logic
+  - Closure calls back to `@MainActor` for each `StreamOutput` received
+  - Allows `StreamingTextView` to remain non-generic while accepting any `AsyncSequence<StreamOutput, Never>`
+- Added `CLIKit` as direct dependency of `MacApp` target
+- Key constraint: `S.Failure == Never` ensures non-throwing async sequences only
 
 **Test Results:**
 ```
