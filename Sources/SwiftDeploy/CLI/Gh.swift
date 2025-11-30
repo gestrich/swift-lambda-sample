@@ -52,6 +52,19 @@ public struct Gh {
 
             /// Show full log output
             @Flag public var log: Bool = false
+
+            /// JSON fields to output
+            @Option public var json: String?
+
+            /// Create a view command for JSON output with jobs and steps
+            public static func withJobsAndSteps(runId: String, repo: String) -> View {
+                View(
+                    runId: runId,
+                    repo: repo,
+                    log: false,
+                    json: "status,conclusion,jobs,displayTitle,createdAt,updatedAt,url"
+                )
+            }
         }
     }
 
@@ -250,6 +263,176 @@ public struct GitHubPullRequestsParser: CLIOutputParser {
             return try decoder.decode([GitHubPullRequest].self, from: data)
         } catch {
             throw CLIServiceError.invalidOutput(reason: "Failed to parse GitHub pull requests: \(error)")
+        }
+    }
+}
+
+// MARK: - Detailed Run Models (for gh run view --json)
+
+/// Detailed workflow run with jobs and steps
+public struct GitHubRunDetail: Sendable, Equatable, Codable {
+    public let status: String
+    public let conclusion: String?
+    public let displayTitle: String
+    public let createdAt: String
+    public let updatedAt: String
+    public let url: String?
+    public let jobs: [GitHubJob]
+
+    public init(
+        status: String,
+        conclusion: String?,
+        displayTitle: String,
+        createdAt: String,
+        updatedAt: String,
+        url: String?,
+        jobs: [GitHubJob]
+    ) {
+        self.status = status
+        self.conclusion = conclusion
+        self.displayTitle = displayTitle
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.url = url
+        self.jobs = jobs
+    }
+
+    public var isCompleted: Bool {
+        status == "completed"
+    }
+
+    public var isSuccess: Bool {
+        conclusion == "success"
+    }
+
+    public var isFailed: Bool {
+        guard let conclusion else { return false }
+        return ["failure", "cancelled", "timed_out"].contains(conclusion)
+    }
+
+    public var isInProgress: Bool {
+        status == "in_progress" || status == "queued" || status == "pending"
+    }
+}
+
+/// A job within a workflow run
+public struct GitHubJob: Sendable, Equatable, Codable {
+    public let databaseId: Int
+    public let name: String
+    public let status: String
+    public let conclusion: String?
+    public let startedAt: String?
+    public let completedAt: String?
+    public let url: String?
+    public let steps: [GitHubStep]
+
+    public init(
+        databaseId: Int,
+        name: String,
+        status: String,
+        conclusion: String?,
+        startedAt: String?,
+        completedAt: String?,
+        url: String?,
+        steps: [GitHubStep]
+    ) {
+        self.databaseId = databaseId
+        self.name = name
+        self.status = status
+        self.conclusion = conclusion
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+        self.url = url
+        self.steps = steps
+    }
+
+    public var isCompleted: Bool {
+        status == "completed"
+    }
+
+    public var isSuccess: Bool {
+        conclusion == "success"
+    }
+
+    public var isFailed: Bool {
+        guard let conclusion else { return false }
+        return ["failure", "cancelled", "timed_out", "skipped"].contains(conclusion)
+    }
+
+    public var isInProgress: Bool {
+        status == "in_progress"
+    }
+
+    public var isSkipped: Bool {
+        conclusion == "skipped"
+    }
+}
+
+/// A step within a job
+public struct GitHubStep: Sendable, Equatable, Codable {
+    public let number: Int
+    public let name: String
+    public let status: String
+    public let conclusion: String?
+    public let startedAt: String?
+    public let completedAt: String?
+
+    public init(
+        number: Int,
+        name: String,
+        status: String,
+        conclusion: String?,
+        startedAt: String?,
+        completedAt: String?
+    ) {
+        self.number = number
+        self.name = name
+        self.status = status
+        self.conclusion = conclusion
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+    }
+
+    public var isCompleted: Bool {
+        status == "completed"
+    }
+
+    public var isSuccess: Bool {
+        conclusion == "success"
+    }
+
+    public var isFailed: Bool {
+        guard let conclusion else { return false }
+        return conclusion == "failure"
+    }
+
+    public var isInProgress: Bool {
+        status == "in_progress"
+    }
+
+    public var isPending: Bool {
+        status == "pending"
+    }
+
+    public var isSkipped: Bool {
+        conclusion == "skipped"
+    }
+}
+
+/// Parser for detailed GitHub run view JSON output
+public struct GitHubRunDetailParser: CLIOutputParser {
+    public init() {}
+
+    public func parse(_ output: String) throws -> GitHubRunDetail {
+        guard let data = output.data(using: .utf8) else {
+            throw CLIServiceError.invalidOutput(reason: "Failed to convert GitHub run detail output to data")
+        }
+
+        let decoder = JSONDecoder()
+        do {
+            return try decoder.decode(GitHubRunDetail.self, from: data)
+        } catch {
+            throw CLIServiceError.invalidOutput(reason: "Failed to parse GitHub run detail: \(error)")
         }
     }
 }

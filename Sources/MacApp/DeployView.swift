@@ -39,6 +39,11 @@ struct DeployView: View {
 
                     Divider()
 
+                    // MARK: - Remote-Only Sections (GitHub CI)
+                    if model.mode.isRemote {
+                        githubCISection
+                    }
+
                     // MARK: - Local-Only Sections (Docker Services, Build, Lambda)
                     if !model.mode.isRemote {
                         dockerServicesSection
@@ -314,6 +319,37 @@ struct DeployView: View {
         case "red": return .red
         case "secondary": return .secondary
         default: return .primary
+        }
+    }
+
+    // MARK: - GitHub CI Section
+
+    @ViewBuilder
+    private var githubCISection: some View {
+        if let ciState = model.mode.githubCIState {
+            GitHubCISectionView(
+                ciState: ciState,
+                onPushAndDeploy: {
+                    Task {
+                        try? await model.mode.remoteService?.pushAndDeploy()
+                    }
+                },
+                onViewLogs: { runId in
+                    Task {
+                        try? await model.mode.remoteService?.viewWorkflowLogs(runId: runId)
+                    }
+                },
+                onRefresh: {
+                    Task {
+                        await model.mode.remoteService?.refreshGitHubCIStatus()
+                    }
+                }
+            )
+            .onAppear {
+                Task {
+                    await model.mode.remoteService?.refreshGitHubCIStatus()
+                }
+            }
         }
     }
 

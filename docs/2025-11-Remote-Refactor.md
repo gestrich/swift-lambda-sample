@@ -61,17 +61,31 @@ The Remote tab currently shows sections (Docker Services, Build, Lambda) that ar
 ---
 
 ### Phase 2: Add GitHub CI Section
-- [ ] Create `githubCISection` view in `DeployView.swift`
-- [ ] Display latest workflow run status (badge: In Progress/Success/Failed)
-- [ ] Add "Push & Deploy" button that:
-  1. Commits any staged changes (or prompts user)
-  2. Pushes to remote
+- [x] Create `githubCISection` view in `DeployView.swift`
+- [x] Display latest workflow run status (badge: In Progress/Success/Failed)
+- [x] Add "Push & Deploy" button that:
+  1. Checks for unpushed commits
+  2. Pushes to remote (or triggers workflow if no commits)
   3. Waits for GitHub Actions to complete
-  4. Shows real-time progress in unified output
-- [ ] Add "View Logs" button to open workflow logs
-- [ ] Add state properties to `MacAppModel` for workflow status
+  4. Shows real-time progress with streaming output
+- [x] Add "View Logs" button to open workflow logs in browser
+- [x] Add state properties via `GitHubCIState` class
 
-**Files**: `DeployView.swift`, `MacAppModel.swift`
+**Files**:
+- `DeployView.swift` - Added `githubCISection` view
+- `MacAppModel.swift` - Added `githubCIState` and `remoteService` accessors to `ConnectionMode`
+- `GitHubCISectionView.swift` - New dedicated view component
+- `GitHubCIState.swift` - New state management class
+- `RemoteService.swift` - Added `refreshGitHubCIStatus()`, `pushAndDeploy()`, `viewWorkflowLogs()`
+- `GitHubCLIService.swift` - Added `watchWorkflowRunStreaming()`
+
+**Completed**: The GitHub CI section shows:
+- Current workflow status with colored badge (success/failed/in-progress)
+- Git status (branch name, uncommitted changes, unpushed commits indicators)
+- Real-time deployment progress with streaming output from `gh run watch`
+- "Push & Deploy" button (adapts label based on git state)
+- "View Logs" button to open GitHub Actions in browser
+- Refresh button to update status
 
 **Note**: All GitHub CI operations stream output to the Output view for real-time feedback.
 

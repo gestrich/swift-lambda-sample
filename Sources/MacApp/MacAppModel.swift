@@ -194,6 +194,22 @@ enum ConnectionMode: LambdaService {
         return false
     }
 
+    /// Access to GitHub CI state (only available for remote mode)
+    var githubCIState: GitHubCIState? {
+        if case .remote(let service) = self {
+            return service.githubCIState
+        }
+        return nil
+    }
+
+    /// Access to RemoteService (only available for remote mode)
+    var remoteService: RemoteService? {
+        if case .remote(let service) = self {
+            return service
+        }
+        return nil
+    }
+
     var isLocalXcode: Bool {
         if case .localXcode = self { return true }
         return false

@@ -54,6 +54,10 @@ public class RemoteService: LambdaService {
 
     public let lambdaState = LambdaState()
 
+    // MARK: - GitHub CI State
+
+    public let githubCIState = GitHubCIState()
+
     // MARK: - LambdaService Protocol Properties
 
     public static let persistenceKey = "remote"
@@ -496,6 +500,211 @@ public class RemoteService: LambdaService {
         }
 
         print("\n🎉 Deployment completed successfully!")
+    }
+
+    // MARK: - GitHub CI Operations
+
+    /// Refresh GitHub CI status including git state and latest workflow run.
+    /// If an in-progress run is detected, automatically starts monitoring it.
+    public func refreshGitHubCIStatus() async {
+        // Don't refresh if we're already deploying
+        guard !githubCIState.status.isDeploying else { return }
+
+        githubCIState.setLoading()
+
+        do {
+            let gitService = GitService(repoPath: projectRoot)
+            let repoInfo = try await gitService.getRepoInfo()
+            let currentBranch = try await gitService.getCurrentBranch()
+            let hasUnpushed = try await gitService.hasCommitsToPush()
+            let hasUncommitted = try await gitService.hasUncommittedChanges()
+
+            githubCIState.updateGitStatus(
+                hasUnpushedCommits: hasUnpushed,
+                hasUncommittedChanges: hasUncommitted,
+                branch: currentBranch
+            )
+
+            let ghService = GitHubCLIService(repository: "\(repoInfo.owner)/\(repoInfo.name)")
+            if let latestRun = try await ghService.getLatestWorkflowRun(branch: currentBranch) {
+                // Check if the latest run is in progress - if so, monitor it
+                if !latestRun.isCompleted {
+                    githubCIState.setDeploying(runId: latestRun.id)
+                    // Start monitoring in background
+                    Task {
+                        await monitorWorkflowRun(runId: latestRun.id, ghService: ghService)
+                    }
+                } else {
+                    let runInfo = GitHubCIState.WorkflowRunInfo(
+                        id: latestRun.id,
+                        status: latestRun.status,
+                        conclusion: latestRun.conclusion,
+                        title: latestRun.displayTitle,
+                        createdAt: parseGitHubDate(latestRun.createdAt)
+                    )
+                    githubCIState.setIdle(lastRun: runInfo)
+                }
+            } else {
+                githubCIState.setIdle(lastRun: nil)
+            }
+        } catch {
+            print("Failed to refresh GitHub CI status: \(error)")
+            githubCIState.setIdle(lastRun: nil)
+        }
+    }
+
+    /// Push commits and deploy via GitHub Actions with polling progress
+    /// This method updates the githubCIState with structured job/step data
+    public func pushAndDeploy() async throws {
+        let gitService = GitService(repoPath: projectRoot)
+        let repoInfo = try await gitService.getRepoInfo()
+        let currentBranch = try await gitService.getCurrentBranch()
+        let repository = "\(repoInfo.owner)/\(repoInfo.name)"
+        let ghService = GitHubCLIService(repository: repository)
+
+        githubCIState.clearRunDetail()
+
+        // Check if we have commits to push
+        let hasCommitsToPush = try await gitService.hasCommitsToPush()
+
+        var runIdToWatch: String?
+
+        if hasCommitsToPush {
+            // Get the current latest run ID before pushing
+            let beforeRunId = try await ghService.getLatestWorkflowRun(branch: currentBranch)?.id
+
+            githubCIState.setDeploying(runId: "pending")
+
+            try await gitService.push()
+
+            // Poll for a new run to appear
+            runIdToWatch = try await waitForNewRun(
+                ghService: ghService,
+                branch: currentBranch,
+                afterRunId: beforeRunId
+            )
+        } else {
+            // No commits to push - trigger workflow manually
+            githubCIState.setDeploying(runId: "pending")
+
+            try await ghService.triggerWorkflow(workflow: "Dev Deploy", branch: currentBranch)
+
+            // Wait for the triggered run to appear
+            let beforeRunId = try await ghService.getLatestWorkflowRun(branch: currentBranch)?.id
+            try await Task.sleep(for: .seconds(2))
+            runIdToWatch = try await waitForNewRun(
+                ghService: ghService,
+                branch: currentBranch,
+                afterRunId: beforeRunId
+            )
+        }
+
+        guard let runId = runIdToWatch else {
+            throw DeployError.deploymentFailed(reason: "Could not find new workflow run")
+        }
+
+        githubCIState.setDeploying(runId: runId)
+
+        // Monitor the workflow until completion
+        await monitorWorkflowRun(runId: runId, ghService: ghService)
+    }
+
+    /// Monitor a workflow run until completion, updating the UI with progress
+    private func monitorWorkflowRun(runId: String, ghService: GitHubCLIService) async {
+        let pollInterval: Duration = .seconds(3)
+        let maxPollTime: Duration = .seconds(15 * 60)
+        let startTime = ContinuousClock.now
+
+        while true {
+            // Check timeout
+            if ContinuousClock.now - startTime > maxPollTime {
+                githubCIState.setFailed(runId: runId, reason: "Timeout waiting for workflow")
+                return
+            }
+
+            do {
+                let detail = try await ghService.getRunDetail(runId: runId)
+                githubCIState.updateRunDetail(detail)
+
+                if detail.isCompleted {
+                    if detail.isSuccess {
+                        githubCIState.setSuccess(runId: runId)
+                    } else {
+                        let reason = detail.conclusion ?? "unknown"
+                        githubCIState.setFailed(runId: runId, reason: reason)
+                    }
+                    // Refresh to get final state
+                    githubCIState.clearRunDetail()
+                    return
+                }
+
+                try await Task.sleep(for: pollInterval)
+            } catch {
+                // If we fail to get details, wait and retry
+                try? await Task.sleep(for: pollInterval)
+            }
+        }
+    }
+
+    /// Open workflow logs in browser
+    public func viewWorkflowLogs(runId: String) async throws {
+        let gitService = GitService(repoPath: projectRoot)
+        let repoInfo = try await gitService.getRepoInfo()
+        let url = "https://github.com/\(repoInfo.owner)/\(repoInfo.name)/actions/runs/\(runId)"
+
+        let result = try await cliService.execute(
+            command: "open",
+            arguments: [url],
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "open \(url)",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+    }
+
+    // MARK: - Private GitHub Helpers
+
+    private func waitForNewRun(
+        ghService: GitHubCLIService,
+        branch: String,
+        afterRunId: String?,
+        maxAttempts: Int = 30
+    ) async throws -> String? {
+        for attempt in 0..<maxAttempts {
+            if let run = try await ghService.getLatestWorkflowRun(branch: branch) {
+                if let afterId = afterRunId {
+                    // Compare numerically if possible
+                    if let newIdInt = Int(run.id), let afterIdInt = Int(afterId), newIdInt > afterIdInt {
+                        return run.id
+                    }
+                } else {
+                    // No previous run, so any run is new
+                    return run.id
+                }
+            }
+
+            if attempt < maxAttempts - 1 {
+                try await Task.sleep(for: .seconds(2))
+            }
+        }
+
+        return nil
+    }
+
+    private func parseGitHubDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        // Try without fractional seconds
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString)
     }
 
     // MARK: - Private Helpers

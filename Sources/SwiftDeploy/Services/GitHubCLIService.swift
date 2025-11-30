@@ -62,6 +62,25 @@ public actor GitHubCLIService {
         }
     }
 
+    /// Watch a workflow run with streaming output
+    /// Returns an AsyncStream that yields progress updates until the run completes
+    public func watchWorkflowRunStreaming(runId: String? = nil) async -> AsyncStream<StreamOutput> {
+        let command = Gh.Run.Watch(runId: runId, repo: repository)
+        return await cliService.stream(command)
+    }
+
+    /// Get detailed run information with jobs and steps
+    public func getRunDetail(runId: String) async throws -> GitHubRunDetail {
+        let command = Gh.Run.View.withJobsAndSteps(runId: runId, repo: repository)
+
+        return try await cliService.execute(
+            command,
+            parser: GitHubRunDetailParser(),
+            workingDirectory: nil,
+            printCommand: false
+        )
+    }
+
     /// View workflow run details
     public func viewWorkflowRun(runId: String, showLog: Bool = false) async throws -> String {
         let command = Gh.Run.View(runId: runId, repo: repository, log: showLog)
