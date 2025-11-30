@@ -324,8 +324,8 @@ struct SettingsView: View {
             Text("Output")
                 .font(.headline)
 
-            // Use global CLI output stream directly
-            StreamingTextView(stream: CLIService.globalOutput)
+            // Use global CLI output stream - each view gets its own subscription
+            StreamingTextView(stream: CLIService.shared.outputStream())
         }
     }
 }

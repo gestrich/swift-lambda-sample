@@ -36,7 +36,7 @@ extension DevCommand {
                 let task = Task { @MainActor in
                     print("📡 Subscriber \(subscriberId) started listening")
                     var messageCount = 0
-                    for await output in CLIService.globalOutput {
+                    for await output in CLIService.shared.outputStream() {
                         messageCount += 1
                         switch output {
                         case .stdout(let text):

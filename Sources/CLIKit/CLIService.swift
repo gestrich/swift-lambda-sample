@@ -1,31 +1,21 @@
 import Foundation
-
-/// Thread-safe string accumulator for capturing output in concurrent contexts
-private final class OutputAccumulator: @unchecked Sendable {
-    private var _value = ""
-    private let lock = NSLock()
-
-    var value: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return _value
-    }
-
-    func append(_ text: String) {
-        lock.lock()
-        defer { lock.unlock() }
-        _value += text
-    }
-}
+import Synchronization
 
 /// A service for executing command-line operations with async/await support
 public actor CLIService {
     /// Shared instance for convenience
     public static let shared = CLIService()
 
-    /// Global output stream - broadcasts all CLI output to any subscriber
+    /// Global output stream - broadcasts all CLI output to any subscriber.
     @MainActor
-    public static let globalOutput = BroadcastAsyncSequence<StreamOutput>()
+    private static let globalOutput = CLIOutputStream()
+
+    /// Create a new stream subscription for CLI output.
+    /// Each caller gets an independent stream receiving all future output.
+    @MainActor
+    public func outputStream() -> AsyncStream<StreamOutput> {
+        Self.globalOutput.makeStream()
+    }
 
     /// Pre-computed environment with common paths
     private let defaultEnvironment: [String: String]
@@ -390,7 +380,7 @@ public actor CLIService {
 
                     // Broadcast to global stream
                     Task { @MainActor in
-                        Self.globalOutput.yield(.stdout(text))
+                        Self.globalOutput.send(.stdout(text))
                     }
                 }
             }
@@ -404,7 +394,7 @@ public actor CLIService {
                     commandContinuation?.yield(.stderr(text))
 
                     Task { @MainActor in
-                        Self.globalOutput.yield(.stderr(text))
+                        Self.globalOutput.send(.stderr(text))
                     }
                 }
             }
@@ -438,7 +428,7 @@ public actor CLIService {
         commandContinuation?.finish()
 
         Task { @MainActor in
-            Self.globalOutput.yield(.exit(exitCode))
+            Self.globalOutput.send(.exit(exitCode))
         }
 
         // Check timeout
@@ -617,5 +607,18 @@ public actor CLIService {
             inheritIO: false,
             commandContinuation: continuation
         )
+    }
+}
+
+/// Thread-safe string accumulator for capturing output in concurrent contexts
+private final class OutputAccumulator: Sendable {
+    private let storage = Mutex("")
+
+    var value: String {
+        storage.withLock { $0 }
+    }
+
+    func append(_ text: String) {
+        storage.withLock { $0 += text }
     }
 }
