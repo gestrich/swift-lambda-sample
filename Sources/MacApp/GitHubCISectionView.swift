@@ -1,13 +1,39 @@
 import SwiftDeploy
 import SwiftUI
 
+/// Loading placeholder while GitHubService initializes
+struct GitHubCILoadingView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("GitHub CI")
+                .font(.headline)
+
+            HStack {
+                ProgressView()
+                    .scaleEffect(0.7)
+                Text("Loading...")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+        }
+    }
+}
+
 /// View for the GitHub CI section in Remote mode
 /// Shows workflow status, job/step progress during deployment, and action buttons
 struct GitHubCISectionView: View {
-    var ciState: GitHubCIState
+    var service: GitHubService
     let onPushAndDeploy: () -> Void
     let onViewLogs: (String) -> Void
     let onRefresh: () -> Void
+
+    private var ciStatus: GitHubCIStatus {
+        service.ciStatus
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -23,7 +49,7 @@ struct GitHubCISectionView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .disabled(ciState.status.isDeploying)
+                .disabled(ciStatus.status.isDeploying)
                 .help("Refresh status")
             }
 
@@ -33,12 +59,12 @@ struct GitHubCISectionView: View {
                 statusRow
 
                 // Git status
-                if !ciState.currentBranch.isEmpty {
+                if !ciStatus.currentBranch.isEmpty {
                     gitStatusRow
                 }
 
                 // Job/Step progress during deployment
-                if ciState.status.isDeploying, let detail = ciState.runDetail {
+                if ciStatus.status.isDeploying, let detail = ciStatus.runDetail {
                     jobStepsView(detail: detail)
                 }
 
@@ -62,7 +88,7 @@ struct GitHubCISectionView: View {
             Spacer()
 
             // Last run info
-            if case .idle(let lastRun) = ciState.status, let run = lastRun {
+            if case .idle(let lastRun) = ciStatus.status, let run = lastRun {
                 Text(run.relativeTime)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -80,7 +106,7 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var statusIcon: some View {
-        switch ciState.status {
+        switch ciStatus.status {
         case .unknown:
             Image(systemName: "questionmark.circle")
                 .foregroundColor(.secondary)
@@ -120,7 +146,7 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var statusText: some View {
-        switch ciState.status {
+        switch ciStatus.status {
         case .unknown:
             Text("Unknown")
                 .font(.subheadline)
@@ -152,7 +178,7 @@ struct GitHubCISectionView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.blue)
-                if let detail = ciState.runDetail {
+                if let detail = ciStatus.runDetail {
                     Text(detail.displayTitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -177,7 +203,7 @@ struct GitHubCISectionView: View {
         }
     }
 
-    private func statusLabel(for run: GitHubCIState.WorkflowRunInfo) -> String {
+    private func statusLabel(for run: GitHubCIStatus.WorkflowRunInfo) -> String {
         if run.isInProgress {
             return "In Progress"
         } else if run.isSuccess {
@@ -189,7 +215,7 @@ struct GitHubCISectionView: View {
         }
     }
 
-    private func statusColor(for run: GitHubCIState.WorkflowRunInfo) -> Color {
+    private func statusColor(for run: GitHubCIStatus.WorkflowRunInfo) -> Color {
         if run.isInProgress {
             return .blue
         } else if run.isSuccess {
@@ -210,13 +236,13 @@ struct GitHubCISectionView: View {
             HStack(spacing: 4) {
                 Image(systemName: "arrow.triangle.branch")
                     .font(.caption)
-                Text(ciState.currentBranch)
+                Text(ciStatus.currentBranch)
                     .font(.caption)
             }
             .foregroundColor(.secondary)
 
             // Uncommitted changes indicator
-            if ciState.hasUncommittedChanges {
+            if ciStatus.hasUncommittedChanges {
                 HStack(spacing: 4) {
                     Image(systemName: "pencil.circle.fill")
                         .font(.caption)
@@ -227,7 +253,7 @@ struct GitHubCISectionView: View {
             }
 
             // Unpushed commits indicator
-            if ciState.hasUnpushedCommits {
+            if ciStatus.hasUnpushedCommits {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.caption)
@@ -337,7 +363,7 @@ struct GitHubCISectionView: View {
             // Push & Deploy button
             Button(action: onPushAndDeploy) {
                 HStack(spacing: 4) {
-                    if ciState.status.isDeploying {
+                    if ciStatus.status.isDeploying {
                         ProgressView()
                             .scaleEffect(0.6)
                     } else {
@@ -347,10 +373,10 @@ struct GitHubCISectionView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(!ciState.status.canDeploy)
+            .disabled(!ciStatus.status.canDeploy)
 
             // View Logs button
-            if let runId = ciState.status.runId {
+            if let runId = ciStatus.status.runId {
                 Button(action: { onViewLogs(runId) }) {
                     HStack(spacing: 4) {
                         Image(systemName: "doc.text")
@@ -363,9 +389,9 @@ struct GitHubCISectionView: View {
     }
 
     private var buttonLabel: String {
-        if ciState.status.isDeploying {
+        if ciStatus.status.isDeploying {
             return "Deploying..."
-        } else if ciState.hasUnpushedCommits {
+        } else if ciStatus.hasUnpushedCommits {
             return "Push & Deploy"
         } else {
             return "Trigger Deploy"
@@ -376,13 +402,9 @@ struct GitHubCISectionView: View {
 // MARK: - Preview
 
 #Preview {
-    let ciState = GitHubCIState()
-    return GitHubCISectionView(
-        ciState: ciState,
-        onPushAndDeploy: {},
-        onViewLogs: { _ in },
-        onRefresh: {}
-    )
-    .padding()
+    VStack {
+        GitHubCILoadingView()
+            .padding()
+    }
     .frame(width: 400)
 }

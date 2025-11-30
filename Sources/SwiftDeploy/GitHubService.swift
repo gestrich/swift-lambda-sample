@@ -1,20 +1,102 @@
 import CLIKit
 import Foundation
+import Observation
+
+/// State for GitHub CI workflow tracking
+public struct GitHubCIStatus: Equatable {
+    public enum RunStatus: Equatable {
+        case unknown
+        case loading
+        case idle(lastRun: WorkflowRunInfo?)
+        case deploying(runId: String)
+        case success(runId: String)
+        case failed(runId: String, reason: String)
+
+        public var isDeploying: Bool {
+            if case .deploying = self { return true }
+            return false
+        }
+
+        public var canDeploy: Bool {
+            switch self {
+            case .loading, .deploying:
+                return false
+            default:
+                return true
+            }
+        }
+
+        public var runId: String? {
+            switch self {
+            case .deploying(let id), .success(let id), .failed(let id, _):
+                return id
+            case .idle(let lastRun):
+                return lastRun?.id
+            default:
+                return nil
+            }
+        }
+    }
+
+    /// Information about a workflow run (summary)
+    public struct WorkflowRunInfo: Equatable {
+        public let id: String
+        public let status: String
+        public let conclusion: String?
+        public let title: String
+        public let createdAt: Date?
+
+        public var isSuccess: Bool {
+            conclusion == "success"
+        }
+
+        public var isFailed: Bool {
+            guard let conclusion else { return false }
+            return ["failure", "cancelled", "timed_out"].contains(conclusion)
+        }
+
+        public var isInProgress: Bool {
+            status == "in_progress" || status == "queued" || status == "pending"
+        }
+
+        /// Relative time string (e.g., "2 min ago")
+        public var relativeTime: String {
+            guard let createdAt else { return "" }
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .abbreviated
+            return formatter.localizedString(for: createdAt, relativeTo: Date())
+        }
+    }
+
+    public var status: RunStatus = .unknown
+    public var runDetail: GitHubRunDetail?
+    public var hasUnpushedCommits: Bool = false
+    public var hasUncommittedChanges: Bool = false
+    public var currentBranch: String = ""
+
+    public init() {}
+}
 
 /// Service for GitHub Actions operations with UI state management
-public actor GitHubService {
-    private let ghService: GitHubCLIService
+@MainActor
+@Observable
+public final class GitHubService {
+    // MARK: - State (source of truth)
+
+    public private(set) var ciStatus = GitHubCIStatus()
+
+    // MARK: - Private Services
+
+    private let ghCLIService: GitHubCLIService
     private let gitService: GitService
     private let repository: String
 
-    /// Shared state for UI updates (MainActor isolated)
-    public let ciState: GitHubCIState
+    // MARK: - Init
 
     public init(repoPath: String, owner: String, repo: String) {
         self.repository = "\(owner)/\(repo)"
-        self.ghService = GitHubCLIService(repository: repository)
+        self.ghCLIService = GitHubCLIService(repository: repository)
         self.gitService = GitService(repoPath: repoPath)
-        self.ciState = GitHubCIState()
     }
 
     // MARK: - UI State Operations
@@ -23,52 +105,49 @@ public actor GitHubService {
     /// If an in-progress run is detected, automatically starts monitoring it.
     public func refreshStatus() async {
         // Don't refresh if we're already deploying
-        guard await !ciState.status.isDeploying else { return }
+        guard !ciStatus.status.isDeploying else { return }
 
-        await ciState.setLoading()
+        ciStatus.status = .loading
 
         do {
             let currentBranch = try await gitService.getCurrentBranch()
             let hasUnpushed = try await gitService.hasCommitsToPush()
             let hasUncommitted = try await gitService.hasUncommittedChanges()
 
-            await ciState.updateGitStatus(
-                hasUnpushedCommits: hasUnpushed,
-                hasUncommittedChanges: hasUncommitted,
-                branch: currentBranch
-            )
+            ciStatus.hasUnpushedCommits = hasUnpushed
+            ciStatus.hasUncommittedChanges = hasUncommitted
+            ciStatus.currentBranch = currentBranch
 
-            if let latestRun = try await ghService.getLatestWorkflowRun(branch: currentBranch) {
+            if let latestRun = try await ghCLIService.getLatestWorkflowRun(branch: currentBranch) {
                 // Check if the latest run is in progress - if so, monitor it
                 if !latestRun.isCompleted {
-                    await ciState.setDeploying(runId: latestRun.id)
+                    ciStatus.status = .deploying(runId: latestRun.id)
                     // Start monitoring in background
                     Task {
                         await self.monitorWorkflowRun(runId: latestRun.id)
                     }
                 } else {
-                    let runInfo = GitHubCIState.WorkflowRunInfo(
+                    let runInfo = GitHubCIStatus.WorkflowRunInfo(
                         id: latestRun.id,
                         status: latestRun.status,
                         conclusion: latestRun.conclusion,
                         title: latestRun.displayTitle,
                         createdAt: parseGitHubDate(latestRun.createdAt)
                     )
-                    await ciState.setIdle(lastRun: runInfo)
+                    ciStatus.status = .idle(lastRun: runInfo)
                 }
             } else {
-                await ciState.setIdle(lastRun: nil)
+                ciStatus.status = .idle(lastRun: nil)
             }
         } catch {
             print("Failed to refresh GitHub CI status: \(error)")
-            await ciState.setIdle(lastRun: nil)
+            ciStatus.status = .idle(lastRun: nil)
         }
     }
 
     /// Push commits and deploy via GitHub Actions with polling progress
-    /// This method updates the ciState with structured job/step data
     public func pushAndDeploy() async throws {
-        await ciState.clearRunDetail()
+        ciStatus.runDetail = nil
 
         let currentBranch = try await gitService.getCurrentBranch()
 
@@ -79,9 +158,9 @@ public actor GitHubService {
 
         if hasCommitsToPush {
             // Get the current latest run ID before pushing
-            let beforeRunId = try await ghService.getLatestWorkflowRun(branch: currentBranch)?.id
+            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: currentBranch)?.id
 
-            await ciState.setDeploying(runId: "pending")
+            ciStatus.status = .deploying(runId: "pending")
 
             try await gitService.push()
 
@@ -92,12 +171,12 @@ public actor GitHubService {
             )
         } else {
             // No commits to push - trigger workflow manually
-            await ciState.setDeploying(runId: "pending")
+            ciStatus.status = .deploying(runId: "pending")
 
-            try await ghService.triggerWorkflow(workflow: "Dev Deploy", branch: currentBranch)
+            try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: currentBranch)
 
             // Wait for the triggered run to appear
-            let beforeRunId = try await ghService.getLatestWorkflowRun(branch: currentBranch)?.id
+            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: currentBranch)?.id
             try await Task.sleep(for: .seconds(2))
             runIdToWatch = try await waitForNewRun(
                 branch: currentBranch,
@@ -109,7 +188,7 @@ public actor GitHubService {
             throw DeployError.deploymentFailed(reason: "Could not find new workflow run")
         }
 
-        await ciState.setDeploying(runId: runId)
+        ciStatus.status = .deploying(runId: runId)
 
         // Monitor the workflow until completion
         await monitorWorkflowRun(runId: runId)
@@ -135,18 +214,19 @@ public actor GitHubService {
         }
     }
 
-    // MARK: - Legacy Operations (for CLI commands)
+    // MARK: - CLI Operations (for CLI commands without UI state)
+    // These methods are nonisolated because they don't touch ciStatus state
 
     /// Get the latest workflow run ID (or nil if none exist)
-    public func getLatestRunId(branch: String) async throws -> Int? {
-        guard let run = try await ghService.getLatestWorkflowRun(branch: branch) else {
+    nonisolated public func getLatestRunId(branch: String) async throws -> Int? {
+        guard let run = try await ghCLIService.getLatestWorkflowRun(branch: branch) else {
             return nil
         }
         return Int(run.id)
     }
 
     /// Wait for a NEW workflow run to appear (newer than afterRunId) and complete
-    public func waitForNewWorkflowCompletion(
+    nonisolated public func waitForNewWorkflowCompletion(
         branch: String,
         afterRunId: Int?,
         timeoutMinutes: Int = 10
@@ -161,7 +241,7 @@ public actor GitHubService {
 
         // Wait for a new run to appear
         while attempts < maxAttempts {
-            let runs = try await ghService.listWorkflowRuns(branch: branch, limit: 1)
+            let runs = try await ghCLIService.listWorkflowRuns(branch: branch, limit: 1)
 
             guard let latestRun = runs.first else {
                 print("  No workflow runs found yet, waiting...")
@@ -208,21 +288,21 @@ public actor GitHubService {
     }
 
     /// Get the latest workflow run status
-    public func getLatestRunStatus(branch: String) async throws -> (status: String, conclusion: String?) {
-        guard let run = try await ghService.getLatestWorkflowRun(branch: branch) else {
+    nonisolated public func getLatestRunStatus(branch: String) async throws -> (status: String, conclusion: String?) {
+        guard let run = try await ghCLIService.getLatestWorkflowRun(branch: branch) else {
             throw CLIServiceError.invalidOutput(reason: "No workflow runs found")
         }
         return (run.status, run.conclusion)
     }
 
     /// View workflow logs (prints to console)
-    public func viewLogs(runId: String) async throws {
-        let logs = try await ghService.viewWorkflowRun(runId: runId, showLog: true)
+    nonisolated public func viewLogs(runId: String) async throws {
+        let logs = try await ghCLIService.viewWorkflowRun(runId: runId, showLog: true)
         print(logs)
     }
 
     /// Trigger a workflow manually and wait for it to complete
-    public func triggerWorkflowAndWait(
+    nonisolated public func triggerWorkflowAndWait(
         workflowName: String,
         branch: String,
         timeoutMinutes: Int = 10
@@ -233,7 +313,7 @@ public actor GitHubService {
         let beforeRunId = try await getLatestRunId(branch: branch)
 
         // Trigger the workflow
-        try await ghService.triggerWorkflow(workflow: workflowName, branch: branch)
+        try await ghCLIService.triggerWorkflow(workflow: workflowName, branch: branch)
 
         print("✅ Workflow triggered successfully")
 
@@ -256,23 +336,23 @@ public actor GitHubService {
         while true {
             // Check timeout
             if ContinuousClock.now - startTime > maxPollTime {
-                await ciState.setFailed(runId: runId, reason: "Timeout waiting for workflow")
+                ciStatus.status = .failed(runId: runId, reason: "Timeout waiting for workflow")
                 return
             }
 
             do {
-                let detail = try await ghService.getRunDetail(runId: runId)
-                await ciState.updateRunDetail(detail)
+                let detail = try await ghCLIService.getRunDetail(runId: runId)
+                ciStatus.runDetail = detail
 
                 if detail.isCompleted {
                     if detail.isSuccess {
-                        await ciState.setSuccess(runId: runId)
+                        ciStatus.status = .success(runId: runId)
                     } else {
                         let reason = detail.conclusion ?? "unknown"
-                        await ciState.setFailed(runId: runId, reason: reason)
+                        ciStatus.status = .failed(runId: runId, reason: reason)
                     }
                     // Clear detail after completion
-                    await ciState.clearRunDetail()
+                    ciStatus.runDetail = nil
                     return
                 }
 
@@ -290,7 +370,7 @@ public actor GitHubService {
         maxAttempts: Int = 30
     ) async throws -> String? {
         for attempt in 0..<maxAttempts {
-            if let run = try await ghService.getLatestWorkflowRun(branch: branch) {
+            if let run = try await ghCLIService.getLatestWorkflowRun(branch: branch) {
                 if let afterId = afterRunId {
                     // Compare numerically if possible
                     if let newIdInt = Int(run.id), let afterIdInt = Int(afterId), newIdInt > afterIdInt {

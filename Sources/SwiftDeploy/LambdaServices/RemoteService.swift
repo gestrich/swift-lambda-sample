@@ -71,9 +71,9 @@ public class RemoteService: LambdaService {
         return service
     }
 
-    /// Access to GitHub CI state (delegates to GitHubService)
-    public var githubCIState: GitHubCIState? {
-        _githubService?.ciState
+    /// Access to GitHub service (nil until first refresh)
+    public var githubService: GitHubService? {
+        _githubService
     }
 
     // MARK: - LambdaService Protocol Properties
