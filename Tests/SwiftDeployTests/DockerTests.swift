@@ -416,20 +416,20 @@ struct DockerBuildTests {
 @Suite("Docker Network Create Tests")
 struct DockerNetworkCreateTests {
 
-    @Test("NetworkCreate command path")
+    @Test("Network.Create command path")
     func testCommandPath() {
-        #expect(Docker.NetworkCreate.commandPath == ["network create"])
+        #expect(Docker.Network.Create.commandPath == ["network", "create"])
     }
 
-    @Test("NetworkCreate command line")
+    @Test("Network.Create command line")
     func testCommandLine() {
-        let cmd = Docker.NetworkCreate(name: "mynetwork")
+        let cmd = Docker.Network.Create(name: "mynetwork")
         #expect(cmd.commandLine == ["docker", "network", "create", "mynetwork"])
     }
 
-    @Test("NetworkCreate command string")
+    @Test("Network.Create command string")
     func testCommandString() {
-        let cmd = Docker.NetworkCreate(name: "mynetwork")
+        let cmd = Docker.Network.Create(name: "mynetwork")
         #expect(cmd.commandString == "docker network create mynetwork")
     }
 }
@@ -437,20 +437,20 @@ struct DockerNetworkCreateTests {
 @Suite("Docker Network Inspect Tests")
 struct DockerNetworkInspectTests {
 
-    @Test("NetworkInspect command path")
+    @Test("Network.Inspect command path")
     func testCommandPath() {
-        #expect(Docker.NetworkInspect.commandPath == ["network inspect"])
+        #expect(Docker.Network.Inspect.commandPath == ["network", "inspect"])
     }
 
-    @Test("NetworkInspect minimal command line")
+    @Test("Network.Inspect minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Docker.NetworkInspect(name: "mynetwork")
+        let cmd = Docker.Network.Inspect(name: "mynetwork")
         #expect(cmd.commandLine == ["docker", "network", "inspect", "mynetwork"])
     }
 
-    @Test("NetworkInspect with format")
+    @Test("Network.Inspect with format")
     func testWithFormat() {
-        let cmd = Docker.NetworkInspect(name: "mynetwork", format: "{{range .Containers}}{{.Name}}\n{{end}}")
+        let cmd = Docker.Network.Inspect(name: "mynetwork", format: "{{range .Containers}}{{.Name}}\n{{end}}")
         #expect(cmd.commandLine == [
             "docker", "network", "inspect",
             "mynetwork",
@@ -458,9 +458,9 @@ struct DockerNetworkInspectTests {
         ])
     }
 
-    @Test("NetworkInspect command string")
+    @Test("Network.Inspect command string")
     func testCommandString() {
-        let cmd = Docker.NetworkInspect(name: "mynetwork")
+        let cmd = Docker.Network.Inspect(name: "mynetwork")
         #expect(cmd.commandString == "docker network inspect mynetwork")
     }
 }
@@ -468,20 +468,20 @@ struct DockerNetworkInspectTests {
 @Suite("Docker Network Connect Tests")
 struct DockerNetworkConnectTests {
 
-    @Test("NetworkConnect command path")
+    @Test("Network.Connect command path")
     func testCommandPath() {
-        #expect(Docker.NetworkConnect.commandPath == ["network connect"])
+        #expect(Docker.Network.Connect.commandPath == ["network", "connect"])
     }
 
-    @Test("NetworkConnect command line")
+    @Test("Network.Connect command line")
     func testCommandLine() {
-        let cmd = Docker.NetworkConnect(network: "mynetwork", container: "mycontainer")
+        let cmd = Docker.Network.Connect(network: "mynetwork", container: "mycontainer")
         #expect(cmd.commandLine == ["docker", "network", "connect", "mynetwork", "mycontainer"])
     }
 
-    @Test("NetworkConnect command string")
+    @Test("Network.Connect command string")
     func testCommandString() {
-        let cmd = Docker.NetworkConnect(network: "mynetwork", container: "mycontainer")
+        let cmd = Docker.Network.Connect(network: "mynetwork", container: "mycontainer")
         #expect(cmd.commandString == "docker network connect mynetwork mycontainer")
     }
 }

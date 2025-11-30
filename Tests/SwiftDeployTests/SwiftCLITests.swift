@@ -16,20 +16,20 @@ struct SwiftCLITests {
 @Suite("Swift Package Clean Tests")
 struct SwiftPackageCleanTests {
 
-    @Test("PackageClean command path")
+    @Test("Package.Clean command path")
     func testCommandPath() {
-        #expect(SwiftCLI.PackageClean.commandPath == ["package clean"])
+        #expect(SwiftCLI.Package.Clean.commandPath == ["package", "clean"])
     }
 
-    @Test("PackageClean command line")
+    @Test("Package.Clean command line")
     func testCommandLine() {
-        let cmd = SwiftCLI.PackageClean()
+        let cmd = SwiftCLI.Package.Clean()
         #expect(cmd.commandLine == ["swift", "package", "clean"])
     }
 
-    @Test("PackageClean command string")
+    @Test("Package.Clean command string")
     func testCommandString() {
-        let cmd = SwiftCLI.PackageClean()
+        let cmd = SwiftCLI.Package.Clean()
         #expect(cmd.commandString == "swift package clean")
     }
 }

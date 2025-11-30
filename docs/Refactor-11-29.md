@@ -616,14 +616,11 @@ All tests updated to use `commandPath` instead of `commandName`:
 #expect(Aws.CloudFormation.DescribeStacks.commandPath == ["cloudformation", "describe-stacks"])
 ```
 
-**Note on space-separated commands:**
-Commands using flat `@CLICommand("network create")` style have single-element paths:
+**Nested commands have multi-element paths:**
 ```swift
-#expect(Docker.NetworkCreate.commandPath == ["network create"])  // Single element
-#expect(SwiftCLI.PackageClean.commandPath == ["package clean"])  // Single element
+#expect(Docker.Network.Create.commandPath == ["network", "create"])
+#expect(SwiftCLI.Package.Clean.commandPath == ["package", "clean"])
 ```
-
-The `commandArguments` property automatically splits these when building the command line.
 
 #### 3. Documentation Updates
 
@@ -647,3 +644,112 @@ Updated `docs/Migrate-CLI.md` to reference `commandPath` instead of `commandName
 
 - **All 349 CLI-related tests pass** ✅
 - Tests verify `commandPath` arrays and `commandLine`/`commandString` outputs
+
+---
+
+## Complete Nested Structure Migration (November 30, 2025)
+
+### Overview
+
+Migrated all remaining space-separated command declarations to proper nested structures and removed backwards compatibility code.
+
+### Changes
+
+#### 1. Docker Network Commands → Nested Structure
+
+**Before:**
+```swift
+@CLICommand("network create")
+public struct NetworkCreate { ... }
+
+@CLICommand("network inspect")
+public struct NetworkInspect { ... }
+
+@CLICommand("network connect")
+public struct NetworkConnect { ... }
+```
+
+**After:**
+```swift
+@CLICommand
+public struct Network {
+    @CLICommand
+    public struct Create { ... }
+
+    @CLICommand
+    public struct Inspect { ... }
+
+    @CLICommand
+    public struct Connect { ... }
+}
+```
+
+#### 2. SwiftCLI Package Commands → Nested Structure
+
+**Before:**
+```swift
+@CLICommand("package clean")
+public struct PackageClean { }
+```
+
+**After:**
+```swift
+@CLICommand
+public struct Package {
+    @CLICommand
+    public struct Clean { }
+}
+```
+
+#### 3. Removed Backwards Compatibility Code
+
+Removed space-splitting logic from `commandArguments`:
+
+**Before:**
+```swift
+public var commandArguments: [String] {
+    var result: [String] = []
+    // Add command path components (split any that contain spaces for backwards compatibility)
+    for pathComponent in Self.commandPath {
+        if pathComponent.contains(" ") {
+            result.append(contentsOf: pathComponent.split(separator: " ").map(String.init))
+        } else {
+            result.append(pathComponent)
+        }
+    }
+    // ...
+}
+```
+
+**After:**
+```swift
+public var commandArguments: [String] {
+    var result: [String] = []
+    // Add command path components
+    result.append(contentsOf: Self.commandPath)
+    // ...
+}
+```
+
+### Usage Updates
+
+All service usages updated:
+- `Docker.NetworkCreate(...)` → `Docker.Network.Create(...)`
+- `Docker.NetworkInspect(...)` → `Docker.Network.Inspect(...)`
+- `Docker.NetworkConnect(...)` → `Docker.Network.Connect(...)`
+- `SwiftCLI.PackageClean(...)` → `SwiftCLI.Package.Clean(...)`
+
+### Files Modified
+
+1. `Sources/SwiftDeploy/CLI/Docker.swift` - Nested Network structure
+2. `Sources/SwiftDeploy/CLI/SwiftCLI.swift` - Nested Package structure
+3. `Sources/SwiftDeploy/DockerServices/DockerService.swift` - Updated usages
+4. `Sources/SwiftDeploy/LambdaServices/XcodeLocalService.swift` - Updated usages
+5. `Sources/CLIKit/CLICommand.swift` - Removed backwards compatibility
+6. `Tests/SwiftDeployTests/DockerTests.swift` - Updated tests
+7. `Tests/SwiftDeployTests/SwiftCLITests.swift` - Updated tests
+
+### Test Results
+
+- **All 349 CLI-related tests pass** ✅
+- No more space-separated command declarations in codebase

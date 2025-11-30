@@ -254,7 +254,7 @@ public actor DockerService {
     /// Create a network
     public func createNetwork(name: String) async throws {
         let result = try await cliService.executeForResult(
-            Docker.NetworkCreate(name: name)
+            Docker.Network.Create(name: name)
         )
 
         guard result.isSuccess else {
@@ -269,7 +269,7 @@ public actor DockerService {
     /// Check if a network exists
     public func networkExists(name: String) async throws -> Bool {
         let result = try await cliService.executeForResult(
-            Docker.NetworkInspect(name: name),
+            Docker.Network.Inspect(name: name),
             printCommand: false
         )
 
@@ -279,7 +279,7 @@ public actor DockerService {
     /// Connect a container to a network
     public func connectToNetwork(container: String, network: String) async throws {
         let result = try await cliService.executeForResult(
-            Docker.NetworkConnect(network: network, container: container)
+            Docker.Network.Connect(network: network, container: container)
         )
 
         guard result.isSuccess else {
@@ -294,7 +294,7 @@ public actor DockerService {
     /// Check if a container is connected to a network
     public func isConnectedToNetwork(container: String, network: String) async throws -> Bool {
         let result = try await cliService.executeForResult(
-            Docker.NetworkInspect(name: network, format: "{{range .Containers}}{{.Name}}\n{{end}}"),
+            Docker.Network.Inspect(name: network, format: "{{range .Containers}}{{.Name}}\n{{end}}"),
             printCommand: false
         )
 

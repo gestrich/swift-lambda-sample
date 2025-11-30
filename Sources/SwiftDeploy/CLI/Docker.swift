@@ -136,34 +136,37 @@ public struct Docker {
 
     // MARK: - Network Commands
 
-    /// Docker network create command
-    /// Example: docker network create mynetwork
-    @CLICommand("network create")
-    public struct NetworkCreate {
-        /// Network name
-        @Positional public var name: String
-    }
+    @CLICommand
+    public struct Network {
+        /// Docker network create command
+        /// Example: docker network create mynetwork
+        @CLICommand
+        public struct Create {
+            /// Network name
+            @Positional public var name: String
+        }
 
-    /// Docker network inspect command
-    /// Example: docker network inspect mynetwork --format {{range .Containers}}{{.Name}}\n{{end}}
-    @CLICommand("network inspect")
-    public struct NetworkInspect {
-        /// Network name
-        @Positional public var name: String
+        /// Docker network inspect command
+        /// Example: docker network inspect mynetwork --format {{range .Containers}}{{.Name}}\n{{end}}
+        @CLICommand
+        public struct Inspect {
+            /// Network name
+            @Positional public var name: String
 
-        /// Format output using a Go template
-        @Option public var format: String?
-    }
+            /// Format output using a Go template
+            @Option public var format: String?
+        }
 
-    /// Docker network connect command
-    /// Example: docker network connect mynetwork mycontainer
-    @CLICommand("network connect")
-    public struct NetworkConnect {
-        /// Network name
-        @Positional public var network: String
+        /// Docker network connect command
+        /// Example: docker network connect mynetwork mycontainer
+        @CLICommand
+        public struct Connect {
+            /// Network name
+            @Positional public var network: String
 
-        /// Container name or ID
-        @Positional public var container: String
+            /// Container name or ID
+            @Positional public var container: String
+        }
     }
 }
 

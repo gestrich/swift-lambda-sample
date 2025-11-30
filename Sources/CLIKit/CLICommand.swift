@@ -18,14 +18,8 @@ extension CLICommand {
     /// The arguments to pass after the program name (includes subcommand and all flags/options)
     public var commandArguments: [String] {
         var result: [String] = []
-        // Add command path components (split any that contain spaces for backwards compatibility)
-        for pathComponent in Self.commandPath {
-            if pathComponent.contains(" ") {
-                result.append(contentsOf: pathComponent.split(separator: " ").map(String.init))
-            } else {
-                result.append(pathComponent)
-            }
-        }
+        // Add command path components
+        result.append(contentsOf: Self.commandPath)
         // Add all arguments
         for arg in arguments {
             result.append(contentsOf: arg.components)

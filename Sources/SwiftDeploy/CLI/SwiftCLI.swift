@@ -7,10 +7,13 @@ public struct SwiftCLI {
 
     // MARK: - Package Commands
 
-    /// Swift package clean command
-    /// Example: swift package clean
-    @CLICommand("package clean")
-    public struct PackageClean {
+    @CLICommand
+    public struct Package {
+        /// Swift package clean command
+        /// Example: swift package clean
+        @CLICommand
+        public struct Clean {
+        }
     }
 
     // MARK: - Build Commands

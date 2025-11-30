@@ -165,7 +165,7 @@ public class XcodeLocalService: LambdaService {
             buildState.appendOutput("🧹 Cleaning previous build artifacts...\n")
             do {
                 _ = try await cliService.execute(
-                    SwiftCLI.PackageClean(),
+                    SwiftCLI.Package.Clean(),
                     workingDirectory: workingDirectory,
                     printCommand: false
                 )
@@ -246,7 +246,7 @@ public class XcodeLocalService: LambdaService {
     /// Delete build artifacts and reset build state
     public func deleteBuild() async throws {
         _ = try await cliService.execute(
-            SwiftCLI.PackageClean(),
+            SwiftCLI.Package.Clean(),
             workingDirectory: workingDirectory,
             printCommand: false
         )
