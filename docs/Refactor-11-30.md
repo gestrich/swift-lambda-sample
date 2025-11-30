@@ -7,7 +7,7 @@
 | Step 1: BroadcastAsyncSequence | ✅ Complete | Created `Sources/CLIKit/BroadcastAsyncSequence.swift` |
 | Step 2: Unified Process Execution | ✅ Complete | Added `runProcess()`, `globalOutput`, `OutputAccumulator` |
 | Step 3: StreamingTextView | ✅ Complete | Added async sequence initializer with closure-based type erasure |
-| Step 4: SettingsView Integration | ⏳ Pending | |
+| Step 4: SettingsView Integration | ✅ Complete | Updated SettingsView to use `CLIService.globalOutput` directly |
 
 ### Implementation Notes
 
@@ -29,6 +29,16 @@
   - Allows `StreamingTextView` to remain non-generic while accepting any `AsyncSequence<StreamOutput, Never>`
 - Added `CLIKit` as direct dependency of `MacApp` target
 - Key constraint: `S.Failure == Never` ensures non-throwing async sequences only
+
+**Step 4 (Completed 2024-11-30):**
+
+- Simplified `SettingsView.unifiedOutputSection` to use `CLIService.globalOutput` directly
+- Removed dependency on `model.unifiedOutput` (the old `UnifiedOutputState`-based approach)
+- Added `import CLIKit` to SettingsView for access to `CLIService.globalOutput`
+- Enhanced `StreamingTextView` Clear button to reset internal `liveLines` state in stream mode
+  - Button now shows for stream mode even without explicit `onClear` callback
+  - Clears local state first, then calls optional external callback
+- The view now automatically subscribes to the global broadcast stream on appear
 
 **Test Results:**
 ```

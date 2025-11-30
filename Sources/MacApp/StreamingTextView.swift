@@ -113,11 +113,18 @@ struct StreamingTextView: View {
 
                 Spacer()
 
-                if let onClear = onClear {
-                    Button("Clear", action: onClear)
-                        .font(.caption2)
-                        .buttonStyle(.borderless)
-                        .disabled(isClearDisabled)
+                if onClear != nil || staticLines == nil {
+                    Button("Clear") {
+                        // Clear internal state for stream mode
+                        if staticLines == nil {
+                            liveLines = []
+                        }
+                        // Also call external callback if provided
+                        onClear?()
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.borderless)
+                    .disabled(isClearDisabled)
                 }
             }
         }

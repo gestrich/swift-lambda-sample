@@ -1,4 +1,5 @@
 import AppKit
+import CLIKit
 import Client
 import SwiftDeploy
 import SwiftUI
@@ -320,42 +321,11 @@ struct SettingsView: View {
     @ViewBuilder
     private var unifiedOutputSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Output")
-                    .font(.headline)
+            Text("Output")
+                .font(.headline)
 
-                Spacer()
-
-                if !model.unifiedOutput.outputLines.isEmpty {
-                    Button("Clear") {
-                        model.unifiedOutput.clear()
-                    }
-                    .font(.caption)
-                    .buttonStyle(.borderless)
-                    .disabled(model.unifiedOutput.isActive)
-                }
-            }
-
-            if model.unifiedOutput.outputLines.isEmpty {
-                Text("No output yet. Build or start Lambda to see output here.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-            } else {
-                StreamingTextView(
-                    lines: model.unifiedOutput.outputLines,
-                    isClearDisabled: model.unifiedOutput.isActive
-                ) {
-                    model.unifiedOutput.clear()
-                }
-            }
+            // Use global CLI output stream directly
+            StreamingTextView(stream: CLIService.globalOutput)
         }
     }
 }
