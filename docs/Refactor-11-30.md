@@ -1,5 +1,49 @@
 # Plan: Global CLI Output AsyncSequence
 
+## Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Step 1: BroadcastAsyncSequence | ✅ Complete | Created `Sources/CLIKit/BroadcastAsyncSequence.swift` |
+| Step 2: Unified Process Execution | ✅ Complete | Added `runProcess()`, `globalOutput`, `OutputAccumulator` |
+| Step 3: StreamingTextView | ⏳ Pending | |
+| Step 4: SettingsView Integration | ⏳ Pending | |
+
+### Implementation Notes
+
+**Step 1 & 2 (Completed 2024-11-30):**
+
+- Created `BroadcastAsyncSequence<Element>` - a multi-consumer `AsyncSequence` using UUID-keyed continuations
+- Added `OutputAccumulator` class for thread-safe string accumulation (avoids Sendable closure capture issues)
+- Unified `executeProcessInternal` and `streamProcess` into single `runProcess()` method
+- All CLI output now broadcasts to `CLIService.globalOutput` automatically
+- Added dev test command: `swift run SwiftDeployCLI dev test-global-stream`
+
+**Test Results:**
+```
+🧪 Testing BroadcastAsyncSequence with global CLI output stream
+   Subscribers: 2
+
+📡 Subscriber 1 started listening
+📡 Subscriber 2 started listening
+
+🚀 Running command: echo 'Hello from global stream test!'
+→ /bin/echo 'Hello from global stream test!'
+Hello from global stream test!
+   [Sub 2] stdout: Hello from global stream test!
+   [Sub 1] stdout: Hello from global stream test!
+
+📊 Command result:
+   Exit code: 0
+   [Sub 2] exit: 0
+   [Sub 1] exit: 0
+   Duration: 0.01s
+
+✅ Global stream test completed
+```
+
+---
+
 ## Terminology Clarification
 
 **AsyncSequence** is a Swift protocol (like `Sequence`, but async). Types conforming to it can be iterated with `for await`:

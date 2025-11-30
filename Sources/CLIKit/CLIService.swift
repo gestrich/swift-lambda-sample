@@ -1,9 +1,31 @@
 import Foundation
 
+/// Thread-safe string accumulator for capturing output in concurrent contexts
+private final class OutputAccumulator: @unchecked Sendable {
+    private var _value = ""
+    private let lock = NSLock()
+
+    var value: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return _value
+    }
+
+    func append(_ text: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        _value += text
+    }
+}
+
 /// A service for executing command-line operations with async/await support
 public actor CLIService {
     /// Shared instance for convenience
     public static let shared = CLIService()
+
+    /// Global output stream - broadcasts all CLI output to any subscriber
+    @MainActor
+    public static let globalOutput = BroadcastAsyncSequence<StreamOutput>()
 
     /// Pre-computed environment with common paths
     private let defaultEnvironment: [String: String]
@@ -306,15 +328,26 @@ public actor CLIService {
         )
     }
 
-    private func executeProcessInternal(
+    /// Unified process execution - always streams output in real-time and broadcasts to global stream
+    /// - Parameters:
+    ///   - command: Executable path
+    ///   - arguments: Command arguments
+    ///   - workingDirectory: Working directory
+    ///   - environment: Environment variables
+    ///   - timeout: Optional timeout
+    ///   - inheritIO: If true, inherit stdin/stdout/stderr (no capture)
+    ///   - commandContinuation: Optional per-command stream continuation
+    /// - Returns: ExecutionResult with accumulated stdout/stderr
+    private func runProcess(
         command: String,
         arguments: [String],
         workingDirectory: String?,
         environment: [String: String],
         timeout: TimeInterval?,
-        startTime: Date,
-        inheritIO: Bool
+        inheritIO: Bool,
+        commandContinuation: AsyncStream<StreamOutput>.Continuation?
     ) throws -> ExecutionResult {
+        let startTime = Date()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: command)
         process.arguments = arguments
@@ -324,26 +357,60 @@ public actor CLIService {
             process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         }
 
+        // Thread-safe accumulators for ExecutionResult
+        let stdoutAccumulator = OutputAccumulator()
+        let stderrAccumulator = OutputAccumulator()
+
         let outputPipe: Pipe?
         let errorPipe: Pipe?
 
         if inheritIO {
-            // For interactive commands, inherit stdin/stdout/stderr
             process.standardInput = FileHandle.standardInput
             process.standardOutput = FileHandle.standardOutput
             process.standardError = FileHandle.standardError
             outputPipe = nil
             errorPipe = nil
         } else {
-            // For non-interactive commands, capture output
             let outPipe = Pipe()
             let errPipe = Pipe()
             process.standardOutput = outPipe
             process.standardError = errPipe
             outputPipe = outPipe
             errorPipe = errPipe
+
+            // Real-time output handling (always)
+            outPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if !data.isEmpty, let text = String(data: data, encoding: .utf8) {
+                    stdoutAccumulator.append(text)
+                    print(text, terminator: "")
+
+                    // Yield to per-command stream (if provided)
+                    commandContinuation?.yield(.stdout(text))
+
+                    // Broadcast to global stream
+                    Task { @MainActor in
+                        Self.globalOutput.yield(.stdout(text))
+                    }
+                }
+            }
+
+            errPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if !data.isEmpty, let text = String(data: data, encoding: .utf8) {
+                    stderrAccumulator.append(text)
+                    print(text, terminator: "")
+
+                    commandContinuation?.yield(.stderr(text))
+
+                    Task { @MainActor in
+                        Self.globalOutput.yield(.stderr(text))
+                    }
+                }
+            }
         }
 
+        // Timeout handling
         var timeoutTask: Task<Void, Never>?
         if let timeout {
             timeoutTask = Task {
@@ -359,31 +426,54 @@ public actor CLIService {
 
         timeoutTask?.cancel()
 
-        // Read output after process completes (only if not inheriting IO)
-        let stdout: String
-        let stderr: String
+        // Clean up handlers
+        outputPipe?.fileHandleForReading.readabilityHandler = nil
+        errorPipe?.fileHandleForReading.readabilityHandler = nil
 
-        if inheritIO {
-            stdout = ""
-            stderr = ""
-        } else {
-            let outputData = outputPipe!.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe!.fileHandleForReading.readDataToEndOfFile()
-            stdout = String(data: outputData, encoding: .utf8) ?? ""
-            stderr = String(data: errorData, encoding: .utf8) ?? ""
-        }
-
+        let exitCode = process.terminationStatus
         let duration = Date().timeIntervalSince(startTime)
 
-        if let timeout, duration >= timeout && process.terminationStatus != 0 {
-            throw CLIServiceError.timeout(command: "\(command) \(arguments.joined(separator: " "))", duration: timeout)
+        // Yield exit to streams
+        commandContinuation?.yield(.exit(exitCode))
+        commandContinuation?.finish()
+
+        Task { @MainActor in
+            Self.globalOutput.yield(.exit(exitCode))
+        }
+
+        // Check timeout
+        if let timeout, duration >= timeout && exitCode != 0 {
+            throw CLIServiceError.timeout(
+                command: "\(command) \(arguments.joined(separator: " "))",
+                duration: timeout
+            )
         }
 
         return ExecutionResult(
-            exitCode: process.terminationStatus,
-            stdout: stdout,
-            stderr: stderr,
+            exitCode: exitCode,
+            stdout: stdoutAccumulator.value,
+            stderr: stderrAccumulator.value,
             duration: duration
+        )
+    }
+
+    private func executeProcessInternal(
+        command: String,
+        arguments: [String],
+        workingDirectory: String?,
+        environment: [String: String],
+        timeout: TimeInterval?,
+        startTime _: Date,
+        inheritIO: Bool
+    ) throws -> ExecutionResult {
+        try runProcess(
+            command: command,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            timeout: timeout,
+            inheritIO: inheritIO,
+            commandContinuation: nil
         )
     }
 
@@ -517,47 +607,15 @@ public actor CLIService {
         environment: [String: String],
         continuation: AsyncStream<StreamOutput>.Continuation
     ) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: command)
-        process.arguments = arguments
-        process.environment = environment
-
-        if let workingDirectory {
-            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
-        }
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        // Set up output handling with readability handlers
-        outputPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty, let text = String(data: data, encoding: .utf8) {
-                // Print stdout in real-time and yield to stream
-                print(text, terminator: "")
-                continuation.yield(.stdout(text))
-            }
-        }
-
-        errorPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty, let text = String(data: data, encoding: .utf8) {
-                // Print stderr in real-time and yield to stream
-                print(text, terminator: "")
-                continuation.yield(.stderr(text))
-            }
-        }
-
-        try process.run()
-        process.waitUntilExit()
-
-        // Clean up
-        outputPipe.fileHandleForReading.readabilityHandler = nil
-        errorPipe.fileHandleForReading.readabilityHandler = nil
-
-        continuation.yield(.exit(process.terminationStatus))
-        continuation.finish()
+        // Use unified runProcess - it handles continuation and global broadcast
+        _ = try runProcess(
+            command: command,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            environment: environment,
+            timeout: nil,
+            inheritIO: false,
+            commandContinuation: continuation
+        )
     }
 }
