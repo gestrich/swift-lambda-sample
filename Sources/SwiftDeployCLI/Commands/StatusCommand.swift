@@ -47,7 +47,7 @@ extension AWSCommand {
         // GitHub Actions status
         do {
             let repoInfo = try await gitService.getRepoInfo()
-            let githubService = GitHubService(owner: repoInfo.owner, repo: repoInfo.name)
+            let githubService = GitHubService(repoPath: projectRoot, owner: repoInfo.owner, repo: repoInfo.name)
             let (status, conclusion) = try await githubService.getLatestRunStatus(branch: currentBranch)
 
             print("\n🔄 GitHub Actions:")

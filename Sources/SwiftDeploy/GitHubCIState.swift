@@ -6,6 +6,53 @@ import Observation
 @MainActor
 @Observable
 public final class GitHubCIState {
+    // MARK: - Properties
+
+    public private(set) var status: Status = .unknown
+    public private(set) var runDetail: GitHubRunDetail?
+    public private(set) var hasUnpushedCommits: Bool = false
+    public private(set) var hasUncommittedChanges: Bool = false
+    public private(set) var currentBranch: String = ""
+
+    // MARK: - Public Methods
+
+    public nonisolated init() {}
+
+    public func setLoading() {
+        status = .loading
+        runDetail = nil
+    }
+
+    public func setIdle(lastRun: WorkflowRunInfo?) {
+        status = .idle(lastRun: lastRun)
+    }
+
+    public func setDeploying(runId: String) {
+        status = .deploying(runId: runId)
+    }
+
+    public func updateRunDetail(_ detail: GitHubRunDetail) {
+        runDetail = detail
+    }
+
+    public func setSuccess(runId: String) {
+        status = .success(runId: runId)
+    }
+
+    public func setFailed(runId: String, reason: String) {
+        status = .failed(runId: runId, reason: reason)
+    }
+
+    public func updateGitStatus(hasUnpushedCommits: Bool, hasUncommittedChanges: Bool, branch: String) {
+        self.hasUnpushedCommits = hasUnpushedCommits
+        self.hasUncommittedChanges = hasUncommittedChanges
+        self.currentBranch = branch
+    }
+
+    public func clearRunDetail() {
+        runDetail = nil
+    }
+    
     /// Current status of the GitHub Actions workflow
     public enum Status: Equatable, Sendable {
         case unknown
@@ -77,52 +124,5 @@ public final class GitHubCIState {
             formatter.unitsStyle = .abbreviated
             return formatter.localizedString(for: createdAt, relativeTo: Date())
         }
-    }
-
-    // MARK: - Properties
-
-    public private(set) var status: Status = .unknown
-    public private(set) var runDetail: GitHubRunDetail?
-    public private(set) var hasUnpushedCommits: Bool = false
-    public private(set) var hasUncommittedChanges: Bool = false
-    public private(set) var currentBranch: String = ""
-
-    // MARK: - Public Methods
-
-    public init() {}
-
-    public func setLoading() {
-        status = .loading
-        runDetail = nil
-    }
-
-    public func setIdle(lastRun: WorkflowRunInfo?) {
-        status = .idle(lastRun: lastRun)
-    }
-
-    public func setDeploying(runId: String) {
-        status = .deploying(runId: runId)
-    }
-
-    public func updateRunDetail(_ detail: GitHubRunDetail) {
-        runDetail = detail
-    }
-
-    public func setSuccess(runId: String) {
-        status = .success(runId: runId)
-    }
-
-    public func setFailed(runId: String, reason: String) {
-        status = .failed(runId: runId, reason: reason)
-    }
-
-    public func updateGitStatus(hasUnpushedCommits: Bool, hasUncommittedChanges: Bool, branch: String) {
-        self.hasUnpushedCommits = hasUnpushedCommits
-        self.hasUncommittedChanges = hasUncommittedChanges
-        self.currentBranch = branch
-    }
-
-    public func clearRunDetail() {
-        runDetail = nil
     }
 }
