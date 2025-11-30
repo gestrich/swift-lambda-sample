@@ -36,7 +36,8 @@ let package = Package(
             name: "CLIKit",
             dependencies: [
                 .target(name: "CLIMacros"),
-            ]
+            ],
+            exclude: ["README.md"]
         ),
         .target(
             name: "LocalStorageService"

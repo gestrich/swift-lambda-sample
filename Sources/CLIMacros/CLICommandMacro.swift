@@ -59,17 +59,27 @@ public struct CLICommandMacro: ExtensionMacro, MemberMacro {
         // Generate commandPath array literal
         let commandPathLiteral = commandPath.map { "\"\($0)\"" }.joined(separator: ", ")
 
+        // If no arguments code, use a simpler implementation to avoid "var never mutated" warning
+        let argumentsProperty: String
+        if argumentsCode.isEmpty {
+            argumentsProperty = "public var arguments: [CLIArgument] { [] }"
+        } else {
+            argumentsProperty = """
+            public var arguments: [CLIArgument] {
+                    var args: [CLIArgument] = []
+                    \(argumentsCode)
+                    return args
+                }
+            """
+        }
+
         let extensionDecl = try ExtensionDeclSyntax("extension \(type): CLICommand") {
             """
             public typealias Program = \(raw: programType)
 
             public static var commandPath: [String] { [\(raw: commandPathLiteral)] }
 
-            public var arguments: [CLIArgument] {
-                var args: [CLIArgument] = []
-                \(raw: argumentsCode)
-                return args
-            }
+            \(raw: argumentsProperty)
             """
         }
 
