@@ -7,128 +7,143 @@ public struct Gh {
 
     // MARK: - Run Commands
 
-    /// GitHub CLI run list command
-    /// Example: gh run list --repo owner/repo --branch dev --limit 5 --json databaseId,status
-    @CLICommand("run list")
-    public struct RunList {
-        /// Repository in owner/repo format
-        @Option public var repo: String
+    @CLICommand("run")
+    public struct Run {
+        /// GitHub CLI run list command
+        /// Example: gh run list --repo owner/repo --branch dev --limit 5 --json databaseId,status
+        @CLICommand("list")
+        public struct List {
+            /// Repository in owner/repo format
+            @Option public var repo: String
 
-        /// Filter by branch name
-        @Option public var branch: String?
+            /// Filter by branch name
+            @Option public var branch: String?
 
-        /// Maximum number of runs to return
-        @Option public var limit: String?
+            /// Maximum number of runs to return
+            @Option public var limit: String?
 
-        /// Filter by workflow file name
-        @Option public var workflow: String?
+            /// Filter by workflow file name
+            @Option public var workflow: String?
 
-        /// JSON fields to output
-        @Option public var json: String?
-    }
+            /// JSON fields to output
+            @Option public var json: String?
+        }
 
-    /// GitHub CLI run watch command
-    /// Example: gh run watch 12345 --repo owner/repo
-    @CLICommand("run watch")
-    public struct RunWatch {
-        /// Run ID to watch (optional - watches latest if not provided)
-        @Positional public var runId: String?
+        /// GitHub CLI run watch command
+        /// Example: gh run watch 12345 --repo owner/repo
+        @CLICommand("watch")
+        public struct Watch {
+            /// Run ID to watch (optional - watches latest if not provided)
+            @Positional public var runId: String?
 
-        /// Repository in owner/repo format
-        @Option public var repo: String
-    }
+            /// Repository in owner/repo format
+            @Option public var repo: String
+        }
 
-    /// GitHub CLI run view command
-    /// Example: gh run view 12345 --repo owner/repo --log
-    @CLICommand("run view")
-    public struct RunView {
-        /// Run ID to view
-        @Positional public var runId: String
+        /// GitHub CLI run view command
+        /// Example: gh run view 12345 --repo owner/repo --log
+        @CLICommand("view")
+        public struct View {
+            /// Run ID to view
+            @Positional public var runId: String
 
-        /// Repository in owner/repo format
-        @Option public var repo: String
+            /// Repository in owner/repo format
+            @Option public var repo: String
 
-        /// Show full log output
-        @Flag public var log: Bool = false
+            /// Show full log output
+            @Flag public var log: Bool = false
+        }
     }
 
     // MARK: - Workflow Commands
 
-    /// GitHub CLI workflow run command
-    /// Example: gh workflow run deploy.yml --repo owner/repo --ref dev
-    @CLICommand("workflow run")
-    public struct WorkflowRun {
-        /// Workflow file name or ID
-        @Positional public var workflow: String
+    @CLICommand("workflow")
+    public struct Workflow {
+        /// GitHub CLI workflow run command
+        /// Example: gh workflow run deploy.yml --repo owner/repo --ref dev
+        @CLICommand("run")
+        public struct Run {
+            /// Workflow file name or ID
+            @Positional public var workflow: String
 
-        /// Repository in owner/repo format
-        @Option public var repo: String
+            /// Repository in owner/repo format
+            @Option public var repo: String
 
-        /// Git reference (branch, tag, or SHA)
-        @Option("--ref") public var ref: String?
+            /// Git reference (branch, tag, or SHA)
+            @Option("--ref") public var ref: String?
+        }
     }
 
     // MARK: - Pull Request Commands
 
-    /// GitHub CLI pr create command
-    /// Example: gh pr create --repo owner/repo --title "My PR" --body "Description" --base main --head feature
-    @CLICommand("pr create")
-    public struct PrCreate {
-        /// Repository in owner/repo format
-        @Option public var repo: String
+    @CLICommand("pr")
+    public struct Pr {
+        /// GitHub CLI pr create command
+        /// Example: gh pr create --repo owner/repo --title "My PR" --body "Description" --base main --head feature
+        @CLICommand("create")
+        public struct Create {
+            /// Repository in owner/repo format
+            @Option public var repo: String
 
-        /// Pull request title
-        @Option public var title: String
+            /// Pull request title
+            @Option public var title: String
 
-        /// Pull request body
-        @Option public var body: String
+            /// Pull request body
+            @Option public var body: String
 
-        /// Base branch
-        @Option public var base: String?
+            /// Base branch
+            @Option public var base: String?
 
-        /// Head branch
-        @Option public var head: String?
-    }
+            /// Head branch
+            @Option public var head: String?
+        }
 
-    /// GitHub CLI pr list command
-    /// Example: gh pr list --repo owner/repo --state open --json number,title --limit 10
-    @CLICommand("pr list")
-    public struct PrList {
-        /// Repository in owner/repo format
-        @Option public var repo: String
+        /// GitHub CLI pr list command
+        /// Example: gh pr list --repo owner/repo --state open --json number,title --limit 10
+        @CLICommand("list")
+        public struct List {
+            /// Repository in owner/repo format
+            @Option public var repo: String
 
-        /// State filter (open, closed, merged, all)
-        @Option public var state: String?
+            /// State filter (open, closed, merged, all)
+            @Option public var state: String?
 
-        /// JSON fields to output
-        @Option public var json: String?
+            /// JSON fields to output
+            @Option public var json: String?
 
-        /// Maximum number of PRs to return
-        @Option public var limit: String?
+            /// Maximum number of PRs to return
+            @Option public var limit: String?
+        }
     }
 
     // MARK: - Issue Commands
 
-    /// GitHub CLI issue create command
-    /// Example: gh issue create --repo owner/repo --title "Bug" --body "Description"
-    @CLICommand("issue create")
-    public struct IssueCreate {
-        /// Repository in owner/repo format
-        @Option public var repo: String
+    @CLICommand("issue")
+    public struct Issue {
+        /// GitHub CLI issue create command
+        /// Example: gh issue create --repo owner/repo --title "Bug" --body "Description"
+        @CLICommand("create")
+        public struct Create {
+            /// Repository in owner/repo format
+            @Option public var repo: String
 
-        /// Issue title
-        @Option public var title: String
+            /// Issue title
+            @Option public var title: String
 
-        /// Issue body
-        @Option public var body: String
+            /// Issue body
+            @Option public var body: String
+        }
     }
 
     // MARK: - Auth Commands
 
-    /// GitHub CLI auth status command
-    /// Example: gh auth status
-    @CLICommand("auth status")
-    public struct AuthStatus {
+    @CLICommand("auth")
+    public struct Auth {
+        /// GitHub CLI auth status command
+        /// Example: gh auth status
+        @CLICommand("status")
+        public struct Status {
+        }
     }
 }
 

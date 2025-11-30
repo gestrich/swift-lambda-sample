@@ -19,7 +19,7 @@ public actor GitHubCLIService {
         limit: Int = 5,
         workflow: String? = nil
     ) async throws -> [GitHubWorkflowRun] {
-        let command = Gh.RunList(
+        let command = Gh.Run.List(
             repo: repository,
             branch: branch,
             limit: String(limit),
@@ -49,7 +49,7 @@ public actor GitHubCLIService {
 
     /// Watch a workflow run (polls until completion)
     public func watchWorkflowRun(runId: String? = nil) async throws {
-        let command = Gh.RunWatch(runId: runId, repo: repository)
+        let command = Gh.Run.Watch(runId: runId, repo: repository)
 
         let result = try await cliService.executeForResult(command)
 
@@ -64,7 +64,7 @@ public actor GitHubCLIService {
 
     /// View workflow run details
     public func viewWorkflowRun(runId: String, showLog: Bool = false) async throws -> String {
-        let command = Gh.RunView(runId: runId, repo: repository, log: showLog)
+        let command = Gh.Run.View(runId: runId, repo: repository, log: showLog)
 
         let result = try await cliService.executeForResult(command, printCommand: false)
 
@@ -84,7 +84,7 @@ public actor GitHubCLIService {
         workflow: String,
         branch: String = "dev"
     ) async throws {
-        let command = Gh.WorkflowRun(workflow: workflow, repo: repository, ref: branch)
+        let command = Gh.Workflow.Run(workflow: workflow, repo: repository, ref: branch)
 
         let result = try await cliService.executeForResult(command)
 
@@ -106,7 +106,7 @@ public actor GitHubCLIService {
         base: String = "main",
         head: String? = nil
     ) async throws -> String {
-        let command = Gh.PrCreate(
+        let command = Gh.Pr.Create(
             repo: repository,
             title: title,
             body: body,
@@ -129,7 +129,7 @@ public actor GitHubCLIService {
 
     /// List pull requests
     public func listPullRequests(state: String = "open") async throws -> [GitHubPullRequest] {
-        let command = Gh.PrList(
+        let command = Gh.Pr.List(
             repo: repository,
             state: state,
             json: "number,title,state,headRefName,createdAt",
@@ -154,7 +154,7 @@ public actor GitHubCLIService {
 
     /// Create an issue
     public func createIssue(title: String, body: String) async throws -> String {
-        let command = Gh.IssueCreate(repo: repository, title: title, body: body)
+        let command = Gh.Issue.Create(repo: repository, title: title, body: body)
 
         let result = try await cliService.executeForResult(command)
 
@@ -173,7 +173,7 @@ public actor GitHubCLIService {
 
     /// Check if gh CLI is installed and authenticated
     public func checkAuthentication() async throws -> Bool {
-        let command = Gh.AuthStatus()
+        let command = Gh.Auth.Status()
         let result = try await cliService.executeForResult(command, printCommand: false)
         return result.isSuccess
     }

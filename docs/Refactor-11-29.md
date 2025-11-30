@@ -469,7 +469,8 @@ All usages updated to new nested type paths.
 
 - **CLIKit tests**: 96/96 passed ✅
 - **AWS CLI tests**: 51/51 passed ✅
-- **Full test suite**: Some pre-existing failures in Docker and GitHub CLI tests (unrelated to this refactor)
+- **GitHub CLI tests**: 53/53 passed ✅
+- **Full test suite**: Some pre-existing failures in Docker tests (unrelated to this refactor)
 
 ### Files Modified
 
@@ -480,3 +481,80 @@ All usages updated to new nested type paths.
 5. `Sources/SwiftDeploy/CLI/Aws.swift` - Nested structure refactor
 6. `Sources/SwiftDeploy/Services/AWSCLIService.swift` - Usage updates
 7. `Tests/SwiftDeployTests/AWSCLITests.swift` - Test updates
+8. `Sources/SwiftDeploy/CLI/Gh.swift` - GitHub CLI nested structure refactor
+9. `Sources/SwiftDeploy/Services/GitHubCLIService.swift` - GitHub CLI usage updates
+10. `Tests/SwiftDeployTests/GitHubCLITests.swift` - GitHub CLI test updates
+
+---
+
+## GitHub CLI Refactor (November 30, 2025)
+
+### Overview
+
+Extended the nested `@CLICommand` refactor to the GitHub CLI (`Gh.swift`), converting flat space-separated commands to true nested structs.
+
+### Changes
+
+#### Before (Flat Structure)
+```swift
+@CLIProgram
+public struct Gh {
+    @CLICommand("run list")
+    public struct RunList { ... }
+
+    @CLICommand("pr create")
+    public struct PrCreate { ... }
+
+    @CLICommand("auth status")
+    public struct AuthStatus { ... }
+}
+```
+
+#### After (Nested Structure)
+```swift
+@CLIProgram
+public struct Gh {
+    @CLICommand("run")
+    public struct Run {
+        @CLICommand("list")
+        public struct List { ... }
+
+        @CLICommand("watch")
+        public struct Watch { ... }
+
+        @CLICommand("view")
+        public struct View { ... }
+    }
+
+    @CLICommand("pr")
+    public struct Pr {
+        @CLICommand("create")
+        public struct Create { ... }
+
+        @CLICommand("list")
+        public struct List { ... }
+    }
+
+    @CLICommand("auth")
+    public struct Auth {
+        @CLICommand("status")
+        public struct Status { ... }
+    }
+}
+```
+
+### Usage Updates
+
+All service usages updated from flat to nested paths:
+- `Gh.RunList(...)` → `Gh.Run.List(...)`
+- `Gh.RunWatch(...)` → `Gh.Run.Watch(...)`
+- `Gh.RunView(...)` → `Gh.Run.View(...)`
+- `Gh.WorkflowRun(...)` → `Gh.Workflow.Run(...)`
+- `Gh.PrCreate(...)` → `Gh.Pr.Create(...)`
+- `Gh.PrList(...)` → `Gh.Pr.List(...)`
+- `Gh.IssueCreate(...)` → `Gh.Issue.Create(...)`
+- `Gh.AuthStatus(...)` → `Gh.Auth.Status(...)`
+
+### Test Results
+
+All 53 GitHub CLI tests pass with the new nested structure. Tests verify both `commandPath` arrays and `commandName` backward-compatible strings.

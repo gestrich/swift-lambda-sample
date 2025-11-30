@@ -16,23 +16,28 @@ struct GitHubCLITests {
 @Suite("Run List Tests")
 struct RunListTests {
 
-    @Test("RunList command name")
+    @Test("Run.List command name")
     func testCommandName() {
-        #expect(Gh.RunList.commandName == "run list")
+        #expect(Gh.Run.List.commandName == "run list")
     }
 
-    @Test("RunList minimal command line")
+    @Test("Run.List commandPath")
+    func testCommandPath() {
+        #expect(Gh.Run.List.commandPath == ["run", "list"])
+    }
+
+    @Test("Run.List minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Gh.RunList(repo: "owner/repo")
+        let cmd = Gh.Run.List(repo: "owner/repo")
         #expect(cmd.commandLine == [
             "gh", "run", "list",
             "--repo", "owner/repo"
         ])
     }
 
-    @Test("RunList with branch")
+    @Test("Run.List with branch")
     func testWithBranch() {
-        let cmd = Gh.RunList(repo: "owner/repo", branch: "dev")
+        let cmd = Gh.Run.List(repo: "owner/repo", branch: "dev")
         #expect(cmd.commandLine == [
             "gh", "run", "list",
             "--repo", "owner/repo",
@@ -40,9 +45,9 @@ struct RunListTests {
         ])
     }
 
-    @Test("RunList with limit")
+    @Test("Run.List with limit")
     func testWithLimit() {
-        let cmd = Gh.RunList(repo: "owner/repo", limit: "5")
+        let cmd = Gh.Run.List(repo: "owner/repo", limit: "5")
         #expect(cmd.commandLine == [
             "gh", "run", "list",
             "--repo", "owner/repo",
@@ -50,9 +55,9 @@ struct RunListTests {
         ])
     }
 
-    @Test("RunList with workflow")
+    @Test("Run.List with workflow")
     func testWithWorkflow() {
-        let cmd = Gh.RunList(repo: "owner/repo", workflow: "deploy.yml")
+        let cmd = Gh.Run.List(repo: "owner/repo", workflow: "deploy.yml")
         #expect(cmd.commandLine == [
             "gh", "run", "list",
             "--repo", "owner/repo",
@@ -60,9 +65,9 @@ struct RunListTests {
         ])
     }
 
-    @Test("RunList with JSON fields")
+    @Test("Run.List with JSON fields")
     func testWithJson() {
-        let cmd = Gh.RunList(repo: "owner/repo", json: "databaseId,status,conclusion")
+        let cmd = Gh.Run.List(repo: "owner/repo", json: "databaseId,status,conclusion")
         #expect(cmd.commandLine == [
             "gh", "run", "list",
             "--repo", "owner/repo",
@@ -70,9 +75,9 @@ struct RunListTests {
         ])
     }
 
-    @Test("RunList with all options")
+    @Test("Run.List with all options")
     func testWithAllOptions() {
-        let cmd = Gh.RunList(
+        let cmd = Gh.Run.List(
             repo: "owner/repo",
             branch: "main",
             limit: "10",
@@ -89,9 +94,9 @@ struct RunListTests {
         ])
     }
 
-    @Test("RunList command string")
+    @Test("Run.List command string")
     func testCommandString() {
-        let cmd = Gh.RunList(repo: "owner/repo", branch: "dev", limit: "5")
+        let cmd = Gh.Run.List(repo: "owner/repo", branch: "dev", limit: "5")
         #expect(cmd.commandString == "gh run list --repo owner/repo --branch dev --limit 5")
     }
 }
@@ -99,23 +104,28 @@ struct RunListTests {
 @Suite("Run Watch Tests")
 struct RunWatchTests {
 
-    @Test("RunWatch command name")
+    @Test("Run.Watch command name")
     func testCommandName() {
-        #expect(Gh.RunWatch.commandName == "run watch")
+        #expect(Gh.Run.Watch.commandName == "run watch")
     }
 
-    @Test("RunWatch minimal command line")
+    @Test("Run.Watch commandPath")
+    func testCommandPath() {
+        #expect(Gh.Run.Watch.commandPath == ["run", "watch"])
+    }
+
+    @Test("Run.Watch minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Gh.RunWatch(repo: "owner/repo")
+        let cmd = Gh.Run.Watch(repo: "owner/repo")
         #expect(cmd.commandLine == [
             "gh", "run", "watch",
             "--repo", "owner/repo"
         ])
     }
 
-    @Test("RunWatch with run ID")
+    @Test("Run.Watch with run ID")
     func testWithRunId() {
-        let cmd = Gh.RunWatch(runId: "12345", repo: "owner/repo")
+        let cmd = Gh.Run.Watch(runId: "12345", repo: "owner/repo")
         #expect(cmd.commandLine == [
             "gh", "run", "watch",
             "12345",
@@ -123,9 +133,9 @@ struct RunWatchTests {
         ])
     }
 
-    @Test("RunWatch command string")
+    @Test("Run.Watch command string")
     func testCommandString() {
-        let cmd = Gh.RunWatch(runId: "12345", repo: "owner/repo")
+        let cmd = Gh.Run.Watch(runId: "12345", repo: "owner/repo")
         #expect(cmd.commandString == "gh run watch 12345 --repo owner/repo")
     }
 }
@@ -133,14 +143,19 @@ struct RunWatchTests {
 @Suite("Run View Tests")
 struct RunViewTests {
 
-    @Test("RunView command name")
+    @Test("Run.View command name")
     func testCommandName() {
-        #expect(Gh.RunView.commandName == "run view")
+        #expect(Gh.Run.View.commandName == "run view")
     }
 
-    @Test("RunView minimal command line")
+    @Test("Run.View commandPath")
+    func testCommandPath() {
+        #expect(Gh.Run.View.commandPath == ["run", "view"])
+    }
+
+    @Test("Run.View minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Gh.RunView(runId: "12345", repo: "owner/repo")
+        let cmd = Gh.Run.View(runId: "12345", repo: "owner/repo")
         #expect(cmd.commandLine == [
             "gh", "run", "view",
             "12345",
@@ -148,9 +163,9 @@ struct RunViewTests {
         ])
     }
 
-    @Test("RunView with log flag")
+    @Test("Run.View with log flag")
     func testWithLogFlag() {
-        let cmd = Gh.RunView(runId: "12345", repo: "owner/repo", log: true)
+        let cmd = Gh.Run.View(runId: "12345", repo: "owner/repo", log: true)
         #expect(cmd.commandLine == [
             "gh", "run", "view",
             "12345",
@@ -159,9 +174,9 @@ struct RunViewTests {
         ])
     }
 
-    @Test("RunView command string")
+    @Test("Run.View command string")
     func testCommandString() {
-        let cmd = Gh.RunView(runId: "12345", repo: "owner/repo", log: true)
+        let cmd = Gh.Run.View(runId: "12345", repo: "owner/repo", log: true)
         #expect(cmd.commandString == "gh run view 12345 --repo owner/repo --log")
     }
 }
@@ -171,14 +186,19 @@ struct RunViewTests {
 @Suite("Workflow Run Tests")
 struct WorkflowRunTests {
 
-    @Test("WorkflowRun command name")
+    @Test("Workflow.Run command name")
     func testCommandName() {
-        #expect(Gh.WorkflowRun.commandName == "workflow run")
+        #expect(Gh.Workflow.Run.commandName == "workflow run")
     }
 
-    @Test("WorkflowRun minimal command line")
+    @Test("Workflow.Run commandPath")
+    func testCommandPath() {
+        #expect(Gh.Workflow.Run.commandPath == ["workflow", "run"])
+    }
+
+    @Test("Workflow.Run minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Gh.WorkflowRun(workflow: "deploy.yml", repo: "owner/repo")
+        let cmd = Gh.Workflow.Run(workflow: "deploy.yml", repo: "owner/repo")
         #expect(cmd.commandLine == [
             "gh", "workflow", "run",
             "deploy.yml",
@@ -186,9 +206,9 @@ struct WorkflowRunTests {
         ])
     }
 
-    @Test("WorkflowRun with ref")
+    @Test("Workflow.Run with ref")
     func testWithRef() {
-        let cmd = Gh.WorkflowRun(workflow: "deploy.yml", repo: "owner/repo", ref: "dev")
+        let cmd = Gh.Workflow.Run(workflow: "deploy.yml", repo: "owner/repo", ref: "dev")
         #expect(cmd.commandLine == [
             "gh", "workflow", "run",
             "deploy.yml",
@@ -197,9 +217,9 @@ struct WorkflowRunTests {
         ])
     }
 
-    @Test("WorkflowRun command string")
+    @Test("Workflow.Run command string")
     func testCommandString() {
-        let cmd = Gh.WorkflowRun(workflow: "deploy.yml", repo: "owner/repo", ref: "main")
+        let cmd = Gh.Workflow.Run(workflow: "deploy.yml", repo: "owner/repo", ref: "main")
         #expect(cmd.commandString == "gh workflow run deploy.yml --repo owner/repo --ref main")
     }
 }
@@ -209,14 +229,19 @@ struct WorkflowRunTests {
 @Suite("PR Create Tests")
 struct PrCreateTests {
 
-    @Test("PrCreate command name")
+    @Test("Pr.Create command name")
     func testCommandName() {
-        #expect(Gh.PrCreate.commandName == "pr create")
+        #expect(Gh.Pr.Create.commandName == "pr create")
     }
 
-    @Test("PrCreate minimal command line")
+    @Test("Pr.Create commandPath")
+    func testCommandPath() {
+        #expect(Gh.Pr.Create.commandPath == ["pr", "create"])
+    }
+
+    @Test("Pr.Create minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Gh.PrCreate(repo: "owner/repo", title: "My PR", body: "Description")
+        let cmd = Gh.Pr.Create(repo: "owner/repo", title: "My PR", body: "Description")
         #expect(cmd.commandLine == [
             "gh", "pr", "create",
             "--repo", "owner/repo",
@@ -225,9 +250,9 @@ struct PrCreateTests {
         ])
     }
 
-    @Test("PrCreate with base branch")
+    @Test("Pr.Create with base branch")
     func testWithBaseBranch() {
-        let cmd = Gh.PrCreate(
+        let cmd = Gh.Pr.Create(
             repo: "owner/repo",
             title: "My PR",
             body: "Description",
@@ -242,9 +267,9 @@ struct PrCreateTests {
         ])
     }
 
-    @Test("PrCreate with head branch")
+    @Test("Pr.Create with head branch")
     func testWithHeadBranch() {
-        let cmd = Gh.PrCreate(
+        let cmd = Gh.Pr.Create(
             repo: "owner/repo",
             title: "My PR",
             body: "Description",
@@ -259,9 +284,9 @@ struct PrCreateTests {
         ])
     }
 
-    @Test("PrCreate with all options")
+    @Test("Pr.Create with all options")
     func testWithAllOptions() {
-        let cmd = Gh.PrCreate(
+        let cmd = Gh.Pr.Create(
             repo: "owner/repo",
             title: "My PR",
             body: "Description",
@@ -278,9 +303,9 @@ struct PrCreateTests {
         ])
     }
 
-    @Test("PrCreate command string")
+    @Test("Pr.Create command string")
     func testCommandString() {
-        let cmd = Gh.PrCreate(repo: "owner/repo", title: "My PR", body: "Description")
+        let cmd = Gh.Pr.Create(repo: "owner/repo", title: "My PR", body: "Description")
         #expect(cmd.commandString == "gh pr create --repo owner/repo --title \"My PR\" --body Description")
     }
 }
@@ -288,23 +313,28 @@ struct PrCreateTests {
 @Suite("PR List Tests")
 struct PrListTests {
 
-    @Test("PrList command name")
+    @Test("Pr.List command name")
     func testCommandName() {
-        #expect(Gh.PrList.commandName == "pr list")
+        #expect(Gh.Pr.List.commandName == "pr list")
     }
 
-    @Test("PrList minimal command line")
+    @Test("Pr.List commandPath")
+    func testCommandPath() {
+        #expect(Gh.Pr.List.commandPath == ["pr", "list"])
+    }
+
+    @Test("Pr.List minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Gh.PrList(repo: "owner/repo")
+        let cmd = Gh.Pr.List(repo: "owner/repo")
         #expect(cmd.commandLine == [
             "gh", "pr", "list",
             "--repo", "owner/repo"
         ])
     }
 
-    @Test("PrList with state")
+    @Test("Pr.List with state")
     func testWithState() {
-        let cmd = Gh.PrList(repo: "owner/repo", state: "open")
+        let cmd = Gh.Pr.List(repo: "owner/repo", state: "open")
         #expect(cmd.commandLine == [
             "gh", "pr", "list",
             "--repo", "owner/repo",
@@ -312,9 +342,9 @@ struct PrListTests {
         ])
     }
 
-    @Test("PrList with JSON fields")
+    @Test("Pr.List with JSON fields")
     func testWithJson() {
-        let cmd = Gh.PrList(repo: "owner/repo", json: "number,title,state")
+        let cmd = Gh.Pr.List(repo: "owner/repo", json: "number,title,state")
         #expect(cmd.commandLine == [
             "gh", "pr", "list",
             "--repo", "owner/repo",
@@ -322,9 +352,9 @@ struct PrListTests {
         ])
     }
 
-    @Test("PrList with limit")
+    @Test("Pr.List with limit")
     func testWithLimit() {
-        let cmd = Gh.PrList(repo: "owner/repo", limit: "10")
+        let cmd = Gh.Pr.List(repo: "owner/repo", limit: "10")
         #expect(cmd.commandLine == [
             "gh", "pr", "list",
             "--repo", "owner/repo",
@@ -332,9 +362,9 @@ struct PrListTests {
         ])
     }
 
-    @Test("PrList with all options")
+    @Test("Pr.List with all options")
     func testWithAllOptions() {
-        let cmd = Gh.PrList(
+        let cmd = Gh.Pr.List(
             repo: "owner/repo",
             state: "closed",
             json: "number,title",
@@ -349,9 +379,9 @@ struct PrListTests {
         ])
     }
 
-    @Test("PrList command string")
+    @Test("Pr.List command string")
     func testCommandString() {
-        let cmd = Gh.PrList(repo: "owner/repo", state: "open", limit: "5")
+        let cmd = Gh.Pr.List(repo: "owner/repo", state: "open", limit: "5")
         #expect(cmd.commandString == "gh pr list --repo owner/repo --state open --limit 5")
     }
 }
@@ -361,14 +391,19 @@ struct PrListTests {
 @Suite("Issue Create Tests")
 struct IssueCreateTests {
 
-    @Test("IssueCreate command name")
+    @Test("Issue.Create command name")
     func testCommandName() {
-        #expect(Gh.IssueCreate.commandName == "issue create")
+        #expect(Gh.Issue.Create.commandName == "issue create")
     }
 
-    @Test("IssueCreate command line")
+    @Test("Issue.Create commandPath")
+    func testCommandPath() {
+        #expect(Gh.Issue.Create.commandPath == ["issue", "create"])
+    }
+
+    @Test("Issue.Create command line")
     func testCommandLine() {
-        let cmd = Gh.IssueCreate(repo: "owner/repo", title: "Bug Report", body: "Description of bug")
+        let cmd = Gh.Issue.Create(repo: "owner/repo", title: "Bug Report", body: "Description of bug")
         #expect(cmd.commandLine == [
             "gh", "issue", "create",
             "--repo", "owner/repo",
@@ -377,9 +412,9 @@ struct IssueCreateTests {
         ])
     }
 
-    @Test("IssueCreate command string")
+    @Test("Issue.Create command string")
     func testCommandString() {
-        let cmd = Gh.IssueCreate(repo: "owner/repo", title: "Bug", body: "Details")
+        let cmd = Gh.Issue.Create(repo: "owner/repo", title: "Bug", body: "Details")
         #expect(cmd.commandString == "gh issue create --repo owner/repo --title Bug --body Details")
     }
 }
@@ -389,22 +424,27 @@ struct IssueCreateTests {
 @Suite("Auth Status Tests")
 struct AuthStatusTests {
 
-    @Test("AuthStatus command name")
+    @Test("Auth.Status command name")
     func testCommandName() {
-        #expect(Gh.AuthStatus.commandName == "auth status")
+        #expect(Gh.Auth.Status.commandName == "auth status")
     }
 
-    @Test("AuthStatus command line")
+    @Test("Auth.Status commandPath")
+    func testCommandPath() {
+        #expect(Gh.Auth.Status.commandPath == ["auth", "status"])
+    }
+
+    @Test("Auth.Status command line")
     func testCommandLine() {
-        let cmd = Gh.AuthStatus()
+        let cmd = Gh.Auth.Status()
         #expect(cmd.commandLine == [
             "gh", "auth", "status"
         ])
     }
 
-    @Test("AuthStatus command string")
+    @Test("Auth.Status command string")
     func testCommandString() {
-        let cmd = Gh.AuthStatus()
+        let cmd = Gh.Auth.Status()
         #expect(cmd.commandString == "gh auth status")
     }
 }
