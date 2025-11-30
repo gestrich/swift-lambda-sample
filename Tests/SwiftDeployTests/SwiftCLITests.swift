@@ -16,9 +16,9 @@ struct SwiftCLITests {
 @Suite("Swift Package Clean Tests")
 struct SwiftPackageCleanTests {
 
-    @Test("PackageClean command name")
-    func testCommandName() {
-        #expect(SwiftCLI.PackageClean.commandName == "package clean")
+    @Test("PackageClean command path")
+    func testCommandPath() {
+        #expect(SwiftCLI.PackageClean.commandPath == ["package clean"])
     }
 
     @Test("PackageClean command line")
@@ -39,9 +39,9 @@ struct SwiftPackageCleanTests {
 @Suite("Swift Build Tests")
 struct SwiftBuildTests {
 
-    @Test("Build command name")
-    func testCommandName() {
-        #expect(SwiftCLI.Build.commandName == "build")
+    @Test("Build command path")
+    func testCommandPath() {
+        #expect(SwiftCLI.Build.commandPath == ["build"])
     }
 
     @Test("Build minimal command line")

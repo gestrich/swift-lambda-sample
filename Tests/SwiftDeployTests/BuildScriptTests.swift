@@ -16,9 +16,9 @@ struct BuildScriptCLITests {
 @Suite("BuildScript Build Command Tests")
 struct BuildScriptBuildTests {
 
-    @Test("Build command name is empty (root command)")
-    func testCommandName() {
-        #expect(BuildScript.Build.commandName == "")
+    @Test("Build command path is empty (root command)")
+    func testCommandPath() {
+        #expect(BuildScript.Build.commandPath == [])
     }
 
     @Test("Build with target only")

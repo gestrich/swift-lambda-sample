@@ -16,9 +16,9 @@ struct DockerCLITests {
 @Suite("Docker Info Tests")
 struct DockerInfoTests {
 
-    @Test("Info command name")
-    func testCommandName() {
-        #expect(Docker.Info.commandName == "info")
+    @Test("Info command path")
+    func testCommandPath() {
+        #expect(Docker.Info.commandPath == ["info"])
     }
 
     @Test("Info command line")
@@ -39,9 +39,9 @@ struct DockerInfoTests {
 @Suite("Docker Run Tests")
 struct DockerRunTests {
 
-    @Test("Run command name")
-    func testCommandName() {
-        #expect(Docker.Run.commandName == "run")
+    @Test("Run command path")
+    func testCommandPath() {
+        #expect(Docker.Run.commandPath == ["run"])
     }
 
     @Test("Run minimal command line")
@@ -190,9 +190,9 @@ struct DockerRunTests {
 @Suite("Docker Stop Tests")
 struct DockerStopTests {
 
-    @Test("Stop command name")
-    func testCommandName() {
-        #expect(Docker.Stop.commandName == "stop")
+    @Test("Stop command path")
+    func testCommandPath() {
+        #expect(Docker.Stop.commandPath == ["stop"])
     }
 
     @Test("Stop command line")
@@ -211,9 +211,9 @@ struct DockerStopTests {
 @Suite("Docker Rm Tests")
 struct DockerRmTests {
 
-    @Test("Rm command name")
-    func testCommandName() {
-        #expect(Docker.Rm.commandName == "rm")
+    @Test("Rm command path")
+    func testCommandPath() {
+        #expect(Docker.Rm.commandPath == ["rm"])
     }
 
     @Test("Rm command line")
@@ -232,9 +232,9 @@ struct DockerRmTests {
 @Suite("Docker Ps Tests")
 struct DockerPsTests {
 
-    @Test("Ps command name")
-    func testCommandName() {
-        #expect(Docker.Ps.commandName == "ps")
+    @Test("Ps command path")
+    func testCommandPath() {
+        #expect(Docker.Ps.commandPath == ["ps"])
     }
 
     @Test("Ps minimal command line")
@@ -283,9 +283,9 @@ struct DockerPsTests {
 @Suite("Docker Logs Tests")
 struct DockerLogsTests {
 
-    @Test("Logs command name")
-    func testCommandName() {
-        #expect(Docker.Logs.commandName == "logs")
+    @Test("Logs command path")
+    func testCommandPath() {
+        #expect(Docker.Logs.commandPath == ["logs"])
     }
 
     @Test("Logs minimal command line")
@@ -330,9 +330,9 @@ struct DockerLogsTests {
 @Suite("Docker Build Tests")
 struct DockerBuildTests {
 
-    @Test("Build command name")
-    func testCommandName() {
-        #expect(Docker.Build.commandName == "build")
+    @Test("Build command path")
+    func testCommandPath() {
+        #expect(Docker.Build.commandPath == ["build"])
     }
 
     @Test("Build minimal command line")
@@ -416,9 +416,9 @@ struct DockerBuildTests {
 @Suite("Docker Network Create Tests")
 struct DockerNetworkCreateTests {
 
-    @Test("NetworkCreate command name")
-    func testCommandName() {
-        #expect(Docker.NetworkCreate.commandName == "network create")
+    @Test("NetworkCreate command path")
+    func testCommandPath() {
+        #expect(Docker.NetworkCreate.commandPath == ["network create"])
     }
 
     @Test("NetworkCreate command line")
@@ -437,9 +437,9 @@ struct DockerNetworkCreateTests {
 @Suite("Docker Network Inspect Tests")
 struct DockerNetworkInspectTests {
 
-    @Test("NetworkInspect command name")
-    func testCommandName() {
-        #expect(Docker.NetworkInspect.commandName == "network inspect")
+    @Test("NetworkInspect command path")
+    func testCommandPath() {
+        #expect(Docker.NetworkInspect.commandPath == ["network inspect"])
     }
 
     @Test("NetworkInspect minimal command line")
@@ -468,9 +468,9 @@ struct DockerNetworkInspectTests {
 @Suite("Docker Network Connect Tests")
 struct DockerNetworkConnectTests {
 
-    @Test("NetworkConnect command name")
-    func testCommandName() {
-        #expect(Docker.NetworkConnect.commandName == "network connect")
+    @Test("NetworkConnect command path")
+    func testCommandPath() {
+        #expect(Docker.NetworkConnect.commandPath == ["network connect"])
     }
 
     @Test("NetworkConnect command line")

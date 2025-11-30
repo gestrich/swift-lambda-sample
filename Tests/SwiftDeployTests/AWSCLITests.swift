@@ -16,11 +16,6 @@ struct AWSCLITests {
 @Suite("CloudFormation DescribeStacks Tests")
 struct CloudFormationDescribeStacksTests {
 
-    @Test("CloudFormation.DescribeStacks command name")
-    func testCommandName() {
-        #expect(Aws.CloudFormation.DescribeStacks.commandName == "cloudformation describe-stacks")
-    }
-
     @Test("CloudFormation.DescribeStacks commandPath")
     func testCommandPath() {
         #expect(Aws.CloudFormation.DescribeStacks.commandPath == ["cloudformation", "describe-stacks"])
@@ -78,11 +73,6 @@ struct CloudFormationDescribeStacksTests {
 @Suite("CloudFormation DescribeStackResources Tests")
 struct CloudFormationDescribeStackResourcesTests {
 
-    @Test("CloudFormation.DescribeStackResources command name")
-    func testCommandName() {
-        #expect(Aws.CloudFormation.DescribeStackResources.commandName == "cloudformation describe-stack-resources")
-    }
-
     @Test("CloudFormation.DescribeStackResources commandPath")
     func testCommandPath() {
         #expect(Aws.CloudFormation.DescribeStackResources.commandPath == ["cloudformation", "describe-stack-resources"])
@@ -119,11 +109,6 @@ struct CloudFormationDescribeStackResourcesTests {
 @Suite("Lambda UpdateFunctionCode Tests")
 struct LambdaUpdateFunctionCodeTests {
 
-    @Test("Lambda.UpdateFunctionCode command name")
-    func testCommandName() {
-        #expect(Aws.Lambda.UpdateFunctionCode.commandName == "lambda update-function-code")
-    }
-
     @Test("Lambda.UpdateFunctionCode commandPath")
     func testCommandPath() {
         #expect(Aws.Lambda.UpdateFunctionCode.commandPath == ["lambda", "update-function-code"])
@@ -157,11 +142,6 @@ struct LambdaUpdateFunctionCodeTests {
 
 @Suite("Lambda GetFunction Tests")
 struct LambdaGetFunctionTests {
-
-    @Test("Lambda.GetFunction command name")
-    func testCommandName() {
-        #expect(Aws.Lambda.GetFunction.commandName == "lambda get-function")
-    }
 
     @Test("Lambda.GetFunction commandPath")
     func testCommandPath() {
@@ -198,11 +178,6 @@ struct LambdaGetFunctionTests {
 
 @Suite("Logs Tail Tests")
 struct LogsTailTests {
-
-    @Test("Logs.Tail command name")
-    func testCommandName() {
-        #expect(Aws.Logs.Tail.commandName == "logs tail")
-    }
 
     @Test("Logs.Tail commandPath")
     func testCommandPath() {
@@ -276,11 +251,6 @@ struct LogsTailTests {
 @Suite("S3 Ls Tests")
 struct S3LsTests {
 
-    @Test("S3.Ls command name")
-    func testCommandName() {
-        #expect(Aws.S3.Ls.commandName == "s3 ls")
-    }
-
     @Test("S3.Ls commandPath")
     func testCommandPath() {
         #expect(Aws.S3.Ls.commandPath == ["s3", "ls"])
@@ -309,11 +279,6 @@ struct S3LsTests {
 
 @Suite("S3 Cp Tests")
 struct S3CpTests {
-
-    @Test("S3.Cp command name")
-    func testCommandName() {
-        #expect(Aws.S3.Cp.commandName == "s3 cp")
-    }
 
     @Test("S3.Cp commandPath")
     func testCommandPath() {
@@ -371,11 +336,6 @@ struct S3CpTests {
 @Suite("SecretsManager GetSecretValue Tests")
 struct SecretsManagerGetSecretValueTests {
 
-    @Test("SecretsManager.GetSecretValue command name")
-    func testCommandName() {
-        #expect(Aws.SecretsManager.GetSecretValue.commandName == "secretsmanager get-secret-value")
-    }
-
     @Test("SecretsManager.GetSecretValue commandPath")
     func testCommandPath() {
         #expect(Aws.SecretsManager.GetSecretValue.commandPath == ["secretsmanager", "get-secret-value"])
@@ -411,11 +371,6 @@ struct SecretsManagerGetSecretValueTests {
 
 @Suite("SecretsManager ListSecrets Tests")
 struct SecretsManagerListSecretsTests {
-
-    @Test("SecretsManager.ListSecrets command name")
-    func testCommandName() {
-        #expect(Aws.SecretsManager.ListSecrets.commandName == "secretsmanager list-secrets")
-    }
 
     @Test("SecretsManager.ListSecrets commandPath")
     func testCommandPath() {

@@ -463,7 +463,7 @@ All usages updated to new nested type paths.
 
 3. **Namespace structs**: Intermediate structs (like `CloudFormation` with no properties) don't need initializers. The macro detects this and skips init generation.
 
-4. **Legacy compatibility**: The `commandName` computed property provides backward compatibility for code that expects a space-separated string.
+4. **Space-separated command paths**: Commands using `@CLICommand("network create")` store the full string as a single `commandPath` element. The `commandArguments` property automatically splits these when building the command line for execution.
 
 ### Test Results
 
@@ -557,4 +557,93 @@ All service usages updated from flat to nested paths:
 
 ### Test Results
 
-All 53 GitHub CLI tests pass with the new nested structure. Tests verify both `commandPath` arrays and `commandName` backward-compatible strings.
+All 53 GitHub CLI tests pass with the new nested structure. Tests verify `commandPath` arrays.
+
+---
+
+## Remove Legacy commandName Property (November 30, 2025)
+
+### Overview
+
+Removed the legacy `commandName` computed property that provided a space-separated string representation of the command path. All code now uses `commandPath: [String]` directly.
+
+### Changes
+
+#### 1. CLICommand Protocol (`Sources/CLIKit/CLICommand.swift`)
+
+Removed:
+```swift
+/// Legacy support: commandName as a space-separated string
+/// Prefer using commandPath directly for new code
+public static var commandName: String {
+    commandPath.joined(separator: " ")
+}
+```
+
+Updated `commandArguments` to split space-separated path elements:
+```swift
+public var commandArguments: [String] {
+    var result: [String] = []
+    // Add command path components (split any that contain spaces for backwards compatibility)
+    for pathComponent in Self.commandPath {
+        if pathComponent.contains(" ") {
+            result.append(contentsOf: pathComponent.split(separator: " ").map(String.init))
+        } else {
+            result.append(pathComponent)
+        }
+    }
+    // Add all arguments
+    for arg in arguments {
+        result.append(contentsOf: arg.components)
+    }
+    return result
+}
+```
+
+#### 2. Test Updates
+
+All tests updated to use `commandPath` instead of `commandName`:
+
+**Before:**
+```swift
+#expect(Docker.Info.commandName == "info")
+#expect(Aws.CloudFormation.DescribeStacks.commandName == "cloudformation describe-stacks")
+```
+
+**After:**
+```swift
+#expect(Docker.Info.commandPath == ["info"])
+#expect(Aws.CloudFormation.DescribeStacks.commandPath == ["cloudformation", "describe-stacks"])
+```
+
+**Note on space-separated commands:**
+Commands using flat `@CLICommand("network create")` style have single-element paths:
+```swift
+#expect(Docker.NetworkCreate.commandPath == ["network create"])  // Single element
+#expect(SwiftCLI.PackageClean.commandPath == ["package clean"])  // Single element
+```
+
+The `commandArguments` property automatically splits these when building the command line.
+
+#### 3. Documentation Updates
+
+Updated `docs/Migrate-CLI.md` to reference `commandPath` instead of `commandName` in testing guidelines.
+
+### Files Modified
+
+1. `Sources/CLIKit/CLICommand.swift` - Removed `commandName`, updated `commandArguments`
+2. `Tests/SwiftDeployTests/DockerTests.swift` - Updated to `commandPath`
+3. `Tests/SwiftDeployTests/AWSCLITests.swift` - Removed redundant `commandName` tests
+4. `Tests/SwiftDeployTests/GitHubCLITests.swift` - Removed redundant `commandName` tests
+5. `Tests/SwiftDeployTests/CDKTests.swift` - Updated to `commandPath`
+6. `Tests/SwiftDeployTests/NpmTests.swift` - Updated to `commandPath`
+7. `Tests/SwiftDeployTests/CurlTests.swift` - Updated to `commandPath`
+8. `Tests/SwiftDeployTests/SwiftCLITests.swift` - Updated to `commandPath`
+9. `Tests/SwiftDeployTests/BuildScriptTests.swift` - Updated to `commandPath`
+10. `Tests/CLIKitTests/CLIKitTests.swift` - Updated to `commandPath`
+11. `docs/Migrate-CLI.md` - Updated testing guidelines
+
+### Test Results
+
+- **All 349 CLI-related tests pass** ✅
+- Tests verify `commandPath` arrays and `commandLine`/`commandString` outputs

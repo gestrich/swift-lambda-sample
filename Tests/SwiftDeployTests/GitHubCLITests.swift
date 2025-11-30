@@ -16,11 +16,6 @@ struct GitHubCLITests {
 @Suite("Run List Tests")
 struct RunListTests {
 
-    @Test("Run.List command name")
-    func testCommandName() {
-        #expect(Gh.Run.List.commandName == "run list")
-    }
-
     @Test("Run.List commandPath")
     func testCommandPath() {
         #expect(Gh.Run.List.commandPath == ["run", "list"])
@@ -104,11 +99,6 @@ struct RunListTests {
 @Suite("Run Watch Tests")
 struct RunWatchTests {
 
-    @Test("Run.Watch command name")
-    func testCommandName() {
-        #expect(Gh.Run.Watch.commandName == "run watch")
-    }
-
     @Test("Run.Watch commandPath")
     func testCommandPath() {
         #expect(Gh.Run.Watch.commandPath == ["run", "watch"])
@@ -142,11 +132,6 @@ struct RunWatchTests {
 
 @Suite("Run View Tests")
 struct RunViewTests {
-
-    @Test("Run.View command name")
-    func testCommandName() {
-        #expect(Gh.Run.View.commandName == "run view")
-    }
 
     @Test("Run.View commandPath")
     func testCommandPath() {
@@ -186,11 +171,6 @@ struct RunViewTests {
 @Suite("Workflow Run Tests")
 struct WorkflowRunTests {
 
-    @Test("Workflow.Run command name")
-    func testCommandName() {
-        #expect(Gh.Workflow.Run.commandName == "workflow run")
-    }
-
     @Test("Workflow.Run commandPath")
     func testCommandPath() {
         #expect(Gh.Workflow.Run.commandPath == ["workflow", "run"])
@@ -228,11 +208,6 @@ struct WorkflowRunTests {
 
 @Suite("PR Create Tests")
 struct PrCreateTests {
-
-    @Test("Pr.Create command name")
-    func testCommandName() {
-        #expect(Gh.Pr.Create.commandName == "pr create")
-    }
 
     @Test("Pr.Create commandPath")
     func testCommandPath() {
@@ -313,11 +288,6 @@ struct PrCreateTests {
 @Suite("PR List Tests")
 struct PrListTests {
 
-    @Test("Pr.List command name")
-    func testCommandName() {
-        #expect(Gh.Pr.List.commandName == "pr list")
-    }
-
     @Test("Pr.List commandPath")
     func testCommandPath() {
         #expect(Gh.Pr.List.commandPath == ["pr", "list"])
@@ -391,11 +361,6 @@ struct PrListTests {
 @Suite("Issue Create Tests")
 struct IssueCreateTests {
 
-    @Test("Issue.Create command name")
-    func testCommandName() {
-        #expect(Gh.Issue.Create.commandName == "issue create")
-    }
-
     @Test("Issue.Create commandPath")
     func testCommandPath() {
         #expect(Gh.Issue.Create.commandPath == ["issue", "create"])
@@ -423,11 +388,6 @@ struct IssueCreateTests {
 
 @Suite("Auth Status Tests")
 struct AuthStatusTests {
-
-    @Test("Auth.Status command name")
-    func testCommandName() {
-        #expect(Gh.Auth.Status.commandName == "auth status")
-    }
 
     @Test("Auth.Status commandPath")
     func testCommandPath() {

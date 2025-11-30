@@ -386,7 +386,7 @@ swift test --filter "Lsof Command Tests"
 
 For each `@CLICommand`:
 1. **Program name** - `#expect(Program.programName == "expected")`
-2. **Command name** - `#expect(Command.commandName == "expected")`
+2. **Command path** - `#expect(Command.commandPath == ["expected", "path"])`
 3. **Minimal usage** - Command with only required arguments
 4. **With flags** - Command with boolean flags enabled
 5. **With options** - Command with optional values provided

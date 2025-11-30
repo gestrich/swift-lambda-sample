@@ -15,17 +15,17 @@ public protocol CLICommand: Sendable {
 // MARK: - Default Implementations
 
 extension CLICommand {
-    /// Legacy support: commandName as a space-separated string
-    /// Prefer using commandPath directly for new code
-    public static var commandName: String {
-        commandPath.joined(separator: " ")
-    }
-
     /// The arguments to pass after the program name (includes subcommand and all flags/options)
     public var commandArguments: [String] {
         var result: [String] = []
-        // Add command path components
-        result.append(contentsOf: Self.commandPath)
+        // Add command path components (split any that contain spaces for backwards compatibility)
+        for pathComponent in Self.commandPath {
+            if pathComponent.contains(" ") {
+                result.append(contentsOf: pathComponent.split(separator: " ").map(String.init))
+            } else {
+                result.append(pathComponent)
+            }
+        }
         // Add all arguments
         for arg in arguments {
             result.append(contentsOf: arg.components)

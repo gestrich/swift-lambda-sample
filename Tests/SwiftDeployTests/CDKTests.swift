@@ -16,9 +16,9 @@ struct CDKCLITests {
 @Suite("CDK Deploy Tests")
 struct CDKDeployTests {
 
-    @Test("Deploy command name")
-    func testCommandName() {
-        #expect(Cdk.Deploy.commandName == "deploy")
+    @Test("Deploy command path")
+    func testCommandPath() {
+        #expect(Cdk.Deploy.commandPath == ["deploy"])
     }
 
     @Test("Deploy minimal command line")
@@ -109,9 +109,9 @@ struct CDKDeployTests {
 @Suite("CDK Destroy Tests")
 struct CDKDestroyTests {
 
-    @Test("Destroy command name")
-    func testCommandName() {
-        #expect(Cdk.Destroy.commandName == "destroy")
+    @Test("Destroy command path")
+    func testCommandPath() {
+        #expect(Cdk.Destroy.commandPath == ["destroy"])
     }
 
     @Test("Destroy minimal command line")
@@ -148,9 +148,9 @@ struct CDKDestroyTests {
 @Suite("CDK Diff Tests")
 struct CDKDiffTests {
 
-    @Test("Diff command name")
-    func testCommandName() {
-        #expect(Cdk.Diff.commandName == "diff")
+    @Test("Diff command path")
+    func testCommandPath() {
+        #expect(Cdk.Diff.commandPath == ["diff"])
     }
 
     @Test("Diff minimal command line")
@@ -177,9 +177,9 @@ struct CDKDiffTests {
 @Suite("CDK Synth Tests")
 struct CDKSynthTests {
 
-    @Test("Synth command name")
-    func testCommandName() {
-        #expect(Cdk.Synth.commandName == "synth")
+    @Test("Synth command path")
+    func testCommandPath() {
+        #expect(Cdk.Synth.commandPath == ["synth"])
     }
 
     @Test("Synth minimal command line")
@@ -206,9 +206,9 @@ struct CDKSynthTests {
 @Suite("CDK List Tests")
 struct CDKListTests {
 
-    @Test("List command name")
-    func testCommandName() {
-        #expect(Cdk.List.commandName == "list")
+    @Test("List command path")
+    func testCommandPath() {
+        #expect(Cdk.List.commandPath == ["list"])
     }
 
     @Test("List minimal command line")
@@ -235,9 +235,9 @@ struct CDKListTests {
 @Suite("CDK Bootstrap Tests")
 struct CDKBootstrapTests {
 
-    @Test("Bootstrap command name")
-    func testCommandName() {
-        #expect(Cdk.Bootstrap.commandName == "bootstrap")
+    @Test("Bootstrap command path")
+    func testCommandPath() {
+        #expect(Cdk.Bootstrap.commandPath == ["bootstrap"])
     }
 
     @Test("Bootstrap minimal command line")

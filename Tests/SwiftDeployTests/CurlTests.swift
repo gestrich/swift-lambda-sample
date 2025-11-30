@@ -16,9 +16,9 @@ struct CurlCLITests {
 @Suite("curl Request Tests")
 struct CurlRequestTests {
 
-    @Test("Request command name is empty (root command)")
-    func testCommandName() {
-        #expect(Curl.Request.commandName == "")
+    @Test("Request command path is empty (root command)")
+    func testCommandPath() {
+        #expect(Curl.Request.commandPath == [])
     }
 
     @Test("Simple GET request")

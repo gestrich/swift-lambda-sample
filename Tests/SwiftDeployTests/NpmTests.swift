@@ -16,9 +16,9 @@ struct NpmCLITests {
 @Suite("npm Run Tests")
 struct NpmRunTests {
 
-    @Test("Run command name")
-    func testCommandName() {
-        #expect(Npm.Run.commandName == "run")
+    @Test("Run command path")
+    func testCommandPath() {
+        #expect(Npm.Run.commandPath == ["run"])
     }
 
     @Test("Run build script")
@@ -51,9 +51,9 @@ struct NpmRunTests {
 @Suite("npm Install Tests")
 struct NpmInstallTests {
 
-    @Test("Install command name")
-    func testCommandName() {
-        #expect(Npm.Install.commandName == "install")
+    @Test("Install command path")
+    func testCommandPath() {
+        #expect(Npm.Install.commandPath == ["install"])
     }
 
     @Test("Install without package (all dependencies)")

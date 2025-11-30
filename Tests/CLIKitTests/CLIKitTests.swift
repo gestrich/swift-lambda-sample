@@ -63,9 +63,9 @@ struct GitCommandTests {
         #expect(Git.programName == "git")
     }
 
-    @Test("Git.Merge command name")
-    func testCommandName() {
-        #expect(Git.Merge.commandName == "merge")
+    @Test("Git.Merge command path")
+    func testCommandPath() {
+        #expect(Git.Merge.commandPath == ["merge"])
     }
 
     @Test("Git.Merge simple usage")
@@ -130,9 +130,9 @@ struct GitCommandTests {
         #expect(status.commandLine == ["git", "status", "--porcelain"])
     }
 
-    @Test("Git.RevList command name")
-    func testRevListCommandName() {
-        #expect(Git.RevList.commandName == "rev-list")
+    @Test("Git.RevList command path")
+    func testRevListCommandPath() {
+        #expect(Git.RevList.commandPath == ["rev-list"])
     }
 
     @Test("Git.RevList simple usage")
@@ -147,9 +147,9 @@ struct GitCommandTests {
         #expect(cmd.commandLine == ["git", "rev-list", "--count", "@{u}..HEAD"])
     }
 
-    @Test("Git.Branch command name")
-    func testBranchCommandName() {
-        #expect(Git.Branch.commandName == "branch")
+    @Test("Git.Branch command path")
+    func testBranchCommandPath() {
+        #expect(Git.Branch.commandPath == ["branch"])
     }
 
     @Test("Git.Branch simple usage")
@@ -164,9 +164,9 @@ struct GitCommandTests {
         #expect(cmd.commandLine == ["git", "branch", "--show-current"])
     }
 
-    @Test("Git.Push command name")
-    func testPushCommandName() {
-        #expect(Git.Push.commandName == "push")
+    @Test("Git.Push command path")
+    func testPushCommandPath() {
+        #expect(Git.Push.commandPath == ["push"])
     }
 
     @Test("Git.Push simple usage")
@@ -187,9 +187,9 @@ struct GitCommandTests {
         #expect(cmd.commandLine == ["git", "push", "origin"])
     }
 
-    @Test("Git.Config command name")
-    func testConfigCommandName() {
-        #expect(Git.Config.commandName == "config")
+    @Test("Git.Config command path")
+    func testConfigCommandPath() {
+        #expect(Git.Config.commandPath == ["config"])
     }
 
     @Test("Git.Config with get flag")
