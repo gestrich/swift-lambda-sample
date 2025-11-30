@@ -39,18 +39,18 @@ struct DeployView: View {
 
                     Divider()
 
-                    // MARK: - Docker Services Section
-                    dockerServicesSection
+                    // MARK: - Local-Only Sections (Docker Services, Build, Lambda)
+                    if !model.mode.isRemote {
+                        dockerServicesSection
 
-                    Divider()
+                        Divider()
 
-                    // MARK: - Build Section
-                    buildSection
+                        buildSection
 
-                    Divider()
+                        Divider()
 
-                    // MARK: - Lambda Section
-                    lambdaSection
+                        lambdaSection
+                    }
                 }
                 .padding(20)
             }
@@ -135,12 +135,6 @@ struct DeployView: View {
                 onStart: { try await model.startDatabase() },
                 onStop: { try await model.stopDatabase() }
             )
-
-            if model.mode.isRemote {
-                Text("Docker services are only available in local modes.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
         }
     }
 
