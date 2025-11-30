@@ -260,14 +260,20 @@ class MacAppModel: LambdaService {
     // MARK: - Init
 
     init() {
-        self.workingDirectory = Self.resolveProjectDirectory()
+        let projectDirectory = Self.resolveProjectDirectory()
+        self.workingDirectory = projectDirectory
 
         // Load mode from UserDefaults
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? "remote"
-        self.mode = ConnectionMode.from(key: savedKey, workingDirectory: workingDirectory)
+        self.mode = ConnectionMode.from(key: savedKey, workingDirectory: projectDirectory)
 
         // Subscribe to service publishers
         subscribeToService(mode)
+
+        // Set default working directory for CLIService (after init completes)
+        Task {
+            await CLIService.shared.setDefaultWorkingDirectory(projectDirectory)
+        }
     }
 
     /// Path to the app config file

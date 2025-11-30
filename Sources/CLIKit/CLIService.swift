@@ -18,10 +18,15 @@ public actor CLIService {
     /// Pre-computed environment with common paths
     private let defaultEnvironment: [String: String]
 
+    /// Default working directory for commands (nil uses current directory)
+    private var defaultWorkingDirectory: String?
+
     /// Cache for executable paths
     private var executableCache: [String: String] = [:]
 
-    public init() {
+    public init(defaultWorkingDirectory: String? = nil) {
+        self.defaultWorkingDirectory = defaultWorkingDirectory
+
         // Pre-compute environment with git paths
         var environment = ProcessInfo.processInfo.environment
         let currentPath = environment["PATH"] ?? ""
@@ -38,6 +43,11 @@ public actor CLIService {
 
         environment["PATH"] = updatedPathComponents.joined(separator: ":")
         self.defaultEnvironment = environment
+    }
+
+    /// Set the default working directory for all commands
+    public func setDefaultWorkingDirectory(_ directory: String?) {
+        self.defaultWorkingDirectory = directory
     }
 
     /// Execute a command with full control over the execution environment
@@ -73,7 +83,7 @@ public actor CLIService {
             return try await executeProcess(
                 command: info.resolvedCommand,
                 arguments: arguments,
-                workingDirectory: workingDirectory,
+                workingDirectory: info.effectiveWorkingDirectory,
                 environment: info.processEnvironment,
                 timeout: timeout,
                 startTime: Date(),
@@ -155,7 +165,7 @@ public actor CLIService {
                     try self.streamProcess(
                         command: info.resolvedCommand,
                         arguments: arguments,
-                        workingDirectory: workingDirectory,
+                        workingDirectory: info.effectiveWorkingDirectory,
                         environment: info.processEnvironment,
                         commandID: info.commandID,
                         continuation: continuation
@@ -239,6 +249,7 @@ public actor CLIService {
     private struct PreparedCommand {
         let commandID: CommandID
         let resolvedCommand: String
+        let effectiveWorkingDirectory: String?
         let processEnvironment: [String: String]
     }
 
@@ -254,10 +265,13 @@ public actor CLIService {
     ) async -> Result<PreparedCommand, Error> {
         let commandID = CommandID()
 
+        // Use provided working directory or fall back to default
+        let effectiveWorkingDirectory = workingDirectory ?? defaultWorkingDirectory
+
         // Resolve command path
         let resolvedCommand: String
         do {
-            resolvedCommand = try resolveCommand(command, workingDirectory: workingDirectory)
+            resolvedCommand = try resolveCommand(command, workingDirectory: effectiveWorkingDirectory)
         } catch {
             // Send command and error to streams so UI shows what failed
             let commandLine = "→ \(command) \(arguments.joined(separator: " "))\n"
@@ -305,6 +319,7 @@ public actor CLIService {
         return .success(PreparedCommand(
             commandID: commandID,
             resolvedCommand: resolvedCommand,
+            effectiveWorkingDirectory: effectiveWorkingDirectory,
             processEnvironment: processEnvironment
         ))
     }
