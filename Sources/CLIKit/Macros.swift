@@ -24,7 +24,7 @@
 /// // Usage: Lsof(port: ":8080")
 /// // commandLine: ["lsof", "-i", ":8080"]
 /// ```
-@attached(extension, conformances: CLIProgram, CLICommand, names: named(programName), named(commandName), named(arguments), named(Program))
+@attached(extension, conformances: CLIProgram, CLICommand, names: named(programName), named(commandPath), named(arguments), named(Program))
 @attached(member, names: named(init))
 public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "CLIMacros", type: "CLIProgramMacro")
 
@@ -44,7 +44,7 @@ public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "CLIMacr
 ///     }
 /// }
 /// ```
-@attached(extension, conformances: CLICommand, names: named(commandName), named(arguments), named(Program))
+@attached(extension, conformances: CLICommand, names: named(commandPath), named(arguments), named(Program))
 @attached(member, names: named(init))
 public macro CLICommand(_ name: String? = nil) = #externalMacro(module: "CLIMacros", type: "CLICommandMacro")
 

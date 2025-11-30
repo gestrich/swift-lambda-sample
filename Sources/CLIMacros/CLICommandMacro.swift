@@ -3,6 +3,13 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
+/// Information about a command in the hierarchy
+private struct CommandInfo {
+    let typeName: String
+    let commandName: String
+    let isProgram: Bool
+}
+
 public struct CLICommandMacro: ExtensionMacro, MemberMacro {
 
     // MARK: - ExtensionMacro
@@ -21,10 +28,27 @@ public struct CLICommandMacro: ExtensionMacro, MemberMacro {
         let structName = structDecl.name.text
 
         // Extract explicit name from macro arguments if provided
-        let commandName = extractExplicitName(from: node) ?? toKebabCase(structName)
+        let explicitName = extractExplicitName(from: node)
 
-        // Extract program type from lexical context (parent struct)
-        let programType = extractParentType(from: context)
+        // Extract full command chain from lexical context
+        let chain = extractCommandChain(from: context)
+
+        // Build commandPath from chain (skip the program, include all intermediate commands + this command)
+        var commandPath: [String] = []
+        for info in chain where !info.isProgram {
+            // Skip empty command names in the chain
+            if !info.commandName.isEmpty {
+                commandPath.append(info.commandName)
+            }
+        }
+        // Add current command name (empty string means no subcommand, like `ls` without any subcommand)
+        let currentCommandName = explicitName ?? toKebabCase(structName)
+        if !currentCommandName.isEmpty {
+            commandPath.append(currentCommandName)
+        }
+
+        // Find root program type (first item in chain should be @CLIProgram)
+        let programType = chain.first?.typeName ?? "_UnknownProgram"
 
         // Parse properties with CLI attributes
         let properties = parseProperties(from: structDecl)
@@ -32,11 +56,14 @@ public struct CLICommandMacro: ExtensionMacro, MemberMacro {
         // Generate arguments computed property
         let argumentsCode = generateArgumentsCode(properties: properties)
 
+        // Generate commandPath array literal
+        let commandPathLiteral = commandPath.map { "\"\($0)\"" }.joined(separator: ", ")
+
         let extensionDecl = try ExtensionDeclSyntax("extension \(type): CLICommand") {
             """
             public typealias Program = \(raw: programType)
 
-            public static var commandName: String { \(literal: commandName) }
+            public static var commandPath: [String] { [\(raw: commandPathLiteral)] }
 
             public var arguments: [CLIArgument] {
                 var args: [CLIArgument] = []
@@ -64,7 +91,19 @@ public struct CLICommandMacro: ExtensionMacro, MemberMacro {
         // Parse properties to generate memberwise init
         let properties = parseProperties(from: structDecl)
 
-        // Generate initializer
+        // Check if there are any CLI properties
+        let hasCLIProperties = properties.contains { prop in
+            if case .none = prop.attribute { return false }
+            return true
+        }
+
+        // For namespace commands (no CLI properties), don't generate an initializer
+        // Swift will provide a default parameterless initializer
+        if !hasCLIProperties {
+            return []
+        }
+
+        // Generate initializer for commands with properties
         let initDecl = generateInitializer(properties: properties)
 
         return [DeclSyntax(initDecl)]
@@ -87,14 +126,64 @@ public struct CLICommandMacro: ExtensionMacro, MemberMacro {
         return nil
     }
 
-    private static func extractParentType(from context: some MacroExpansionContext) -> String {
-        // Walk through lexical context to find parent struct
+    /// Extract the full command chain from lexical context
+    /// Returns an array of CommandInfo from root (program) to immediate parent
+    private static func extractCommandChain(from context: some MacroExpansionContext) -> [CommandInfo] {
+        var chain: [CommandInfo] = []
+
         for lexicalContext in context.lexicalContext {
             if let structDecl = lexicalContext.as(StructDeclSyntax.self) {
-                return structDecl.name.text
+                // Check what attributes this struct has
+                var isProgram = false
+                var isCommand = false
+                var explicitName: String? = nil
+
+                for attr in structDecl.attributes {
+                    guard let attrSyntax = attr.as(AttributeSyntax.self),
+                          let identifier = attrSyntax.attributeName.as(IdentifierTypeSyntax.self) else {
+                        continue
+                    }
+
+                    let attrName = identifier.name.text
+                    if attrName == "CLIProgram" {
+                        isProgram = true
+                        explicitName = extractExplicitNameFromAttribute(attrSyntax)
+                    } else if attrName == "CLICommand" {
+                        isCommand = true
+                        explicitName = extractExplicitNameFromAttribute(attrSyntax)
+                    }
+                }
+
+                // Only include structs with @CLIProgram or @CLICommand
+                if isProgram || isCommand {
+                    let commandName = explicitName ?? toKebabCase(structDecl.name.text)
+                    chain.append(CommandInfo(
+                        typeName: structDecl.name.text,
+                        commandName: commandName,
+                        isProgram: isProgram
+                    ))
+                }
             }
         }
-        return "_UnknownProgram"
+
+        // The lexical context is from innermost to outermost, so reverse it
+        // to get root (program) first
+        return chain.reversed()
+    }
+
+    /// Extract explicit name from an attribute syntax node
+    private static func extractExplicitNameFromAttribute(_ attr: AttributeSyntax) -> String? {
+        guard let arguments = attr.arguments?.as(LabeledExprListSyntax.self) else {
+            return nil
+        }
+
+        for arg in arguments {
+            if let stringLiteral = arg.expression.as(StringLiteralExprSyntax.self),
+               let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self) {
+                return segment.content.text
+            }
+        }
+        return nil
     }
 }
 

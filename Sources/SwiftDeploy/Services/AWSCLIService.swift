@@ -104,7 +104,7 @@ public actor AWSCLIService {
 
     /// Describe a CloudFormation stack
     public func describeStack(name: String) async throws -> [String: Any] {
-        let command = Aws.CloudFormationDescribeStacks(
+        let command = Aws.CloudFormation.DescribeStacks(
             stackName: name,
             profile: profile,
             output: "json"
@@ -139,7 +139,7 @@ public actor AWSCLIService {
 
     /// Get stack status
     public func getStackStatus(name: String) async throws -> String {
-        let command = Aws.CloudFormationDescribeStacks(
+        let command = Aws.CloudFormation.DescribeStacks(
             stackName: name,
             profile: profile,
             output: "text",
@@ -170,7 +170,7 @@ public actor AWSCLIService {
 
     /// Get a specific stack output value
     public func getStackOutput(stackName: String, outputKey: String) async throws -> String {
-        let command = Aws.CloudFormationDescribeStacks(
+        let command = Aws.CloudFormation.DescribeStacks(
             stackName: stackName,
             profile: profile,
             output: "text",
@@ -188,7 +188,7 @@ public actor AWSCLIService {
 
     /// Describe stack resources to detect what's deployed
     public func describeStackResources(name: String) async throws -> [CloudFormationStackResource] {
-        let command = Aws.CloudFormationDescribeStackResources(
+        let command = Aws.CloudFormation.DescribeStackResources(
             stackName: name,
             profile: profile,
             output: "json"
@@ -204,7 +204,7 @@ public actor AWSCLIService {
         functionName: String,
         zipFile: String
     ) async throws {
-        let command = Aws.LambdaUpdateFunctionCode(
+        let command = Aws.Lambda.UpdateFunctionCode(
             functionName: functionName,
             zipFile: "fileb://\(zipFile)",
             profile: profile
@@ -215,7 +215,7 @@ public actor AWSCLIService {
 
     /// Get Lambda function configuration
     public func getLambdaFunction(name: String) async throws -> [String: Any] {
-        let command = Aws.LambdaGetFunction(
+        let command = Aws.Lambda.GetFunction(
             functionName: name,
             profile: profile,
             output: "json"
@@ -255,7 +255,7 @@ public actor AWSCLIService {
         format: String = "short",
         follow: Bool = false
     ) async throws {
-        let command = Aws.LogsTail(
+        let command = Aws.Logs.Tail(
             logGroup: logGroup,
             since: since,
             format: format,
@@ -275,7 +275,7 @@ public actor AWSCLIService {
             path += prefix
         }
 
-        let command = Aws.S3Ls(path: path, profile: profile)
+        let command = Aws.S3.Ls(path: path, profile: profile)
 
         return try await execute(command, printCommand: false)
     }
@@ -285,7 +285,7 @@ public actor AWSCLIService {
         source: String,
         destination: String
     ) async throws -> String {
-        let command = Aws.S3Cp(
+        let command = Aws.S3.Cp(
             source: source,
             destination: destination,
             profile: profile
@@ -298,7 +298,7 @@ public actor AWSCLIService {
 
     /// Get a secret value
     public func getSecretValue(secretId: String) async throws -> String {
-        let command = Aws.SecretsManagerGetSecretValue(
+        let command = Aws.SecretsManager.GetSecretValue(
             secretId: secretId,
             profile: profile,
             query: "SecretString",
@@ -310,7 +310,7 @@ public actor AWSCLIService {
 
     /// List secrets
     public func listSecrets() async throws -> [[String: Any]] {
-        let command = Aws.SecretsManagerListSecrets(
+        let command = Aws.SecretsManager.ListSecrets(
             profile: profile,
             output: "json"
         )

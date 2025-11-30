@@ -1,5 +1,9 @@
 # CLIKit Nested Command Refactor
 
+## Status: COMPLETED ✅
+
+**Completed:** November 30, 2025
+
 ## Overview
 
 Refactor CLIKit to support true nested `@CLICommand` structs, eliminating the need for space-separated command names like `@CLICommand("cloudformation describe-stacks")`.
@@ -170,19 +174,19 @@ The macro should:
 - Generate appropriate `commandName`
 - **Not generate an initializer** (no properties to initialize)
 
-### Phase 3: Update CLICommand Protocol (Optional)
+### Phase 3: Update CLICommand Protocol
 
-Consider whether `commandName` should remain a computed string or become structured:
+Change `commandName` from a space-separated string to a structured array:
 
 ```swift
-// Option A: Keep as string (simpler, current approach)
+// Change from:
 static var commandName: String { "cloudformation describe-stacks" }
 
-// Option B: Make it an array (more explicit)
+// To:
 static var commandPath: [String] { ["cloudformation", "describe-stacks"] }
 ```
 
-Recommendation: Keep as string for backward compatibility. The space-splitting in `commandArguments` already handles this.
+This makes the command hierarchy explicit and eliminates the space-splitting logic in `commandArguments`.
 
 ### Phase 4: Refactor Aws CLI
 
@@ -403,3 +407,76 @@ This keeps the codebase clean and forces a complete migration.
 1. Should `CLIProgram` be deprecated in favor of `@CLICommand(root: true)` or similar?
 2. Should namespace commands (without properties) require an explicit marker?
 3. How to handle shared options at the namespace level (e.g., `--profile` on all AWS commands)?
+
+---
+
+## Implementation Notes (Post-Completion)
+
+### Summary of Changes
+
+All phases completed successfully. The refactor enables true nested `@CLICommand` structs with full parent chain awareness.
+
+### Key Implementation Details
+
+#### 1. CLICommand Macro Changes (`CLIMacros/CLICommandMacro.swift`)
+
+- Added `CommandInfo` struct to track command chain elements
+- New `extractCommandChain()` function walks the lexical context to find all `@CLICommand` and `@CLIProgram` ancestors
+- Changed generated property from `commandName` to `commandPath: [String]`
+- Empty command names (from `@CLICommand("")`) result in empty path components being filtered out
+- Namespace commands (without CLI properties) don't generate an initializer
+
+#### 2. CLICommand Protocol Changes (`CLIKit/CLICommand.swift`)
+
+- Primary interface changed from `commandName: String` to `commandPath: [String]`
+- Added computed `commandName` property for backward compatibility (joins path with spaces)
+- `commandArguments` now appends path array directly instead of splitting strings
+
+#### 3. Macro Declaration Updates (`CLIKit/Macros.swift`)
+
+- Updated `@CLIProgram` declaration to include `named(commandPath)` instead of `named(commandName)`
+- Updated `@CLICommand` declaration similarly
+
+#### 4. AWS CLI Refactor (`SwiftDeploy/CLI/Aws.swift`)
+
+- Refactored flat structure to nested namespaces:
+  - `Aws.CloudFormationDescribeStacks` → `Aws.CloudFormation.DescribeStacks`
+  - `Aws.LambdaUpdateFunctionCode` → `Aws.Lambda.UpdateFunctionCode`
+  - etc.
+- Explicit command names required for some namespaces (e.g., `@CLICommand("cloudformation")`) to prevent kebab-case conversion of struct names like `CloudFormation` → `cloud-formation`
+
+#### 5. Service Updates (`SwiftDeploy/Services/AWSCLIService.swift`)
+
+All usages updated to new nested type paths.
+
+#### 6. Tests (`Tests/SwiftDeployTests/AWSCLITests.swift`)
+
+- Updated all test references to use nested paths
+- Added new `commandPath` tests to verify array structure
+- All 51 AWS CLI tests pass
+
+### Gotchas & Lessons Learned
+
+1. **Kebab-case conversion**: Struct names like `CloudFormation` get converted to `cloud-formation` by the `toKebabCase()` helper. Use explicit command names `@CLICommand("cloudformation")` when the AWS CLI expects no hyphen.
+
+2. **Empty command paths**: Commands like `ls` that are programs with flags but no subcommand use `@CLICommand("")` which results in `commandPath: []`. The protocol handles this correctly.
+
+3. **Namespace structs**: Intermediate structs (like `CloudFormation` with no properties) don't need initializers. The macro detects this and skips init generation.
+
+4. **Legacy compatibility**: The `commandName` computed property provides backward compatibility for code that expects a space-separated string.
+
+### Test Results
+
+- **CLIKit tests**: 96/96 passed ✅
+- **AWS CLI tests**: 51/51 passed ✅
+- **Full test suite**: Some pre-existing failures in Docker and GitHub CLI tests (unrelated to this refactor)
+
+### Files Modified
+
+1. `Sources/CLIMacros/CLICommandMacro.swift` - Macro implementation
+2. `Sources/CLIMacros/CLIProgramMacro.swift` - Minor update for `commandPath`
+3. `Sources/CLIKit/CLICommand.swift` - Protocol changes
+4. `Sources/CLIKit/Macros.swift` - Macro declarations
+5. `Sources/SwiftDeploy/CLI/Aws.swift` - Nested structure refactor
+6. `Sources/SwiftDeploy/Services/AWSCLIService.swift` - Usage updates
+7. `Tests/SwiftDeployTests/AWSCLITests.swift` - Test updates

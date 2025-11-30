@@ -16,14 +16,19 @@ struct AWSCLITests {
 @Suite("CloudFormation DescribeStacks Tests")
 struct CloudFormationDescribeStacksTests {
 
-    @Test("CloudFormationDescribeStacks command name")
+    @Test("CloudFormation.DescribeStacks command name")
     func testCommandName() {
-        #expect(Aws.CloudFormationDescribeStacks.commandName == "cloudformation describe-stacks")
+        #expect(Aws.CloudFormation.DescribeStacks.commandName == "cloudformation describe-stacks")
     }
 
-    @Test("CloudFormationDescribeStacks minimal command line")
+    @Test("CloudFormation.DescribeStacks commandPath")
+    func testCommandPath() {
+        #expect(Aws.CloudFormation.DescribeStacks.commandPath == ["cloudformation", "describe-stacks"])
+    }
+
+    @Test("CloudFormation.DescribeStacks minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Aws.CloudFormationDescribeStacks(stackName: "MyStack", profile: "prod")
+        let cmd = Aws.CloudFormation.DescribeStacks(stackName: "MyStack", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "cloudformation", "describe-stacks",
             "--stack-name", "MyStack",
@@ -31,9 +36,9 @@ struct CloudFormationDescribeStacksTests {
         ])
     }
 
-    @Test("CloudFormationDescribeStacks with output format")
+    @Test("CloudFormation.DescribeStacks with output format")
     func testWithOutputFormat() {
-        let cmd = Aws.CloudFormationDescribeStacks(
+        let cmd = Aws.CloudFormation.DescribeStacks(
             stackName: "MyStack",
             profile: "prod",
             output: "json"
@@ -46,9 +51,9 @@ struct CloudFormationDescribeStacksTests {
         ])
     }
 
-    @Test("CloudFormationDescribeStacks with query")
+    @Test("CloudFormation.DescribeStacks with query")
     func testWithQuery() {
-        let cmd = Aws.CloudFormationDescribeStacks(
+        let cmd = Aws.CloudFormation.DescribeStacks(
             stackName: "MyStack",
             profile: "prod",
             output: "text",
@@ -63,9 +68,9 @@ struct CloudFormationDescribeStacksTests {
         ])
     }
 
-    @Test("CloudFormationDescribeStacks command string")
+    @Test("CloudFormation.DescribeStacks command string")
     func testCommandString() {
-        let cmd = Aws.CloudFormationDescribeStacks(stackName: "MyStack", profile: "prod")
+        let cmd = Aws.CloudFormation.DescribeStacks(stackName: "MyStack", profile: "prod")
         #expect(cmd.commandString == "aws cloudformation describe-stacks --stack-name MyStack --profile prod")
     }
 }
@@ -73,14 +78,19 @@ struct CloudFormationDescribeStacksTests {
 @Suite("CloudFormation DescribeStackResources Tests")
 struct CloudFormationDescribeStackResourcesTests {
 
-    @Test("CloudFormationDescribeStackResources command name")
+    @Test("CloudFormation.DescribeStackResources command name")
     func testCommandName() {
-        #expect(Aws.CloudFormationDescribeStackResources.commandName == "cloudformation describe-stack-resources")
+        #expect(Aws.CloudFormation.DescribeStackResources.commandName == "cloudformation describe-stack-resources")
     }
 
-    @Test("CloudFormationDescribeStackResources minimal command line")
+    @Test("CloudFormation.DescribeStackResources commandPath")
+    func testCommandPath() {
+        #expect(Aws.CloudFormation.DescribeStackResources.commandPath == ["cloudformation", "describe-stack-resources"])
+    }
+
+    @Test("CloudFormation.DescribeStackResources minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Aws.CloudFormationDescribeStackResources(stackName: "MyStack", profile: "prod")
+        let cmd = Aws.CloudFormation.DescribeStackResources(stackName: "MyStack", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "cloudformation", "describe-stack-resources",
             "--stack-name", "MyStack",
@@ -88,9 +98,9 @@ struct CloudFormationDescribeStackResourcesTests {
         ])
     }
 
-    @Test("CloudFormationDescribeStackResources with output format")
+    @Test("CloudFormation.DescribeStackResources with output format")
     func testWithOutputFormat() {
-        let cmd = Aws.CloudFormationDescribeStackResources(
+        let cmd = Aws.CloudFormation.DescribeStackResources(
             stackName: "MyStack",
             profile: "prod",
             output: "json"
@@ -109,14 +119,19 @@ struct CloudFormationDescribeStackResourcesTests {
 @Suite("Lambda UpdateFunctionCode Tests")
 struct LambdaUpdateFunctionCodeTests {
 
-    @Test("LambdaUpdateFunctionCode command name")
+    @Test("Lambda.UpdateFunctionCode command name")
     func testCommandName() {
-        #expect(Aws.LambdaUpdateFunctionCode.commandName == "lambda update-function-code")
+        #expect(Aws.Lambda.UpdateFunctionCode.commandName == "lambda update-function-code")
     }
 
-    @Test("LambdaUpdateFunctionCode command line")
+    @Test("Lambda.UpdateFunctionCode commandPath")
+    func testCommandPath() {
+        #expect(Aws.Lambda.UpdateFunctionCode.commandPath == ["lambda", "update-function-code"])
+    }
+
+    @Test("Lambda.UpdateFunctionCode command line")
     func testCommandLine() {
-        let cmd = Aws.LambdaUpdateFunctionCode(
+        let cmd = Aws.Lambda.UpdateFunctionCode(
             functionName: "my-lambda",
             zipFile: "fileb://lambda.zip",
             profile: "prod"
@@ -129,9 +144,9 @@ struct LambdaUpdateFunctionCodeTests {
         ])
     }
 
-    @Test("LambdaUpdateFunctionCode command string")
+    @Test("Lambda.UpdateFunctionCode command string")
     func testCommandString() {
-        let cmd = Aws.LambdaUpdateFunctionCode(
+        let cmd = Aws.Lambda.UpdateFunctionCode(
             functionName: "my-lambda",
             zipFile: "fileb://lambda.zip",
             profile: "prod"
@@ -143,14 +158,19 @@ struct LambdaUpdateFunctionCodeTests {
 @Suite("Lambda GetFunction Tests")
 struct LambdaGetFunctionTests {
 
-    @Test("LambdaGetFunction command name")
+    @Test("Lambda.GetFunction command name")
     func testCommandName() {
-        #expect(Aws.LambdaGetFunction.commandName == "lambda get-function")
+        #expect(Aws.Lambda.GetFunction.commandName == "lambda get-function")
     }
 
-    @Test("LambdaGetFunction minimal command line")
+    @Test("Lambda.GetFunction commandPath")
+    func testCommandPath() {
+        #expect(Aws.Lambda.GetFunction.commandPath == ["lambda", "get-function"])
+    }
+
+    @Test("Lambda.GetFunction minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Aws.LambdaGetFunction(functionName: "my-lambda", profile: "prod")
+        let cmd = Aws.Lambda.GetFunction(functionName: "my-lambda", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "lambda", "get-function",
             "--function-name", "my-lambda",
@@ -158,9 +178,9 @@ struct LambdaGetFunctionTests {
         ])
     }
 
-    @Test("LambdaGetFunction with output format")
+    @Test("Lambda.GetFunction with output format")
     func testWithOutputFormat() {
-        let cmd = Aws.LambdaGetFunction(
+        let cmd = Aws.Lambda.GetFunction(
             functionName: "my-lambda",
             profile: "prod",
             output: "json"
@@ -179,14 +199,19 @@ struct LambdaGetFunctionTests {
 @Suite("Logs Tail Tests")
 struct LogsTailTests {
 
-    @Test("LogsTail command name")
+    @Test("Logs.Tail command name")
     func testCommandName() {
-        #expect(Aws.LogsTail.commandName == "logs tail")
+        #expect(Aws.Logs.Tail.commandName == "logs tail")
     }
 
-    @Test("LogsTail minimal command line")
+    @Test("Logs.Tail commandPath")
+    func testCommandPath() {
+        #expect(Aws.Logs.Tail.commandPath == ["logs", "tail"])
+    }
+
+    @Test("Logs.Tail minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Aws.LogsTail(logGroup: "/aws/lambda/my-function", profile: "prod")
+        let cmd = Aws.Logs.Tail(logGroup: "/aws/lambda/my-function", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "logs", "tail",
             "/aws/lambda/my-function",
@@ -194,9 +219,9 @@ struct LogsTailTests {
         ])
     }
 
-    @Test("LogsTail with since option")
+    @Test("Logs.Tail with since option")
     func testWithSince() {
-        let cmd = Aws.LogsTail(
+        let cmd = Aws.Logs.Tail(
             logGroup: "/aws/lambda/my-function",
             since: "5m",
             profile: "prod"
@@ -209,9 +234,9 @@ struct LogsTailTests {
         ])
     }
 
-    @Test("LogsTail with format option")
+    @Test("Logs.Tail with format option")
     func testWithFormat() {
-        let cmd = Aws.LogsTail(
+        let cmd = Aws.Logs.Tail(
             logGroup: "/aws/lambda/my-function",
             since: "1h",
             format: "short",
@@ -226,9 +251,9 @@ struct LogsTailTests {
         ])
     }
 
-    @Test("LogsTail with follow flag")
+    @Test("Logs.Tail with follow flag")
     func testWithFollow() {
-        let cmd = Aws.LogsTail(
+        let cmd = Aws.Logs.Tail(
             logGroup: "/aws/lambda/my-function",
             since: "5m",
             format: "short",
@@ -251,14 +276,19 @@ struct LogsTailTests {
 @Suite("S3 Ls Tests")
 struct S3LsTests {
 
-    @Test("S3Ls command name")
+    @Test("S3.Ls command name")
     func testCommandName() {
-        #expect(Aws.S3Ls.commandName == "s3 ls")
+        #expect(Aws.S3.Ls.commandName == "s3 ls")
     }
 
-    @Test("S3Ls command line")
+    @Test("S3.Ls commandPath")
+    func testCommandPath() {
+        #expect(Aws.S3.Ls.commandPath == ["s3", "ls"])
+    }
+
+    @Test("S3.Ls command line")
     func testCommandLine() {
-        let cmd = Aws.S3Ls(path: "s3://my-bucket/", profile: "prod")
+        let cmd = Aws.S3.Ls(path: "s3://my-bucket/", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "s3", "ls",
             "s3://my-bucket/",
@@ -266,9 +296,9 @@ struct S3LsTests {
         ])
     }
 
-    @Test("S3Ls with prefix")
+    @Test("S3.Ls with prefix")
     func testWithPrefix() {
-        let cmd = Aws.S3Ls(path: "s3://my-bucket/folder/", profile: "prod")
+        let cmd = Aws.S3.Ls(path: "s3://my-bucket/folder/", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "s3", "ls",
             "s3://my-bucket/folder/",
@@ -280,14 +310,19 @@ struct S3LsTests {
 @Suite("S3 Cp Tests")
 struct S3CpTests {
 
-    @Test("S3Cp command name")
+    @Test("S3.Cp command name")
     func testCommandName() {
-        #expect(Aws.S3Cp.commandName == "s3 cp")
+        #expect(Aws.S3.Cp.commandName == "s3 cp")
     }
 
-    @Test("S3Cp download command line")
+    @Test("S3.Cp commandPath")
+    func testCommandPath() {
+        #expect(Aws.S3.Cp.commandPath == ["s3", "cp"])
+    }
+
+    @Test("S3.Cp download command line")
     func testDownloadCommandLine() {
-        let cmd = Aws.S3Cp(
+        let cmd = Aws.S3.Cp(
             source: "s3://my-bucket/file.txt",
             destination: "./file.txt",
             profile: "prod"
@@ -300,9 +335,9 @@ struct S3CpTests {
         ])
     }
 
-    @Test("S3Cp upload command line")
+    @Test("S3.Cp upload command line")
     func testUploadCommandLine() {
-        let cmd = Aws.S3Cp(
+        let cmd = Aws.S3.Cp(
             source: "./local-file.txt",
             destination: "s3://my-bucket/remote-file.txt",
             profile: "prod"
@@ -315,9 +350,9 @@ struct S3CpTests {
         ])
     }
 
-    @Test("S3Cp to stdout")
+    @Test("S3.Cp to stdout")
     func testToStdout() {
-        let cmd = Aws.S3Cp(
+        let cmd = Aws.S3.Cp(
             source: "s3://my-bucket/file.txt",
             destination: "-",
             profile: "prod"
@@ -336,14 +371,19 @@ struct S3CpTests {
 @Suite("SecretsManager GetSecretValue Tests")
 struct SecretsManagerGetSecretValueTests {
 
-    @Test("SecretsManagerGetSecretValue command name")
+    @Test("SecretsManager.GetSecretValue command name")
     func testCommandName() {
-        #expect(Aws.SecretsManagerGetSecretValue.commandName == "secretsmanager get-secret-value")
+        #expect(Aws.SecretsManager.GetSecretValue.commandName == "secretsmanager get-secret-value")
     }
 
-    @Test("SecretsManagerGetSecretValue minimal command line")
+    @Test("SecretsManager.GetSecretValue commandPath")
+    func testCommandPath() {
+        #expect(Aws.SecretsManager.GetSecretValue.commandPath == ["secretsmanager", "get-secret-value"])
+    }
+
+    @Test("SecretsManager.GetSecretValue minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Aws.SecretsManagerGetSecretValue(secretId: "my-secret", profile: "prod")
+        let cmd = Aws.SecretsManager.GetSecretValue(secretId: "my-secret", profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "secretsmanager", "get-secret-value",
             "--secret-id", "my-secret",
@@ -351,9 +391,9 @@ struct SecretsManagerGetSecretValueTests {
         ])
     }
 
-    @Test("SecretsManagerGetSecretValue with query and output")
+    @Test("SecretsManager.GetSecretValue with query and output")
     func testWithQueryAndOutput() {
-        let cmd = Aws.SecretsManagerGetSecretValue(
+        let cmd = Aws.SecretsManager.GetSecretValue(
             secretId: "my-secret",
             profile: "prod",
             query: "SecretString",
@@ -372,23 +412,28 @@ struct SecretsManagerGetSecretValueTests {
 @Suite("SecretsManager ListSecrets Tests")
 struct SecretsManagerListSecretsTests {
 
-    @Test("SecretsManagerListSecrets command name")
+    @Test("SecretsManager.ListSecrets command name")
     func testCommandName() {
-        #expect(Aws.SecretsManagerListSecrets.commandName == "secretsmanager list-secrets")
+        #expect(Aws.SecretsManager.ListSecrets.commandName == "secretsmanager list-secrets")
     }
 
-    @Test("SecretsManagerListSecrets minimal command line")
+    @Test("SecretsManager.ListSecrets commandPath")
+    func testCommandPath() {
+        #expect(Aws.SecretsManager.ListSecrets.commandPath == ["secretsmanager", "list-secrets"])
+    }
+
+    @Test("SecretsManager.ListSecrets minimal command line")
     func testMinimalCommandLine() {
-        let cmd = Aws.SecretsManagerListSecrets(profile: "prod")
+        let cmd = Aws.SecretsManager.ListSecrets(profile: "prod")
         #expect(cmd.commandLine == [
             "aws", "secretsmanager", "list-secrets",
             "--profile", "prod"
         ])
     }
 
-    @Test("SecretsManagerListSecrets with output format")
+    @Test("SecretsManager.ListSecrets with output format")
     func testWithOutputFormat() {
-        let cmd = Aws.SecretsManagerListSecrets(profile: "prod", output: "json")
+        let cmd = Aws.SecretsManager.ListSecrets(profile: "prod", output: "json")
         #expect(cmd.commandLine == [
             "aws", "secretsmanager", "list-secrets",
             "--profile", "prod",

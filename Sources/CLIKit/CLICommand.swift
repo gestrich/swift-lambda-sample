@@ -3,8 +3,10 @@ public protocol CLICommand: Sendable {
     /// The parent program type (e.g., Git, Docker)
     associatedtype Program: CLIProgram
 
-    /// The subcommand name (e.g., "merge", "commit")
-    static var commandName: String { get }
+    /// The command path as an array of subcommand names (e.g., ["cloudformation", "describe-stacks"])
+    /// For simple commands, this is a single-element array (e.g., ["commit"])
+    /// For nested commands, this includes all levels (e.g., ["cloudformation", "describe-stacks"])
+    static var commandPath: [String] { get }
 
     /// The argument components for this command
     var arguments: [CLIArgument] { get }
@@ -13,14 +15,18 @@ public protocol CLICommand: Sendable {
 // MARK: - Default Implementations
 
 extension CLICommand {
+    /// Legacy support: commandName as a space-separated string
+    /// Prefer using commandPath directly for new code
+    public static var commandName: String {
+        commandPath.joined(separator: " ")
+    }
+
     /// The arguments to pass after the program name (includes subcommand and all flags/options)
     public var commandArguments: [String] {
         var result: [String] = []
-        // Only add command name if it's not empty (for programs without subcommands like ls)
-        // Split by spaces to support multi-word commands like "cloudformation describe-stacks"
-        if !Self.commandName.isEmpty {
-            result.append(contentsOf: Self.commandName.split(separator: " ").map(String.init))
-        }
+        // Add command path components
+        result.append(contentsOf: Self.commandPath)
+        // Add all arguments
         for arg in arguments {
             result.append(contentsOf: arg.components)
         }

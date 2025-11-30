@@ -7,144 +7,164 @@ public struct Aws {
 
     // MARK: - CloudFormation
 
-    /// AWS CloudFormation describe-stacks command
-    /// Example: aws cloudformation describe-stacks --stack-name MyStack --profile prod --output json
-    @CLICommand("cloudformation describe-stacks")
-    public struct CloudFormationDescribeStacks {
-        /// Stack name to describe
-        @Option public var stackName: String
+    /// AWS CloudFormation namespace
+    @CLICommand("cloudformation")
+    public struct CloudFormation {
+        /// AWS CloudFormation describe-stacks command
+        /// Example: aws cloudformation describe-stacks --stack-name MyStack --profile prod --output json
+        @CLICommand("describe-stacks")
+        public struct DescribeStacks {
+            /// Stack name to describe
+            @Option public var stackName: String
 
-        /// AWS profile to use
-        @Option public var profile: String
+            /// AWS profile to use
+            @Option public var profile: String
 
-        /// Output format
-        @Option public var output: String?
+            /// Output format
+            @Option public var output: String?
 
-        /// JMESPath query for filtering output
-        @Option public var query: String?
-    }
+            /// JMESPath query for filtering output
+            @Option public var query: String?
+        }
 
-    /// AWS CloudFormation describe-stack-resources command
-    /// Example: aws cloudformation describe-stack-resources --stack-name MyStack --profile prod --output json
-    @CLICommand("cloudformation describe-stack-resources")
-    public struct CloudFormationDescribeStackResources {
-        /// Stack name to describe
-        @Option public var stackName: String
+        /// AWS CloudFormation describe-stack-resources command
+        /// Example: aws cloudformation describe-stack-resources --stack-name MyStack --profile prod --output json
+        @CLICommand("describe-stack-resources")
+        public struct DescribeStackResources {
+            /// Stack name to describe
+            @Option public var stackName: String
 
-        /// AWS profile to use
-        @Option public var profile: String
+            /// AWS profile to use
+            @Option public var profile: String
 
-        /// Output format
-        @Option public var output: String?
+            /// Output format
+            @Option public var output: String?
+        }
     }
 
     // MARK: - Lambda
 
-    /// AWS Lambda update-function-code command
-    /// Example: aws lambda update-function-code --function-name my-function --zip-file fileb://lambda.zip --profile prod
-    @CLICommand("lambda update-function-code")
-    public struct LambdaUpdateFunctionCode {
-        /// Lambda function name
-        @Option public var functionName: String
+    /// AWS Lambda namespace
+    @CLICommand
+    public struct Lambda {
+        /// AWS Lambda update-function-code command
+        /// Example: aws lambda update-function-code --function-name my-function --zip-file fileb://lambda.zip --profile prod
+        @CLICommand("update-function-code")
+        public struct UpdateFunctionCode {
+            /// Lambda function name
+            @Option public var functionName: String
 
-        /// Path to the zip file (should include fileb:// prefix)
-        @Option public var zipFile: String
+            /// Path to the zip file (should include fileb:// prefix)
+            @Option public var zipFile: String
 
-        /// AWS profile to use
-        @Option public var profile: String
-    }
+            /// AWS profile to use
+            @Option public var profile: String
+        }
 
-    /// AWS Lambda get-function command
-    /// Example: aws lambda get-function --function-name my-function --profile prod --output json
-    @CLICommand("lambda get-function")
-    public struct LambdaGetFunction {
-        /// Lambda function name
-        @Option public var functionName: String
+        /// AWS Lambda get-function command
+        /// Example: aws lambda get-function --function-name my-function --profile prod --output json
+        @CLICommand("get-function")
+        public struct GetFunction {
+            /// Lambda function name
+            @Option public var functionName: String
 
-        /// AWS profile to use
-        @Option public var profile: String
+            /// AWS profile to use
+            @Option public var profile: String
 
-        /// Output format
-        @Option public var output: String?
+            /// Output format
+            @Option public var output: String?
+        }
     }
 
     // MARK: - CloudWatch Logs
 
-    /// AWS Logs tail command
-    /// Example: aws logs tail /aws/lambda/my-function --since 5m --format short --follow --profile prod
-    @CLICommand("logs tail")
-    public struct LogsTail {
-        /// Log group name
-        @Positional public var logGroup: String
+    /// AWS Logs namespace
+    @CLICommand
+    public struct Logs {
+        /// AWS Logs tail command
+        /// Example: aws logs tail /aws/lambda/my-function --since 5m --format short --follow --profile prod
+        @CLICommand
+        public struct Tail {
+            /// Log group name
+            @Positional public var logGroup: String
 
-        /// Show logs from this time (e.g., "5m", "1h")
-        @Option public var since: String?
+            /// Show logs from this time (e.g., "5m", "1h")
+            @Option public var since: String?
 
-        /// Output format (short, detailed, etc.)
-        @Option public var format: String?
+            /// Output format (short, detailed, etc.)
+            @Option public var format: String?
 
-        /// Continuously poll for new logs
-        @Flag public var follow: Bool = false
+            /// Continuously poll for new logs
+            @Flag public var follow: Bool = false
 
-        /// AWS profile to use
-        @Option public var profile: String
+            /// AWS profile to use
+            @Option public var profile: String
+        }
     }
 
     // MARK: - S3
 
-    /// AWS S3 ls command
-    /// Example: aws s3 ls s3://bucket-name/prefix --profile prod
-    @CLICommand("s3 ls")
-    public struct S3Ls {
-        /// S3 path (e.g., s3://bucket-name/ or s3://bucket-name/prefix)
-        @Positional public var path: String
+    /// AWS S3 namespace
+    @CLICommand
+    public struct S3 {
+        /// AWS S3 ls command
+        /// Example: aws s3 ls s3://bucket-name/prefix --profile prod
+        @CLICommand
+        public struct Ls {
+            /// S3 path (e.g., s3://bucket-name/ or s3://bucket-name/prefix)
+            @Positional public var path: String
 
-        /// AWS profile to use
-        @Option public var profile: String
-    }
+            /// AWS profile to use
+            @Option public var profile: String
+        }
 
-    /// AWS S3 cp command
-    /// Example: aws s3 cp s3://bucket/file.txt ./file.txt --profile prod
-    @CLICommand("s3 cp")
-    public struct S3Cp {
-        /// Source path (local or S3)
-        @Positional public var source: String
+        /// AWS S3 cp command
+        /// Example: aws s3 cp s3://bucket/file.txt ./file.txt --profile prod
+        @CLICommand
+        public struct Cp {
+            /// Source path (local or S3)
+            @Positional public var source: String
 
-        /// Destination path (local or S3)
-        @Positional public var destination: String
+            /// Destination path (local or S3)
+            @Positional public var destination: String
 
-        /// AWS profile to use
-        @Option public var profile: String
+            /// AWS profile to use
+            @Option public var profile: String
+        }
     }
 
     // MARK: - Secrets Manager
 
-    /// AWS Secrets Manager get-secret-value command
-    /// Example: aws secretsmanager get-secret-value --secret-id my-secret --profile prod --query SecretString --output text
-    @CLICommand("secretsmanager get-secret-value")
-    public struct SecretsManagerGetSecretValue {
-        /// Secret ID or ARN
-        @Option public var secretId: String
+    /// AWS Secrets Manager namespace
+    @CLICommand("secretsmanager")
+    public struct SecretsManager {
+        /// AWS Secrets Manager get-secret-value command
+        /// Example: aws secretsmanager get-secret-value --secret-id my-secret --profile prod --query SecretString --output text
+        @CLICommand("get-secret-value")
+        public struct GetSecretValue {
+            /// Secret ID or ARN
+            @Option public var secretId: String
 
-        /// AWS profile to use
-        @Option public var profile: String
+            /// AWS profile to use
+            @Option public var profile: String
 
-        /// JMESPath query for filtering output
-        @Option public var query: String?
+            /// JMESPath query for filtering output
+            @Option public var query: String?
 
-        /// Output format
-        @Option public var output: String?
-    }
+            /// Output format
+            @Option public var output: String?
+        }
 
-    /// AWS Secrets Manager list-secrets command
-    /// Example: aws secretsmanager list-secrets --profile prod --output json
-    @CLICommand("secretsmanager list-secrets")
-    public struct SecretsManagerListSecrets {
-        /// AWS profile to use
-        @Option public var profile: String
+        /// AWS Secrets Manager list-secrets command
+        /// Example: aws secretsmanager list-secrets --profile prod --output json
+        @CLICommand("list-secrets")
+        public struct ListSecrets {
+            /// AWS profile to use
+            @Option public var profile: String
 
-        /// Output format
-        @Option public var output: String?
+            /// Output format
+            @Option public var output: String?
+        }
     }
 }
 

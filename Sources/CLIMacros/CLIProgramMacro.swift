@@ -40,7 +40,7 @@ public struct CLIProgramMacro: ExtensionMacro, MemberMacro {
 
                 public typealias Program = \(raw: structName)
 
-                public static var commandName: String { "" }
+                public static var commandPath: [String] { [] }
 
                 public var arguments: [CLIArgument] {
                     var args: [CLIArgument] = []
