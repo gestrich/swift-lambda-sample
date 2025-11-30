@@ -1,6 +1,6 @@
 import AppKit
-import CLIKit
 import Client
+import CLIKit
 import SwiftDeploy
 import SwiftUI
 
@@ -325,7 +325,7 @@ struct SettingsView: View {
                 .font(.headline)
 
             // Use global CLI output stream - each view gets its own subscription
-            StreamingTextView(stream: CLIService.shared.outputStream())
+            StreamingTextView(streamProvider: { await CLIService.shared.outputStream() })
         }
     }
 }

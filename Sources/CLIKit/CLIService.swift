@@ -7,14 +7,12 @@ public actor CLIService {
     public static let shared = CLIService()
 
     /// Global output stream - broadcasts all CLI output to any subscriber.
-    @MainActor
-    private static let globalOutput = CLIOutputStream()
+    private let globalOutput = CLIOutputStream()
 
     /// Create a new stream subscription for CLI output.
     /// Each caller gets an independent stream receiving all future output.
-    @MainActor
-    public func outputStream() -> AsyncStream<StreamOutput> {
-        Self.globalOutput.makeStream()
+    public func outputStream() async -> AsyncStream<StreamOutput> {
+        await globalOutput.makeStream()
     }
 
     /// Pre-computed environment with common paths
@@ -368,6 +366,9 @@ public actor CLIService {
             outputPipe = outPipe
             errorPipe = errPipe
 
+            // Capture globalOutput for use in closures
+            let output = self.globalOutput
+
             // Real-time output handling (always)
             outPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
@@ -379,8 +380,8 @@ public actor CLIService {
                     commandContinuation?.yield(.stdout(text))
 
                     // Broadcast to global stream
-                    Task { @MainActor in
-                        Self.globalOutput.send(.stdout(text))
+                    Task {
+                        await output.send(.stdout(text))
                     }
                 }
             }
@@ -393,8 +394,9 @@ public actor CLIService {
 
                     commandContinuation?.yield(.stderr(text))
 
-                    Task { @MainActor in
-                        Self.globalOutput.send(.stderr(text))
+                    // Broadcast to global stream
+                    Task {
+                        await output.send(.stderr(text))
                     }
                 }
             }
@@ -427,8 +429,8 @@ public actor CLIService {
         commandContinuation?.yield(.exit(exitCode))
         commandContinuation?.finish()
 
-        Task { @MainActor in
-            Self.globalOutput.send(.exit(exitCode))
+        Task {
+            await self.globalOutput.send(.exit(exitCode))
         }
 
         // Check timeout

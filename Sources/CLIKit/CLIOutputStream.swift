@@ -10,24 +10,23 @@ import Foundation
 ///
 /// // Subscriber 1
 /// Task {
-///     for await item in output.makeStream() {
+///     for await item in await output.makeStream() {
 ///         print("Subscriber 1: \(item)")
 ///     }
 /// }
 ///
 /// // Subscriber 2
 /// Task {
-///     for await item in output.makeStream() {
+///     for await item in await output.makeStream() {
 ///         print("Subscriber 2: \(item)")
 ///     }
 /// }
 ///
 /// // Producer
-/// output.send(.stdout("Hello"))
-/// output.send(.stdout("World"))
+/// await output.send(.stdout("Hello"))
+/// await output.send(.stdout("World"))
 /// ```
-@MainActor
-public final class CLIOutputStream: Sendable {
+public actor CLIOutputStream {
     private var continuations: [UUID: AsyncStream<StreamOutput>.Continuation] = [:]
 
     public init() {}
@@ -44,11 +43,15 @@ public final class CLIOutputStream: Sendable {
 
             // Clean up when consumer stops iterating
             continuation.onTermination = { @Sendable _ in
-                Task { @MainActor in
-                    self.continuations.removeValue(forKey: id)
+                Task {
+                    await self.unregister(id: id)
                 }
             }
         }
+    }
+
+    private func unregister(id: UUID) {
+        continuations.removeValue(forKey: id)
     }
 
     /// Send output to all active subscribers

@@ -61,6 +61,24 @@ struct StreamingTextView: View {
         }
     }
 
+    /// Initialize with an async stream provider (for when getting the stream is async)
+    init(
+        streamProvider: @escaping @Sendable () async -> AsyncStream<StreamOutput>,
+        isClearDisabled: Bool = false,
+        onClear: (() -> Void)? = nil
+    ) {
+        self.staticLines = nil
+        self.isClearDisabled = isClearDisabled
+        self.onClear = onClear
+
+        self.streamConsumer = { @Sendable callback in
+            let stream = await streamProvider()
+            for await output in stream {
+                await callback(output)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 4) {
             ScrollViewReader { proxy in
