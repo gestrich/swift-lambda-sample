@@ -42,6 +42,10 @@ public class RemoteService: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
+    // MARK: - Unified Output
+
+    public let unifiedOutput = UnifiedOutputState()
+
     // MARK: - Build State
 
     public let buildState = BuildState()

@@ -30,6 +30,11 @@ public protocol LambdaService {
     /// Whether the service is configured and ready to use
     var isConfigured: Bool { get }
 
+    // MARK: - Unified Output
+
+    /// Unified output state that collects all CLI output (build, lambda, etc.)
+    var unifiedOutput: UnifiedOutputState { get }
+
     // MARK: - Build
 
     /// Observable build state for UI

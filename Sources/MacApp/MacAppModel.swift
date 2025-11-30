@@ -37,6 +37,7 @@ enum ConnectionMode: LambdaService {
     var endpointHelpText: String { service.endpointHelpText }
     var apiClient: APIClient { service.apiClient }
     var isConfigured: Bool { service.isConfigured }
+    var unifiedOutput: UnifiedOutputState { service.unifiedOutput }
     var buildState: BuildState { service.buildState }
     var lambdaState: LambdaState { service.lambdaState }
 
@@ -236,6 +237,10 @@ class MacAppModel: LambdaService {
 
     private(set) var status: DeploymentStatus = .stopped
     private(set) var isLoadingStatus: Bool = false
+
+    // MARK: - Unified Output
+
+    var unifiedOutput: UnifiedOutputState { mode.unifiedOutput }
 
     // MARK: - Build State
 

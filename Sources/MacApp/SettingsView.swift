@@ -49,6 +49,11 @@ struct SettingsView: View {
 
                 // MARK: - Lambda Section
                 lambdaSection
+
+                Divider()
+
+                // MARK: - Unified Output Section
+                unifiedOutputSection
             }
             .padding(20)
         }
@@ -142,6 +147,9 @@ struct SettingsView: View {
 
                 Spacer()
 
+                // Build status badge
+                buildStatusBadge
+
                 Button(action: {
                     Task {
                         try? await model.buildLambda(clean: false)
@@ -182,8 +190,34 @@ struct SettingsView: View {
                     .help("Delete Build")
                 }
             }
+        }
+    }
 
-            BuildOutputView(buildState: model.mode.buildState)
+    @ViewBuilder
+    private var buildStatusBadge: some View {
+        let status = model.mode.buildState.status
+        HStack(spacing: 4) {
+            if status.showProgress {
+                ProgressView()
+                    .scaleEffect(0.6)
+            } else {
+                Image(systemName: status.iconName)
+                    .foregroundColor(buildStatusColor)
+            }
+            Text(status.displayText)
+                .font(.caption2)
+                .foregroundColor(buildStatusColor)
+        }
+    }
+
+    private var buildStatusColor: Color {
+        switch model.mode.buildState.status.colorName {
+        case "blue": return .blue
+        case "green": return .green
+        case "orange": return .orange
+        case "red": return .red
+        case "secondary": return .secondary
+        default: return .primary
         }
     }
 
@@ -197,6 +231,9 @@ struct SettingsView: View {
                     .font(.headline)
 
                 Spacer()
+
+                // Lambda status badge
+                lambdaStatusBadge
 
                 Button(action: {
                     Task {
@@ -233,9 +270,6 @@ struct SettingsView: View {
                 .help("Refresh status")
             }
 
-            // Lambda Output View with streaming
-            LambdaOutputView(lambdaState: model.mode.lambdaState)
-
             // Endpoint
             VStack(alignment: .leading, spacing: 5) {
                 Text("Endpoint")
@@ -249,6 +283,78 @@ struct SettingsView: View {
                 Text(model.endpointHelpText)
                     .font(.caption2)
                     .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lambdaStatusBadge: some View {
+        let status = model.mode.lambdaState.status
+        HStack(spacing: 4) {
+            if status.showProgress {
+                ProgressView()
+                    .scaleEffect(0.6)
+            } else {
+                Image(systemName: status.iconName)
+                    .foregroundColor(lambdaStatusColor)
+            }
+            Text(status.displayText)
+                .font(.caption2)
+                .foregroundColor(lambdaStatusColor)
+        }
+    }
+
+    private var lambdaStatusColor: Color {
+        switch model.mode.lambdaState.status.colorName {
+        case "blue": return .blue
+        case "green": return .green
+        case "orange": return .orange
+        case "red": return .red
+        case "secondary": return .secondary
+        default: return .primary
+        }
+    }
+
+    // MARK: - Unified Output Section
+
+    @ViewBuilder
+    private var unifiedOutputSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Output")
+                    .font(.headline)
+
+                Spacer()
+
+                if !model.unifiedOutput.outputLines.isEmpty {
+                    Button("Clear") {
+                        model.unifiedOutput.clear()
+                    }
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+                    .disabled(model.unifiedOutput.isActive)
+                }
+            }
+
+            if model.unifiedOutput.outputLines.isEmpty {
+                Text("No output yet. Build or start Lambda to see output here.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+            } else {
+                StreamingTextView(
+                    lines: model.unifiedOutput.outputLines,
+                    isClearDisabled: model.unifiedOutput.isActive
+                ) {
+                    model.unifiedOutput.clear()
+                }
             }
         }
     }
