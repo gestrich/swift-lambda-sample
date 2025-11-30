@@ -1,10 +1,11 @@
 import CLIKit
-import Combine
 import Foundation
+import Observation
 
 /// State for GitHub CI workflow tracking
 @MainActor
-public class GitHubCIState: ObservableObject {
+@Observable
+public final class GitHubCIState {
     /// Current status of the GitHub Actions workflow
     public enum Status: Equatable, Sendable {
         case unknown
@@ -78,13 +79,13 @@ public class GitHubCIState: ObservableObject {
         }
     }
 
-    // MARK: - Published Properties
+    // MARK: - Properties
 
-    @Published public private(set) var status: Status = .unknown
-    @Published public private(set) var runDetail: GitHubRunDetail?
-    @Published public private(set) var hasUnpushedCommits: Bool = false
-    @Published public private(set) var hasUncommittedChanges: Bool = false
-    @Published public private(set) var currentBranch: String = ""
+    public private(set) var status: Status = .unknown
+    public private(set) var runDetail: GitHubRunDetail?
+    public private(set) var hasUnpushedCommits: Bool = false
+    public private(set) var hasUncommittedChanges: Bool = false
+    public private(set) var currentBranch: String = ""
 
     // MARK: - Public Methods
 

@@ -4,7 +4,7 @@ import SwiftUI
 /// View for the GitHub CI section in Remote mode
 /// Shows workflow status, job/step progress during deployment, and action buttons
 struct GitHubCISectionView: View {
-    @ObservedObject var ciState: GitHubCIState
+    var ciState: GitHubCIState
     let onPushAndDeploy: () -> Void
     let onViewLogs: (String) -> Void
     let onRefresh: () -> Void
