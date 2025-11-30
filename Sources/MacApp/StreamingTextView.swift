@@ -238,13 +238,23 @@ struct StreamingTextView: View {
                 .frame(width: 3)
 
             VStack(alignment: .leading, spacing: 0) {
-                // Program name header
-                Text(program)
-                    .font(.system(.caption, design: .monospaced).bold())
-                    .foregroundColor(accentColor)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
-                    .padding(.bottom, 2)
+                // Program name header with spinner
+                HStack {
+                    Text(program)
+                        .font(.system(.caption, design: .monospaced).bold())
+                        .foregroundColor(accentColor)
+
+                    Spacer()
+
+                    if !block.isComplete {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 4)
+                .padding(.bottom, 2)
 
                 // Full command line
                 Text(block.commandText)
@@ -351,9 +361,10 @@ struct StreamingTextView: View {
             }
             knownCommandIDs.remove(commandID)
 
-        case .error(let commandID, _):
-            // Mark command as complete on error
+        case .error(let commandID, let error):
+            // Display error message and mark command as complete
             if let index = commandBlocks.firstIndex(where: { $0.id == commandID }) {
+                commandBlocks[index].outputLines.append("❌ Error: \(error.localizedDescription)")
                 commandBlocks[index].isComplete = true
             }
             knownCommandIDs.remove(commandID)

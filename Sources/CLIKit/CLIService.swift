@@ -59,44 +59,30 @@ public actor CLIService {
         printCommand: Bool = true,
         inheritIO: Bool = false
     ) async throws -> ExecutionResult {
-        let startTime = Date()
-
-        // Resolve command path
-        let resolvedCommand = try resolveCommand(command)
-
-        // Merge environments
-        var processEnvironment = defaultEnvironment
-        if let customEnvironment = environment {
-            for (key, value) in customEnvironment {
-                processEnvironment[key] = value
-            }
-        }
-
-        // Generate unique ID for this command execution
-        let commandID = CommandID()
-
-        // Always send command to stream; optionally print to terminal
-        let formattedCommand = formatCommand(
-            command: resolvedCommand,
-            arguments: arguments,
-            environment: environment
-        )
-        let commandLine = "→ \(formattedCommand)\n"
-        await globalOutput.send(.command(id: commandID, text: commandLine))
-        if printCommand {
-            print(commandLine, terminator: "")
-        }
-
-        return try await executeProcess(
-            command: resolvedCommand,
+        // Resolve and prepare command - this handles errors and sends to global stream
+        let prepared = await prepareCommand(
+            command: command,
             arguments: arguments,
             workingDirectory: workingDirectory,
-            environment: processEnvironment,
-            timeout: timeout,
-            startTime: startTime,
-            inheritIO: inheritIO,
-            commandID: commandID
+            environment: environment,
+            printCommand: printCommand
         )
+
+        switch prepared {
+        case .success(let info):
+            return try await executeProcess(
+                command: info.resolvedCommand,
+                arguments: arguments,
+                workingDirectory: workingDirectory,
+                environment: info.processEnvironment,
+                timeout: timeout,
+                startTime: Date(),
+                inheritIO: inheritIO,
+                commandID: info.commandID
+            )
+        case .failure(let error):
+            throw error
+        }
     }
 
     /// Convenience method for simple command execution
@@ -150,45 +136,36 @@ public actor CLIService {
     ) -> AsyncStream<StreamOutput> {
         AsyncStream { continuation in
             Task {
+                // Prepare command - handles resolution, environment merging, and error reporting
+                let prepared = await self.prepareCommand(
+                    command: command,
+                    arguments: arguments,
+                    workingDirectory: workingDirectory,
+                    environment: environment,
+                    printCommand: printCommand,
+                    continuation: continuation
+                )
+
+                guard case .success(let info) = prepared else {
+                    // prepareCommand already sent error to continuation and finished it
+                    return
+                }
+
                 do {
-                    let resolvedCommand = try resolveCommand(command)
-
-                    var processEnvironment = defaultEnvironment
-                    if let customEnvironment = environment {
-                        for (key, value) in customEnvironment {
-                            processEnvironment[key] = value
-                        }
-                    }
-
-                    // Generate unique ID for this command execution
-                    let commandID = CommandID()
-
-                    // Always send command to stream; optionally print to terminal
-                    let formattedCommand = self.formatCommand(
-                        command: resolvedCommand,
-                        arguments: arguments,
-                        environment: environment
-                    )
-                    let commandLine = "→ \(formattedCommand)\n"
-                    await self.globalOutput.send(.command(id: commandID, text: commandLine))
-                    continuation.yield(.command(id: commandID, text: commandLine))
-                    if printCommand {
-                        print(commandLine, terminator: "")
-                    }
-
                     try self.streamProcess(
-                        command: resolvedCommand,
+                        command: info.resolvedCommand,
                         arguments: arguments,
                         workingDirectory: workingDirectory,
-                        environment: processEnvironment,
-                        commandID: commandID,
+                        environment: info.processEnvironment,
+                        commandID: info.commandID,
                         continuation: continuation
                     )
                 } catch {
-                    // For errors before command starts, use a placeholder ID
-                    let errorID = CommandID()
-                    continuation.yield(.error(commandID: errorID, error: error))
+                    // Error during process execution (not resolution)
+                    let errorOutput = StreamOutput.error(commandID: info.commandID, error: error)
+                    continuation.yield(errorOutput)
                     continuation.finish()
+                    await self.globalOutput.send(errorOutput)
                 }
             }
         }
@@ -258,13 +235,98 @@ public actor CLIService {
         return parts.joined(separator: " ")
     }
 
-    private func resolveCommand(_ command: String) throws -> String {
+    /// Information needed to execute a prepared command
+    private struct PreparedCommand {
+        let commandID: CommandID
+        let resolvedCommand: String
+        let processEnvironment: [String: String]
+    }
+
+    /// Prepare a command for execution: resolve path, merge environment, send to global stream
+    /// This is the single place that handles command resolution errors for both execute and stream
+    private func prepareCommand(
+        command: String,
+        arguments: [String],
+        workingDirectory: String?,
+        environment: [String: String]?,
+        printCommand: Bool,
+        continuation: AsyncStream<StreamOutput>.Continuation? = nil
+    ) async -> Result<PreparedCommand, Error> {
+        let commandID = CommandID()
+
+        // Resolve command path
+        let resolvedCommand: String
+        do {
+            resolvedCommand = try resolveCommand(command, workingDirectory: workingDirectory)
+        } catch {
+            // Send command and error to streams so UI shows what failed
+            let commandLine = "→ \(command) \(arguments.joined(separator: " "))\n"
+            let commandOutput = StreamOutput.command(id: commandID, text: commandLine)
+            let errorOutput = StreamOutput.error(commandID: commandID, error: error)
+
+            await globalOutput.send(commandOutput)
+            await globalOutput.send(errorOutput)
+
+            continuation?.yield(commandOutput)
+            continuation?.yield(errorOutput)
+            continuation?.finish()
+
+            if printCommand {
+                print(commandLine, terminator: "")
+                print("❌ Error: \(error.localizedDescription)")
+            }
+            return .failure(error)
+        }
+
+        // Merge environments
+        var processEnvironment = defaultEnvironment
+        if let customEnvironment = environment {
+            for (key, value) in customEnvironment {
+                processEnvironment[key] = value
+            }
+        }
+
+        // Send command to streams
+        let formattedCommand = formatCommand(
+            command: resolvedCommand,
+            arguments: arguments,
+            environment: environment
+        )
+        let commandLine = "→ \(formattedCommand)\n"
+        let commandOutput = StreamOutput.command(id: commandID, text: commandLine)
+
+        await globalOutput.send(commandOutput)
+        continuation?.yield(commandOutput)
+
+        if printCommand {
+            print(commandLine, terminator: "")
+        }
+
+        return .success(PreparedCommand(
+            commandID: commandID,
+            resolvedCommand: resolvedCommand,
+            processEnvironment: processEnvironment
+        ))
+    }
+
+    private func resolveCommand(_ command: String, workingDirectory: String? = nil) throws -> String {
         // If it's already an absolute path, use it
         if command.starts(with: "/") {
             guard FileManager.default.fileExists(atPath: command) else {
                 throw CLIServiceError.commandNotFound(command)
             }
             return command
+        }
+
+        // If it's a relative path (starts with ./ or ../), resolve relative to working directory
+        if command.starts(with: "./") || command.starts(with: "../") {
+            let baseDir = workingDirectory ?? FileManager.default.currentDirectoryPath
+            let resolvedPath = (baseDir as NSString).appendingPathComponent(command)
+            let standardizedPath = (resolvedPath as NSString).standardizingPath
+            guard FileManager.default.fileExists(atPath: standardizedPath) else {
+                throw CLIServiceError.commandNotFound(command)
+            }
+            return standardizedPath
         }
 
         // Check cache
