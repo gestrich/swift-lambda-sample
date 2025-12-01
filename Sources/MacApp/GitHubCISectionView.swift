@@ -364,12 +364,7 @@ struct GitHubCISectionView: View {
                 Task { try? await service.pushAndDeploy() }
             } label: {
                 HStack(spacing: 4) {
-                    if ciStatus.status.isDeploying {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                    } else {
-                        Image(systemName: "arrow.up.circle")
-                    }
+                    Image(systemName: "arrow.up.circle")
                     Text(buttonLabel)
                 }
             }
