@@ -52,34 +52,13 @@ public class RemoteService: LambdaService {
 
     // MARK: - GitHub Service
 
-    public private(set) var githubService: GitHubService?
-
-    /// Initialize GitHub service if config is available.
-    /// Call this during setup - views observe `githubService` and show GitHub UI when non-nil.
-    public func initializeGitHubService() {
-        guard githubService == nil,
-              let config = GitHubConfiguration.loadConfig() else {
-            return
-        }
-        githubService = GitHubService(repoPath: projectRoot, config: config)
-    }
+    /// GitHub service for CI operations. Non-nil if GitHub config is available.
+    public let githubService: GitHubService?
 
     // MARK: - CDK Infrastructure Service
 
-    public private(set) var cdkInfrastructureService: CDKInfrastructureService?
-
-    /// Initialize CDK Infrastructure service if AWS config is available.
-    /// Call this during setup - views observe `cdkInfrastructureService` and show CDK UI when non-nil.
-    public func initializeCDKInfrastructureService() {
-        guard cdkInfrastructureService == nil,
-              let awsConfig = AWSAuthConfiguration.loadConfig() else {
-            return
-        }
-        cdkInfrastructureService = CDKInfrastructureService(
-            projectRoot: projectRoot,
-            awsConfig: awsConfig
-        )
-    }
+    /// CDK Infrastructure service for deployments. Non-nil if AWS config is available.
+    public let cdkInfrastructureService: CDKInfrastructureService?
 
     // MARK: - LambdaService Protocol Properties
 
@@ -118,6 +97,20 @@ public class RemoteService: LambdaService {
 
         // Load persisted endpoint
         self.cachedEndpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
+
+        // Initialize GitHub service if config is available
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig)
+        } else {
+            self.githubService = nil
+        }
+
+        // Initialize CDK Infrastructure service (AWS config is already available)
+        self.cdkInfrastructureService = CDKInfrastructureService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig,
+            cdkDirectory: cdkDirectory
+        )
     }
 
     /// Convenience initializer for workingDirectory-based initialization (matches local services)

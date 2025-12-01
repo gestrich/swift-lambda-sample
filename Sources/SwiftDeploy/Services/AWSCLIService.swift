@@ -8,10 +8,7 @@ public actor AWSCLIService {
     private let vaultService: AWSVaultService?
 
     public init(awsConfig: AWSAuthConfiguration) {
-        // Use a dedicated CLIService instance instead of shared
-        // This prevents contention with other services (like CDKService) that use CLIService.shared
-        // and allows concurrent command execution (e.g., polling while CDK deploy runs)
-        self.cliService = CLIService()
+        self.cliService = CLIService.shared
         self.profile = awsConfig.profileName
         self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil
     }

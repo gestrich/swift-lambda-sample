@@ -257,3 +257,47 @@ The Remote tab currently shows sections (Docker Services, Build, Lambda) that ar
 - All underlying service methods already exist - this is primarily UI work
 - Keep the unified output section for showing real-time progress
 - Remote mode should feel purpose-built for AWS deployment, not a disabled local mode
+
+---
+
+## Future Improvements
+
+### 1. Eager Service Initialization in MacAppModel
+
+Currently, services in `MacAppModel` are created lazily, which leads to awkward optionals throughout the codebase. All services (Remote, Xcode, Linux) should be created at app startup instead.
+
+**Problem**: Lazy initialization results in `Optional` service properties that need to be unwrapped everywhere they're used, adding boilerplate and potential nil-handling bugs.
+
+**Solution**: Create all three services (`RemoteService`, `XcodeLocalService`, `LinuxLocalService`) during `MacAppModel` initialization. The active mode simply determines which service is currently in use, not whether it exists.
+
+### 2. Eager Sub-Service Initialization in RemoteService ✅ COMPLETED
+
+`RemoteService` previously had `initializeGitHubService()` and `initializeCDKInfrastructureService()` methods that were called lazily from `MacAppModel`. These sub-services are now created when `RemoteService` itself is created.
+
+**Problem**: The old pattern required calling initialization methods from `MacAppModel` at specific points (e.g., `setUpMode()`, `switchToRemoteMode()`), which was error-prone and led to optional properties.
+
+**Solution**: `GitHubService` and `CDKInfrastructureService` are now created in `RemoteService.init()`. They are `let` properties (still optional since config may not be available, but initialized once at creation time rather than lazily).
+
+### 3. Separate CLIService per Service Type
+
+Each service (Remote, Xcode, Linux) should have its own dedicated `CLIService` instance. Currently, CLI streams can mix between services, leading to confusing output.
+
+**Problem**: When switching modes or running operations across different services, CLI output from one service can appear in another's output view.
+
+**Solution**: Instantiate a separate `CLIService` for each of `RemoteService`, `XcodeLocalService`, and `LinuxLocalService`. This ensures CLI output streams remain isolated and correctly attributed.
+
+### 4. Separate Deploy Views for Remote vs Local
+
+The current `DeployView` tries to handle both Remote and Local (Xcode + Linux) modes in a single view, but these are fundamentally different workflows. This leads to complex conditional logic and optional unwrapping.
+
+**Problem**: Remote deployment (CDK, GitHub Actions) has completely different UI needs than local development (Docker services, native builds, Lambda containers). Combining them in one view creates unnecessary complexity.
+
+**Solution**: Split into separate views:
+- **`RemoteDeployView`**: GitHub CI section, CDK Infrastructure section, stack outputs
+- **`LocalDeployView`**: Docker Services, Build, Lambda lifecycle (shared between Xcode and Linux modes)
+
+This separation will:
+- Simplify both views significantly
+- Eliminate conditional checks for `model.mode.isRemote`
+- Remove awkward optional unwrapping of services in `MacAppModel`
+- Make each view purpose-built for its workflow

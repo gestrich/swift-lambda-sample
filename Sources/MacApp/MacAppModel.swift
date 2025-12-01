@@ -293,9 +293,6 @@ class MacAppModel: LambdaService {
         // Set default working directory for CLIService (after init completes)
         Task {
             await CLIService.shared.setDefaultWorkingDirectory(projectDirectory)
-            // Initialize services for remote mode
-            mode.remoteService?.initializeGitHubService()
-            mode.remoteService?.initializeCDKInfrastructureService()
         }
     }
 
@@ -436,8 +433,6 @@ class MacAppModel: LambdaService {
 
     func setRemote() {
         mode = .remote(RemoteService(workingDirectory: workingDirectory))
-        mode.remoteService?.initializeGitHubService()
-        mode.remoteService?.initializeCDKInfrastructureService()
     }
 
     func setLocalXcode() {
