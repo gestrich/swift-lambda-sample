@@ -39,8 +39,12 @@ struct DeployView: View {
 
                     Divider()
 
-                    // MARK: - Remote-Only Sections (GitHub CI)
+                    // MARK: - Remote-Only Sections (CDK Infrastructure, then GitHub CI for code deploy)
                     if model.mode.isRemote {
+                        cdkInfrastructureSection
+
+                        Divider()
+
                         githubCISection
                     }
 
@@ -334,6 +338,21 @@ struct DeployView: View {
         } else {
             // Show loading/placeholder while GitHubService initializes
             GitHubCILoadingView()
+        }
+    }
+
+    // MARK: - CDK Infrastructure Section
+
+    @ViewBuilder
+    private var cdkInfrastructureSection: some View {
+        if let cdkService = model.cdkInfrastructureService {
+            CDKInfrastructureSectionView(service: cdkService)
+                .onAppear {
+                    Task { await cdkService.refreshStatus() }
+                }
+        } else {
+            // Show loading/placeholder while CDKInfrastructureService initializes
+            CDKInfrastructureLoadingView()
         }
     }
 

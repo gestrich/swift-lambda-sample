@@ -64,6 +64,23 @@ public class RemoteService: LambdaService {
         githubService = GitHubService(repoPath: projectRoot, config: config)
     }
 
+    // MARK: - CDK Infrastructure Service
+
+    public private(set) var cdkInfrastructureService: CDKInfrastructureService?
+
+    /// Initialize CDK Infrastructure service if AWS config is available.
+    /// Call this during setup - views observe `cdkInfrastructureService` and show CDK UI when non-nil.
+    public func initializeCDKInfrastructureService() {
+        guard cdkInfrastructureService == nil,
+              let awsConfig = AWSAuthConfiguration.loadConfig() else {
+            return
+        }
+        cdkInfrastructureService = CDKInfrastructureService(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig
+        )
+    }
+
     // MARK: - LambdaService Protocol Properties
 
     public static let persistenceKey = "remote"

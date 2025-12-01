@@ -8,7 +8,10 @@ public actor AWSCLIService {
     private let vaultService: AWSVaultService?
 
     public init(awsConfig: AWSAuthConfiguration) {
-        self.cliService = CLIService.shared
+        // Use a dedicated CLIService instance instead of shared
+        // This prevents contention with other services (like CDKService) that use CLIService.shared
+        // and allows concurrent command execution (e.g., polling while CDK deploy runs)
+        self.cliService = CLIService()
         self.profile = awsConfig.profileName
         self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil
     }
@@ -195,6 +198,23 @@ public actor AWSCLIService {
         )
 
         return try await execute(command, parser: CloudFormationStackResourcesParser())
+    }
+
+    /// Get stack events for deployment progress tracking
+    public func getStackEvents(name: String, limit: Int = 50) async throws -> [CloudFormationStackEvent] {
+        let command = Aws.CloudFormation.DescribeStackEvents(
+            stackName: name,
+            profile: profile,
+            output: "json"
+        )
+
+        // Use JSONOutputParser with ISO8601 date decoding
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let parser = JSONOutputParser<CloudFormationStackEventsResponse>(decoder: decoder)
+
+        let response = try await execute(command, parser: parser)
+        return Array(response.StackEvents.prefix(limit))
     }
 
     // MARK: - Lambda

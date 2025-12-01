@@ -260,6 +260,13 @@ class MacAppModel: LambdaService {
         mode.remoteService?.githubService
     }
 
+    // MARK: - CDK Infrastructure Service (for Remote mode)
+
+    /// CDK Infrastructure service from RemoteService (only available in remote mode)
+    var cdkInfrastructureService: CDKInfrastructureService? {
+        mode.remoteService?.cdkInfrastructureService
+    }
+
     // MARK: - Private
 
     private var cancellables = Set<AnyCancellable>()
@@ -286,8 +293,9 @@ class MacAppModel: LambdaService {
         // Set default working directory for CLIService (after init completes)
         Task {
             await CLIService.shared.setDefaultWorkingDirectory(projectDirectory)
-            // Initialize GitHub service for remote mode
+            // Initialize services for remote mode
             mode.remoteService?.initializeGitHubService()
+            mode.remoteService?.initializeCDKInfrastructureService()
         }
     }
 
@@ -429,6 +437,7 @@ class MacAppModel: LambdaService {
     func setRemote() {
         mode = .remote(RemoteService(workingDirectory: workingDirectory))
         mode.remoteService?.initializeGitHubService()
+        mode.remoteService?.initializeCDKInfrastructureService()
     }
 
     func setLocalXcode() {

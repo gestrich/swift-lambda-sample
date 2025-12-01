@@ -40,6 +40,20 @@ public struct Aws {
             /// Output format
             @Option public var output: String?
         }
+
+        /// AWS CloudFormation describe-stack-events command
+        /// Example: aws cloudformation describe-stack-events --stack-name MyStack --profile prod --output json
+        @CLICommand("describe-stack-events")
+        public struct DescribeStackEvents {
+            /// Stack name to describe
+            @Option public var stackName: String
+
+            /// AWS profile to use
+            @Option public var profile: String
+
+            /// Output format
+            @Option public var output: String?
+        }
     }
 
     // MARK: - Lambda
@@ -280,5 +294,71 @@ public struct CloudFormationStackResource: Sendable, Equatable {
         self.logicalResourceId = logicalResourceId
         self.resourceType = resourceType
         self.resourceStatus = resourceStatus
+    }
+}
+
+// MARK: - Stack Events (Decodable for JSONOutputParser)
+
+/// Response from describe-stack-events
+public struct CloudFormationStackEventsResponse: Decodable, Sendable {
+    public let StackEvents: [CloudFormationStackEvent]
+
+    enum CodingKeys: String, CodingKey {
+        case StackEvents
+    }
+}
+
+/// CloudFormation stack event for tracking deployment progress
+public struct CloudFormationStackEvent: Decodable, Sendable, Equatable, Identifiable {
+    public let eventId: String
+    public let stackName: String
+    public let logicalResourceId: String
+    public let resourceType: String
+    public let resourceStatus: String
+    public let resourceStatusReason: String?
+    public let timestamp: Date
+
+    public var id: String { eventId }
+
+    enum CodingKeys: String, CodingKey {
+        case eventId = "EventId"
+        case stackName = "StackName"
+        case logicalResourceId = "LogicalResourceId"
+        case resourceType = "ResourceType"
+        case resourceStatus = "ResourceStatus"
+        case resourceStatusReason = "ResourceStatusReason"
+        case timestamp = "Timestamp"
+    }
+
+    /// Whether this event represents an in-progress operation
+    public var isInProgress: Bool {
+        resourceStatus.contains("IN_PROGRESS")
+    }
+
+    /// Whether this event represents a completed operation
+    public var isComplete: Bool {
+        resourceStatus.contains("COMPLETE") && !resourceStatus.contains("CLEANUP")
+    }
+
+    /// Whether this event represents a failed operation
+    public var isFailed: Bool {
+        resourceStatus.contains("FAILED") || resourceStatus.contains("ROLLBACK")
+    }
+
+    /// A simplified display name for the resource
+    public var displayName: String {
+        // Simplify long CDK-generated names
+        let parts = logicalResourceId.components(separatedBy: CharacterSet.alphanumerics.inverted)
+        if parts.count > 3 {
+            return parts.prefix(3).joined()
+        }
+        return logicalResourceId
+    }
+
+    /// A simplified resource type (e.g., "Lambda::Function" -> "Lambda Function")
+    public var displayType: String {
+        resourceType
+            .replacingOccurrences(of: "AWS::", with: "")
+            .replacingOccurrences(of: "::", with: " ")
     }
 }

@@ -92,20 +92,33 @@ The Remote tab currently shows sections (Docker Services, Build, Lambda) that ar
 ---
 
 ### Phase 3: Add CDK Deploy Section
-- [ ] Create `cdkDeploySection` view in `DeployView.swift`
-- [ ] Display current stack status (Deployed/Not Deployed/Updating)
-- [ ] Display detected configuration (Database: YES/NO, NAT Gateway: YES/NO)
-- [ ] Add "Deploy" button with options dropdown:
+- [x] Create `cdkDeploySection` view in `DeployView.swift`
+- [x] Display current stack status (Deployed/Not Deployed/Updating)
+- [x] Display detected configuration (Database: YES/NO, NAT Gateway: YES/NO)
+- [x] Add "Deploy" button with options dropdown:
   - Deploy (maintain current config)
   - Deploy with PostgreSQL
   - Deploy with PostgreSQL + NAT Gateway
-- [ ] Add "Destroy" button with confirmation dialog
-- [ ] Show stack outputs in collapsible section (API URL, Lambda ARN, etc.)
-- [ ] Add state properties to `MacAppModel` for stack status
+- [x] Add "Destroy" button with confirmation dialog
+- [x] Show stack outputs in collapsible section (API URL, Lambda ARN, etc.)
+- [x] Add state properties to `MacAppModel` for stack status
 
-**Files**: `DeployView.swift`, `MacAppModel.swift`
+**Files**:
+- `DeployView.swift` - Added `cdkInfrastructureSection` view
+- `MacAppModel.swift` - Added `cdkInfrastructureService` accessor
+- `CDKInfrastructureSectionView.swift` - New dedicated view component
+- `CDKInfrastructureService.swift` - New state management service with @MainActor @Observable
+- `RemoteService.swift` - Added `initializeCDKInfrastructureService()`
 
-**Note**: All CDK operations (deploy, destroy, diff) stream output to the Output view for real-time feedback.
+**Completed**: The CDK Infrastructure section shows:
+- Current stack status with colored badge (deployed/not deployed/deploying/destroying/failed)
+- Detected configuration indicators (Database, NAT Gateway)
+- Deploy menu with options (Minimal, With PostgreSQL, Full, Update)
+- Destroy button with confirmation dialog
+- Collapsible stack outputs section with copy-to-clipboard functionality
+- Real-time elapsed time during deploy/destroy operations
+
+**Note**: All CDK operations (deploy, destroy) stream output to the Output view for real-time feedback.
 
 ---
 

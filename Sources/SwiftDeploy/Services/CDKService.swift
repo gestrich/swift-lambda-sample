@@ -60,10 +60,10 @@ public actor CDKService {
 
     // MARK: - Deployment Operations
 
-    public struct DeployOptions {
-        public var skipPostgres: Bool = false
-        public var skipNATGateway: Bool = false
-        public var requireApproval: Bool = false
+    public struct DeployOptions: Sendable {
+        public let skipPostgres: Bool
+        public let skipNATGateway: Bool
+        public let requireApproval: Bool
 
         public init(
             skipPostgres: Bool = false,
