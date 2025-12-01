@@ -194,22 +194,6 @@ enum ConnectionMode: LambdaService {
         return false
     }
 
-    /// Access to GitHub service (only available for remote mode, nil until first refresh)
-    var githubService: GitHubService? {
-        if case .remote(let service) = self {
-            return service.githubService
-        }
-        return nil
-    }
-
-    /// Access to RemoteService (only available for remote mode)
-    var remoteService: RemoteService? {
-        if case .remote(let service) = self {
-            return service
-        }
-        return nil
-    }
-
     var isLocalXcode: Bool {
         if case .localXcode = self { return true }
         return false
@@ -263,6 +247,10 @@ class MacAppModel: LambdaService {
     var buildState: BuildState { mode.buildState }
     var lambdaState: LambdaState { mode.lambdaState }
 
+    // MARK: - GitHub Service (for Remote mode)
+
+    private(set) var githubService: GitHubService?
+
     // MARK: - Private
 
     private var cancellables = Set<AnyCancellable>()
@@ -289,6 +277,19 @@ class MacAppModel: LambdaService {
         // Set default working directory for CLIService (after init completes)
         Task {
             await CLIService.shared.setDefaultWorkingDirectory(projectDirectory)
+            await createGitHubService()
+        }
+    }
+
+    /// Create GitHubService (always available, used in remote mode UI)
+    private func createGitHubService() async {
+        let gitService = GitService(repoPath: workingDirectory)
+        do {
+            let repoInfo = try await gitService.getRepoInfo()
+            githubService = GitHubService(repoPath: workingDirectory, owner: repoInfo.owner, repo: repoInfo.name)
+            await githubService?.refreshStatus()
+        } catch {
+            print("⚠️ Failed to create GitHubService: \(error)")
         }
     }
 

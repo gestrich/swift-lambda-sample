@@ -326,34 +326,14 @@ struct DeployView: View {
 
     @ViewBuilder
     private var githubCISection: some View {
-        if let ghService = model.mode.githubService {
-            GitHubCISectionView(
-                service: ghService,
-                onPushAndDeploy: {
-                    Task {
-                        try? await ghService.pushAndDeploy()
-                    }
-                },
-                onViewLogs: { runId in
-                    Task {
-                        try? await ghService.viewWorkflowLogs(runId: runId)
-                    }
-                },
-                onRefresh: {
-                    Task {
-                        await ghService.refreshStatus()
-                    }
+        if let ghService = model.githubService {
+            GitHubCISectionView(service: ghService)
+                .onAppear {
+                    Task { await ghService.refreshStatus() }
                 }
-            )
         } else {
             // Show loading/placeholder while GitHubService initializes
             GitHubCILoadingView()
-                .onAppear {
-                    Task {
-                        // Initialize the service by calling refresh
-                        await model.mode.remoteService?.refreshGitHubCIStatus()
-                    }
-                }
         }
     }
 

@@ -1,6 +1,7 @@
 import Client
 import Combine
 import Foundation
+import Observation
 
 /// Detected state of deployed infrastructure
 public struct DeployedState: Sendable {
@@ -13,6 +14,7 @@ public struct DeployedState: Sendable {
 /// Conforms to LambdaService for consistency with local services
 /// Start/stop lifecycle operations are no-ops since remote services are managed by AWS
 @MainActor
+@Observable
 public class RemoteService: LambdaService {
     private let cdkService: CDKService
     private let awsService: AWSCLIService

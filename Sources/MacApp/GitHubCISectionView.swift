@@ -26,10 +26,7 @@ struct GitHubCILoadingView: View {
 /// View for the GitHub CI section in Remote mode
 /// Shows workflow status, job/step progress during deployment, and action buttons
 struct GitHubCISectionView: View {
-    var service: GitHubService
-    let onPushAndDeploy: () -> Void
-    let onViewLogs: (String) -> Void
-    let onRefresh: () -> Void
+    @State var service: GitHubService
 
     private var ciStatus: GitHubCIStatus {
         service.ciStatus
@@ -45,7 +42,9 @@ struct GitHubCISectionView: View {
                 Spacer()
 
                 // Refresh button
-                Button(action: onRefresh) {
+                Button {
+                    Task { await service.refreshStatus() }
+                } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
@@ -361,7 +360,9 @@ struct GitHubCISectionView: View {
     private var actionButtons: some View {
         HStack(spacing: 12) {
             // Push & Deploy button
-            Button(action: onPushAndDeploy) {
+            Button {
+                Task { try? await service.pushAndDeploy() }
+            } label: {
                 HStack(spacing: 4) {
                     if ciStatus.status.isDeploying {
                         ProgressView()
@@ -377,7 +378,9 @@ struct GitHubCISectionView: View {
 
             // View Logs button
             if let runId = ciStatus.status.runId {
-                Button(action: { onViewLogs(runId) }) {
+                Button {
+                    Task { try? await service.viewWorkflowLogs(runId: runId) }
+                } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "doc.text")
                         Text("View Logs")
