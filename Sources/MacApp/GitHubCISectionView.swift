@@ -28,6 +28,10 @@ struct GitHubCILoadingView: View {
 struct GitHubCISectionView: View {
     @State var service: GitHubService
 
+    // Timer for updating elapsed time display
+    @State private var currentTime = Date()
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
     private var ciStatus: GitHubCIStatus {
         service.ciStatus
     }
@@ -74,6 +78,37 @@ struct GitHubCISectionView: View {
             .background(Color.gray.opacity(0.1))
             .cornerRadius(8)
         }
+        .onReceive(timer) { time in
+            if ciStatus.status.isDeploying {
+                currentTime = time
+            }
+        }
+    }
+
+    // MARK: - Elapsed Time
+
+    private func elapsedTimeString(from dateString: String) -> String? {
+        guard let startDate = parseGitHubDate(dateString) else { return nil }
+
+        let elapsed = currentTime.timeIntervalSince(startDate)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+
+    private func parseGitHubDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString)
     }
 
     // MARK: - Status Row
@@ -178,7 +213,8 @@ struct GitHubCISectionView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.blue)
-                    if let elapsed = ciStatus.runDetail?.elapsedTime {
+                    if let createdAt = ciStatus.runDetail?.createdAt,
+                       let elapsed = elapsedTimeString(from: createdAt) {
                         Text(elapsed)
                             .font(.caption)
                             .foregroundColor(.secondary)
