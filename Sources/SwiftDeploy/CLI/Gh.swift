@@ -417,6 +417,32 @@ public struct GitHubStep: Sendable, Equatable, Codable {
     public var isSkipped: Bool {
         conclusion == "skipped"
     }
+
+    /// Elapsed time string for in-progress steps (e.g., "1m 23s")
+    public var elapsedTime: String? {
+        guard isInProgress, let startedAt else { return nil }
+        guard let startDate = parseGitHubDate(startedAt) else { return nil }
+
+        let elapsed = Date().timeIntervalSince(startDate)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+
+    private func parseGitHubDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString)
+    }
 }
 
 /// Parser for detailed GitHub run view JSON output

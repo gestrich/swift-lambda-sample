@@ -326,6 +326,12 @@ struct GitHubCISectionView: View {
             Text(step.name)
                 .font(.caption2)
                 .foregroundColor(step.isInProgress ? .primary : .secondary)
+
+            if let elapsed = step.elapsedTime {
+                Text(elapsed)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 
