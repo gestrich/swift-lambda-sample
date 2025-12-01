@@ -387,9 +387,7 @@ struct GitHubCISectionView: View {
     }
 
     private var buttonLabel: String {
-        if ciStatus.status.isDeploying {
-            return "Deploying..."
-        } else if ciStatus.hasUnpushedCommits {
+        if ciStatus.hasUnpushedCommits {
             return "Push & Deploy"
         } else {
             return "Trigger Deploy"
