@@ -213,6 +213,11 @@ struct GitHubCISectionView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.blue)
+                    if let detail = ciStatus.runDetail {
+                        Text("#\(detail.number)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     if let createdAt = ciStatus.runDetail?.createdAt,
                        let elapsed = elapsedTimeString(from: createdAt) {
                         Text(elapsed)

@@ -62,7 +62,7 @@ public struct Gh {
                     runId: runId,
                     repo: repo,
                     log: false,
-                    json: "status,conclusion,jobs,displayTitle,createdAt,updatedAt,url"
+                    json: "number,status,conclusion,jobs,displayTitle,createdAt,updatedAt,url"
                 )
             }
         }
@@ -271,6 +271,7 @@ public struct GitHubPullRequestsParser: CLIOutputParser {
 
 /// Detailed workflow run with jobs and steps
 public struct GitHubRunDetail: Sendable, Equatable, Codable {
+    public let number: Int
     public let status: String
     public let conclusion: String?
     public let displayTitle: String
@@ -280,6 +281,7 @@ public struct GitHubRunDetail: Sendable, Equatable, Codable {
     public let jobs: [GitHubJob]
 
     public init(
+        number: Int,
         status: String,
         conclusion: String?,
         displayTitle: String,
@@ -288,6 +290,7 @@ public struct GitHubRunDetail: Sendable, Equatable, Codable {
         url: String?,
         jobs: [GitHubJob]
     ) {
+        self.number = number
         self.status = status
         self.conclusion = conclusion
         self.displayTitle = displayTitle
