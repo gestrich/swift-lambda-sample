@@ -276,6 +276,7 @@ public class RemoteService: LambdaService {
 
     /// Refresh status and publish results via Combine publishers
     /// Always fetches the latest endpoint from CDK stack
+    /// Also refreshes GitHub CI and CDK Infrastructure status
     public func refreshStatus() {
         let statusSubject = self.statusSubject
         let isLoadingStatusSubject = self.isLoadingStatusSubject
@@ -292,6 +293,20 @@ public class RemoteService: LambdaService {
                 statusSubject.send(.stopped)
             }
             isLoadingStatusSubject.send(false)
+
+            // Also refresh sub-services in parallel
+            await withTaskGroup(of: Void.self) { group in
+                if let github = githubService {
+                    group.addTask {
+                        await github.refreshStatus()
+                    }
+                }
+                if let cdk = cdkInfrastructureService {
+                    group.addTask {
+                        await cdk.refreshStatus()
+                    }
+                }
+            }
         }
     }
 

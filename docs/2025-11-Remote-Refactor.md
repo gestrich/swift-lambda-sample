@@ -123,13 +123,23 @@ The Remote tab currently shows sections (Docker Services, Build, Lambda) that ar
 ---
 
 ### Phase 4: Wire Up Service Calls
-- [ ] Connect GitHub CI section to `RemoteService.updateLambdaCode()`
-- [ ] Connect CDK Deploy to `RemoteService.deployInit()` and `RemoteService.deploy()`
-- [ ] Connect Destroy to `RemoteService.tearDown()`
-- [ ] Add `refreshStatus()` calls to update both GitHub and CDK status
-- [ ] Stream output to `UnifiedOutputState` for all operations
+- [x] Connect GitHub CI section to `GitHubService` methods (already done in Phase 2)
+- [x] Connect CDK Deploy to `CDKInfrastructureService` methods (already done in Phase 3)
+- [x] Connect Destroy to `CDKInfrastructureService.destroy()` (already done in Phase 3)
+- [x] Add `refreshStatus()` calls to update both GitHub and CDK status
+- [x] Verify output streams to Output view for all operations
 
-**Files**: `MacAppModel.swift`, `RemoteService.swift` (if needed)
+**Files**: `RemoteService.swift`
+
+**Completed**: Analysis revealed that Phase 2 and Phase 3 already fully wired up the UI buttons to their respective service methods:
+- `GitHubCISectionView` → `GitHubService.pushAndDeploy()`, `refreshStatus()`, `viewWorkflowLogs()`
+- `CDKInfrastructureSectionView` → `CDKInfrastructureService.deploy()`, `updateInfrastructure()`, `destroy()`, `refreshStatus()`
+
+The remaining work was:
+1. **Connected main refresh button**: Updated `RemoteService.refreshStatus()` to also call `githubService?.refreshStatus()` and `cdkInfrastructureService?.refreshStatus()` in parallel
+2. **Verified output streaming**: Output already flows through `CLIService.shared.outputStream()` which is used by the Output view in `DeployView.swift`. The `UnifiedOutputState` in each service is not needed for remote mode.
+
+**Note**: The UI buttons connect directly to `GitHubService` and `CDKInfrastructureService` rather than going through `RemoteService`. This is the better design since these are specialized services with their own state management.
 
 ---
 
