@@ -173,10 +173,17 @@ struct GitHubCISectionView: View {
             }
         case .deploying:
             VStack(alignment: .leading, spacing: 2) {
-                Text("Deploying...")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.blue)
+                HStack(spacing: 6) {
+                    Text("Deploying...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    if let elapsed = ciStatus.runDetail?.elapsedTime {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 if let detail = ciStatus.runDetail {
                     Text(detail.displayTitle)
                         .font(.caption)
@@ -326,12 +333,6 @@ struct GitHubCISectionView: View {
             Text(step.name)
                 .font(.caption2)
                 .foregroundColor(step.isInProgress ? .primary : .secondary)
-
-            if let elapsed = step.elapsedTime {
-                Text(elapsed)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
         }
     }
 

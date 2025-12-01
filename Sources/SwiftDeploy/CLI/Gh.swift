@@ -313,6 +313,31 @@ public struct GitHubRunDetail: Sendable, Equatable, Codable {
     public var isInProgress: Bool {
         status == "in_progress" || status == "queued" || status == "pending"
     }
+
+    /// Elapsed time string since run started (e.g., "1m 23s")
+    public var elapsedTime: String? {
+        guard let startDate = parseGitHubDate(createdAt) else { return nil }
+
+        let elapsed = Date().timeIntervalSince(startDate)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+
+    private func parseGitHubDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString)
+    }
 }
 
 /// A job within a workflow run
