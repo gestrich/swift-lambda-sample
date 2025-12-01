@@ -85,17 +85,20 @@ public final class GitHubService {
 
     public private(set) var ciStatus = GitHubCIStatus()
 
+    // MARK: - Configuration
+
+    public let config: GitHubConfiguration
+
     // MARK: - Private Services
 
     private let ghCLIService: GitHubCLIService
     private let gitService: GitService
-    private let repository: String
 
     // MARK: - Init
 
-    public init(repoPath: String, owner: String, repo: String) {
-        self.repository = "\(owner)/\(repo)"
-        self.ghCLIService = GitHubCLIService(repository: repository)
+    public init(repoPath: String, config: GitHubConfiguration) {
+        self.config = config
+        self.ghCLIService = GitHubCLIService(repository: config.repository)
         self.gitService = GitService(repoPath: repoPath)
     }
 
@@ -110,15 +113,14 @@ public final class GitHubService {
         ciStatus.status = .loading
 
         do {
-            let currentBranch = try await gitService.getCurrentBranch()
             let hasUnpushed = try await gitService.hasCommitsToPush()
             let hasUncommitted = try await gitService.hasUncommittedChanges()
 
             ciStatus.hasUnpushedCommits = hasUnpushed
             ciStatus.hasUncommittedChanges = hasUncommitted
-            ciStatus.currentBranch = currentBranch
+            ciStatus.currentBranch = config.branch
 
-            if let latestRun = try await ghCLIService.getLatestWorkflowRun(branch: currentBranch) {
+            if let latestRun = try await ghCLIService.getLatestWorkflowRun(branch: config.branch) {
                 // Check if the latest run is in progress - if so, monitor it
                 if !latestRun.isCompleted {
                     ciStatus.status = .deploying(runId: latestRun.id)
@@ -149,8 +151,6 @@ public final class GitHubService {
     public func pushAndDeploy() async throws {
         ciStatus.runDetail = nil
 
-        let currentBranch = try await gitService.getCurrentBranch()
-
         // Check if we have commits to push
         let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
@@ -158,7 +158,7 @@ public final class GitHubService {
 
         if hasCommitsToPush {
             // Get the current latest run ID before pushing
-            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: currentBranch)?.id
+            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
 
             ciStatus.status = .deploying(runId: "pending")
 
@@ -166,20 +166,20 @@ public final class GitHubService {
 
             // Poll for a new run to appear
             runIdToWatch = try await waitForNewRun(
-                branch: currentBranch,
+                branch: config.branch,
                 afterRunId: beforeRunId
             )
         } else {
             // No commits to push - trigger workflow manually
             ciStatus.status = .deploying(runId: "pending")
 
-            try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: currentBranch)
+            try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: config.branch)
 
             // Wait for the triggered run to appear
-            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: currentBranch)?.id
+            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
             try await Task.sleep(for: .seconds(2))
             runIdToWatch = try await waitForNewRun(
-                branch: currentBranch,
+                branch: config.branch,
                 afterRunId: beforeRunId
             )
         }
@@ -196,7 +196,7 @@ public final class GitHubService {
 
     /// Open workflow logs in browser
     public func viewWorkflowLogs(runId: String) async throws {
-        let url = "https://github.com/\(repository)/actions/runs/\(runId)"
+        let url = "https://github.com/\(config.repository)/actions/runs/\(runId)"
 
         let cliService = CLIService.shared
         let result = try await cliService.execute(

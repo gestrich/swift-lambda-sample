@@ -6,7 +6,7 @@ public actor GitHubCLIService {
     private let cliService: CLIService
     private let repository: String
 
-    public init(repository: String = "gestrich/swift-lambda-sample") {
+    public init(repository: String) {
         self.cliService = CLIService.shared
         self.repository = repository
     }
@@ -101,7 +101,7 @@ public actor GitHubCLIService {
     /// Trigger a workflow manually
     public func triggerWorkflow(
         workflow: String,
-        branch: String = "dev"
+        branch: String
     ) async throws {
         let command = Gh.Workflow.Run(workflow: workflow, repo: repository, ref: branch)
 

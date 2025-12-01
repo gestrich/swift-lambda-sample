@@ -1,0 +1,81 @@
+//
+//  GitHubConfiguration.swift
+//  SwiftDeploy
+//
+//  GitHub configuration for CI/CD integration
+//
+
+import Foundation
+import LocalStorageService
+
+/// GitHub configuration for SwiftDeploy
+public struct GitHubConfiguration: Codable, Sendable {
+    /// Repository in "owner/repo" format (e.g., "gestrich/swift-lambda-sample")
+    public let repository: String
+
+    /// Branch to monitor for CI/CD (e.g., "dev", "main")
+    public let branch: String
+
+    private static let storageService = LocalStorageService()
+
+    public init(repository: String, branch: String) {
+        self.repository = repository
+        self.branch = branch
+    }
+
+    // MARK: - Configuration File
+
+    /// Path to GitHub configuration file
+    public static var configPath: String {
+        storageService.filePath(for: GitHubConfigFileKey.self)
+    }
+
+    /// Load GitHub configuration from file
+    /// - Returns: Configuration if file exists and is valid, nil otherwise
+    public static func loadConfig() -> GitHubConfiguration? {
+        guard FileManager.default.fileExists(atPath: configPath) else {
+            return nil
+        }
+
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: configPath))
+            return try JSONDecoder().decode(GitHubConfiguration.self, from: data)
+        } catch {
+            print("Warning: Failed to read GitHub config from \(configPath): \(error)")
+            return nil
+        }
+    }
+
+    /// Save configuration to file
+    public func save() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(self)
+
+        let url = URL(fileURLWithPath: Self.configPath)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try data.write(to: url)
+    }
+
+    // MARK: - Derived Properties
+
+    /// Owner part of the repository (e.g., "gestrich")
+    public var owner: String {
+        repository.components(separatedBy: "/").first ?? ""
+    }
+
+    /// Repo name part of the repository (e.g., "swift-lambda-sample")
+    public var repoName: String {
+        repository.components(separatedBy: "/").last ?? ""
+    }
+}
+
+// MARK: - Storage Keys
+
+/// Storage key for GitHub configuration file
+public struct GitHubConfigFileKey: StorageFileKey {
+    public static let filename = "github-config.json"
+}

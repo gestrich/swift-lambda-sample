@@ -66,9 +66,14 @@ public class RemoteService: LambdaService {
             return existing
         }
 
-        let gitService = GitService(repoPath: projectRoot)
-        let repoInfo = try await gitService.getRepoInfo()
-        let service = GitHubService(repoPath: projectRoot, owner: repoInfo.owner, repo: repoInfo.name)
+        guard let config = GitHubConfiguration.loadConfig() else {
+            throw DeployError.configurationMissing(
+                file: GitHubConfiguration.configPath,
+                hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
+            )
+        }
+
+        let service = GitHubService(repoPath: projectRoot, config: config)
         _githubService = service
         return service
     }
@@ -432,20 +437,25 @@ public class RemoteService: LambdaService {
 
     /// Update Lambda code via GitHub Actions
     public func updateLambdaCode(skipPush: Bool = false) async throws {
+        guard let config = GitHubConfiguration.loadConfig() else {
+            throw DeployError.configurationMissing(
+                file: GitHubConfiguration.configPath,
+                hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
+            )
+        }
+
         let gitService = GitService(repoPath: projectRoot)
-        let repoInfo = try await gitService.getRepoInfo()
-        let currentBranch = try await gitService.getCurrentBranch()
-        let githubService = GitHubService(repoPath: projectRoot, owner: repoInfo.owner, repo: repoInfo.name)
+        let githubService = GitHubService(repoPath: projectRoot, config: config)
 
         if !skipPush {
             let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
             if hasCommitsToPush {
-                let beforeRunId = try await githubService.getLatestRunId(branch: currentBranch)
+                let beforeRunId = try await githubService.getLatestRunId(branch: config.branch)
                 try await gitService.push()
 
                 try await githubService.waitForNewWorkflowCompletion(
-                    branch: currentBranch,
+                    branch: config.branch,
                     afterRunId: beforeRunId,
                     timeoutMinutes: 10
                 )
@@ -454,7 +464,7 @@ public class RemoteService: LambdaService {
                 print("🔄 Triggering workflow to redeploy current code...\n")
                 try await githubService.triggerWorkflowAndWait(
                     workflowName: "Dev Deploy",
-                    branch: currentBranch,
+                    branch: config.branch,
                     timeoutMinutes: 10
                 )
             }
@@ -463,7 +473,7 @@ public class RemoteService: LambdaService {
             print("🔄 Triggering workflow...\n")
             try await githubService.triggerWorkflowAndWait(
                 workflowName: "Dev Deploy",
-                branch: currentBranch,
+                branch: config.branch,
                 timeoutMinutes: 10
             )
         }

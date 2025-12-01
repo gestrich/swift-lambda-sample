@@ -1,23 +1,39 @@
 import SwiftDeploy
 import SwiftUI
 
-/// Loading placeholder while GitHubService initializes
+/// Placeholder when GitHubService is not available (config missing or loading)
 struct GitHubCILoadingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("GitHub CI")
                 .font(.headline)
 
-            HStack {
-                ProgressView()
-                    .scaleEffect(0.7)
-                Text("Loading...")
-                    .font(.subheadline)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.orange)
+                    Text("Not Configured")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+
+                Text("Create ~/.swiftSampleDemo/github-config.json:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Text("""
+                    {
+                      "repository": "owner/repo",
+                      "branch": "dev"
+                    }
+                    """)
+                    .font(.caption)
+                    .fontDesign(.monospaced)
                     .foregroundColor(.secondary)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gray.opacity(0.1))
+            .background(Color.orange.opacity(0.1))
             .cornerRadius(8)
         }
     }

@@ -24,6 +24,9 @@ public enum DeployError: Error, LocalizedError, Sendable {
     /// Invalid configuration
     case invalidConfiguration(String)
 
+    /// Configuration file missing
+    case configurationMissing(file: String, hint: String)
+
     public var errorDescription: String? {
         switch self {
         case .deploymentFailed(let reason):
@@ -41,6 +44,9 @@ public enum DeployError: Error, LocalizedError, Sendable {
 
         case .invalidConfiguration(let reason):
             return "Invalid configuration: \(reason)"
+
+        case .configurationMissing(let file, let hint):
+            return "Configuration file missing: \(file)\n\(hint)"
         }
     }
 }

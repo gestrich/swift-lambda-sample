@@ -281,16 +281,16 @@ class MacAppModel: LambdaService {
         }
     }
 
-    /// Create GitHubService (always available, used in remote mode UI)
+    /// Create GitHubService from config file
     private func createGitHubService() async {
-        let gitService = GitService(repoPath: workingDirectory)
-        do {
-            let repoInfo = try await gitService.getRepoInfo()
-            githubService = GitHubService(repoPath: workingDirectory, owner: repoInfo.owner, repo: repoInfo.name)
-            await githubService?.refreshStatus()
-        } catch {
-            print("⚠️ Failed to create GitHubService: \(error)")
+        guard let config = GitHubConfiguration.loadConfig() else {
+            print("⚠️ GitHub config not found at \(GitHubConfiguration.configPath)")
+            print("  Create the file with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}")
+            return
         }
+
+        githubService = GitHubService(repoPath: workingDirectory, config: config)
+        await githubService?.refreshStatus()
     }
 
     /// Path to the app config file

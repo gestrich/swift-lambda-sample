@@ -45,20 +45,27 @@ extension AWSCommand {
         print("  Current branch: \(currentBranch)")
 
         // GitHub Actions status
-        do {
-            let repoInfo = try await gitService.getRepoInfo()
-            let githubService = await MainActor.run {
-                GitHubService(repoPath: projectRoot, owner: repoInfo.owner, repo: repoInfo.name)
-            }
-            let (status, conclusion) = try await githubService.getLatestRunStatus(branch: currentBranch)
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            do {
+                let githubService = await MainActor.run {
+                    GitHubService(repoPath: projectRoot, config: githubConfig)
+                }
+                let (status, conclusion) = try await githubService.getLatestRunStatus(branch: githubConfig.branch)
 
-            print("\n🔄 GitHub Actions:")
-            print("  Latest workflow status: \(status)")
-            if let conclusion = conclusion {
-                print("  Conclusion: \(conclusion)")
+                print("\n🔄 GitHub Actions:")
+                print("  Repository: \(githubConfig.repository)")
+                print("  Branch: \(githubConfig.branch)")
+                print("  Latest workflow status: \(status)")
+                if let conclusion = conclusion {
+                    print("  Conclusion: \(conclusion)")
+                }
+            } catch {
+                print("\n🔄 GitHub Actions: Unable to fetch status")
             }
-        } catch {
-            print("\n🔄 GitHub Actions: Unable to fetch status")
+        } else {
+            print("\n🔄 GitHub Actions: Not configured")
+            print("  Create \(GitHubConfiguration.configPath) with:")
+            print("  {\"repository\": \"owner/repo\", \"branch\": \"dev\"}")
         }
 
         // CDK Stack status
