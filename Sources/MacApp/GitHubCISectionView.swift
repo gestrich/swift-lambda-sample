@@ -301,9 +301,9 @@ struct GitHubCISectionView: View {
     @ViewBuilder
     private func jobStatusIcon(job: GitHubJob) -> some View {
         if job.isInProgress {
-            ProgressView()
-                .scaleEffect(0.5)
-                .frame(width: 12, height: 12)
+            Image(systemName: "play.circle.fill")
+                .font(.caption)
+                .foregroundColor(.blue)
         } else if job.isSuccess {
             Image(systemName: "checkmark.circle.fill")
                 .font(.caption)
