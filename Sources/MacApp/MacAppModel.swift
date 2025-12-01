@@ -194,6 +194,12 @@ enum ConnectionMode: LambdaService {
         return false
     }
 
+    /// Access the RemoteService if in remote mode
+    var remoteService: RemoteService? {
+        if case .remote(let service) = self { return service }
+        return nil
+    }
+
     var isLocalXcode: Bool {
         if case .localXcode = self { return true }
         return false
@@ -249,7 +255,10 @@ class MacAppModel: LambdaService {
 
     // MARK: - GitHub Service (for Remote mode)
 
-    private(set) var githubService: GitHubService?
+    /// GitHub service from RemoteService (only available in remote mode)
+    var githubService: GitHubService? {
+        mode.remoteService?.githubService
+    }
 
     // MARK: - Private
 
@@ -277,20 +286,9 @@ class MacAppModel: LambdaService {
         // Set default working directory for CLIService (after init completes)
         Task {
             await CLIService.shared.setDefaultWorkingDirectory(projectDirectory)
-            await createGitHubService()
+            // Initialize GitHub service for remote mode
+            mode.remoteService?.initializeGitHubService()
         }
-    }
-
-    /// Create GitHubService from config file
-    private func createGitHubService() async {
-        guard let config = GitHubConfiguration.loadConfig() else {
-            print("⚠️ GitHub config not found at \(GitHubConfiguration.configPath)")
-            print("  Create the file with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}")
-            return
-        }
-
-        githubService = GitHubService(repoPath: workingDirectory, config: config)
-        await githubService?.refreshStatus()
     }
 
     /// Path to the app config file
@@ -430,6 +428,7 @@ class MacAppModel: LambdaService {
 
     func setRemote() {
         mode = .remote(RemoteService(workingDirectory: workingDirectory))
+        mode.remoteService?.initializeGitHubService()
     }
 
     func setLocalXcode() {

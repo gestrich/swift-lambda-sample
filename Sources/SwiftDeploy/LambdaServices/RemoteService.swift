@@ -21,15 +21,9 @@ public class RemoteService: LambdaService {
     private let cliService: CLIService
     private let projectRoot: String
 
-    private var _endpoint: String? {
-        didSet {
-            if let endpoint = _endpoint {
-                UserDefaults.standard.set(endpoint, forKey: Self.endpointKey)
-            }
-        }
-    }
-
     private static let endpointKey = "remoteService.endpoint"
+
+    private var cachedEndpoint: String?
 
     // MARK: - Combine Publishers
 
@@ -56,31 +50,18 @@ public class RemoteService: LambdaService {
 
     public let lambdaState = LambdaState()
 
-    // MARK: - GitHub Service (lazy initialized)
+    // MARK: - GitHub Service
 
-    private var _githubService: GitHubService?
+    public private(set) var githubService: GitHubService?
 
-    /// Get or create the GitHub service for this repository
-    public func getGitHubService() async throws -> GitHubService {
-        if let existing = _githubService {
-            return existing
+    /// Initialize GitHub service if config is available.
+    /// Call this during setup - views observe `githubService` and show GitHub UI when non-nil.
+    public func initializeGitHubService() {
+        guard githubService == nil,
+              let config = GitHubConfiguration.loadConfig() else {
+            return
         }
-
-        guard let config = GitHubConfiguration.loadConfig() else {
-            throw DeployError.configurationMissing(
-                file: GitHubConfiguration.configPath,
-                hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
-            )
-        }
-
-        let service = GitHubService(repoPath: projectRoot, config: config)
-        _githubService = service
-        return service
-    }
-
-    /// Access to GitHub service (nil until first refresh)
-    public var githubService: GitHubService? {
-        _githubService
+        githubService = GitHubService(repoPath: projectRoot, config: config)
     }
 
     // MARK: - LambdaService Protocol Properties
@@ -90,7 +71,7 @@ public class RemoteService: LambdaService {
     public var port: Int { 443 }
 
     public var endpoint: String {
-        _endpoint ?? "https://<not-configured>"
+        cachedEndpoint ?? "https://<not-configured>"
     }
 
     public var endpointLabel: String { "API Gateway URL" }
@@ -119,7 +100,7 @@ public class RemoteService: LambdaService {
         self.cliService = CLIService.shared
 
         // Load persisted endpoint
-        self._endpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
+        self.cachedEndpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
     }
 
     /// Convenience initializer for workingDirectory-based initialization (matches local services)
@@ -131,18 +112,19 @@ public class RemoteService: LambdaService {
 
     /// Set the endpoint URL manually (persisted to UserDefaults)
     public func setEndpoint(_ url: String) {
-        _endpoint = url
+        cachedEndpoint = url
+        UserDefaults.standard.set(url, forKey: Self.endpointKey)
     }
 
     public var isConfigured: Bool {
-        _endpoint != nil
+        cachedEndpoint != nil
     }
 
     /// Fetch and cache endpoint from CDK stack
     public func fetchEndpoint() async throws {
         let outputs = try await awsService.getStackOutputs(name: "SwiftLambdaSampleStack")
         if let apiUrl = outputs["ApiGatewayUrl"] {
-            _endpoint = apiUrl
+            setEndpoint(apiUrl)
         }
     }
 
@@ -158,7 +140,7 @@ public class RemoteService: LambdaService {
 
     /// Check if Lambda is deployed (stack exists with endpoint)
     public func isLambdaBuilt() -> Bool {
-        return _endpoint != nil
+        return cachedEndpoint != nil
     }
 
     /// Delete build is not applicable for remote - just clears state
@@ -173,7 +155,7 @@ public class RemoteService: LambdaService {
         lambdaState.appendOutput("ℹ️  Remote Lambda is managed by AWS\n")
         lambdaState.appendOutput("   Lambda runs automatically when invoked via API Gateway\n")
         // Remote Lambda is always "running" when stack is deployed
-        if _endpoint != nil {
+        if cachedEndpoint != nil {
             lambdaState.setRunning()
         }
     }
@@ -188,7 +170,7 @@ public class RemoteService: LambdaService {
     public func startWithServices() async throws {
         lambdaState.appendOutput("ℹ️  Remote services are managed by AWS\n")
         lambdaState.appendOutput("   Services (RDS, S3) run continuously when deployed\n")
-        if _endpoint != nil {
+        if cachedEndpoint != nil {
             lambdaState.setRunning()
         }
     }
@@ -530,31 +512,6 @@ public class RemoteService: LambdaService {
         }
 
         print("\n🎉 Deployment completed successfully!")
-    }
-
-    // MARK: - GitHub CI Operations (delegates to GitHubService)
-
-    /// Refresh GitHub CI status including git state and latest workflow run.
-    /// If an in-progress run is detected, automatically starts monitoring it.
-    public func refreshGitHubCIStatus() async {
-        do {
-            let ghService = try await getGitHubService()
-            await ghService.refreshStatus()
-        } catch {
-            print("Failed to refresh GitHub CI status: \(error)")
-        }
-    }
-
-    /// Push commits and deploy via GitHub Actions with polling progress
-    public func pushAndDeploy() async throws {
-        let ghService = try await getGitHubService()
-        try await ghService.pushAndDeploy()
-    }
-
-    /// Open workflow logs in browser
-    public func viewWorkflowLogs(runId: String) async throws {
-        let ghService = try await getGitHubService()
-        try await ghService.viewWorkflowLogs(runId: runId)
     }
 
     // MARK: - Private Helpers
