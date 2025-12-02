@@ -1,7 +1,7 @@
 # Remote Tab Refactor Plan
 
 **Date**: November 30, 2025
-**Status**: Phases 1-7 Complete (Build Provider Protocol Refactor Done)
+**Status**: Phases 1-8 Complete (All Protocol Refactors Done)
 
 ## Overview
 
@@ -239,23 +239,36 @@ The remaining work was:
 ---
 
 ### Phase 8: Protocol Refactor - LocalLambdaProvider
-- [ ] Create `LocalLambdaProvider` protocol with local Lambda lifecycle:
+- [x] Create `LocalLambdaProvider` protocol with local Lambda lifecycle:
   - `startLambda()`, `stopLambda()`
   - `startWithServices()`, `stopWithServices()`
   - `lambdaState` property
-- [ ] Have `XcodeLocalService` and `LinuxLocalService` conform to this protocol
-- [ ] Remove local Lambda lifecycle methods from base `LambdaService` protocol
-- [ ] Remove dead Lambda lifecycle implementations from `RemoteService`
-- [ ] Update `DeployView` to use protocol conformance check for Lambda section
-- [ ] Keep only shared methods in base `LambdaService` protocol (`endpoint`, `testLambda`, `status`, etc.)
+- [x] Have `XcodeLocalService` and `LinuxLocalService` conform to this protocol
+- [x] Remove local Lambda lifecycle methods from base `LambdaService` protocol
+- [x] Remove dead Lambda lifecycle implementations from `RemoteService`
+- [x] Update `DeployView` to use protocol conformance check for Lambda section
+- [x] Update `ConnectionMode` with `lambdaProvider` property
+- [x] Update `MacAppModel` with `lambdaProvider` property
+- [x] Keep only shared methods in base `LambdaService` protocol (`endpoint`, `testLambda`, `status`, etc.)
 
 **Files**:
+- `Sources/SwiftDeploy/LambdaServices/LocalLambdaProvider.swift` (NEW)
 - `Sources/SwiftDeploy/LambdaServices/LambdaService.swift`
 - `Sources/SwiftDeploy/LambdaServices/RemoteService.swift`
 - `Sources/SwiftDeploy/LambdaServices/XcodeLocalService.swift`
 - `Sources/SwiftDeploy/LambdaServices/LinuxLocalService.swift`
 - `Sources/MacApp/DeployView.swift`
-- `Sources/MacApp/MacAppModel.swift` (update if needed)
+- `Sources/MacApp/MacAppModel.swift`
+
+**Completed**: The `LocalLambdaProvider` protocol cleanly separates Lambda lifecycle capabilities:
+- Only `XcodeLocalService` and `LinuxLocalService` conform to the protocol
+- `RemoteService` no longer has Lambda lifecycle methods (Lambda runs on-demand in AWS)
+- `ConnectionMode` now provides `lambdaProvider` property that returns nil for remote mode
+- `MacAppModel` now provides `lambdaProvider` property
+- `DeployView` uses `if let lambdaProvider = model.lambdaProvider` pattern
+- Lambda state is accessed through the protocol, not through `LambdaService`
+
+**Note**: The pattern follows Phases 6 and 7's approach. Remote mode manages Lambda differently - it runs on-demand when invoked via API Gateway, so lifecycle methods don't apply.
 
 **Benefits of Phases 6-8**:
 - Clean separation of concerns - protocols define capabilities
@@ -318,13 +331,18 @@ The remaining work was:
 
 ## Future Improvements
 
-### 1. Eager Service Initialization in MacAppModel
+### 1. Eager Service Initialization in MacAppModel ✅ COMPLETED
 
-Currently, services in `MacAppModel` are created lazily, which leads to awkward optionals throughout the codebase. All services (Remote, Xcode, Linux) should be created at app startup instead.
+All services (`RemoteService`, `XcodeLocalService`, `LinuxLocalService`) are now created at `MacAppModel` initialization time. The active mode simply determines which service is currently in use.
 
-**Problem**: Lazy initialization results in `Optional` service properties that need to be unwrapped everywhere they're used, adding boilerplate and potential nil-handling bugs.
+**Problem**: Lazy initialization resulted in `Optional` service properties that needed to be unwrapped everywhere they were used, adding boilerplate and potential nil-handling bugs.
 
-**Solution**: Create all three services (`RemoteService`, `XcodeLocalService`, `LinuxLocalService`) during `MacAppModel` initialization. The active mode simply determines which service is currently in use, not whether it exists.
+**Solution**:
+- All three services are now created as `let` properties in `MacAppModel.init()`
+- `ConnectionMode` enum still holds a reference to the active service
+- Mode setters (`setRemote()`, `setLocalXcode()`, `setLocalLinux()`) now switch between pre-created services
+- Removed `ConnectionMode.from(key:workingDirectory:)` factory method (no longer needed)
+- `githubService` and `cdkInfrastructureService` now accessed directly from `remoteService` property
 
 ### 2. Eager Sub-Service Initialization in RemoteService ✅ COMPLETED
 

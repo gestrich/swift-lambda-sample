@@ -38,7 +38,6 @@ enum ConnectionMode: LambdaService {
     var apiClient: APIClient { service.apiClient }
     var isConfigured: Bool { service.isConfigured }
     var unifiedOutput: UnifiedOutputState { service.unifiedOutput }
-    var lambdaState: LambdaState { service.lambdaState }
 
     var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         service.statusPublisher
@@ -46,22 +45,6 @@ enum ConnectionMode: LambdaService {
 
     var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
         service.isLoadingStatusPublisher
-    }
-
-    func startLambda() async throws {
-        try await service.startLambda()
-    }
-
-    func stopLambda() async throws {
-        try await service.stopLambda()
-    }
-
-    func startWithServices() async throws {
-        try await service.startWithServices()
-    }
-
-    func stopWithServices() async throws {
-        try await service.stopWithServices()
     }
 
     func testLambda() async throws {
@@ -100,6 +83,21 @@ enum ConnectionMode: LambdaService {
     /// Access the LocalBuildProvider if in a local mode (Xcode or Linux)
     /// Returns nil for remote mode since builds are done via CI/CD pipeline
     var buildProvider: LocalBuildProvider? {
+        switch self {
+        case .localXcode(let service):
+            return service
+        case .localLinux(let service):
+            return service
+        case .remote:
+            return nil
+        }
+    }
+
+    // MARK: - Lambda Provider
+
+    /// Access the LocalLambdaProvider if in a local mode (Xcode or Linux)
+    /// Returns nil for remote mode since Lambda runs on-demand in AWS
+    var lambdaProvider: LocalLambdaProvider? {
         switch self {
         case .localXcode(let service):
             return service
@@ -154,18 +152,6 @@ enum ConnectionMode: LambdaService {
         if case .localLinux = self { return true }
         return false
     }
-
-    /// Create a mode with its service from a persistence key
-    static func from(key: String, workingDirectory: String) -> ConnectionMode {
-        switch key {
-        case XcodeLocalService.persistenceKey:
-            return .localXcode(XcodeLocalService(workingDirectory: workingDirectory))
-        case LinuxLocalService.persistenceKey:
-            return .localLinux(LinuxLocalService(workingDirectory: workingDirectory))
-        default:
-            return .remote(RemoteService(workingDirectory: workingDirectory))
-        }
-    }
 }
 
 /// Main model for the MacApp using MV (Model-View) architecture.
@@ -174,6 +160,13 @@ enum ConnectionMode: LambdaService {
 @MainActor
 @Observable
 class MacAppModel: LambdaService {
+    // MARK: - Pre-Created Services (Eager Initialization)
+
+    /// All services are created at app startup. The active mode determines which is in use.
+    let remoteService: RemoteService
+    let xcodeLocalService: XcodeLocalService
+    let linuxLocalService: LinuxLocalService
+
     // MARK: - Persisted State
 
     var mode: ConnectionMode {
@@ -193,10 +186,6 @@ class MacAppModel: LambdaService {
 
     var unifiedOutput: UnifiedOutputState { mode.unifiedOutput }
 
-    // MARK: - Lambda State
-
-    var lambdaState: LambdaState { mode.lambdaState }
-
     // MARK: - Build Provider (for Local modes only)
 
     /// Build provider from local service (only available in local modes)
@@ -204,18 +193,25 @@ class MacAppModel: LambdaService {
         mode.buildProvider
     }
 
+    // MARK: - Lambda Provider (for Local modes only)
+
+    /// Lambda provider from local service (only available in local modes)
+    var lambdaProvider: LocalLambdaProvider? {
+        mode.lambdaProvider
+    }
+
     // MARK: - GitHub Service (for Remote mode)
 
-    /// GitHub service from RemoteService (only available in remote mode)
+    /// GitHub service from RemoteService (always available since RemoteService is eagerly initialized)
     var githubService: GitHubService? {
-        mode.remoteService?.githubService
+        remoteService.githubService
     }
 
     // MARK: - CDK Infrastructure Service (for Remote mode)
 
-    /// CDK Infrastructure service from RemoteService (only available in remote mode)
+    /// CDK Infrastructure service from RemoteService (always available since RemoteService is eagerly initialized)
     var cdkInfrastructureService: CDKInfrastructureService? {
-        mode.remoteService?.cdkInfrastructureService
+        remoteService.cdkInfrastructureService
     }
 
     // MARK: - Private
@@ -234,9 +230,21 @@ class MacAppModel: LambdaService {
         let projectDirectory = Self.resolveProjectDirectory()
         self.workingDirectory = projectDirectory
 
-        // Load mode from UserDefaults
+        // Create all services eagerly at startup
+        self.remoteService = RemoteService(workingDirectory: projectDirectory)
+        self.xcodeLocalService = XcodeLocalService(workingDirectory: projectDirectory)
+        self.linuxLocalService = LinuxLocalService(workingDirectory: projectDirectory)
+
+        // Load mode from UserDefaults and use pre-created services
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? "remote"
-        self.mode = ConnectionMode.from(key: savedKey, workingDirectory: projectDirectory)
+        switch savedKey {
+        case XcodeLocalService.persistenceKey:
+            self.mode = .localXcode(xcodeLocalService)
+        case LinuxLocalService.persistenceKey:
+            self.mode = .localLinux(linuxLocalService)
+        default:
+            self.mode = .remote(remoteService)
+        }
 
         // Subscribe to service publishers
         subscribeToService(mode)
@@ -281,9 +289,9 @@ class MacAppModel: LambdaService {
         // Stop old services and start new ones
         Task {
             // Stop old services if it was a local mode (keep old subscription active)
-            if !oldMode.isRemote {
+            if let oldLambdaProvider = oldMode.lambdaProvider {
                 do {
-                    try await oldMode.stopWithServices()
+                    try await oldLambdaProvider.stopWithServices()
                 } catch {
                     print("⚠️ Error stopping old services (may not have been running): \(error)")
                 }
@@ -294,7 +302,7 @@ class MacAppModel: LambdaService {
             subscribeToService(mode)
 
             // Start new services if it's a local mode
-            if !mode.isRemote {
+            if lambdaProvider != nil {
                 await startServices()
             } else {
                 // For remote mode, just refresh status
@@ -305,13 +313,13 @@ class MacAppModel: LambdaService {
 
     /// Start services for the current mode and refresh status
     func startServices() async {
-        guard !mode.isRemote else {
+        guard let lambdaProvider = lambdaProvider else {
             refreshStatus()
             return
         }
 
         do {
-            try await mode.startWithServices()
+            try await lambdaProvider.startWithServices()
         } catch {
             print("⚠️ Failed to start services: \(error)")
             refreshStatus()
@@ -353,15 +361,15 @@ class MacAppModel: LambdaService {
     // MARK: - Mode Setters (for Picker binding)
 
     func setRemote() {
-        mode = .remote(RemoteService(workingDirectory: workingDirectory))
+        mode = .remote(remoteService)
     }
 
     func setLocalXcode() {
-        mode = .localXcode(XcodeLocalService(workingDirectory: workingDirectory))
+        mode = .localXcode(xcodeLocalService)
     }
 
     func setLocalLinux() {
-        mode = .localLinux(LinuxLocalService(workingDirectory: workingDirectory))
+        mode = .localLinux(linuxLocalService)
     }
 
     // MARK: - LambdaService Protocol (delegated to mode)
@@ -381,22 +389,6 @@ class MacAppModel: LambdaService {
 
     var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
         isLoadingStatusSubject.eraseToAnyPublisher()
-    }
-
-    func startLambda() async throws {
-        try await mode.startLambda()
-    }
-
-    func stopLambda() async throws {
-        try await mode.stopLambda()
-    }
-
-    func startWithServices() async throws {
-        try await mode.startWithServices()
-    }
-
-    func stopWithServices() async throws {
-        try await mode.stopWithServices()
     }
 
     func testLambda() async throws {

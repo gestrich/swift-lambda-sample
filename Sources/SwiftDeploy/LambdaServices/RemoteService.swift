@@ -42,10 +42,6 @@ public class RemoteService: LambdaService {
 
     public let unifiedOutput = UnifiedOutputState()
 
-    // MARK: - Lambda State
-
-    public let lambdaState = LambdaState()
-
     // MARK: - GitHub Service
 
     /// GitHub service for CI operations. Non-nil if GitHub config is available.
@@ -132,39 +128,6 @@ public class RemoteService: LambdaService {
         if let apiUrl = outputs["ApiGatewayUrl"] {
             setEndpoint(apiUrl)
         }
-    }
-
-    // MARK: - LambdaService Protocol: Lifecycle
-
-    /// Start is not applicable for remote services - Lambda runs on-demand
-    public func startLambda() async throws {
-        lambdaState.appendOutput("ℹ️  Remote Lambda is managed by AWS\n")
-        lambdaState.appendOutput("   Lambda runs automatically when invoked via API Gateway\n")
-        // Remote Lambda is always "running" when stack is deployed
-        if cachedEndpoint != nil {
-            lambdaState.setRunning()
-        }
-    }
-
-    /// Stop is not applicable for remote services
-    public func stopLambda() async throws {
-        lambdaState.appendOutput("ℹ️  Remote Lambda is managed by AWS\n")
-        lambdaState.appendOutput("   Use 'aws tear-down' to remove all infrastructure\n")
-    }
-
-    /// Start with services is not applicable for remote
-    public func startWithServices() async throws {
-        lambdaState.appendOutput("ℹ️  Remote services are managed by AWS\n")
-        lambdaState.appendOutput("   Services (RDS, S3) run continuously when deployed\n")
-        if cachedEndpoint != nil {
-            lambdaState.setRunning()
-        }
-    }
-
-    /// Stop with services is not applicable for remote
-    public func stopWithServices() async throws {
-        lambdaState.appendOutput("ℹ️  Remote services are managed by AWS\n")
-        lambdaState.appendOutput("   Use 'aws tear-down' to remove all infrastructure\n")
     }
 
     // MARK: - LambdaService Protocol: Testing

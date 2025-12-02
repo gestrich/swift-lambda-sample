@@ -60,7 +60,9 @@ struct DeployView: View {
                         buildSection
 
                         Divider()
+                    }
 
+                    if model.lambdaProvider != nil {
                         lambdaSection
                     }
                 }
@@ -255,87 +257,89 @@ struct DeployView: View {
 
     @ViewBuilder
     private var lambdaSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Lambda")
-                    .font(.headline)
+        if let lambdaProvider = model.lambdaProvider {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Lambda")
+                        .font(.headline)
 
-                Spacer()
+                    Spacer()
 
-                // Lambda status badge
-                lambdaStatusBadge
+                    // Lambda status badge
+                    lambdaStatusBadge(for: lambdaProvider)
 
-                Button(action: {
-                    Task {
-                        await model.startServices()
+                    Button(action: {
+                        Task {
+                            await model.startServices()
+                        }
+                    }) {
+                        if lambdaProvider.lambdaState.status.isTransitioning {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "play.circle")
+                        }
                     }
-                }) {
-                    if model.mode.lambdaState.status.isTransitioning {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    } else {
-                        Image(systemName: "play.circle")
+                    .buttonStyle(.borderless)
+                    .disabled(lambdaProvider.lambdaState.status.isTransitioning)
+                    .help("Start Lambda")
+
+                    Button(action: {
+                        Task {
+                            try? await lambdaProvider.stopWithServices()
+                        }
+                    }) {
+                        Image(systemName: "stop.circle")
                     }
-                }
-                .buttonStyle(.borderless)
-                .disabled(model.mode.lambdaState.status.isTransitioning)
-                .help("Start Lambda")
+                    .buttonStyle(.borderless)
+                    .disabled(lambdaProvider.lambdaState.status.isTransitioning || lambdaProvider.lambdaState.status == .stopped)
+                    .help("Stop Lambda")
 
-                Button(action: {
-                    Task {
-                        try? await model.stopWithServices()
+                    Button(action: { model.refreshStatus() }) {
+                        Image(systemName: "arrow.clockwise")
                     }
-                }) {
-                    Image(systemName: "stop.circle")
+                    .buttonStyle(.borderless)
+                    .disabled(lambdaProvider.lambdaState.status.isTransitioning)
+                    .help("Refresh status")
                 }
-                .buttonStyle(.borderless)
-                .disabled(model.mode.lambdaState.status.isTransitioning || model.mode.lambdaState.status == .stopped)
-                .help("Stop Lambda")
 
-                Button(action: { model.refreshStatus() }) {
-                    Image(systemName: "arrow.clockwise")
+                // Endpoint
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Endpoint")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    TextField("Endpoint", text: .constant(model.endpoint))
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(true)
+
+                    Text(model.endpointHelpText)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(.borderless)
-                .disabled(model.mode.lambdaState.status.isTransitioning)
-                .help("Refresh status")
-            }
-
-            // Endpoint
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Endpoint")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                TextField("Endpoint", text: .constant(model.endpoint))
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(true)
-
-                Text(model.endpointHelpText)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
             }
         }
     }
 
     @ViewBuilder
-    private var lambdaStatusBadge: some View {
-        let status = model.mode.lambdaState.status
+    private func lambdaStatusBadge(for lambdaProvider: LocalLambdaProvider) -> some View {
+        let status = lambdaProvider.lambdaState.status
         HStack(spacing: 4) {
             if status.showProgress {
                 ProgressView()
                     .scaleEffect(0.6)
             } else {
                 Image(systemName: status.iconName)
-                    .foregroundColor(lambdaStatusColor)
+                    .foregroundColor(lambdaStatusColor(for: lambdaProvider))
             }
             Text(status.displayText)
                 .font(.caption2)
-                .foregroundColor(lambdaStatusColor)
+                .foregroundColor(lambdaStatusColor(for: lambdaProvider))
         }
     }
 
-    private var lambdaStatusColor: Color {
-        switch model.mode.lambdaState.status.colorName {
+    private func lambdaStatusColor(for lambdaProvider: LocalLambdaProvider) -> Color {
+        switch lambdaProvider.lambdaState.status.colorName {
         case "blue": return .blue
         case "green": return .green
         case "orange": return .orange
