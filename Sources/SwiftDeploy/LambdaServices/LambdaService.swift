@@ -35,29 +35,10 @@ public protocol LambdaService {
     /// Unified output state that collects all CLI output (build, lambda, etc.)
     var unifiedOutput: UnifiedOutputState { get }
 
-    // MARK: - Build
-
-    /// Observable build state for UI
-    var buildState: BuildState { get }
-
-    /// Build Lambda for the target platform, updating buildState
-    /// - Parameter clean: Whether to clean build artifacts first
-    /// - Throws: BuildError.failed if the build fails
-    func build(clean: Bool) async throws
-
     // MARK: - Lambda Lifecycle State
 
     /// Observable Lambda state for UI (streaming lifecycle output)
     var lambdaState: LambdaState { get }
-
-    /// Check if Lambda is already built
-    func isLambdaBuilt() -> Bool
-
-    /// Delete build artifacts and reset build state
-    func deleteBuild() async throws
-
-    /// Refresh build status by checking if artifacts exist on disk
-    func refreshBuildStatus()
 
     // MARK: - Lifecycle
 
@@ -105,16 +86,6 @@ extension LambdaService {
     /// Default implementation with standard timeout
     public func waitForReady() async throws {
         try await waitForReady(maxAttempts: 30)
-    }
-
-    /// Default implementation for build without clean parameter
-    public func build() async throws {
-        try await build(clean: false)
-    }
-
-    /// Default implementation for refreshing build status
-    public func refreshBuildStatus() {
-        buildState.updateFromDisk(buildExists: isLambdaBuilt())
     }
 }
 

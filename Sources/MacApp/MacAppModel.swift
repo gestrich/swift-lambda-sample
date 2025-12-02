@@ -38,7 +38,6 @@ enum ConnectionMode: LambdaService {
     var apiClient: APIClient { service.apiClient }
     var isConfigured: Bool { service.isConfigured }
     var unifiedOutput: UnifiedOutputState { service.unifiedOutput }
-    var buildState: BuildState { service.buildState }
     var lambdaState: LambdaState { service.lambdaState }
 
     var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
@@ -47,22 +46,6 @@ enum ConnectionMode: LambdaService {
 
     var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
         service.isLoadingStatusPublisher
-    }
-
-    func build(clean: Bool) async throws {
-        try await service.build(clean: clean)
-    }
-
-    func isLambdaBuilt() -> Bool {
-        service.isLambdaBuilt()
-    }
-
-    func deleteBuild() async throws {
-        try await service.deleteBuild()
-    }
-
-    func refreshBuildStatus() {
-        service.refreshBuildStatus()
     }
 
     func startLambda() async throws {
@@ -102,6 +85,21 @@ enum ConnectionMode: LambdaService {
     /// Access the LocalDockerServicesProvider if in a local mode (Xcode or Linux)
     /// Returns nil for remote mode since AWS manages the services
     var dockerServicesProvider: LocalDockerServicesProvider? {
+        switch self {
+        case .localXcode(let service):
+            return service
+        case .localLinux(let service):
+            return service
+        case .remote:
+            return nil
+        }
+    }
+
+    // MARK: - Build Provider
+
+    /// Access the LocalBuildProvider if in a local mode (Xcode or Linux)
+    /// Returns nil for remote mode since builds are done via CI/CD pipeline
+    var buildProvider: LocalBuildProvider? {
         switch self {
         case .localXcode(let service):
             return service
@@ -195,10 +193,16 @@ class MacAppModel: LambdaService {
 
     var unifiedOutput: UnifiedOutputState { mode.unifiedOutput }
 
-    // MARK: - Build State
+    // MARK: - Lambda State
 
-    var buildState: BuildState { mode.buildState }
     var lambdaState: LambdaState { mode.lambdaState }
+
+    // MARK: - Build Provider (for Local modes only)
+
+    /// Build provider from local service (only available in local modes)
+    var buildProvider: LocalBuildProvider? {
+        mode.buildProvider
+    }
 
     // MARK: - GitHub Service (for Remote mode)
 
@@ -314,13 +318,6 @@ class MacAppModel: LambdaService {
         }
     }
 
-    // MARK: - Build
-
-    /// Build Lambda, updating buildState
-    func buildLambda(clean: Bool = false) async throws {
-        try await mode.build(clean: clean)
-    }
-
     // MARK: - Docker Service Control
 
     /// Access the LocalDockerServicesProvider if in a local mode
@@ -384,22 +381,6 @@ class MacAppModel: LambdaService {
 
     var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
         isLoadingStatusSubject.eraseToAnyPublisher()
-    }
-
-    func build(clean: Bool) async throws {
-        try await mode.build(clean: clean)
-    }
-
-    func isLambdaBuilt() -> Bool {
-        mode.isLambdaBuilt()
-    }
-
-    func deleteBuild() async throws {
-        try await mode.deleteBuild()
-    }
-
-    func refreshBuildStatus() {
-        mode.refreshBuildStatus()
     }
 
     func startLambda() async throws {

@@ -49,12 +49,14 @@ struct DeployView: View {
                     }
 
                     // MARK: - Local-Only Sections (Docker Services, Build, Lambda)
-                    // Uses protocol conformance - dockerServicesSection only renders if provider exists
+                    // Uses protocol conformance - sections only render if provider exists
                     if model.dockerServicesProvider != nil {
                         dockerServicesSection
 
                         Divider()
+                    }
 
+                    if model.buildProvider != nil {
                         buildSection
 
                         Divider()
@@ -166,78 +168,80 @@ struct DeployView: View {
 
     @ViewBuilder
     private var buildSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Build")
-                    .font(.headline)
+        if let buildProvider = model.buildProvider {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Build")
+                        .font(.headline)
 
-                Spacer()
+                    Spacer()
 
-                // Build status badge
-                buildStatusBadge
+                    // Build status badge
+                    buildStatusBadge(for: buildProvider)
 
-                Button(action: {
-                    Task {
-                        try? await model.buildLambda(clean: false)
-                    }
-                }) {
-                    if model.mode.buildState.status.isBuilding {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    } else {
-                        Image(systemName: "hammer")
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(model.mode.buildState.status.isBuilding)
-                .help("Build Lambda")
-
-                Button(action: {
-                    Task {
-                        try? await model.buildLambda(clean: true)
-                    }
-                }) {
-                    Image(systemName: "sparkles")
-                }
-                .buttonStyle(.borderless)
-                .disabled(model.mode.buildState.status.isBuilding)
-                .help("Clean and Build Lambda")
-
-                if model.mode.buildState.status.hasArtifact {
                     Button(action: {
                         Task {
-                            try? await model.deleteBuild()
+                            try? await buildProvider.build(clean: false)
                         }
                     }) {
-                        Image(systemName: "trash")
+                        if buildProvider.buildState.status.isBuilding {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "hammer")
+                        }
                     }
                     .buttonStyle(.borderless)
-                    .disabled(model.mode.buildState.status.isBuilding)
-                    .help("Delete Build")
+                    .disabled(buildProvider.buildState.status.isBuilding)
+                    .help("Build Lambda")
+
+                    Button(action: {
+                        Task {
+                            try? await buildProvider.build(clean: true)
+                        }
+                    }) {
+                        Image(systemName: "sparkles")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(buildProvider.buildState.status.isBuilding)
+                    .help("Clean and Build Lambda")
+
+                    if buildProvider.buildState.status.hasArtifact {
+                        Button(action: {
+                            Task {
+                                try? await buildProvider.deleteBuild()
+                            }
+                        }) {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(buildProvider.buildState.status.isBuilding)
+                        .help("Delete Build")
+                    }
                 }
             }
         }
     }
 
     @ViewBuilder
-    private var buildStatusBadge: some View {
-        let status = model.mode.buildState.status
+    private func buildStatusBadge(for buildProvider: LocalBuildProvider) -> some View {
+        let status = buildProvider.buildState.status
         HStack(spacing: 4) {
             if status.showProgress {
                 ProgressView()
                     .scaleEffect(0.6)
             } else {
                 Image(systemName: status.iconName)
-                    .foregroundColor(buildStatusColor)
+                    .foregroundColor(buildStatusColor(for: buildProvider))
             }
             Text(status.displayText)
                 .font(.caption2)
-                .foregroundColor(buildStatusColor)
+                .foregroundColor(buildStatusColor(for: buildProvider))
         }
     }
 
-    private var buildStatusColor: Color {
-        switch model.mode.buildState.status.colorName {
+    private func buildStatusColor(for buildProvider: LocalBuildProvider) -> Color {
+        switch buildProvider.buildState.status.colorName {
         case "blue": return .blue
         case "green": return .green
         case "orange": return .orange

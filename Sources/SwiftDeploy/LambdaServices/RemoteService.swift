@@ -42,10 +42,6 @@ public class RemoteService: LambdaService {
 
     public let unifiedOutput = UnifiedOutputState()
 
-    // MARK: - Build State
-
-    public let buildState = BuildState()
-
     // MARK: - Lambda State
 
     public let lambdaState = LambdaState()
@@ -136,26 +132,6 @@ public class RemoteService: LambdaService {
         if let apiUrl = outputs["ApiGatewayUrl"] {
             setEndpoint(apiUrl)
         }
-    }
-
-    // MARK: - LambdaService Protocol: Build
-
-    /// Build is handled via CI/CD pipeline (GitHub Actions), updating buildState
-    public func build(clean: Bool = false) async throws {
-        buildState.startBuild()
-        buildState.appendOutput("ℹ️  Remote Lambda is built via CI/CD pipeline\n")
-        buildState.appendOutput("   Use 'aws update-lambda' to deploy code changes\n")
-        buildState.markSuccess()
-    }
-
-    /// Check if Lambda is deployed (stack exists with endpoint)
-    public func isLambdaBuilt() -> Bool {
-        return cachedEndpoint != nil
-    }
-
-    /// Delete build is not applicable for remote - just clears state
-    public func deleteBuild() async throws {
-        buildState.clear()
     }
 
     // MARK: - LambdaService Protocol: Lifecycle

@@ -1,7 +1,7 @@
 # Remote Tab Refactor Plan
 
 **Date**: November 30, 2025
-**Status**: Phases 1-6 Complete (Docker Services Protocol Refactor Done)
+**Status**: Phases 1-7 Complete (Build Provider Protocol Refactor Done)
 
 ## Overview
 
@@ -207,20 +207,34 @@ The remaining work was:
 ---
 
 ### Phase 7: Protocol Refactor - LocalBuildProvider
-- [ ] Create `LocalBuildProvider` protocol with build methods:
+- [x] Create `LocalBuildProvider` protocol with build methods:
   - `build(clean:)`, `deleteBuild()`
   - `buildState` property
-- [ ] Have `XcodeLocalService` and `LinuxLocalService` conform to this protocol
-- [ ] Remove build methods from base `LambdaService` protocol
-- [ ] Remove dead build implementations from `RemoteService`
-- [ ] Update `DeployView` to use protocol conformance check for Build section
+  - `isLambdaBuilt()`, `refreshBuildStatus()`
+- [x] Have `XcodeLocalService` and `LinuxLocalService` conform to this protocol
+- [x] Remove build methods from base `LambdaService` protocol
+- [x] Remove dead build implementations from `RemoteService`
+- [x] Update `DeployView` to use protocol conformance check for Build section
+- [x] Update `ConnectionMode` with `buildProvider` property
+- [x] Update `MacAppModel` with `buildProvider` property
 
 **Files**:
+- `Sources/SwiftDeploy/LambdaServices/LocalBuildProvider.swift` (NEW)
 - `Sources/SwiftDeploy/LambdaServices/LambdaService.swift`
 - `Sources/SwiftDeploy/LambdaServices/RemoteService.swift`
 - `Sources/SwiftDeploy/LambdaServices/XcodeLocalService.swift`
 - `Sources/SwiftDeploy/LambdaServices/LinuxLocalService.swift`
 - `Sources/MacApp/DeployView.swift`
+- `Sources/MacApp/MacAppModel.swift`
+
+**Completed**: The `LocalBuildProvider` protocol cleanly separates build capabilities:
+- Only `XcodeLocalService` and `LinuxLocalService` conform to the protocol
+- `RemoteService` no longer has build methods (builds happen via CI/CD pipeline)
+- `ConnectionMode` now provides `buildProvider` property that returns nil for remote mode
+- `DeployView` uses `if let buildProvider = model.buildProvider` pattern
+- Build state is accessed through the protocol, not through `LambdaService`
+
+**Note**: The pattern follows Phase 6's `LocalDockerServicesProvider` approach. Remote mode uses GitHub Actions for builds, so build methods were removed entirely from `RemoteService` rather than kept as no-ops.
 
 ---
 
