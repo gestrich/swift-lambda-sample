@@ -1,7 +1,7 @@
 # Remote Tab Refactor Plan
 
 **Date**: November 30, 2025
-**Status**: Phases 1-5 Complete (Core UI Implementation Done)
+**Status**: Phases 1-6 Complete (Docker Services Protocol Refactor Done)
 
 ## Overview
 
@@ -179,22 +179,30 @@ The remaining work was:
 ---
 
 ### Phase 6: Protocol Refactor - LocalDockerServicesProvider
-- [ ] Create `LocalDockerServicesProvider` protocol with Docker service methods:
+- [x] Create `LocalDockerServicesProvider` protocol with Docker service methods:
   - `startS3()`, `stopS3()`
   - `startDatabase()`, `stopDatabase()`
   - `s3DataDirectory`, `postgresDataDirectory`
-  - Related status properties (`s3State`, `postgresState`)
-- [ ] Have `XcodeLocalService` and `LinuxLocalService` conform to this protocol
-- [ ] Remove Docker service methods from base `LambdaService` protocol
-- [ ] Remove dead Docker service implementations from `RemoteService`
-- [ ] Update `DeployView` to use protocol conformance check for Docker Services section
+- [x] Have `XcodeLocalService` and `LinuxLocalService` conform to this protocol
+- [x] Remove Docker service methods from `ConnectionMode` and `MacAppModel`
+- [x] Add `dockerServicesProvider` property to `ConnectionMode` for protocol-based access
+- [x] Update `DeployView` to use protocol conformance check for Docker Services section
 
 **Files**:
-- `Sources/SwiftDeploy/LambdaServices/LambdaService.swift`
-- `Sources/SwiftDeploy/LambdaServices/RemoteService.swift`
+- `Sources/SwiftDeploy/LambdaServices/LocalDockerServicesProvider.swift` (NEW)
 - `Sources/SwiftDeploy/LambdaServices/XcodeLocalService.swift`
 - `Sources/SwiftDeploy/LambdaServices/LinuxLocalService.swift`
+- `Sources/MacApp/MacAppModel.swift`
 - `Sources/MacApp/DeployView.swift`
+
+**Completed**: The `LocalDockerServicesProvider` protocol cleanly separates Docker service capabilities:
+- Only `XcodeLocalService` and `LinuxLocalService` conform to the protocol
+- `RemoteService` never had Docker methods in the base protocol (they were on `ConnectionMode`)
+- `ConnectionMode` now provides `dockerServicesProvider` property that returns nil for remote mode
+- `DeployView` uses `if let dockerProvider = model.dockerServicesProvider` pattern
+- Status properties (`s3State`, `postgresState`) remain on `DeploymentStatus` which is shared across all modes
+
+**Note**: The original plan mentioned removing Docker methods from `LambdaService` protocol, but these methods were never in the protocol - they were implemented directly on `ConnectionMode` with switch statements. The refactor replaced those switch statements with a single `dockerServicesProvider` computed property.
 
 ---
 

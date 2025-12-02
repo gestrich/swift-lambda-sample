@@ -49,7 +49,8 @@ struct DeployView: View {
                     }
 
                     // MARK: - Local-Only Sections (Docker Services, Build, Lambda)
-                    if !model.mode.isRemote {
+                    // Uses protocol conformance - dockerServicesSection only renders if provider exists
+                    if model.dockerServicesProvider != nil {
                         dockerServicesSection
 
                         Divider()
@@ -123,27 +124,41 @@ struct DeployView: View {
 
     @ViewBuilder
     private var dockerServicesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Docker Services")
-                .font(.headline)
+        if let dockerProvider = model.dockerServicesProvider {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Docker Services")
+                    .font(.headline)
 
-            // S3 (MinIO) Row
-            DockerServiceRow(
-                name: "S3 (MinIO)",
-                state: model.status.s3State,
-                dataDirectory: model.s3DataDirectory,
-                onStart: { try await model.startS3() },
-                onStop: { try await model.stopS3() }
-            )
+                // S3 (MinIO) Row
+                DockerServiceRow(
+                    name: "S3 (MinIO)",
+                    state: model.status.s3State,
+                    dataDirectory: dockerProvider.s3DataDirectory,
+                    onStart: {
+                        try await dockerProvider.startS3()
+                        model.refreshStatus()
+                    },
+                    onStop: {
+                        try await dockerProvider.stopS3()
+                        model.refreshStatus()
+                    }
+                )
 
-            // PostgreSQL Row
-            DockerServiceRow(
-                name: "PostgreSQL",
-                state: model.status.postgresState,
-                dataDirectory: model.postgresDataDirectory,
-                onStart: { try await model.startDatabase() },
-                onStop: { try await model.stopDatabase() }
-            )
+                // PostgreSQL Row
+                DockerServiceRow(
+                    name: "PostgreSQL",
+                    state: model.status.postgresState,
+                    dataDirectory: dockerProvider.postgresDataDirectory,
+                    onStart: {
+                        try await dockerProvider.startDatabase()
+                        model.refreshStatus()
+                    },
+                    onStop: {
+                        try await dockerProvider.stopDatabase()
+                        model.refreshStatus()
+                    }
+                )
+            }
         }
     }
 
@@ -405,7 +420,7 @@ struct DeployView: View {
 private struct DockerServiceRow: View {
     let name: String
     let state: ServiceState
-    let dataDirectory: String?
+    let dataDirectory: String
     let onStart: () async throws -> Void
     let onStop: () async throws -> Void
 
@@ -448,15 +463,13 @@ private struct DockerServiceRow: View {
             Spacer()
 
             // Data directory button
-            if let dataDir = dataDirectory {
-                Button(action: {
-                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dataDir)
-                }) {
-                    Image(systemName: "folder")
-                }
-                .buttonStyle(.borderless)
-                .help("Open data directory: \(dataDir)")
+            Button(action: {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dataDirectory)
+            }) {
+                Image(systemName: "folder")
             }
+            .buttonStyle(.borderless)
+            .help("Open data directory: \(dataDirectory)")
 
             // Start/Stop button
             if isLoading || state.isTransitioning {

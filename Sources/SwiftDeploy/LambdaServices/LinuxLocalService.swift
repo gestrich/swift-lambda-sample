@@ -7,7 +7,7 @@ import LocalStorageService
 /// Service for Linux container deployment workflow (AWS Lambda compatible)
 /// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
 @MainActor
-public class LinuxLocalService: LambdaService {
+public class LinuxLocalService: LambdaService, LocalDockerServicesProvider {
     private let dockerService: DockerService
     private let cliService: CLIService
     private let storageService: LocalStorageService

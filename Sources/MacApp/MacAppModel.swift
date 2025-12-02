@@ -99,67 +99,14 @@ enum ConnectionMode: LambdaService {
 
     // MARK: - Docker Service Control
 
-    func startS3() async throws {
+    /// Access the LocalDockerServicesProvider if in a local mode (Xcode or Linux)
+    /// Returns nil for remote mode since AWS manages the services
+    var dockerServicesProvider: LocalDockerServicesProvider? {
         switch self {
         case .localXcode(let service):
-            try await service.startS3()
+            return service
         case .localLinux(let service):
-            try await service.startS3()
-        case .remote:
-            break
-        }
-    }
-
-    func stopS3() async throws {
-        switch self {
-        case .localXcode(let service):
-            try await service.stopS3()
-        case .localLinux(let service):
-            try await service.stopS3()
-        case .remote:
-            break
-        }
-    }
-
-    func startDatabase() async throws {
-        switch self {
-        case .localXcode(let service):
-            try await service.startDatabase()
-        case .localLinux(let service):
-            try await service.startDatabase()
-        case .remote:
-            break
-        }
-    }
-
-    func stopDatabase() async throws {
-        switch self {
-        case .localXcode(let service):
-            try await service.stopDatabase()
-        case .localLinux(let service):
-            try await service.stopDatabase()
-        case .remote:
-            break
-        }
-    }
-
-    var s3DataDirectory: String? {
-        switch self {
-        case .localXcode(let service):
-            return service.s3DataDirectory
-        case .localLinux(let service):
-            return service.s3DataDirectory
-        case .remote:
-            return nil
-        }
-    }
-
-    var postgresDataDirectory: String? {
-        switch self {
-        case .localXcode(let service):
-            return service.postgresDataDirectory
-        case .localLinux(let service):
-            return service.postgresDataDirectory
+            return service
         case .remote:
             return nil
         }
@@ -376,32 +323,9 @@ class MacAppModel: LambdaService {
 
     // MARK: - Docker Service Control
 
-    func startS3() async throws {
-        try await mode.startS3()
-        refreshStatus()
-    }
-
-    func stopS3() async throws {
-        try await mode.stopS3()
-        refreshStatus()
-    }
-
-    func startDatabase() async throws {
-        try await mode.startDatabase()
-        refreshStatus()
-    }
-
-    func stopDatabase() async throws {
-        try await mode.stopDatabase()
-        refreshStatus()
-    }
-
-    var s3DataDirectory: String? {
-        mode.s3DataDirectory
-    }
-
-    var postgresDataDirectory: String? {
-        mode.postgresDataDirectory
+    /// Access the LocalDockerServicesProvider if in a local mode
+    var dockerServicesProvider: LocalDockerServicesProvider? {
+        mode.dockerServicesProvider
     }
 
     private func subscribeToService(_ service: any LambdaService) {
