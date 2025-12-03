@@ -21,6 +21,8 @@ struct RemoteServiceView: View {
 
             // MARK: - Endpoint Section
             endpointSection
+            
+            Spacer()
         }
         .onAppear {
             service.refreshStatus()
