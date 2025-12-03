@@ -1,4 +1,3 @@
-import CLIKit
 import Foundation
 
 /// Curl CLI program definition using macro-based API
