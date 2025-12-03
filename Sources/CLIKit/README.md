@@ -65,7 +65,7 @@ The building blocks of commands:
 
 ### CLIService
 
-Executes commands and returns results. Currently provides a `CLIService.shared` singleton for convenience, but this should be refactored to use dependency injection.
+Executes commands and returns results. Each consumer should create their own instance to ensure output streams are isolated.
 
 ### CLIOutputParser
 
@@ -169,7 +169,7 @@ This differs from `@Option` which produces separate arguments:
 ### Basic Execution
 
 ```swift
-let service = CLIService.shared
+let service = CLIService()
 
 // Run a command, get raw result
 let result = try await service.execute(

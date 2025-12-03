@@ -25,13 +25,14 @@ extension AWSCommand {
         print("📊 Checking status...\n")
 
         let projectRoot = FileManager.default.currentDirectoryPath
+        let cliService = CLIService()
         let remoteService = await MainActor.run {
             RemoteService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )
         }
-        let gitService = GitService(repoPath: projectRoot, cliService: .shared)
+        let gitService = GitService(repoPath: projectRoot, cliService: cliService)
 
         // Git status
         print("📝 Git Status:")
@@ -48,7 +49,7 @@ extension AWSCommand {
         if let githubConfig = GitHubConfiguration.loadConfig() {
             do {
                 let githubService = await MainActor.run {
-                    GitHubService(repoPath: projectRoot, config: githubConfig, cliService: .shared)
+                    GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
                 }
                 let (status, conclusion) = try await githubService.getLatestRunStatus(branch: githubConfig.branch)
 

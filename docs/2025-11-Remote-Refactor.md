@@ -137,7 +137,7 @@ The Remote tab currently shows sections (Docker Services, Build, Lambda) that ar
 
 The remaining work was:
 1. **Connected main refresh button**: Updated `RemoteService.refreshStatus()` to also call `githubService?.refreshStatus()` and `cdkInfrastructureService?.refreshStatus()` in parallel
-2. **Verified output streaming**: Output already flows through `CLIService.shared.outputStream()` which is used by the Output view in `DeployView.swift`. The `UnifiedOutputState` in each service is not needed for remote mode.
+2. **Verified output streaming**: Output flows through each service's `cliService.outputStream()` which is used by the Output view in `DeployView.swift`. The `UnifiedOutputState` in each service is not needed for remote mode.
 
 **Note**: The UI buttons connect directly to `GitHubService` and `CDKInfrastructureService` rather than going through `RemoteService`. This is the better design since these are specialized services with their own state management.
 
@@ -174,7 +174,7 @@ The remaining work was:
    - Progress polling via `runDeployWithProgressPolling()` shows CloudFormation events
    - Confirmation dialog for destroy action
 
-5. **Output streaming verification**: All services use `CLIService.shared` which streams to `StreamingTextView` via `outputStream()`.
+5. **Output streaming verification**: Each service has its own `CLIService` instance which streams to `StreamingTextView` via `outputStream()`.
 
 ---
 
@@ -384,11 +384,11 @@ Each service (Remote, Xcode, Linux) now has its own dedicated `CLIService` insta
 - Added `.id(model.mode.persistenceKey)` to StreamingTextView to reset the view when mode changes
 - Removed the unused `CLIService.shared.setDefaultWorkingDirectory()` call from `MacAppModel.init()`
 - Created `Sources/SwiftDeploy/Exports.swift` to re-export `CLIService` from CLIKit, avoiding macro conflicts with ArgumentParser
-- CLI commands use `.shared` explicitly when calling services
+- CLI commands create their own `CLIService()` instances
 
-**Services using CLIService.shared** (CLI-only, by design):
-- CLI commands explicitly pass `.shared` to services like `AWSTestingService`, `GitService`, `GitHubService`
-- `AWSVaultService.checkInstallation()` - Static utility method for one-off check
+**CLIService instantiation**:
+- CLI commands create their own `CLIService()` instances
+- `AWSVaultService.checkInstallation(using:)` accepts a CLIService parameter
 
 **Benefits**:
 - CLI output streams are now fully isolated per mode

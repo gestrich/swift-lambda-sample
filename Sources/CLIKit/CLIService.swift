@@ -3,9 +3,6 @@ import Synchronization
 
 /// A service for executing command-line operations with async/await support
 public actor CLIService {
-    /// Shared instance for convenience
-    public static let shared = CLIService()
-
     /// Global output stream - broadcasts all CLI output to any subscriber.
     private let globalOutput = CLIOutputStream()
 

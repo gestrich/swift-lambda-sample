@@ -44,7 +44,8 @@ extension AWSCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
+            let cliService = CLIService()
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
             try await service.checkLogs(since: since)
         }
     }
@@ -67,7 +68,8 @@ extension AWSCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
+            let cliService = CLIService()
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
             let url = try await service.getApiGatewayUrl()
             print(url)
         }
@@ -108,7 +110,8 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
+            let cliService = CLIService()
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
             try await service.runAllTests()
         }
     }
@@ -134,7 +137,8 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
+            let cliService = CLIService()
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
 
             if verbose {
                 try await service.testFileEndpointVerbose()
@@ -165,7 +169,8 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
+            let cliService = CLIService()
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
             try await service.testUserEndpoints()
         }
     }

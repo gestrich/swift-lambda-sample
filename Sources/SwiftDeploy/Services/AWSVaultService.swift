@@ -28,9 +28,9 @@ public struct AWSVaultService {
     // MARK: - Installation Check
 
     /// Check if aws-vault is installed
+    /// - Parameter cliService: The CLI service to use for checking
     /// - Throws: CLIError if aws-vault is not found
-    public static func checkInstallation() async throws {
-        let cliService = CLIService.shared
+    public static func checkInstallation(using cliService: CLIService) async throws {
         let result = try? await cliService.executeForResult(
             Which(command: "aws-vault"),
             printCommand: false
