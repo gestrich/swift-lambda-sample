@@ -1,3 +1,4 @@
+import CLIKit
 import Client
 import Combine
 import Foundation
@@ -29,6 +30,12 @@ public protocol LambdaService {
 
     /// Whether the service is configured and ready to use
     var isConfigured: Bool { get }
+
+    // MARK: - CLI Service
+
+    /// The CLI service instance for this service.
+    /// Each service has its own dedicated CLIService to isolate output streams.
+    var cliService: CLIService { get }
 
     // MARK: - Unified Output
 

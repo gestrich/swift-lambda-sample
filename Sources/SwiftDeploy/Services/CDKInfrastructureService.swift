@@ -249,13 +249,14 @@ public final class CDKInfrastructureService {
 
     // MARK: - Init
 
-    public init(projectRoot: String, awsConfig: AWSAuthConfiguration, cdkDirectory: String = "cdk") {
+    public init(projectRoot: String, awsConfig: AWSAuthConfiguration, cdkDirectory: String = "cdk", cliService: CLIService) {
         self.projectRoot = projectRoot
         self.cdkService = CDKService(
             cdkDirectory: "\(projectRoot)/\(cdkDirectory)",
-            awsConfig: awsConfig
+            awsConfig: awsConfig,
+            cliService: cliService
         )
-        self.awsService = AWSCLIService(awsConfig: awsConfig)
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
     }
 
     // MARK: - UI State Operations

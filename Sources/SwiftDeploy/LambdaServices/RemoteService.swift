@@ -18,7 +18,7 @@ public struct DeployedState: Sendable {
 public class RemoteService: LambdaService {
     private let cdkService: CDKService
     private let awsService: AWSCLIService
-    private let cliService: CLIService
+    public let cliService: CLIService
     private let projectRoot: String
 
     private static let endpointKey = "remoteService.endpoint"
@@ -80,19 +80,21 @@ public class RemoteService: LambdaService {
         cdkDirectory: String = "cdk"
     ) {
         self.projectRoot = projectRoot
+        let cliService = CLIService(defaultWorkingDirectory: projectRoot)
+        self.cliService = cliService
         self.cdkService = CDKService(
             cdkDirectory: "\(projectRoot)/\(cdkDirectory)",
-            awsConfig: awsConfig
+            awsConfig: awsConfig,
+            cliService: cliService
         )
-        self.awsService = AWSCLIService(awsConfig: awsConfig)
-        self.cliService = CLIService.shared
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
 
         // Load persisted endpoint
         self.cachedEndpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
 
         // Initialize GitHub service if config is available
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig)
+            self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
         } else {
             self.githubService = nil
         }
@@ -101,7 +103,8 @@ public class RemoteService: LambdaService {
         self.cdkInfrastructureService = CDKInfrastructureService(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
-            cdkDirectory: cdkDirectory
+            cdkDirectory: cdkDirectory,
+            cliService: cliService
         )
     }
 
@@ -390,8 +393,8 @@ public class RemoteService: LambdaService {
             )
         }
 
-        let gitService = GitService(repoPath: projectRoot)
-        let githubService = GitHubService(repoPath: projectRoot, config: config)
+        let gitService = GitService(repoPath: projectRoot, cliService: cliService)
+        let githubService = GitHubService(repoPath: projectRoot, config: config, cliService: cliService)
 
         if !skipPush {
             let hasCommitsToPush = try await gitService.hasCommitsToPush()

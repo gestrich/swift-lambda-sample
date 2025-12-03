@@ -1,5 +1,5 @@
-import Foundation
 import ArgumentParser
+import Foundation
 import SwiftDeploy
 
 extension AWSCommand {
@@ -31,7 +31,7 @@ extension AWSCommand {
                 awsConfig: awsConfig
             )
         }
-        let gitService = GitService(repoPath: projectRoot)
+        let gitService = GitService(repoPath: projectRoot, cliService: .shared)
 
         // Git status
         print("📝 Git Status:")
@@ -48,7 +48,7 @@ extension AWSCommand {
         if let githubConfig = GitHubConfiguration.loadConfig() {
             do {
                 let githubService = await MainActor.run {
-                    GitHubService(repoPath: projectRoot, config: githubConfig)
+                    GitHubService(repoPath: projectRoot, config: githubConfig, cliService: .shared)
                 }
                 let (status, conclusion) = try await githubService.getLatestRunStatus(branch: githubConfig.branch)
 

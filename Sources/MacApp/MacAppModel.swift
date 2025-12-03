@@ -1,3 +1,4 @@
+import CLIKit
 import Client
 import Combine
 import Foundation
@@ -37,6 +38,7 @@ enum ConnectionMode: LambdaService {
     var endpointHelpText: String { service.endpointHelpText }
     var apiClient: APIClient { service.apiClient }
     var isConfigured: Bool { service.isConfigured }
+    var cliService: CLIService { service.cliService }
     var unifiedOutput: UnifiedOutputState { service.unifiedOutput }
 
     var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
@@ -248,11 +250,6 @@ class MacAppModel: LambdaService {
 
         // Subscribe to service publishers
         subscribeToService(mode)
-
-        // Set default working directory for CLIService (after init completes)
-        Task {
-            await CLIService.shared.setDefaultWorkingDirectory(projectDirectory)
-        }
     }
 
     /// Path to the app config file
@@ -382,6 +379,7 @@ class MacAppModel: LambdaService {
     var endpointHelpText: String { mode.endpointHelpText }
     var apiClient: APIClient { mode.apiClient }
     var isConfigured: Bool { mode.isConfigured }
+    var cliService: CLIService { mode.cliService }
 
     var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         statusSubject.eraseToAnyPublisher()

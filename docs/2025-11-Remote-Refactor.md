@@ -1,7 +1,7 @@
 # Remote Tab Refactor Plan
 
 **Date**: November 30, 2025
-**Status**: Phases 1-8 Complete (All Protocol Refactors Done)
+**Status**: Phases 1-8 Complete + Future Improvement #3 (CLIService per Service)
 
 ## Overview
 
@@ -352,13 +352,49 @@ All services (`RemoteService`, `XcodeLocalService`, `LinuxLocalService`) are now
 
 **Solution**: `GitHubService` and `CDKInfrastructureService` are now created in `RemoteService.init()`. They are `let` properties (still optional since config may not be available, but initialized once at creation time rather than lazily).
 
-### 3. Separate CLIService per Service Type
+### 3. Separate CLIService per Service Type ✅ COMPLETED
 
-Each service (Remote, Xcode, Linux) should have its own dedicated `CLIService` instance. Currently, CLI streams can mix between services, leading to confusing output.
+Each service (Remote, Xcode, Linux) now has its own dedicated `CLIService` instance that propagates to all child services. This ensures CLI output streams remain isolated and correctly attributed to each mode.
 
-**Problem**: When switching modes or running operations across different services, CLI output from one service can appear in another's output view.
+**Problem**: When switching modes or running operations across different services, CLI output from one service could appear in another's output view.
 
-**Solution**: Instantiate a separate `CLIService` for each of `RemoteService`, `XcodeLocalService`, and `LinuxLocalService`. This ensures CLI output streams remain isolated and correctly attributed.
+**Solution**: Each parent service now instantiates its own `CLIService` and passes it to all child services:
+
+**Parent Services** (create CLIService instances):
+- `RemoteService` creates `CLIService(defaultWorkingDirectory: projectRoot)`
+- `XcodeLocalService` creates `CLIService(defaultWorkingDirectory: workingDirectory)`
+- `LinuxLocalService` creates `CLIService(defaultWorkingDirectory: workingDirectory)`
+
+**Child Services** (accept CLIService via init):
+- `DockerService(cliService:)` - used by XcodeLocalService, LinuxLocalService
+- `CDKService(cliService:)` - used by RemoteService, CDKInfrastructureService
+- `AWSCLIService(cliService:)` - used by RemoteService, CDKInfrastructureService
+- `GitService(cliService:)` - used by GitHubService
+- `GitHubCLIService(cliService:)` - used by GitHubService
+- `GitHubService(cliService:)` - used by RemoteService
+- `CDKInfrastructureService(cliService:)` - used by RemoteService
+
+**Changes made**:
+- Added `cliService: CLIService` to the `LambdaService` protocol
+- Changed `cliService` from `private` to `public` in all three parent services
+- Updated all child services to require `cliService` parameter (no default value)
+- Parent services create CLIService first, then pass it to all child service constructors
+- Added `cliService` forwarding property to `ConnectionMode` and `MacAppModel`
+- Updated `DeployView` to use `model.cliService.outputStream()` instead of `CLIService.shared.outputStream()`
+- Added `.id(model.mode.persistenceKey)` to StreamingTextView to reset the view when mode changes
+- Removed the unused `CLIService.shared.setDefaultWorkingDirectory()` call from `MacAppModel.init()`
+- Created `Sources/SwiftDeploy/Exports.swift` to re-export `CLIService` from CLIKit, avoiding macro conflicts with ArgumentParser
+- CLI commands use `.shared` explicitly when calling services
+
+**Services using CLIService.shared** (CLI-only, by design):
+- CLI commands explicitly pass `.shared` to services like `AWSTestingService`, `GitService`, `GitHubService`
+- `AWSVaultService.checkInstallation()` - Static utility method for one-off check
+
+**Benefits**:
+- CLI output streams are now fully isolated per mode
+- Switching modes shows only that mode's output
+- No more output mixing between services or their child services
+- All commands from a mode (builds, deployments, health checks, etc.) appear in that mode's output stream
 
 ### 4. Separate Deploy Views for Remote vs Local
 

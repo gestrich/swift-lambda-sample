@@ -5,8 +5,8 @@ import Foundation
 public actor DockerService {
     private let cliService: CLIService
 
-    public init() {
-        self.cliService = CLIService.shared
+    public init(cliService: CLIService) {
+        self.cliService = cliService
     }
 
     // MARK: - Docker Daemon

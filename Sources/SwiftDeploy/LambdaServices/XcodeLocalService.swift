@@ -9,7 +9,7 @@ import LocalStorageService
 @MainActor
 public class XcodeLocalService: LambdaService, LocalDockerServicesProvider, LocalBuildProvider, LocalLambdaProvider {
     private let dockerService: DockerService
-    private let cliService: CLIService
+    public let cliService: CLIService
     private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLService
@@ -73,8 +73,9 @@ public class XcodeLocalService: LambdaService, LocalDockerServicesProvider, Loca
     public var isConfigured: Bool { true }
 
     public init(workingDirectory: String) {
-        self.dockerService = DockerService()
-        self.cliService = CLIService.shared
+        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        self.cliService = cliService
+        self.dockerService = DockerService(cliService: cliService)
         self.workingDirectory = workingDirectory
         self.storageService = LocalStorageService()
 

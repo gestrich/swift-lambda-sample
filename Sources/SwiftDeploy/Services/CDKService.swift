@@ -10,9 +10,10 @@ public actor CDKService {
 
     public init(
         cdkDirectory: String = "cdk",
-        awsConfig: AWSAuthConfiguration
+        awsConfig: AWSAuthConfiguration,
+        cliService: CLIService
     ) {
-        self.cliService = CLIService.shared
+        self.cliService = cliService
         self.cdkDirectory = cdkDirectory
         self.awsProfile = awsConfig.profileName
         self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil

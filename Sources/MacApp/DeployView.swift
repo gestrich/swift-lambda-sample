@@ -387,8 +387,9 @@ struct DeployView: View {
             Text("Output")
                 .font(.headline)
 
-            // Use global CLI output stream - each view gets its own subscription
-            StreamingTextView(streamProvider: { await CLIService.shared.outputStream() })
+            // Use mode-specific CLI output stream - each mode has isolated output
+            StreamingTextView(streamProvider: { await model.cliService.outputStream() })
+                .id(model.mode.persistenceKey) // Reset view when mode changes
         }
     }
 
@@ -415,7 +416,7 @@ struct DeployView: View {
         let arguments = Array(parts.dropFirst())
 
         Task {
-            _ = try? await CLIService.shared.execute(
+            _ = try? await model.cliService.execute(
                 command: command,
                 arguments: arguments
             )

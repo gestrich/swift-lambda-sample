@@ -44,7 +44,7 @@ extension AWSCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig)
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
             try await service.checkLogs(since: since)
         }
     }
@@ -67,7 +67,7 @@ extension AWSCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig)
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
             let url = try await service.getApiGatewayUrl()
             print(url)
         }
@@ -108,7 +108,7 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig)
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
             try await service.runAllTests()
         }
     }
@@ -134,7 +134,7 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig)
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
 
             if verbose {
                 try await service.testFileEndpointVerbose()
@@ -165,7 +165,7 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let service = AWSTestingService(awsConfig: awsConfig)
+            let service = AWSTestingService(awsConfig: awsConfig, cliService: .shared)
             try await service.testUserEndpoints()
         }
     }

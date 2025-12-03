@@ -9,7 +9,7 @@ import LocalStorageService
 @MainActor
 public class LinuxLocalService: LambdaService, LocalDockerServicesProvider, LocalBuildProvider, LocalLambdaProvider {
     private let dockerService: DockerService
-    private let cliService: CLIService
+    public let cliService: CLIService
     private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLService
@@ -78,8 +78,9 @@ public class LinuxLocalService: LambdaService, LocalDockerServicesProvider, Loca
 
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
-        self.dockerService = DockerService()
-        self.cliService = CLIService.shared
+        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        self.cliService = cliService
+        self.dockerService = DockerService(cliService: cliService)
         self.config = .default(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
 

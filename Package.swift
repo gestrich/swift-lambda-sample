@@ -46,7 +46,7 @@ let package = Package(
             name: "SwiftDeployCLI",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "SwiftDeploy")
+                .target(name: "SwiftDeploy"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

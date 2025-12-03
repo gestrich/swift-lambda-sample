@@ -8,9 +8,9 @@ public actor AWSTestingService {
     private let stackName = "SwiftLambdaSampleStack"
     private let lambdaName = "swift-lambda-sample"
 
-    public init(awsConfig: AWSAuthConfiguration) {
-        self.awsService = AWSCLIService(awsConfig: awsConfig)
-        self.cliService = CLIService.shared
+    public init(awsConfig: AWSAuthConfiguration, cliService: CLIService) {
+        self.cliService = cliService
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
     }
 
     /// Create an API client configured with the deployed API Gateway URL

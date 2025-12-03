@@ -91,15 +91,17 @@ public final class GitHubService {
 
     // MARK: - Private Services
 
+    private let cliService: CLIService
     private let ghCLIService: GitHubCLIService
     private let gitService: GitService
 
     // MARK: - Init
 
-    public init(repoPath: String, config: GitHubConfiguration) {
+    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIService) {
         self.config = config
-        self.ghCLIService = GitHubCLIService(repository: config.repository)
-        self.gitService = GitService(repoPath: repoPath)
+        self.cliService = cliService
+        self.ghCLIService = GitHubCLIService(repository: config.repository, cliService: cliService)
+        self.gitService = GitService(repoPath: repoPath, cliService: cliService)
     }
 
     // MARK: - UI State Operations
@@ -198,7 +200,6 @@ public final class GitHubService {
     public func viewWorkflowLogs(runId: String) async throws {
         let url = "https://github.com/\(config.repository)/actions/runs/\(runId)"
 
-        let cliService = CLIService.shared
         let result = try await cliService.execute(
             command: "open",
             arguments: [url],

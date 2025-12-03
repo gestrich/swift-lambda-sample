@@ -7,8 +7,8 @@ public actor AWSCLIService {
     private let profile: String
     private let vaultService: AWSVaultService?
 
-    public init(awsConfig: AWSAuthConfiguration) {
-        self.cliService = CLIService.shared
+    public init(awsConfig: AWSAuthConfiguration, cliService: CLIService) {
+        self.cliService = cliService
         self.profile = awsConfig.profileName
         self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil
     }

@@ -6,8 +6,8 @@ public actor GitHubCLIService {
     private let cliService: CLIService
     private let repository: String
 
-    public init(repository: String) {
-        self.cliService = CLIService.shared
+    public init(repository: String, cliService: CLIService) {
+        self.cliService = cliService
         self.repository = repository
     }
 

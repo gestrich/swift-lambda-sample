@@ -6,8 +6,8 @@ public actor GitService {
     private let cliService: CLIService
     private let repoPath: String
 
-    public init(repoPath: String) {
-        self.cliService = CLIService.shared
+    public init(repoPath: String, cliService: CLIService) {
+        self.cliService = cliService
         self.repoPath = repoPath
     }
 
