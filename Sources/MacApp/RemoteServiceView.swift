@@ -1,4 +1,5 @@
 import AppKit
+import CLIKit
 import SwiftDeploy
 import SwiftUI
 
@@ -8,22 +9,36 @@ struct RemoteServiceView: View {
     @State var service: RemoteService
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // MARK: - CDK Infrastructure Section
-            cdkInfrastructureSection
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // MARK: - CDK Infrastructure Section
+                    cdkInfrastructureSection
+
+                    Divider()
+
+                    // MARK: - GitHub CI Section
+                    githubCISection
+
+                    Divider()
+
+                    // MARK: - Endpoint Section
+                    endpointSection
+                }
+                .padding(20)
+            }
 
             Divider()
 
-            // MARK: - GitHub CI Section
-            githubCISection
-
-            Divider()
-
-            // MARK: - Endpoint Section
-            endpointSection
-            
-            Spacer()
+            // Output and command input pinned to bottom
+            VStack(alignment: .leading, spacing: 8) {
+                outputSection
+                commandInputSection
+            }
+            .padding(20)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             service.refreshStatus()
         }
@@ -111,6 +126,49 @@ struct RemoteServiceView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
+        }
+    }
+
+    // MARK: - Output Section
+
+    @ViewBuilder
+    private var outputSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Output")
+                .font(.headline)
+
+            StreamingTextView(streamProvider: { await service.cliService.outputStream() })
+                .id(RemoteService.persistenceKey)
+        }
+    }
+
+    // MARK: - Command Input Section
+
+    @State private var commandText = ""
+
+    @ViewBuilder
+    private var commandInputSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            CommandInputView(text: $commandText) { command in
+                runCommand(command)
+            }
+
+            Text("Type a command and press Enter. Tab to autocomplete, arrows to navigate.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func runCommand(_ commandString: String) {
+        let parts = commandString.components(separatedBy: " ").filter { !$0.isEmpty }
+        guard let command = parts.first else { return }
+        let arguments = Array(parts.dropFirst())
+
+        Task {
+            _ = try? await service.cliService.execute(
+                command: command,
+                arguments: arguments
+            )
         }
     }
 }

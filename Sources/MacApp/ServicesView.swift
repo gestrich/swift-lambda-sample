@@ -49,7 +49,6 @@ struct ServicesView: View {
             // MARK: - Service-Specific Content
             if model.mode.isRemote {
                 RemoteServiceView(service: model.remoteService)
-                    .padding(20)
             } else {
                 LocalServiceView()
             }
