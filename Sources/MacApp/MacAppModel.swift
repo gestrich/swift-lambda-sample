@@ -202,20 +202,6 @@ class MacAppModel: LambdaService {
         mode.lambdaProvider
     }
 
-    // MARK: - GitHub Service (for Remote mode)
-
-    /// GitHub service from RemoteService (always available since RemoteService is eagerly initialized)
-    var githubService: GitHubService? {
-        remoteService.githubService
-    }
-
-    // MARK: - CDK Infrastructure Service (for Remote mode)
-
-    /// CDK Infrastructure service from RemoteService (always available since RemoteService is eagerly initialized)
-    var cdkInfrastructureService: CDKInfrastructureService? {
-        remoteService.cdkInfrastructureService
-    }
-
     // MARK: - Private
 
     private var cancellables = Set<AnyCancellable>()
