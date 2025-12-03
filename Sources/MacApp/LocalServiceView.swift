@@ -8,10 +8,7 @@ import SwiftUI
 /// Shows Docker services, build controls, and Lambda management
 /// The service mode (Xcode vs Linux) is controlled by the parent ServicesView
 struct LocalServiceView: View {
-    let service: any LambdaService
-    let dockerServicesProvider: LocalDockerServicesProvider
-    let buildProvider: LocalBuildProvider
-    let lambdaProvider: LocalLambdaProvider
+    let service: any LocalService
 
     @State private var status: DeploymentStatus = .stopped
     @State private var statusCancellable: AnyCancellable?
@@ -22,7 +19,7 @@ struct LocalServiceView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // MARK: - Docker Services Section
                     DockerServicesView(
-                        dockerProvider: dockerServicesProvider,
+                        dockerProvider: service,
                         s3State: status.s3State,
                         postgresState: status.postgresState,
                         onRefreshStatus: { service.refreshStatus() }
@@ -82,10 +79,10 @@ struct LocalServiceView: View {
 
                 Button(action: {
                     Task {
-                        try? await buildProvider.build(clean: false)
+                        try? await service.build(clean: false)
                     }
                 }) {
-                    if buildProvider.buildState.status.isBuilding {
+                    if service.buildState.status.isBuilding {
                         ProgressView()
                             .scaleEffect(0.7)
                     } else {
@@ -93,30 +90,30 @@ struct LocalServiceView: View {
                     }
                 }
                 .buttonStyle(.borderless)
-                .disabled(buildProvider.buildState.status.isBuilding)
+                .disabled(service.buildState.status.isBuilding)
                 .help("Build Lambda")
 
                 Button(action: {
                     Task {
-                        try? await buildProvider.build(clean: true)
+                        try? await service.build(clean: true)
                     }
                 }) {
                     Image(systemName: "sparkles")
                 }
                 .buttonStyle(.borderless)
-                .disabled(buildProvider.buildState.status.isBuilding)
+                .disabled(service.buildState.status.isBuilding)
                 .help("Clean and Build Lambda")
 
-                if buildProvider.buildState.status.hasArtifact {
+                if service.buildState.status.hasArtifact {
                     Button(action: {
                         Task {
-                            try? await buildProvider.deleteBuild()
+                            try? await service.deleteBuild()
                         }
                     }) {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
-                    .disabled(buildProvider.buildState.status.isBuilding)
+                    .disabled(service.buildState.status.isBuilding)
                     .help("Delete Build")
                 }
             }
@@ -125,7 +122,7 @@ struct LocalServiceView: View {
 
     @ViewBuilder
     private var buildStatusBadge: some View {
-        let status = buildProvider.buildState.status
+        let status = service.buildState.status
         HStack(spacing: 4) {
             if status.showProgress {
                 ProgressView()
@@ -141,7 +138,7 @@ struct LocalServiceView: View {
     }
 
     private var buildStatusColor: Color {
-        switch buildProvider.buildState.status.colorName {
+        switch service.buildState.status.colorName {
         case "blue": return .blue
         case "green": return .green
         case "orange": return .orange
@@ -167,10 +164,10 @@ struct LocalServiceView: View {
 
                 Button(action: {
                     Task {
-                        try? await lambdaProvider.startWithServices()
+                        try? await service.startWithServices()
                     }
                 }) {
-                    if lambdaProvider.lambdaState.status.isTransitioning {
+                    if service.lambdaState.status.isTransitioning {
                         ProgressView()
                             .scaleEffect(0.7)
                     } else {
@@ -178,25 +175,25 @@ struct LocalServiceView: View {
                     }
                 }
                 .buttonStyle(.borderless)
-                .disabled(lambdaProvider.lambdaState.status.isTransitioning)
+                .disabled(service.lambdaState.status.isTransitioning)
                 .help("Start Lambda")
 
                 Button(action: {
                     Task {
-                        try? await lambdaProvider.stopWithServices()
+                        try? await service.stopWithServices()
                     }
                 }) {
                     Image(systemName: "stop.circle")
                 }
                 .buttonStyle(.borderless)
-                .disabled(lambdaProvider.lambdaState.status.isTransitioning || lambdaProvider.lambdaState.status == .stopped)
+                .disabled(service.lambdaState.status.isTransitioning || service.lambdaState.status == .stopped)
                 .help("Stop Lambda")
 
                 Button(action: { service.refreshStatus() }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .disabled(lambdaProvider.lambdaState.status.isTransitioning)
+                .disabled(service.lambdaState.status.isTransitioning)
                 .help("Refresh status")
             }
 
@@ -219,7 +216,7 @@ struct LocalServiceView: View {
 
     @ViewBuilder
     private var lambdaStatusBadge: some View {
-        let status = lambdaProvider.lambdaState.status
+        let status = service.lambdaState.status
         HStack(spacing: 4) {
             if status.showProgress {
                 ProgressView()
@@ -235,7 +232,7 @@ struct LocalServiceView: View {
     }
 
     private var lambdaStatusColor: Color {
-        switch lambdaProvider.lambdaState.status.colorName {
+        switch service.lambdaState.status.colorName {
         case "blue": return .blue
         case "green": return .green
         case "orange": return .orange

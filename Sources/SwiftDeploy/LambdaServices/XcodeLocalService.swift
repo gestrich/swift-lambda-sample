@@ -7,7 +7,7 @@ import LocalStorageService
 /// Service for native macOS Xcode development workflow (fast iteration)
 /// Uses native Swift toolchain for builds and direct process execution
 @MainActor
-public class XcodeLocalService: LambdaService, LocalDockerServicesProvider, LocalBuildProvider, LocalLambdaProvider {
+public class XcodeLocalService: LocalService {
     private let dockerService: DockerService
     public let cliService: CLIService
     private let storageService: LocalStorageService
