@@ -4,60 +4,31 @@ import CLIKit
 import SwiftDeploy
 import SwiftUI
 
-struct DeployView: View {
+/// View for Local Lambda service management (Xcode or Linux)
+/// Shows Docker services, build controls, and Lambda management
+/// The service mode (Xcode vs Linux) is controlled by the parent ServicesView
+struct LocalServiceView: View {
     @Environment(MacAppModel.self) var model
-
-    private var modeBinding: Binding<String> {
-        Binding(
-            get: { model.mode.persistenceKey },
-            set: { key in
-                switch key {
-                case RemoteService.persistenceKey:
-                    model.setRemote()
-                case XcodeLocalService.persistenceKey:
-                    model.setLocalXcode()
-                case LinuxLocalService.persistenceKey:
-                    model.setLocalLinux()
-                default:
-                    break
-                }
-            }
-        )
-    }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // MARK: - Mode Picker
-                    modePickerSection
-
-                    Divider()
-
-                    // MARK: - About Section
-                    aboutSection
-
-                    Divider()
-
-                    // MARK: - Remote-Only Sections
-                    if model.mode.isRemote {
-                        RemoteServiceView(service: model.remoteService)
-                    }
-
-                    // MARK: - Local-Only Sections (Docker Services, Build, Lambda)
-                    // Uses protocol conformance - sections only render if provider exists
+                    // MARK: - Docker Services Section
                     if model.dockerServicesProvider != nil {
                         dockerServicesSection
 
                         Divider()
                     }
 
+                    // MARK: - Build Section
                     if model.buildProvider != nil {
                         buildSection
 
                         Divider()
                     }
 
+                    // MARK: - Lambda Section
                     if model.lambdaProvider != nil {
                         lambdaSection
                     }
@@ -78,45 +49,6 @@ struct DeployView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             model.refreshStatus()
-        }
-    }
-
-    // MARK: - Mode Picker Section
-
-    @ViewBuilder
-    private var modePickerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Lambda Mode")
-                .font(.headline)
-
-            Picker("Lambda Mode", selection: modeBinding) {
-                Text("Remote").tag(RemoteService.persistenceKey)
-                Text("Local Xcode").tag(XcodeLocalService.persistenceKey)
-                Text("Local Linux").tag(LinuxLocalService.persistenceKey)
-            }
-            .pickerStyle(.segmented)
-
-            Text(model.mode.detailText)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-
-    // MARK: - About Section
-
-    @ViewBuilder
-    private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("About")
-                .font(.headline)
-
-            Text("Swift Lambda Sample")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("This application connects to either a remote AWS Lambda API Gateway or a local Lambda instance for managing users and testing S3 file operations.")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
     }
 
@@ -511,6 +443,6 @@ private struct StatusIndicator: View {
 
 #Preview {
     let model = MacAppModel()
-    return DeployView()
+    return LocalServiceView()
         .environment(model)
 }

@@ -5,10 +5,10 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            // Deploy is always available
-            DeployView()
+            // Services tab (Remote/Local selection)
+            ServicesView()
                 .tabItem {
-                    Label("Deploy", systemImage: "shippingbox")
+                    Label("Services", systemImage: "shippingbox")
                 }
 
             // Only show Client tab if configured
