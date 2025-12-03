@@ -34,6 +34,9 @@ public class LinuxLocalService: LocalService {
     private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
     private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
 
+    /// Flag to prevent refreshStatus from overwriting transitional states (starting/stopping)
+    private var isTransitioning = false
+
     public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         statusSubject.eraseToAnyPublisher()
     }
@@ -305,6 +308,9 @@ public class LinuxLocalService: LocalService {
 
     /// Start Lambda container with all services (complete flow)
     public func startWithServices() async throws {
+        isTransitioning = true
+        defer { isTransitioning = false }
+
         statusSubject.send(.starting)
 
         print("\n🚀 Setting up complete Lambda container environment...")
@@ -345,6 +351,9 @@ public class LinuxLocalService: LocalService {
 
     /// Stop Lambda container and all services
     public func stopWithServices() async throws {
+        isTransitioning = true
+        defer { isTransitioning = false }
+
         statusSubject.send(.stopping)
 
         print("\n🛑 Stopping Lambda container and services...")
@@ -364,6 +373,39 @@ public class LinuxLocalService: LocalService {
         print("\n✅ All services stopped")
 
         refreshStatus()
+    }
+
+    /// Start services if not already running, then refresh status
+    /// Sets isTransitioning early to prevent refreshStatus from overwriting .starting state
+    public func startIfNecessary() async {
+        print("🔄 startIfNecessary called")
+
+        // Set transitioning flag BEFORE checking status to prevent race with refreshStatus
+        isTransitioning = true
+
+        do {
+            let currentStatus = try await status()
+            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState)")
+
+            // Start if any service is stopped
+            let anyServiceStopped = currentStatus.lambdaState == .stopped ||
+                                    currentStatus.s3State == .stopped ||
+                                    currentStatus.postgresState == .stopped
+
+            if anyServiceStopped {
+                print("🔄 Starting services (some are stopped)...")
+                // startWithServices will also set isTransitioning, but that's fine
+                try await startWithServices()
+            } else {
+                print("🔄 All services already running, skipping start")
+                isTransitioning = false
+                refreshStatus()
+            }
+        } catch {
+            print("⚠️ Failed to start services: \(error)")
+            isTransitioning = false
+            refreshStatus()
+        }
     }
 
     // MARK: - LambdaService Protocol: Testing
@@ -453,7 +495,11 @@ public class LinuxLocalService: LocalService {
     }
 
     /// Refresh status and publish results via Combine publishers
+    /// Skips refresh if currently in a transition (starting/stopping) to avoid overwriting transitional states
     public func refreshStatus() {
+        // Don't overwrite transitional states
+        guard !isTransitioning else { return }
+
         let statusSubject = self.statusSubject
         let isLoadingStatusSubject = self.isLoadingStatusSubject
 

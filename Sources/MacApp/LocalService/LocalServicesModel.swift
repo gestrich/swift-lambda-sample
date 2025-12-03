@@ -39,6 +39,7 @@ class LocalServicesModel: LocalService {
         service.statusPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newStatus in
+                print("📊 LocalServicesModel received status: Lambda=\(newStatus.lambdaState), S3=\(newStatus.s3State), Postgres=\(newStatus.postgresState)")
                 self?.status = newStatus
                 self?.statusSubject.send(newStatus)
             }
