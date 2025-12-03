@@ -1,6 +1,6 @@
 import AppKit
-import Client
 import CLIKit
+import Combine
 import SwiftDeploy
 import SwiftUI
 
@@ -8,35 +8,35 @@ import SwiftUI
 /// Shows Docker services, build controls, and Lambda management
 /// The service mode (Xcode vs Linux) is controlled by the parent ServicesView
 struct LocalServiceView: View {
-    @Environment(MacAppModel.self) var model
+    let service: any LambdaService
+    let dockerServicesProvider: LocalDockerServicesProvider
+    let buildProvider: LocalBuildProvider
+    let lambdaProvider: LocalLambdaProvider
+
+    @State private var status: DeploymentStatus = .stopped
+    @State private var statusCancellable: AnyCancellable?
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // MARK: - Docker Services Section
-                    if let dockerProvider = model.dockerServicesProvider {
-                        DockerServicesView(
-                            dockerProvider: dockerProvider,
-                            s3State: model.status.s3State,
-                            postgresState: model.status.postgresState,
-                            onRefreshStatus: { model.refreshStatus() }
-                        )
+                    DockerServicesView(
+                        dockerProvider: dockerServicesProvider,
+                        s3State: status.s3State,
+                        postgresState: status.postgresState,
+                        onRefreshStatus: { service.refreshStatus() }
+                    )
 
-                        Divider()
-                    }
+                    Divider()
 
                     // MARK: - Build Section
-                    if model.buildProvider != nil {
-                        buildSection
+                    buildSection
 
-                        Divider()
-                    }
+                    Divider()
 
                     // MARK: - Lambda Section
-                    if model.lambdaProvider != nil {
-                        lambdaSection
-                    }
+                    lambdaSection
                 }
                 .padding(20)
             }
@@ -45,7 +45,7 @@ struct LocalServiceView: View {
 
             // Output and command input pinned to bottom
             VStack(alignment: .leading, spacing: 8) {
-                unifiedOutputSection
+                outputSection
                 commandInputSection
             }
             .padding(20)
@@ -53,7 +53,16 @@ struct LocalServiceView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            model.refreshStatus()
+            // Subscribe to status updates
+            statusCancellable = service.statusPublisher
+                .receive(on: DispatchQueue.main)
+                .sink { newStatus in
+                    status = newStatus
+                }
+            service.refreshStatus()
+        }
+        .onDisappear {
+            statusCancellable?.cancel()
         }
     }
 
@@ -61,63 +70,61 @@ struct LocalServiceView: View {
 
     @ViewBuilder
     private var buildSection: some View {
-        if let buildProvider = model.buildProvider {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Build")
-                        .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Build")
+                    .font(.headline)
 
-                    Spacer()
+                Spacer()
 
-                    // Build status badge
-                    buildStatusBadge(for: buildProvider)
+                // Build status badge
+                buildStatusBadge
 
+                Button(action: {
+                    Task {
+                        try? await buildProvider.build(clean: false)
+                    }
+                }) {
+                    if buildProvider.buildState.status.isBuilding {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "hammer")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(buildProvider.buildState.status.isBuilding)
+                .help("Build Lambda")
+
+                Button(action: {
+                    Task {
+                        try? await buildProvider.build(clean: true)
+                    }
+                }) {
+                    Image(systemName: "sparkles")
+                }
+                .buttonStyle(.borderless)
+                .disabled(buildProvider.buildState.status.isBuilding)
+                .help("Clean and Build Lambda")
+
+                if buildProvider.buildState.status.hasArtifact {
                     Button(action: {
                         Task {
-                            try? await buildProvider.build(clean: false)
+                            try? await buildProvider.deleteBuild()
                         }
                     }) {
-                        if buildProvider.buildState.status.isBuilding {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "hammer")
-                        }
+                        Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
                     .disabled(buildProvider.buildState.status.isBuilding)
-                    .help("Build Lambda")
-
-                    Button(action: {
-                        Task {
-                            try? await buildProvider.build(clean: true)
-                        }
-                    }) {
-                        Image(systemName: "sparkles")
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(buildProvider.buildState.status.isBuilding)
-                    .help("Clean and Build Lambda")
-
-                    if buildProvider.buildState.status.hasArtifact {
-                        Button(action: {
-                            Task {
-                                try? await buildProvider.deleteBuild()
-                            }
-                        }) {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(buildProvider.buildState.status.isBuilding)
-                        .help("Delete Build")
-                    }
+                    .help("Delete Build")
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func buildStatusBadge(for buildProvider: LocalBuildProvider) -> some View {
+    private var buildStatusBadge: some View {
         let status = buildProvider.buildState.status
         HStack(spacing: 4) {
             if status.showProgress {
@@ -125,15 +132,15 @@ struct LocalServiceView: View {
                     .scaleEffect(0.6)
             } else {
                 Image(systemName: status.iconName)
-                    .foregroundColor(buildStatusColor(for: buildProvider))
+                    .foregroundColor(buildStatusColor)
             }
             Text(status.displayText)
                 .font(.caption2)
-                .foregroundColor(buildStatusColor(for: buildProvider))
+                .foregroundColor(buildStatusColor)
         }
     }
 
-    private func buildStatusColor(for buildProvider: LocalBuildProvider) -> Color {
+    private var buildStatusColor: Color {
         switch buildProvider.buildState.status.colorName {
         case "blue": return .blue
         case "green": return .green
@@ -148,72 +155,70 @@ struct LocalServiceView: View {
 
     @ViewBuilder
     private var lambdaSection: some View {
-        if let lambdaProvider = model.lambdaProvider {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Lambda")
-                        .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Lambda")
+                    .font(.headline)
 
-                    Spacer()
+                Spacer()
 
-                    // Lambda status badge
-                    lambdaStatusBadge(for: lambdaProvider)
+                // Lambda status badge
+                lambdaStatusBadge
 
-                    Button(action: {
-                        Task {
-                            await model.startServices()
-                        }
-                    }) {
-                        if lambdaProvider.lambdaState.status.isTransitioning {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "play.circle")
-                        }
+                Button(action: {
+                    Task {
+                        try? await lambdaProvider.startWithServices()
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(lambdaProvider.lambdaState.status.isTransitioning)
-                    .help("Start Lambda")
-
-                    Button(action: {
-                        Task {
-                            try? await lambdaProvider.stopWithServices()
-                        }
-                    }) {
-                        Image(systemName: "stop.circle")
+                }) {
+                    if lambdaProvider.lambdaState.status.isTransitioning {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "play.circle")
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(lambdaProvider.lambdaState.status.isTransitioning || lambdaProvider.lambdaState.status == .stopped)
-                    .help("Stop Lambda")
-
-                    Button(action: { model.refreshStatus() }) {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(lambdaProvider.lambdaState.status.isTransitioning)
-                    .help("Refresh status")
                 }
+                .buttonStyle(.borderless)
+                .disabled(lambdaProvider.lambdaState.status.isTransitioning)
+                .help("Start Lambda")
 
-                // Endpoint
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Endpoint")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    TextField("Endpoint", text: .constant(model.endpoint))
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(true)
-
-                    Text(model.endpointHelpText)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                Button(action: {
+                    Task {
+                        try? await lambdaProvider.stopWithServices()
+                    }
+                }) {
+                    Image(systemName: "stop.circle")
                 }
+                .buttonStyle(.borderless)
+                .disabled(lambdaProvider.lambdaState.status.isTransitioning || lambdaProvider.lambdaState.status == .stopped)
+                .help("Stop Lambda")
+
+                Button(action: { service.refreshStatus() }) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(lambdaProvider.lambdaState.status.isTransitioning)
+                .help("Refresh status")
+            }
+
+            // Endpoint
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Endpoint")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                TextField("Endpoint", text: .constant(service.endpoint))
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(true)
+
+                Text(service.endpointHelpText)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
     }
 
     @ViewBuilder
-    private func lambdaStatusBadge(for lambdaProvider: LocalLambdaProvider) -> some View {
+    private var lambdaStatusBadge: some View {
         let status = lambdaProvider.lambdaState.status
         HStack(spacing: 4) {
             if status.showProgress {
@@ -221,15 +226,15 @@ struct LocalServiceView: View {
                     .scaleEffect(0.6)
             } else {
                 Image(systemName: status.iconName)
-                    .foregroundColor(lambdaStatusColor(for: lambdaProvider))
+                    .foregroundColor(lambdaStatusColor)
             }
             Text(status.displayText)
                 .font(.caption2)
-                .foregroundColor(lambdaStatusColor(for: lambdaProvider))
+                .foregroundColor(lambdaStatusColor)
         }
     }
 
-    private func lambdaStatusColor(for lambdaProvider: LocalLambdaProvider) -> Color {
+    private var lambdaStatusColor: Color {
         switch lambdaProvider.lambdaState.status.colorName {
         case "blue": return .blue
         case "green": return .green
@@ -240,17 +245,18 @@ struct LocalServiceView: View {
         }
     }
 
-    // MARK: - Unified Output Section
+    // MARK: - Output Section
 
     @ViewBuilder
-    private var unifiedOutputSection: some View {
+    private var outputSection: some View {
+        let cliService = service.cliService
+        let persistenceKey = type(of: service).persistenceKey
         VStack(alignment: .leading, spacing: 8) {
             Text("Output")
                 .font(.headline)
 
-            // Use mode-specific CLI output stream - each mode has isolated output
-            StreamingTextView(streamProvider: { await model.cliService.outputStream() })
-                .id(model.mode.persistenceKey) // Reset view when mode changes
+            StreamingTextView(streamProvider: { await cliService.outputStream() })
+                .id(persistenceKey)
         }
     }
 
@@ -277,16 +283,10 @@ struct LocalServiceView: View {
         let arguments = Array(parts.dropFirst())
 
         Task {
-            _ = try? await model.cliService.execute(
+            _ = try? await service.cliService.execute(
                 command: command,
                 arguments: arguments
             )
         }
     }
-}
-
-#Preview {
-    let model = MacAppModel()
-    return LocalServiceView()
-        .environment(model)
 }

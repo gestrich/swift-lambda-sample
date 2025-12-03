@@ -49,8 +49,20 @@ struct ServicesView: View {
             // MARK: - Service-Specific Content
             if model.mode.isRemote {
                 RemoteServiceView(service: model.remoteService)
+            } else if model.mode.isLocalXcode {
+                LocalServiceView(
+                    service: model.xcodeLocalService,
+                    dockerServicesProvider: model.xcodeLocalService,
+                    buildProvider: model.xcodeLocalService,
+                    lambdaProvider: model.xcodeLocalService
+                )
             } else {
-                LocalServiceView()
+                LocalServiceView(
+                    service: model.linuxLocalService,
+                    dockerServicesProvider: model.linuxLocalService,
+                    buildProvider: model.linuxLocalService,
+                    lambdaProvider: model.linuxLocalService
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
