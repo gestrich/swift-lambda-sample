@@ -1,23 +1,5 @@
 import Foundation
 
-/// Protocol for defining storage path keys
-/// Clients define their own keys by conforming to this protocol
-public protocol StoragePathKey {
-    /// The path component used in the directory structure
-    /// e.g., "postgres/xcode-data", "minio/linux-data"
-    static var pathComponent: String { get }
-}
-
-/// Protocol for keys that represent files (not directories)
-public protocol StorageFileKey: StoragePathKey {
-    /// The filename
-    static var filename: String { get }
-}
-
-extension StorageFileKey {
-    public static var pathComponent: String { filename }
-}
-
 /// Service for resolving local storage paths
 /// All data is stored under ~/.swiftSampleDemo/
 public struct LocalStorageService: Sendable {
@@ -86,4 +68,22 @@ public struct LocalStorageService: Sendable {
         let path = dataDirectory(for: keyType)
         try ensureDirectoryExists(at: path)
     }
+}
+
+/// Protocol for defining storage path keys
+/// Clients define their own keys by conforming to this protocol
+public protocol StoragePathKey {
+    /// The path component used in the directory structure
+    /// e.g., "postgres/xcode-data", "minio/linux-data"
+    static var pathComponent: String { get }
+}
+
+/// Protocol for keys that represent files (not directories)
+public protocol StorageFileKey: StoragePathKey {
+    /// The filename
+    static var filename: String { get }
+}
+
+extension StorageFileKey {
+    public static var pathComponent: String { filename }
 }
