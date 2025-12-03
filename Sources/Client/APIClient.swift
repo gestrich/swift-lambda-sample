@@ -33,17 +33,6 @@ public class APIClient {
 
     // MARK: - File Operations
 
-    /// Test file upload (uploads hardcoded test file)
-    public func testFileUpload() async throws -> String {
-        // Upload a test file using the files endpoint
-        let testContent = "Hello World! This data was written/read from S3."
-        guard let data = testContent.data(using: .utf8) else {
-            throw APIError.invalidResponse
-        }
-
-        return try await uploadFile(fileName: "hello-world.text", data: data)
-    }
-
     /// Upload file with custom data and filename
     public func uploadFile(fileName: String, data: Data) async throws -> String {
         let endpoint = "/api/files"
