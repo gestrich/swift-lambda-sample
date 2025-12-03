@@ -1,6 +1,5 @@
 import AppKit
 import CLIKit
-import Combine
 import SwiftDeploy
 import SwiftUI
 
@@ -8,10 +7,7 @@ import SwiftUI
 /// Shows Docker services, build controls, and Lambda management
 /// The service mode (Xcode vs Linux) is controlled by the parent ServicesView
 struct LocalServiceView: View {
-    let service: any LocalService
-
-    @State private var status: DeploymentStatus = .stopped
-    @State private var statusCancellable: AnyCancellable?
+    let service: LocalServicesModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,8 +16,8 @@ struct LocalServiceView: View {
                     // MARK: - Docker Services Section
                     DockerServicesView(
                         dockerProvider: service,
-                        s3State: status.s3State,
-                        postgresState: status.postgresState,
+                        s3State: service.status.s3State,
+                        postgresState: service.status.postgresState,
                         onRefreshStatus: { service.refreshStatus() }
                     )
 
@@ -50,16 +46,7 @@ struct LocalServiceView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            // Subscribe to status updates
-            statusCancellable = service.statusPublisher
-                .receive(on: DispatchQueue.main)
-                .sink { newStatus in
-                    status = newStatus
-                }
             service.refreshStatus()
-        }
-        .onDisappear {
-            statusCancellable?.cancel()
         }
     }
 

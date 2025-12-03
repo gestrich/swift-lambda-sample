@@ -57,6 +57,10 @@ public class RemoteService: LambdaService {
 
     public static let persistenceKey = "remote"
 
+    public static let displayName = "Remote (API Gateway)"
+
+    public static let detailText = "Connect to deployed AWS API Gateway"
+
     public var port: Int { 443 }
 
     public var endpoint: String {

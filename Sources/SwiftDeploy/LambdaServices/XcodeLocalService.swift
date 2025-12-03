@@ -54,6 +54,10 @@ public class XcodeLocalService: LocalService {
 
     public static let persistenceKey = "localXcode"
 
+    public static let displayName = "Local Xcode (Native)"
+
+    public static let detailText = "Native macOS build - fast iteration, best for development"
+
     public var port: Int { lambdaHostPort }
 
     public var endpoint: String {

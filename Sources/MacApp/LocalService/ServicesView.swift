@@ -4,7 +4,7 @@ import SwiftUI
 /// Top-level view for selecting between Remote, Xcode, and Linux service modes
 /// Contains a segmented control to switch between RemoteServiceView and LocalServiceView
 struct ServicesView: View {
-    @Environment(MacAppModel.self) var model
+    @Environment(AllServicesModel.self) var model
 
     private var modeBinding: Binding<String> {
         Binding(
@@ -24,6 +24,15 @@ struct ServicesView: View {
         )
     }
 
+    /// Detail text for the currently selected mode
+    private var currentDetailText: String {
+        switch model.mode {
+        case .remote: return RemoteService.detailText
+        case .localXcode: return XcodeLocalService.detailText
+        case .localLinux: return LinuxLocalService.detailText
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Service Mode Picker (Remote / Xcode / Linux)
@@ -38,7 +47,7 @@ struct ServicesView: View {
                 }
                 .pickerStyle(.segmented)
 
-                Text(model.mode.detailText)
+                Text(currentDetailText)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -50,9 +59,9 @@ struct ServicesView: View {
             if model.mode.isRemote {
                 RemoteServiceView(service: model.remoteService)
             } else if model.mode.isLocalXcode {
-                LocalServiceView(service: model.xcodeLocalService)
+                LocalServiceView(service: model.xcodeLocalModel)
             } else {
-                LocalServiceView(service: model.linuxLocalService)
+                LocalServiceView(service: model.linuxLocalModel)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -60,7 +69,7 @@ struct ServicesView: View {
 }
 
 #Preview {
-    let model = MacAppModel()
+    let model = AllServicesModel()
     return ServicesView()
         .environment(model)
 }

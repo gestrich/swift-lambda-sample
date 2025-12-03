@@ -58,6 +58,10 @@ public class LinuxLocalService: LocalService {
 
     public static let persistenceKey = "localLinux"
 
+    public static let displayName = "Local Linux (Container)"
+
+    public static let detailText = "Docker container build - matches AWS Lambda environment"
+
     public var port: Int { config.hostPort }
 
     public var endpoint: String {

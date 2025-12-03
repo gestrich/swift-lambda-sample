@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct MacAppMain: App {
-    @State private var model = MacAppModel()
+    @State private var model = AllServicesModel()
 
     init() {
         // Set activation policy to make app appear in Dock and Cmd+Tab

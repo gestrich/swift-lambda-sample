@@ -5,7 +5,7 @@ import SwiftUI
 /// View for managing Docker services (MinIO S3 and PostgreSQL)
 /// Used in local development modes (Xcode and Linux)
 struct DockerServicesView: View {
-    let dockerProvider: LocalDockerServicesProvider
+    let dockerProvider: any LocalService
     let s3State: ServiceState
     let postgresState: ServiceState
     let onRefreshStatus: () -> Void

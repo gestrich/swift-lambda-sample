@@ -13,6 +13,12 @@ public protocol LambdaService {
     /// Unique key for persistence (used for saving/restoring mode selection)
     static var persistenceKey: String { get }
 
+    /// Display name for the service (used in UI)
+    static var displayName: String { get }
+
+    /// Detail text describing the service (used in UI)
+    static var detailText: String { get }
+
     /// The port where Lambda listens for requests
     var port: Int { get }
 
