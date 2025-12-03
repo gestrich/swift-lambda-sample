@@ -171,4 +171,10 @@ class LocalServicesModel: LocalService {
     public func stopWithServices() async throws {
         try await service.stopWithServices()
     }
+
+    public func startIfNecessary() async {
+        print("🔄 LocalServicesModel.startIfNecessary delegating to service")
+        await service.startIfNecessary()
+        print("🔄 LocalServicesModel.startIfNecessary completed")
+    }
 }

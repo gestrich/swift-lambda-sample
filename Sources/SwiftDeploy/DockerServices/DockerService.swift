@@ -135,6 +135,22 @@ public actor DockerService {
         }
     }
 
+    /// Start an existing stopped container
+    public func start(container: String) async throws {
+        let result = try await cliService.executeForResult(
+            Docker.Start(container: container),
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "docker start",
+                exitCode: result.exitCode,
+                stderr: result.stderr
+            )
+        }
+    }
+
     /// Stop a container
     public func stop(container: String) async throws {
         let result = try await cliService.executeForResult(

@@ -59,6 +59,33 @@ public actor MinIOService {
     public func start() async throws {
         print("\n🗄️  Starting MinIO S3 (\(config.containerName))...")
 
+        // Check if container already exists
+        let containerExists = try await dockerService.containerExists(name: config.containerName)
+
+        if containerExists {
+            // Check if it's already running
+            let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+            if isRunning {
+                print("✅ MinIO already running")
+                return
+            }
+
+            // Container exists but is stopped - start it
+            print("→ Starting existing MinIO container...")
+            try await dockerService.start(container: config.containerName)
+        } else {
+            // Container doesn't exist - create and run it
+            try await createAndRunContainer()
+        }
+
+        print("✅ MinIO started successfully")
+        print("   - S3 endpoint: \(endpoint)")
+        print("   - Console: \(consoleURL)")
+        print("   - Credentials: \(config.rootUser)/\(config.rootPassword)")
+    }
+
+    /// Create and run a new MinIO container
+    private func createAndRunContainer() async throws {
         // Create MinIO data directory if it doesn't exist
         // Don't remove existing data - let MinIO reuse it
         let dataDir = storageService.dataDirectory(for: config.storageKeyType)
@@ -95,11 +122,6 @@ public actor MinIOService {
             command: ["server", "/data", "--console-address", ":\(internalConsolePort)"],
             options: options
         )
-
-        print("✅ MinIO started successfully")
-        print("   - S3 endpoint: \(endpoint)")
-        print("   - Console: \(consoleURL)")
-        print("   - Credentials: \(config.rootUser)/\(config.rootPassword)")
     }
 
     /// Create S3 bucket in MinIO

@@ -30,6 +30,33 @@ public actor PostgreSQLService {
     public func start() async throws {
         print("\n🗄️  Starting PostgreSQL (\(config.containerName))...")
 
+        // Check if container already exists
+        let containerExists = try await dockerService.containerExists(name: config.containerName)
+
+        if containerExists {
+            // Check if it's already running
+            let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+            if isRunning {
+                print("✅ PostgreSQL already running")
+                return
+            }
+
+            // Container exists but is stopped - start it
+            print("→ Starting existing PostgreSQL container...")
+            try await dockerService.start(container: config.containerName)
+        } else {
+            // Container doesn't exist - create and run it
+            try await createAndRunContainer()
+        }
+
+        print("✅ PostgreSQL started successfully")
+        print("   - Host: localhost:\(config.port)")
+        print("   - Database: \(config.database)")
+        print("   - Credentials: \(config.username)/\(config.password)")
+    }
+
+    /// Create and run a new PostgreSQL container
+    private func createAndRunContainer() async throws {
         // Create data directory if it doesn't exist
         let dataDir = storageService.dataDirectory(for: config.storageKeyType)
         if !FileManager.default.fileExists(atPath: dataDir) {
@@ -39,7 +66,7 @@ public actor PostgreSQLService {
 
         // Run PostgreSQL container with host directory for data persistence
         // The official postgres image handles initialization automatically
-        print("→ Starting PostgreSQL container...")
+        print("→ Creating PostgreSQL container...")
         var runOptions = DockerService.RunOptions()
         runOptions.detached = true
         runOptions.ports = [(config.port, config.internalPort)]
@@ -55,12 +82,6 @@ public actor PostgreSQLService {
             image: config.imageName,
             options: runOptions
         )
-
-        print("✅ PostgreSQL started successfully")
-        print("   - Host: localhost:\(config.port)")
-        print("   - Database: \(config.database)")
-        print("   - Credentials: \(config.username)/\(config.password)")
-        print("   - Data: \(dataDir)")
     }
 
     /// Stop PostgreSQL database

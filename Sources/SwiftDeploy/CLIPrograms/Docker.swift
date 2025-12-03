@@ -62,6 +62,14 @@ public struct Docker {
         @Positional public var command: [String] = []
     }
 
+    /// Docker start command
+    /// Example: docker start mycontainer
+    @CLICommand
+    public struct Start {
+        /// Container name or ID
+        @Positional public var container: String
+    }
+
     /// Docker stop command
     /// Example: docker stop mycontainer
     @CLICommand

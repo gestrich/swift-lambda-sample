@@ -54,6 +54,15 @@ class AllServicesModel {
     let xcodeLocalModel: LocalServicesModel
     let linuxLocalModel: LocalServicesModel
 
+    /// The current local model based on mode (nil if remote)
+    var currentLocalModel: LocalServicesModel? {
+        switch mode {
+        case .localXcode: return xcodeLocalModel
+        case .localLinux: return linuxLocalModel
+        case .remote: return nil
+        }
+    }
+
     // MARK: - Persisted State
 
     var mode: ConnectionMode {
@@ -98,6 +107,24 @@ class AllServicesModel {
             initialMode = .remote(remote)
         }
         self.mode = initialMode
+
+        // Start services if necessary for initial mode
+        Task {
+            await self.startCurrentServiceIfNecessary()
+        }
+    }
+
+    /// Start the current service if necessary (used on init and mode change)
+    private func startCurrentServiceIfNecessary() async {
+        print("🔄 startCurrentServiceIfNecessary called, mode: \(mode.persistenceKey)")
+        if let localModel = currentLocalModel {
+            print("🔄 Found localModel, calling startIfNecessary")
+            await localModel.startIfNecessary()
+            print("🔄 startIfNecessary completed")
+        } else {
+            print("🔄 No localModel (remote mode), calling refreshStatus")
+            remoteService.refreshStatus()
+        }
     }
 
     /// Path to the app config file
@@ -128,32 +155,13 @@ class AllServicesModel {
     // MARK: - Mode Changes
 
     private func onModeChanged(oldMode: ConnectionMode) {
+        print("🔄 onModeChanged: \(oldMode.persistenceKey) -> \(mode.persistenceKey)")
         // Save preference
         save()
 
-        // Stop old services and start new ones
+        // Start services if necessary and refresh status
         Task {
-            // Stop old services if it was a local mode
-            if let oldLocalService = oldMode.localService {
-                do {
-                    try await oldLocalService.stopWithServices()
-                } catch {
-                    print("⚠️ Error stopping old services (may not have been running): \(error)")
-                }
-            }
-
-            // Start new services if it's a local mode
-            if let localService = mode.localService {
-                do {
-                    try await localService.startWithServices()
-                } catch {
-                    print("⚠️ Failed to start services: \(error)")
-                    refreshStatus()
-                }
-            } else {
-                // For remote mode, just refresh status
-                remoteService.refreshStatus()
-            }
+            await startCurrentServiceIfNecessary()
         }
     }
 

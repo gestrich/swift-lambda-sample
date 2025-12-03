@@ -69,6 +69,9 @@ public protocol LocalService: LambdaService {
 
     /// Stop Lambda and all supporting services
     func stopWithServices() async throws
+
+    /// Start services if not already running, then refresh status
+    func startIfNecessary() async
 }
 
 // MARK: - Default Implementations
@@ -82,5 +85,29 @@ extension LocalService {
     /// Default implementation for refreshing build status
     public func refreshBuildStatus() {
         buildState.updateFromDisk(buildExists: isLambdaBuilt())
+    }
+
+    /// Default implementation: check status, start if any service is stopped, then refresh
+    public func startIfNecessary() async {
+        print("🔄 startIfNecessary called")
+        do {
+            let currentStatus = try await status()
+            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState)")
+
+            // Start if any service is stopped
+            let anyServiceStopped = currentStatus.lambdaState == .stopped ||
+                                    currentStatus.s3State == .stopped ||
+                                    currentStatus.postgresState == .stopped
+
+            if anyServiceStopped {
+                print("🔄 Starting services (some are stopped)...")
+                try await startWithServices()
+            } else {
+                print("🔄 All services already running, skipping start")
+            }
+        } catch {
+            print("⚠️ Failed to start services: \(error)")
+        }
+        refreshStatus()
     }
 }
