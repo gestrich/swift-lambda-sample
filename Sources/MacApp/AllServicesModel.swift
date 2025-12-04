@@ -17,23 +17,12 @@ enum ConnectionMode {
         case .localLinux: return LinuxLocalService.persistenceKey
         }
     }
-
-    var isRemote: Bool {
-        if case .remote = self { return true }
-        return false
-    }
-
-    var isLocalXcode: Bool {
-        if case .localXcode = self { return true }
-        return false
-    }
-
-    /// Access the LocalService if in a local mode (Xcode or Linux)
-    var localService: (any LocalService)? {
+    
+    var service: LambdaService {
         switch self {
         case .localXcode(let service): return service
         case .localLinux(let service): return service
-        case .remote: return nil
+        case .remote(let service): return service
         }
     }
 }
@@ -183,27 +172,17 @@ class AllServicesModel {
 
     /// Whether the current service is configured and ready to use
     var isConfigured: Bool {
-        if let localService = mode.localService {
-            return localService.isConfigured
-        }
-        return remoteService.isConfigured
+        return mode.service.isConfigured
     }
 
     /// The API client for the current service
     var apiClient: APIClient {
-        if let localService = mode.localService {
-            return localService.apiClient
-        }
-        return remoteService.apiClient
+        return mode.service.apiClient
     }
 
     /// Refresh status for the current service
     func refreshStatus() {
-        if let localService = mode.localService {
-            localService.refreshStatus()
-        } else {
-            remoteService.refreshStatus()
-        }
+        mode.service.refreshStatus()
     }
 
     // MARK: - Persistence

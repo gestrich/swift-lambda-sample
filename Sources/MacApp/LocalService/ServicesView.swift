@@ -56,12 +56,13 @@ struct ServicesView: View {
             Divider()
 
             // MARK: - Service-Specific Content
-            if model.mode.isRemote {
-                RemoteServiceView(service: model.remoteService)
-            } else if model.mode.isLocalXcode {
+            switch model.mode {
+            case .localXcode:
                 LocalServiceView(service: model.xcodeLocalModel)
-            } else {
+            case .localLinux:
                 LocalServiceView(service: model.linuxLocalModel)
+            case .remote(let service):
+                RemoteServiceView(service: service)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
