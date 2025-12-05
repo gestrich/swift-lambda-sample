@@ -158,23 +158,99 @@ struct PostgresView: View {
     }
 }
 
+struct UserCardView: View {
+    let user: User
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Header with name and nickname
+            HStack(alignment: .top) {
+                // Avatar
+                ZStack {
+                    Circle()
+                        .fill(avatarColor)
+                        .frame(width: 44, height: 44)
+                    Text(initials)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(user.firstName) \(user.lastName)")
+                        .font(.headline)
+
+                    if !user.nickName.isEmpty {
+                        Text(user.nickName)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+            }
+
+            Divider()
+
+            // Contact info grid
+            VStack(alignment: .leading, spacing: 6) {
+                UserInfoRow(icon: "envelope.fill", label: "Email", value: user.email)
+
+                if !user.phone.isEmpty {
+                    UserInfoRow(icon: "phone.fill", label: "Phone", value: user.phone)
+                }
+
+                if !user.slackID.isEmpty {
+                    UserInfoRow(icon: "number", label: "Slack ID", value: user.slackID)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    private var initials: String {
+        let first = user.firstName.prefix(1).uppercased()
+        let last = user.lastName.prefix(1).uppercased()
+        return "\(first)\(last)"
+    }
+
+    private var avatarColor: Color {
+        // Generate a consistent color based on the user's name
+        let hash = abs(user.email.hashValue)
+        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .teal, .indigo]
+        return colors[hash % colors.count]
+    }
+}
+
+struct UserInfoRow: View {
+    let icon: String
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.secondary)
+                .frame(width: 16)
+
+            Text(value)
+                .font(.callout)
+                .foregroundColor(.primary)
+        }
+    }
+}
+
+// Keep old name for compatibility but use new design
 struct UserRowView: View {
     let user: User
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(user.displayName)
-                .font(.headline)
-            Text(user.email)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            if !user.phone.isEmpty {
-                Text(user.phone)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 5)
+        UserCardView(user: user)
     }
 }
 

@@ -1,9 +1,17 @@
+import Client
 import SwiftUI
 
 struct ClientView: View {
+    @Environment(APIClient.self) var apiClient
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Show which service we're connected to
+                Text("Connected to: \(apiClient.baseURL)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
                 // S3 Section
                 GroupBox {
                     S3View()

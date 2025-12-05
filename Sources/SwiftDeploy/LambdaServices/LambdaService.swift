@@ -81,6 +81,25 @@ extension LambdaService {
     public func waitForReady() async throws {
         try await waitForReady(maxAttempts: 30)
     }
+
+    /// Create a sample user record in PostgreSQL for testing
+    /// The nickname includes the service type (Xcode/Linux/Remote) to identify the source
+    public func createSampleUser() async throws -> User {
+        let serviceType = Self.displayName
+        let timestamp = Int(Date().timeIntervalSince1970) % 10000
+
+        let request = CreateUserRequest(
+            email: "sample\(timestamp)@example.com",
+            password: "password123",
+            firstName: "Sample",
+            lastName: "User",
+            nickName: "\(serviceType) Test",
+            phone: "555-\(String(format: "%04d", timestamp))",
+            slackID: "U\(timestamp)"
+        )
+
+        return try await apiClient.createUser(request)
+    }
 }
 
 // MARK: - Service State

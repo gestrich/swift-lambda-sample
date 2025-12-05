@@ -30,6 +30,11 @@ struct LocalServiceView: View {
 
                     // MARK: - Lambda Section
                     lambdaSection
+
+                    Divider()
+
+                    // MARK: - Sample Data Section
+                    sampleDataSection
                 }
                 .padding(20)
             }
@@ -226,6 +231,51 @@ struct LocalServiceView: View {
         case "red": return .red
         case "secondary": return .secondary
         default: return .primary
+        }
+    }
+
+    // MARK: - Sample Data Section
+
+    @State private var isCreatingSampleUser = false
+    @State private var sampleUserResult: String?
+
+    @ViewBuilder
+    private var sampleDataSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sample Data")
+                .font(.headline)
+
+            HStack {
+                Button(action: {
+                    Task {
+                        isCreatingSampleUser = true
+                        sampleUserResult = nil
+                        do {
+                            let user = try await service.createSampleUser()
+                            sampleUserResult = "Created: \(user.firstName) \(user.lastName) (\(user.nickName))"
+                        } catch {
+                            sampleUserResult = "Error: \(error.localizedDescription)"
+                        }
+                        isCreatingSampleUser = false
+                    }
+                }) {
+                    if isCreatingSampleUser {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Label("Create Sample User", systemImage: "person.badge.plus")
+                    }
+                }
+                .disabled(isCreatingSampleUser)
+
+                Spacer()
+            }
+
+            if let result = sampleUserResult {
+                Text(result)
+                    .font(.caption)
+                    .foregroundColor(result.hasPrefix("Error") ? .red : .green)
+            }
         }
     }
 

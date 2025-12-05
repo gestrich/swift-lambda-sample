@@ -745,11 +745,12 @@ struct LinuxContainerConfig: Sendable {
     let workingDirectory: String
 
     /// Create the default Linux container configuration
+    /// Uses port 8081 to avoid conflict with Xcode local service (port 8080)
     static func `default`(workingDirectory: String) -> LinuxContainerConfig {
         LinuxContainerConfig(
             containerName: "lambda-linux-container",
             swiftImage: "swift:6.2.0-amazonlinux2",
-            hostPort: 8080,
+            hostPort: 8081,
             containerPort: 7000,
             networkName: "lambda-linux",
             workingDirectory: workingDirectory
