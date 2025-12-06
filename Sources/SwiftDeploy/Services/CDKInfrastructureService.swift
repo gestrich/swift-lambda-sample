@@ -2,6 +2,27 @@ import CLIKit
 import Foundation
 import Observation
 
+/// CloudFormation stack status values
+/// See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html
+public enum CloudFormationStackStatus {
+    // Successful states
+    static let createComplete = "CREATE_COMPLETE"
+    static let updateComplete = "UPDATE_COMPLETE"
+
+    // In-progress states
+    static let createInProgress = "CREATE_IN_PROGRESS"
+    static let updateInProgress = "UPDATE_IN_PROGRESS"
+    static let updateCompleteCleanupInProgress = "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS"
+    static let deleteInProgress = "DELETE_IN_PROGRESS"
+
+    // Failed states
+    static let createFailed = "CREATE_FAILED"
+    static let updateFailed = "UPDATE_FAILED"
+    static let rollbackComplete = "ROLLBACK_COMPLETE"
+    static let rollbackFailed = "ROLLBACK_FAILED"
+    static let deleteFailed = "DELETE_FAILED"
+}
+
 /// State for CDK Infrastructure tracking
 public struct CDKInfrastructureStatus: Equatable {
     public enum StackStatus: Equatable {
@@ -271,51 +292,74 @@ public final class CDKInfrastructureService {
 
         do {
             // Check if stack exists and get its status
-            let stackStatus = try? await awsService.getStackStatus(name: infrastructureStatus.stackName)
+            let stackStatus = try await awsService.getStackStatus(name: infrastructureStatus.stackName)
 
-            if let status = stackStatus {
-                switch status {
-                case "CREATE_COMPLETE", "UPDATE_COMPLETE":
-                    // Stack is deployed - get configuration and outputs
-                    let config = try await queryConfiguration()
-                    let outputs = try await awsService.getStackOutputs(name: infrastructureStatus.stackName)
+            switch stackStatus {
+            case CloudFormationStackStatus.createComplete,
+                 CloudFormationStackStatus.updateComplete:
+                // Stack is deployed - get configuration and outputs
+                let config = try await queryConfiguration()
+                let outputs = try await awsService.getStackOutputs(name: infrastructureStatus.stackName)
 
-                    infrastructureStatus.configuration = config
-                    infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs.from(outputs)
-                    infrastructureStatus.status = .deployed
+                infrastructureStatus.configuration = config
+                infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs.from(outputs)
+                infrastructureStatus.status = .deployed
 
-                case "CREATE_IN_PROGRESS", "UPDATE_IN_PROGRESS", "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS":
-                    infrastructureStatus.status = .deploying(operation: "Updating")
-                    // Start monitoring the in-progress operation
-                    Task {
-                        await monitorExistingOperation()
-                    }
-
-                case "DELETE_IN_PROGRESS":
-                    infrastructureStatus.status = .destroying
-                    // Start monitoring the in-progress operation
-                    Task {
-                        await monitorExistingOperation()
-                    }
-
-                case "CREATE_FAILED", "UPDATE_FAILED", "ROLLBACK_COMPLETE", "ROLLBACK_FAILED", "DELETE_FAILED":
-                    infrastructureStatus.status = .failed(reason: status)
-
-                default:
-                    infrastructureStatus.status = .deployed
+            case CloudFormationStackStatus.createInProgress,
+                 CloudFormationStackStatus.updateInProgress,
+                 CloudFormationStackStatus.updateCompleteCleanupInProgress:
+                infrastructureStatus.status = .deploying(operation: "Updating")
+                // Start monitoring the in-progress operation
+                Task {
+                    await monitorExistingOperation()
                 }
+
+            case CloudFormationStackStatus.deleteInProgress:
+                infrastructureStatus.status = .destroying
+                // Start monitoring the in-progress operation
+                Task {
+                    await monitorExistingOperation()
+                }
+
+            case CloudFormationStackStatus.createFailed,
+                 CloudFormationStackStatus.updateFailed,
+                 CloudFormationStackStatus.rollbackComplete,
+                 CloudFormationStackStatus.rollbackFailed,
+                 CloudFormationStackStatus.deleteFailed:
+                infrastructureStatus.status = .failed(reason: stackStatus)
+
+            default:
+                infrastructureStatus.status = .deployed
+            }
+        } catch {
+            let errorMessage = error.localizedDescription
+
+            // Check if this is a credential error vs stack not found
+            if Self.isCredentialError(errorMessage) {
+                infrastructureStatus.status = .failed(reason: errorMessage)
             } else {
-                // Stack doesn't exist
+                // Stack doesn't exist or other non-credential error
                 infrastructureStatus.status = .notDeployed
                 infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
                 infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
             }
-        } catch {
-            // If we can't query the stack, assume it doesn't exist
-            infrastructureStatus.status = .notDeployed
-            infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
-            infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
         }
+    }
+
+    /// Check if an error message indicates AWS credential issues
+    private static func isCredentialError(_ error: String) -> Bool {
+        let credentialPatterns = [
+            "credentials missing",
+            "credential_process",
+            "Error getting temporary credentials",
+            "ExpiredToken",
+            "InvalidClientTokenId",
+            "AccessDenied",
+            "AuthFailure",
+            "security token included in the request is invalid",
+            "could not be found"  // Profile not found
+        ]
+        return credentialPatterns.contains { error.localizedCaseInsensitiveContains($0) }
     }
 
     /// Deploy infrastructure with specified configuration
@@ -513,7 +557,10 @@ public final class CDKInfrastructureService {
                 // Check if operation is still in progress
                 if let status = try? await awsService.getStackStatus(name: stackName) {
                     switch status {
-                    case "CREATE_IN_PROGRESS", "UPDATE_IN_PROGRESS", "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS", "DELETE_IN_PROGRESS":
+                    case CloudFormationStackStatus.createInProgress,
+                         CloudFormationStackStatus.updateInProgress,
+                         CloudFormationStackStatus.updateCompleteCleanupInProgress,
+                         CloudFormationStackStatus.deleteInProgress:
                         // Still in progress, continue polling
                         break
                     default:

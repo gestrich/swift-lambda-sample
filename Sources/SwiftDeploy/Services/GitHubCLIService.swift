@@ -33,7 +33,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -57,7 +57,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
     }
@@ -91,7 +91,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -111,7 +111,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
     }
@@ -139,7 +139,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -161,7 +161,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -181,7 +181,7 @@ public actor GitHubCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 

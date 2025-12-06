@@ -210,7 +210,7 @@ public final class GitHubService {
             throw DeployError.commandFailed(
                 command: "open \(url)",
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
     }

@@ -8,6 +8,9 @@ import SwiftUI
 struct RemoteServiceView: View {
     @State var service: RemoteService
 
+    /// Callback to open settings
+    var onOpenSettings: (() -> Void)?
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -36,9 +39,6 @@ struct RemoteServiceView: View {
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            service.refreshStatus()
-        }
     }
 
     // MARK: - CDK Infrastructure Section
@@ -46,10 +46,7 @@ struct RemoteServiceView: View {
     @ViewBuilder
     private var cdkInfrastructureSection: some View {
         if let cdkService = service.cdkInfrastructureService {
-            CDKInfrastructureSectionView(service: cdkService)
-                .onAppear {
-                    Task { await cdkService.refreshStatus() }
-                }
+            CDKInfrastructureSectionView(service: cdkService, onOpenSettings: onOpenSettings)
         } else {
             CDKInfrastructureLoadingView()
         }
@@ -61,9 +58,6 @@ struct RemoteServiceView: View {
     private var githubCISection: some View {
         if let ghService = service.githubService {
             GitHubCISectionView(service: ghService)
-                .onAppear {
-                    Task { await ghService.refreshStatus() }
-                }
         } else {
             GitHubCILoadingView()
         }

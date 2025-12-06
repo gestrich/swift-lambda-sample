@@ -571,7 +571,7 @@ public class RemoteService: LambdaService {
             throw CLIServiceError.executionFailed(
                 command: curlCommand.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -600,7 +600,7 @@ public class RemoteService: LambdaService {
             throw CLIServiceError.executionFailed(
                 command: healthCommand.commandString,
                 exitCode: testResult.exitCode,
-                stderr: testResult.stderr
+                output: testResult.output
             )
         }
 
@@ -626,7 +626,7 @@ public class RemoteService: LambdaService {
                 throw CLIServiceError.executionFailed(
                     command: usersCommand.commandString,
                     exitCode: usersResult.exitCode,
-                    stderr: usersResult.stderr
+                    output: usersResult.output
                 )
             }
 

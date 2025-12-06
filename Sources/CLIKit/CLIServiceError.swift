@@ -6,7 +6,7 @@ public enum CLIServiceError: Error, LocalizedError, Sendable {
     case commandNotFound(String)
 
     /// Command execution failed with non-zero exit code
-    case executionFailed(command: String, exitCode: Int32, stderr: String)
+    case executionFailed(command: String, exitCode: Int32, output: String)
 
     /// Command timed out
     case timeout(command: String, duration: TimeInterval)
@@ -28,8 +28,8 @@ public enum CLIServiceError: Error, LocalizedError, Sendable {
         case .commandNotFound(let command):
             return "Command not found: '\(command)'"
 
-        case .executionFailed(let command, let exitCode, let stderr):
-            let errorOutput = stderr.isEmpty ? "No error output" : stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .executionFailed(let command, let exitCode, let output):
+            let errorOutput = output.isEmpty ? "No error output" : output.trimmingCharacters(in: .whitespacesAndNewlines)
             return "Command '\(command)' failed with exit code \(exitCode): \(errorOutput)"
 
         case .timeout(let command, let duration):

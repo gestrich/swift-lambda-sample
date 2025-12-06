@@ -7,8 +7,13 @@ import { SwiftLambdaConfig } from '../lib/config/types';
 const app = new cdk.App();
 
 // Read context parameters from command line
-const skipPostgres = app.node.tryGetContext('skipPostgres') === 'true';
-const skipNATGateway = app.node.tryGetContext('skipNATGateway') === 'true';
+const skipPostgresRaw = app.node.tryGetContext('skipPostgres');
+const skipNATGatewayRaw = app.node.tryGetContext('skipNATGateway');
+console.log('DEBUG: skipPostgres raw:', skipPostgresRaw, 'type:', typeof skipPostgresRaw);
+console.log('DEBUG: skipNATGateway raw:', skipNATGatewayRaw, 'type:', typeof skipNATGatewayRaw);
+const skipPostgres = skipPostgresRaw === 'true' || skipPostgresRaw === true;
+const skipNATGateway = skipNATGatewayRaw === 'true' || skipNATGatewayRaw === true;
+console.log('DEBUG: skipPostgres:', skipPostgres, 'skipNATGateway:', skipNATGateway);
 
 // Build configuration based on context parameters
 let config: SwiftLambdaConfig;

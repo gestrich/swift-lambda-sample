@@ -119,7 +119,7 @@ public actor CLIService {
             throw CLIServiceError.executionFailed(
                 command: command,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -645,7 +645,7 @@ public actor CLIService {
             throw CLIServiceError.executionFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 

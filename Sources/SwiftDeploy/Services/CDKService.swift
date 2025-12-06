@@ -46,17 +46,30 @@ public actor CDKService {
 
     /// Build TypeScript CDK code
     public func build() async throws {
+        // Check if node_modules exists, install if needed
+        let nodeModulesPath = (cdkDirectory as NSString).appendingPathComponent("node_modules")
+        if !FileManager.default.fileExists(atPath: nodeModulesPath) {
+            try await install()
+        }
+
         print("\n🔨 Building CDK TypeScript...")
 
         let command = Npm.Run(script: "build")
         let (execCommand, arguments) = buildNpmCommandLine(command)
 
-        _ = try await cliService.execute(
+        let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
-            workingDirectory: cdkDirectory,
-            inheritIO: true
+            workingDirectory: cdkDirectory
         )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "npm run build",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
     }
 
     // MARK: - Deployment Operations
@@ -98,13 +111,20 @@ public actor CDKService {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        _ = try await cliService.execute(
+        let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
-            environment: ["AWS_PROFILE": awsProfile],
-            inheritIO: true
+            environment: ["AWS_PROFILE": awsProfile]
         )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "cdk deploy",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
     }
 
     /// Destroy CDK stack
@@ -118,13 +138,20 @@ public actor CDKService {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        _ = try await cliService.execute(
+        let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
-            environment: ["AWS_PROFILE": awsProfile],
-            inheritIO: true
+            environment: ["AWS_PROFILE": awsProfile]
         )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "cdk destroy",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
     }
 
     /// Show differences between deployed stack and local code
@@ -143,7 +170,7 @@ public actor CDKService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.errorOutput
             )
         }
 
@@ -167,7 +194,7 @@ public actor CDKService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.errorOutput
             )
         }
 
@@ -191,7 +218,7 @@ public actor CDKService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.errorOutput
             )
         }
 
@@ -210,11 +237,19 @@ public actor CDKService {
         let command = Npm.Install()
         let (execCommand, arguments) = buildNpmCommandLine(command)
 
-        _ = try await cliService.execute(
+        let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory
         )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "npm install",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
     }
 
     /// Bootstrap CDK (one-time setup for AWS account)
@@ -224,11 +259,19 @@ public actor CDKService {
         let command = Cdk.Bootstrap(profile: awsProfile)
         let (execCommand, arguments) = buildCommandLine(command)
 
-        _ = try await cliService.execute(
+        let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
             environment: ["AWS_PROFILE": awsProfile]
         )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "cdk bootstrap",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
     }
 }

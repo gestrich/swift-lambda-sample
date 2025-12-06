@@ -44,6 +44,9 @@ struct CDKInfrastructureLoadingView: View {
 struct CDKInfrastructureSectionView: View {
     @State var service: CDKInfrastructureService
 
+    /// Callback to open settings
+    var onOpenSettings: (() -> Void)?
+
     // Timer for updating elapsed time display
     @State private var currentTime = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -56,6 +59,9 @@ struct CDKInfrastructureSectionView: View {
 
     // Deploy options popover
     @State private var showDeployOptions = false
+
+    // Expand/collapse state for error details
+    @State private var showErrorDetails = false
 
     private var status: CDKInfrastructureStatus {
         service.infrastructureStatus
@@ -81,12 +87,16 @@ struct CDKInfrastructureSectionView: View {
                 .help("Refresh status")
             }
 
-            // Credential error view (shown when aws-vault session expired)
+            // Credential error banner (shown when AWS credentials are invalid)
             if case .failed(let reason) = status.status,
-               AWSCredentialErrorView.isCredentialError(reason) {
-                AWSCredentialErrorView(errorMessage: reason) {
-                    Task { await service.refreshStatus() }
-                }
+               AWSCredentialErrorBanner.isCredentialError(reason) {
+                AWSCredentialErrorBanner(
+                    errorMessage: reason,
+                    onOpenSettings: onOpenSettings,
+                    onRetry: {
+                        Task { await service.refreshStatus() }
+                    }
+                )
             } else {
                 // Status card
                 VStack(alignment: .leading, spacing: 10) {
@@ -248,15 +258,43 @@ struct CDKInfrastructureSectionView: View {
                 }
             }
         case .failed(let reason):
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Failed")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.red)
-                Text(reason)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
+            VStack(alignment: .leading, spacing: 4) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showErrorDetails.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Failed")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.red)
+                        Image(systemName: showErrorDetails ? "chevron.down" : "chevron.right")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                if showErrorDetails {
+                    ScrollView {
+                        Text(reason)
+                            .font(.caption)
+                            .fontDesign(.monospaced)
+                            .foregroundColor(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 150)
+                    .padding(8)
+                    .background(Color.black.opacity(0.3))
+                    .cornerRadius(4)
+                } else {
+                    Text(reason)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
             }
         }
     }

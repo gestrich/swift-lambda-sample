@@ -5,6 +5,7 @@ import SwiftUI
 /// Contains a segmented control to switch between RemoteServiceView and LocalServiceView
 struct ServicesView: View {
     @Environment(AllServicesModel.self) var model
+    @State private var showingSettings = false
 
     private var modeBinding: Binding<String> {
         Binding(
@@ -36,17 +37,32 @@ struct ServicesView: View {
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Service Mode Picker (Remote / Xcode / Linux)
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Service Mode", selection: modeBinding) {
-                    Text("Remote").tag(RemoteService.persistenceKey)
-                    Text("Xcode").tag(XcodeLocalService.persistenceKey)
-                    Text("Linux").tag(LinuxLocalService.persistenceKey)
-                }
-                .pickerStyle(.segmented)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Service Mode", selection: modeBinding) {
+                        Text("Remote").tag(RemoteService.persistenceKey)
+                        Text("Xcode").tag(XcodeLocalService.persistenceKey)
+                        Text("Linux").tag(LinuxLocalService.persistenceKey)
+                    }
+                    .pickerStyle(.segmented)
 
-                Text(currentDetailText)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    Text(currentDetailText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                // Settings gear icon
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Settings")
             }
             .padding(20)
 
@@ -66,7 +82,9 @@ struct ServicesView: View {
                     case .localLinux:
                         LocalServiceView(service: model.linuxLocalModel)
                     case .remote(let service):
-                        RemoteServiceView(service: service)
+                        RemoteServiceView(service: service, onOpenSettings: {
+                            showingSettings = true
+                        })
                     }
                 }
 
@@ -86,6 +104,12 @@ struct ServicesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView {
+                // Refresh status after settings are saved
+                model.refreshStatus()
+            }
+        }
     }
 }
 

@@ -39,7 +39,7 @@ public actor AWSCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -79,7 +79,7 @@ public actor AWSCLIService {
             throw DeployError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
     }
@@ -123,7 +123,7 @@ public actor AWSCLIService {
             throw DeployError.commandFailed(
                 command: "aws cloudformation describe-stacks",
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -251,7 +251,7 @@ public actor AWSCLIService {
             throw DeployError.commandFailed(
                 command: "aws lambda get-function",
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -345,7 +345,7 @@ public actor AWSCLIService {
             throw DeployError.commandFailed(
                 command: "aws secretsmanager list-secrets",
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 

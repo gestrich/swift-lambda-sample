@@ -244,7 +244,7 @@ public class XcodeLocalService: LocalService {
             throw DeployError.commandFailed(
                 command: showBinPathCommand.commandString,
                 exitCode: result.exitCode,
-                stderr: result.stderr
+                output: result.output
             )
         }
 
@@ -376,7 +376,7 @@ public class XcodeLocalService: LocalService {
                     throw DeployError.commandFailed(
                         command: Kill(pid: pid).commandString,
                         exitCode: killResult.exitCode,
-                        stderr: killResult.stderr
+                        output: killResult.output
                     )
                 }
             }

@@ -7,6 +7,4 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 lambda/
-lambda.zip
-lambda_function_payload.zip
 .aws-sam/

@@ -19,7 +19,7 @@ public enum DeployError: Error, LocalizedError, Sendable {
     case testFailed(message: String)
 
     /// Command failed with exit code
-    case commandFailed(command: String, exitCode: Int32, stderr: String)
+    case commandFailed(command: String, exitCode: Int32, output: String)
 
     /// Invalid configuration
     case invalidConfiguration(String)
@@ -38,8 +38,8 @@ public enum DeployError: Error, LocalizedError, Sendable {
         case .testFailed(let message):
             return "Test failed: \(message)"
 
-        case .commandFailed(let command, let exitCode, let stderr):
-            let errorOutput = stderr.isEmpty ? "No error output" : stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .commandFailed(let command, let exitCode, let output):
+            let errorOutput = output.isEmpty ? "No error output" : output.trimmingCharacters(in: .whitespacesAndNewlines)
             return "Command '\(command)' failed with exit code \(exitCode): \(errorOutput)"
 
         case .invalidConfiguration(let reason):

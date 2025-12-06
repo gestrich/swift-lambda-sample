@@ -42,6 +42,23 @@ public struct AWSAuthConfiguration: Codable, Sendable {
             return nil
         }
     }
+
+    /// Save AWS auth configuration to file
+    /// - Throws: Error if unable to create directory or write file
+    public func save() throws {
+        let url = URL(fileURLWithPath: Self.configPath)
+        let directory = url.deletingLastPathComponent()
+
+        // Create directory if needed
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(self)
+        try data.write(to: url)
+    }
 }
 
 // MARK: - Storage Keys

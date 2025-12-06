@@ -25,6 +25,16 @@ public struct ExecutionResult: Sendable {
         return combined.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Error output - prefers stderr if available, otherwise falls back to stdout
+    /// Use this for error messages to avoid including informational stdout content
+    public var errorOutput: String {
+        let error = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !error.isEmpty {
+            return error
+        }
+        return stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     public init(exitCode: Int32, stdout: String, stderr: String, duration: TimeInterval) {
         self.exitCode = exitCode
         self.stdout = stdout
