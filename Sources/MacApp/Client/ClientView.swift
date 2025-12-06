@@ -16,7 +16,7 @@ struct ClientView: View {
                 GroupBox {
                     S3View(apiClient: apiClient)
                 } label: {
-                    Label("S3", systemImage: "externaldrive.fill")
+                    Label("Files (S3)", systemImage: "externaldrive.fill")
                         .font(.headline)
                 }
 
@@ -32,7 +32,7 @@ struct ClientView: View {
                 GroupBox {
                     PostgresView(apiClient: apiClient)
                 } label: {
-                    Label("PostgreSQL", systemImage: "cylinder.fill")
+                    Label("Users (PostgreSQL)", systemImage: "cylinder.fill")
                         .font(.headline)
                 }
             }
