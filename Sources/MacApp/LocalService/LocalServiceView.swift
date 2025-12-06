@@ -39,15 +39,12 @@ struct LocalServiceView: View {
                 .padding(20)
             }
 
-            Divider()
-
-            // Output and command input pinned to bottom
-            VStack(alignment: .leading, spacing: 8) {
-                outputSection
-                commandInputSection
-            }
-            .padding(20)
-            .background(Color(nsColor: .windowBackgroundColor))
+            // Collapsible output panel pinned to bottom
+            CollapsibleOutputPanel(
+                streamProvider: { await service.cliService.outputStream() },
+                streamId: type(of: service).persistenceKey,
+                onCommand: { runCommand($0) }
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
@@ -279,37 +276,7 @@ struct LocalServiceView: View {
         }
     }
 
-    // MARK: - Output Section
-
-    @ViewBuilder
-    private var outputSection: some View {
-        let cliService = service.cliService
-        let persistenceKey = type(of: service).persistenceKey
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Output")
-                .font(.headline)
-
-            StreamingTextView(streamProvider: { await cliService.outputStream() })
-                .id(persistenceKey)
-        }
-    }
-
-    // MARK: - Command Input Section
-
-    @State private var commandText = ""
-
-    @ViewBuilder
-    private var commandInputSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            CommandInputView(text: $commandText) { command in
-                runCommand(command)
-            }
-
-            Text("Type a command and press Enter. Tab to autocomplete, arrows to navigate.")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
-    }
+    // MARK: - Command Execution
 
     private func runCommand(_ commandString: String) {
         let parts = commandString.components(separatedBy: " ").filter { !$0.isEmpty }
