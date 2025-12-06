@@ -74,7 +74,7 @@ public class XcodeLocalService: LocalService {
     }
 
     public var apiClient: APIClient {
-        APIClient(localPort: lambdaHostPort)
+        APIClient(localPort: lambdaHostPort, serviceName: Self.displayName)
     }
 
     public var isConfigured: Bool { true }
@@ -679,7 +679,7 @@ public class XcodeLocalService: LocalService {
     /// Create an API client configured for local Lambda testing
     @MainActor
     private func createLocalAPIClient() -> APIClient {
-        APIClient(localPort: lambdaHostPort)
+        APIClient(localPort: lambdaHostPort, serviceName: Self.displayName)
     }
 
     @MainActor

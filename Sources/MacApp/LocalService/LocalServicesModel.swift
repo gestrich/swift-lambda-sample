@@ -178,11 +178,4 @@ class LocalServicesModel: LocalService {
         await service.startIfNecessary()
         print("🔄 LocalServicesModel.startIfNecessary completed")
     }
-
-    // MARK: - Sample User
-
-    /// Override to delegate to underlying service so the correct displayName is used
-    public func createSampleUser() async throws -> User {
-        try await service.createSampleUser()
-    }
 }

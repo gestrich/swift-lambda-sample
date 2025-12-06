@@ -9,6 +9,7 @@ struct PostgresView: View {
     @State private var errorMessage: String?
     @State private var showingCreateUser = false
     @State private var selectedUser: User?
+    @State private var isCreatingSampleUser = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -22,6 +23,21 @@ struct PostgresView: View {
                 .buttonStyle(.borderless)
                 .disabled(isLoading)
                 .help("Add User")
+
+                Button(action: {
+                    Task {
+                        await createSampleUser()
+                    }
+                }) {
+                    if isCreatingSampleUser {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Label("Sample User", systemImage: "person.badge.plus")
+                    }
+                }
+                .disabled(isLoading || isCreatingSampleUser)
+                .help("Create sample user for \(apiClient.serviceName)")
 
                 Button(action: {
                     Task {
@@ -155,6 +171,20 @@ struct PostgresView: View {
             errorMessage = error.localizedDescription
             isLoading = false
         }
+    }
+
+    private func createSampleUser() async {
+        isCreatingSampleUser = true
+        errorMessage = nil
+
+        do {
+            _ = try await apiClient.createSampleUser()
+            await loadUsers()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isCreatingSampleUser = false
     }
 }
 

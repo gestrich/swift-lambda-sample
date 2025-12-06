@@ -78,7 +78,7 @@ public class LinuxLocalService: LocalService {
     }
 
     public var apiClient: APIClient {
-        APIClient(localPort: config.hostPort)
+        APIClient(localPort: config.hostPort, serviceName: Self.displayName)
     }
 
     public var isConfigured: Bool { true }
@@ -670,7 +670,7 @@ public class LinuxLocalService: LocalService {
     /// Create an API client configured for local Lambda testing
     @MainActor
     private func createLocalAPIClient() -> APIClient {
-        APIClient(localPort: config.hostPort)
+        APIClient(localPort: config.hostPort, serviceName: Self.displayName)
     }
 
     @MainActor

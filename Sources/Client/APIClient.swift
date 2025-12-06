@@ -12,23 +12,27 @@ import Foundation
 public class APIClient {
     public var baseURL: String
 
+    /// Name identifying which service this client connects to (e.g., "Xcode", "Linux", "Remote")
+    public let serviceName: String
+
     /// Mode for API client - determines whether to wrap requests in API Gateway format
     public var mode: APIClientMode = .remote
 
     private let session: URLSession
 
-    /// Initialize with specific base URL and mode
-    public init(baseURL: String, mode: APIClientMode = .remote) {
+    /// Initialize with specific base URL, mode, and service name
+    public init(baseURL: String, mode: APIClientMode = .remote, serviceName: String = "Unknown") {
         self.session = URLSession.shared
         self.baseURL = baseURL
         self.mode = mode
+        self.serviceName = serviceName
     }
 
     /// Convenience initializer for local Lambda mode
-    public convenience init(localPort: Int) {
+    public convenience init(localPort: Int, serviceName: String) {
         let baseURL = "http://localhost:\(localPort)"
         let endpoint = "\(baseURL)/invoke"
-        self.init(baseURL: baseURL, mode: .local(endpoint: endpoint))
+        self.init(baseURL: baseURL, mode: .local(endpoint: endpoint), serviceName: serviceName)
     }
 
     // MARK: - File Operations
@@ -189,6 +193,24 @@ public class APIClient {
             method: "DELETE",
             body: nil
         )
+    }
+
+    /// Create a sample user for testing purposes.
+    /// The nickname includes the service name to identify which deployment created it.
+    public func createSampleUser() async throws -> User {
+        let timestamp = Int(Date().timeIntervalSince1970) % 10000
+
+        let request = CreateUserRequest(
+            email: "sample\(timestamp)@example.com",
+            password: "password123",
+            firstName: "Sample",
+            lastName: "User",
+            nickName: "\(serviceName) Test",
+            phone: "555-\(String(format: "%04d", timestamp))",
+            slackID: "U\(timestamp)"
+        )
+
+        return try await createUser(request)
     }
 
     // MARK: - Helper Methods

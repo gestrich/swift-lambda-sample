@@ -74,7 +74,7 @@ public class RemoteService: LambdaService {
     }
 
     public var apiClient: APIClient {
-        APIClient(baseURL: endpoint)
+        APIClient(baseURL: endpoint, serviceName: Self.displayName)
     }
 
     // MARK: - Initialization
@@ -522,7 +522,7 @@ public class RemoteService: LambdaService {
 
     @MainActor
     private func createRemoteAPIClient(apiUrl: String) -> APIClient {
-        APIClient(baseURL: apiUrl)
+        APIClient(baseURL: apiUrl, serviceName: Self.displayName)
     }
 
     @MainActor

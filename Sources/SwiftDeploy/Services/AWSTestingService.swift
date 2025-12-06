@@ -19,7 +19,7 @@ public actor AWSTestingService {
     private func createAPIClient() async throws -> APIClient {
         let apiUrl = try await getApiGatewayUrl()
         let baseURL = apiUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return APIClient(baseURL: baseURL)
+        return APIClient(baseURL: baseURL, serviceName: "AWS")
     }
 
     // MARK: - API Gateway
