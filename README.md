@@ -188,30 +188,146 @@ While local services are recommended for development, you can connect to remote 
 - Updating local configuration for remote endpoints
 - Security considerations
 
-## GitHub Action Setup
+## GitHub Actions Setup
 
-1. **deploy_dev.yml**: Update these variables.
-    - productName: Swift Package product name
-    - lambdaName: Name of the Lambda
-2. **GitHub Settings Configuration**
-    * Actions
-        * General
-            * Select "Read and write permissions"
-    * Environments
-        * New Environment 
-            * Name: dev
-            * Deployment branches and tags
-                * Dropdown: Selected branches and tags
-                * Add the branch "dev"
-        * Environment Secret
-            * AWS_ROLE_ARN: <AWS OIDC Role ARN>
-        * Environment Variables
-            * AWS_REGION: us-east-1 
-            * TODO: Consider making this a secret.
-    * Secrets & Variables
-        * Actions
-            * Repository Secrets
-                * SWIFT_PACKAGE_MANAGER_PAT: <GitHub Token>
+This section walks you through configuring GitHub Actions for automated Lambda deployment.
+
+### Step 1: Update Workflow Variables
+
+**File:** `.github/workflows/deploy_dev.yml`
+
+Update these variables to match your project:
+
+```yaml
+productName: SwiftLambda        # Your Swift Package product name
+lambdaName: swift-lambda-sample # Your Lambda function name
+```
+
+### Step 2: Enable Actions Permissions
+
+1. Go to your GitHub repo → **Settings**
+2. Click **Actions** → **General** in the left sidebar
+3. Scroll to "Workflow permissions"
+4. Select **"Read and write permissions"**
+5. Click **Save**
+
+### Step 3: Create the Environment
+
+1. Go to **Settings** → **Environments**
+2. Click **"New Environment"**
+3. Name: `dev`
+4. Click **"Configure environment"**
+
+### Step 4: Configure Deployment Branches
+
+Inside the `dev` environment:
+
+1. Find "Deployment branches and tags"
+2. Click dropdown → Select **"Selected branches and tags"**
+3. Click **"Add deployment branch or tag rule"**
+4. Type `dev` and click **Add rule**
+
+### Step 5: Add Environment Secret (AWS_ROLE_ARN)
+
+Inside the `dev` environment → "Environment secrets":
+
+1. Click **"Add secret"**
+2. Name: `AWS_ROLE_ARN`
+3. Value: Your AWS OIDC Role ARN (e.g., `arn:aws:iam::123456789012:role/YourRole_GitHub_OIDC_Role`)
+
+See [Creating an AWS OIDC Role](#creating-an-aws-oidc-role) below if you need to create one.
+
+### Step 6: Add Environment Variable (AWS_REGION)
+
+Inside the `dev` environment → "Environment variables":
+
+1. Click **"Add variable"**
+2. Name: `AWS_REGION`
+3. Value: `us-east-1`
+
+### Step 7: Add Repository Secret (PAT)
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Click **"New repository secret"**
+3. Name: `SWIFT_PACKAGE_MANAGER_PAT`
+4. Value: A GitHub Personal Access Token with `read:packages` permission
+
+---
+
+### Creating an AWS OIDC Role
+
+If you don't have an OIDC role for GitHub Actions, create one using the AWS CLI:
+
+**1. Create the trust policy file:**
+
+```bash
+cat << 'EOF' > /tmp/trust-policy.json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                },
+                "StringLike": {
+                    "token.actions.githubusercontent.com:sub": "repo:<GITHUB_ORG>/<REPO_NAME>:*"
+                }
+            }
+        }
+    ]
+}
+EOF
+```
+
+Replace `<AWS_ACCOUNT_ID>`, `<GITHUB_ORG>`, and `<REPO_NAME>` with your values.
+
+**2. Create the IAM role:**
+
+```bash
+aws iam create-role \
+  --role-name <YourProject>_GitHub_OIDC_Role \
+  --assume-role-policy-document file:///tmp/trust-policy.json \
+  --description "GitHub Actions OIDC role for <repo-name>"
+```
+
+**3. Attach Lambda deployment permissions:**
+
+```bash
+cat << 'EOF' > /tmp/lambda-deploy-policy.json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "lambda:UpdateFunctionCode",
+                "lambda:GetFunction"
+            ],
+            "Resource": "arn:aws:lambda:us-east-1:<AWS_ACCOUNT_ID>:function:<lambda-function-name>"
+        }
+    ]
+}
+EOF
+
+aws iam put-role-policy \
+  --role-name <YourProject>_GitHub_OIDC_Role \
+  --policy-name LambdaDeployPolicy \
+  --policy-document file:///tmp/lambda-deploy-policy.json
+```
+
+**4. Get the Role ARN:**
+
+```bash
+aws iam get-role --role-name <YourProject>_GitHub_OIDC_Role --query "Role.Arn" --output text
+```
+
+Use this ARN for the `AWS_ROLE_ARN` environment secret in Step 5.
 
 ## Troubleshooting
 
