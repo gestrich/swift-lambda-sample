@@ -20,6 +20,14 @@ struct ClientView: View {
                         .font(.headline)
                 }
 
+                // DynamoDB Section
+                GroupBox {
+                    DynamoDBView(apiClient: apiClient)
+                } label: {
+                    Label("DynamoDB", systemImage: "tablecells.fill")
+                        .font(.headline)
+                }
+
                 // PostgreSQL Section
                 GroupBox {
                     PostgresView(apiClient: apiClient)

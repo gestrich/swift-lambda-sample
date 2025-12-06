@@ -6,6 +6,7 @@ import { VpcConstruct } from './constructs/vpc-construct';
 import { StorageConstruct } from './constructs/storage-construct';
 import { QueueConstruct } from './constructs/queue-construct';
 import { DatabaseConstruct } from './constructs/database-construct';
+import { DynamoDBConstruct } from './constructs/dynamodb-construct';
 import { LambdaConstruct } from './constructs/lambda-construct';
 import { ApiGatewayConstruct } from './constructs/api-gateway-construct';
 import { MonitoringConstruct } from './constructs/monitoring-construct';
@@ -57,6 +58,9 @@ export class SwiftLambdaStack extends Stack {
       maxReceiveCount: 5
     });
 
+    // DynamoDB - Phase 2 (always created)
+    const dynamoDb = new DynamoDBConstruct(this, 'DynamoDB');
+
     // Database - Phase 3 (conditionally created based on database.mode)
     let database: DatabaseConstruct | undefined;
     if (config.database.mode !== 'none') {
@@ -92,6 +96,7 @@ export class SwiftLambdaStack extends Stack {
       database: database?.instance,
       queue: queue.queue,
       dataBucket: storage.dataBucket,
+      dynamoDbTable: dynamoDb.table,
       dbSecret: database?.secret,
       memorySize: config.lambda.memorySize,
       timeout: config.lambda.timeout,
@@ -158,6 +163,14 @@ export class SwiftLambdaStack extends Stack {
     new CfnOutput(this, 'DLQArn', {
       value: queue.deadLetterQueue.queueArn,
       description: 'Dead Letter Queue ARN'
+    });
+    new CfnOutput(this, 'DynamoDBTableName', {
+      value: dynamoDb.table.tableName,
+      description: 'DynamoDB Files Table Name'
+    });
+    new CfnOutput(this, 'DynamoDBTableArn', {
+      value: dynamoDb.table.tableArn,
+      description: 'DynamoDB Files Table ARN'
     });
 
     // Outputs - Database (only if created)

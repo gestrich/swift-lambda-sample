@@ -4,6 +4,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
@@ -15,6 +16,7 @@ export interface LambdaConstructProps {
   database?: rds.DatabaseInstance;  // Optional - only if database is enabled
   queue: sqs.Queue;
   dataBucket: s3.Bucket;
+  dynamoDbTable: dynamodb.Table;
   dbSecret?: secretsmanager.ISecret;  // Optional - only if database is enabled
   memorySize: number;
   timeout: number;
@@ -47,7 +49,8 @@ export class LambdaConstruct extends Construct {
     // Build environment variables
     const environment: { [key: string]: string } = {
       SQS_URL: props.queue.queueUrl,
-      S3_BUCKET_NAME: props.dataBucket.bucketName
+      S3_BUCKET_NAME: props.dataBucket.bucketName,
+      DYNAMODB_TABLE_NAME: props.dynamoDbTable.tableName
     };
 
     // Add database environment variables if database is enabled
@@ -86,6 +89,7 @@ export class LambdaConstruct extends Construct {
     props.dataBucket.grantReadWrite(this.function);
     props.queue.grantConsumeMessages(this.function);
     props.queue.grantSendMessages(this.function);
+    props.dynamoDbTable.grantReadWriteData(this.function);
 
     // Grant database secret read permission if database is enabled
     if (props.dbSecret) {

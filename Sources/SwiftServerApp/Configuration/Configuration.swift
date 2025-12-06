@@ -11,7 +11,8 @@ struct Configuration: Codable {
 
     let s3: S3Configuration
     let postgres: PostgresConfiguration
-    
+    let dynamoDB: DynamoDBConfiguration
+
     static func loadConfiguration(fileURL: URL) throws -> Configuration {
         let data = try Data(contentsOf: fileURL)
         return try JSONDecoder().decode(Configuration.self, from: data)

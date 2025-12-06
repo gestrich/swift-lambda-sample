@@ -65,7 +65,8 @@ let package = Package(
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
-                .target(name: "SwiftServerApp")
+                .target(name: "SwiftServerApp"),
+                .target(name: "Client")
             ]
         ),
         .executableTarget(
@@ -90,6 +91,7 @@ let package = Package(
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
                 .product(name: "SotoS3", package: "soto"),
                 .product(name: "SotoSecretsManager", package: "soto"),
+                .product(name: "SotoDynamoDB", package: "soto"),
             ]
         ),
         .testTarget(

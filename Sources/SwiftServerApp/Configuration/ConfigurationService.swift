@@ -107,6 +107,22 @@ public final class ConfigurationService: Sendable {
         return S3Configuration(bucketName: bucketName, endpoint: endpoint)
     }
 
+    //MARK: DynamoDB
+
+    public func dynamoDBConfiguration() async throws -> DynamoDBConfiguration {
+        if let configuration = try await configurationFromFile() {
+            return configuration.dynamoDB
+        } else {
+            return try dynamoDBConfigurationFromEnvironment()
+        }
+    }
+
+    private func dynamoDBConfigurationFromEnvironment() throws -> DynamoDBConfiguration {
+        let tableName = try getEnvironmentVariable(key: "DYNAMODB_TABLE_NAME")
+        let endpoint = try? getEnvironmentVariable(key: "AWS_ENDPOINT_URL")
+        return DynamoDBConfiguration(tableName: tableName, endpoint: endpoint)
+    }
+
     //MARK: Util
 
     private enum ConfigurationError: LocalizedError {

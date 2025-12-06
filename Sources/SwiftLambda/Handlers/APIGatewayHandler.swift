@@ -7,6 +7,7 @@
 
 import AWSLambdaEvents
 import AWSLambdaRuntime
+import Client
 import Foundation
 import HTTPTypes
 import SwiftServerApp
@@ -130,6 +131,62 @@ struct APIGWHandler {
                 let fileName = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
                 try await app.deleteS3File(key: fileName)
                 return try "File deleted: \(fileName)".apiGatewayOkResponse()
+
+            default:
+                throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")
+            }
+        case "dynamodb-files":
+            switch event.httpMethod {
+            case .get:
+                // GET /api/dynamodb-files - list all file records
+                // GET /api/dynamodb-files/{id} - get specific file record
+                guard urlComponents.count > 1 else {
+                    let records = try await app.listDynamoDBFileRecords()
+                    return try records.apiGatewayOkResponse()
+                }
+
+                let id = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
+                guard let record = try await app.getDynamoDBFileRecord(id: id) else {
+                    return try "DynamoDB file record not found: \(id)".createAPIGatewayJSONResponse(statusCode: .notFound)
+                }
+                return try record.apiGatewayOkResponse()
+
+            case .post:
+                // POST /api/dynamodb-files - create file record
+                guard let bodyString = event.body,
+                      let bodyData = bodyString.data(using: .utf8) else {
+                    throw APIGWHandlerError.general(description: "Missing body data")
+                }
+
+                let createRequest = try JSONDecoder().decode(CreateDynamoDBFileRecordRequest.self, from: bodyData)
+                let record = try await app.createDynamoDBFileRecord(createRequest)
+                return try record.createAPIGatewayJSONResponse(statusCode: .created)
+
+            case .put:
+                // PUT /api/dynamodb-files/{id} - update file record
+                guard urlComponents.count > 1 else {
+                    return try "DynamoDB file record id required".createAPIGatewayJSONResponse(statusCode: .badRequest)
+                }
+
+                guard let bodyString = event.body,
+                      let bodyData = bodyString.data(using: .utf8) else {
+                    throw APIGWHandlerError.general(description: "Missing body data")
+                }
+
+                let updateRequest = try JSONDecoder().decode(UpdateDynamoDBFileRecordRequest.self, from: bodyData)
+                let id = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
+                let record = try await app.updateDynamoDBFileRecord(id: id, request: updateRequest)
+                return try record.apiGatewayOkResponse()
+
+            case .delete:
+                // DELETE /api/dynamodb-files/{id} - delete file record
+                guard urlComponents.count > 1 else {
+                    throw APIGWHandlerError.general(description: "DynamoDB file record id required for delete")
+                }
+
+                let id = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
+                try await app.deleteDynamoDBFileRecord(id: id)
+                return APIGatewayResponse(statusCode: .noContent)
 
             default:
                 throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")

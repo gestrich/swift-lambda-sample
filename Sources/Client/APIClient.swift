@@ -213,6 +213,84 @@ public class APIClient {
         return try await createUser(request)
     }
 
+    // MARK: - DynamoDB File Record Operations
+
+    public func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord] {
+        let endpoint = "/api/dynamodb-files"
+
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "GET",
+            body: nil
+        )
+
+        return try decodeWithDateHandling([DynamoDBFileRecord].self, from: data)
+    }
+
+    public func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord {
+        let endpoint = "/api/dynamodb-files/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
+
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "GET",
+            body: nil
+        )
+
+        return try decodeWithDateHandling(DynamoDBFileRecord.self, from: data)
+    }
+
+    public func createDynamoDBFileRecord(fileName: String, contentType: String, data: Data) async throws -> DynamoDBFileRecord {
+        let endpoint = "/api/dynamodb-files"
+
+        let createRequest = CreateDynamoDBFileRecordRequest(
+            fileName: fileName,
+            contentType: contentType,
+            data: data.base64EncodedString()
+        )
+
+        let requestBody = try JSONEncoder().encode(createRequest)
+
+        let (responseData, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "POST",
+            body: requestBody,
+            headers: ["Content-Type": "application/json"]
+        )
+
+        return try decodeWithDateHandling(DynamoDBFileRecord.self, from: responseData)
+    }
+
+    public func updateDynamoDBFileRecord(id: String, fileName: String? = nil, contentType: String? = nil, data: Data? = nil) async throws -> DynamoDBFileRecord {
+        let endpoint = "/api/dynamodb-files/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
+
+        let updateRequest = UpdateDynamoDBFileRecordRequest(
+            fileName: fileName,
+            contentType: contentType,
+            data: data?.base64EncodedString()
+        )
+
+        let requestBody = try JSONEncoder().encode(updateRequest)
+
+        let (responseData, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "PUT",
+            body: requestBody,
+            headers: ["Content-Type": "application/json"]
+        )
+
+        return try decodeWithDateHandling(DynamoDBFileRecord.self, from: responseData)
+    }
+
+    public func deleteDynamoDBFileRecord(id: String) async throws {
+        let endpoint = "/api/dynamodb-files/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
+
+        let (_, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "DELETE",
+            body: nil
+        )
+    }
+
     // MARK: - Helper Methods
 
     private func makeURL(endpoint: String) throws -> URL {
@@ -327,6 +405,17 @@ public class APIClient {
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         do {
             return try JSONDecoder().decode(type, from: data)
+        } catch {
+            throw APIError.decodingError(error, data: data)
+        }
+    }
+
+    /// Decode JSON data with ISO8601 date handling
+    private func decodeWithDateHandling<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode(type, from: data)
         } catch {
             throw APIError.decodingError(error, data: data)
         }

@@ -10,6 +10,7 @@ import NIOCore
 import NIOPosix
 import SotoS3
 import SotoSecretsManager
+import SotoDynamoDB
 import SwiftServerApp
 
 /*
@@ -22,6 +23,7 @@ class ServiceComposer {
     let awsClient: AWSClient
     let configurationService: ConfigurationService
     let s3DataService: S3DataStoreInterface
+    let dynamoDBDataService: DynamoDBDataStoreInterface
     let secretsService: SecretsServiceInterface
     let postgresModelStoreService: PostgresModelStoreProduction
     let eventLoopGroup: MultiThreadedEventLoopGroup?
@@ -58,6 +60,9 @@ class ServiceComposer {
         let s3StoreFactory = S3StoreFactory(configurationService: configurationService, awsClient: awsClient)
         self.s3DataService = S3DataStoreProduction(s3StoreFactory: s3StoreFactory.createS3Store)
 
+        let dynamoDBStoreFactory = DynamoDBStoreFactory(configurationService: configurationService, awsClient: awsClient)
+        self.dynamoDBDataService = DynamoDBDataStoreProduction(dynamoDBStoreFactory: dynamoDBStoreFactory.createDynamoDBStore)
+
         // Create EventLoopGroup only if database is configured (Fluent requires it)
         let eventLoopGroup: MultiThreadedEventLoopGroup?
         let hasDatabase = (try? await configurationService.postgresConfiguration()) != nil
@@ -71,7 +76,7 @@ class ServiceComposer {
         let postgresModelStoreFactory = PostgresModelStoreFactory(configurationService: self.configurationService, eventLoopGroup: eventLoopGroup)
         self.postgresModelStoreService = PostgresModelStoreProduction(modelStoreFactory: postgresModelStoreFactory.createPostgresModelStore)
 
-        let app = SwiftServerApp(s3DataStore: s3DataService, postgresModelStore: postgresModelStoreService)
+        let app = SwiftServerApp(s3DataStore: s3DataService, postgresModelStore: postgresModelStoreService, dynamoDBDataStore: dynamoDBDataService)
         self.app = app
     }
 
@@ -90,6 +95,17 @@ struct S3StoreFactory: Sendable {
     func createS3Store() async throws -> S3DataStoreInterface {
         let configuration = try await configurationService.s3Configuration()
         return S3DataStoreS3(awsClient: awsClient, bucketName: configuration.bucketName, endpoint: configuration.endpoint)
+    }
+}
+
+struct DynamoDBStoreFactory: Sendable {
+
+    let configurationService: ConfigurationService
+    let awsClient: AWSClient
+
+    func createDynamoDBStore() async throws -> DynamoDBDataStoreInterface {
+        let configuration = try await configurationService.dynamoDBConfiguration()
+        return DynamoDBDataStoreAWS(awsClient: awsClient, tableName: configuration.tableName, endpoint: configuration.endpoint)
     }
 }
 

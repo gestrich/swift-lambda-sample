@@ -6,16 +6,19 @@
 //
 
 import Foundation
+import Client
 
 public struct SwiftServerApp {
 
     let s3DataStore: S3DataStoreInterface?
     let postgresModelStore: PostgresModelStoreInterface?
+    let dynamoDBDataStore: DynamoDBDataStoreInterface?
     let s3FileKey = "hello-world.text"
 
-    public init(s3DataStore: S3DataStoreInterface? = nil, postgresModelStore: PostgresModelStoreInterface?) {
+    public init(s3DataStore: S3DataStoreInterface? = nil, postgresModelStore: PostgresModelStoreInterface?, dynamoDBDataStore: DynamoDBDataStoreInterface? = nil) {
         self.s3DataStore = s3DataStore
         self.postgresModelStore = postgresModelStore
+        self.dynamoDBDataStore = dynamoDBDataStore
     }
     
     
@@ -145,6 +148,44 @@ public struct SwiftServerApp {
             throw LambdaDemoError.missingService(name: "s3DataStore")
         }
         try await s3DataStore.deleteFile(key: key)
+    }
+
+
+    //MARK: DynamoDB Service
+
+    public func createDynamoDBFileRecord(_ request: CreateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+        guard let dynamoDBDataStore else {
+            throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
+        }
+        return try await dynamoDBDataStore.createDynamoDBFileRecord(request)
+    }
+
+    public func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord? {
+        guard let dynamoDBDataStore else {
+            throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
+        }
+        return try await dynamoDBDataStore.getDynamoDBFileRecord(id: id)
+    }
+
+    public func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord] {
+        guard let dynamoDBDataStore else {
+            throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
+        }
+        return try await dynamoDBDataStore.listDynamoDBFileRecords()
+    }
+
+    public func updateDynamoDBFileRecord(id: String, request: UpdateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+        guard let dynamoDBDataStore else {
+            throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
+        }
+        return try await dynamoDBDataStore.updateDynamoDBFileRecord(id: id, request: request)
+    }
+
+    public func deleteDynamoDBFileRecord(id: String) async throws {
+        guard let dynamoDBDataStore else {
+            throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
+        }
+        try await dynamoDBDataStore.deleteDynamoDBFileRecord(id: id)
     }
 
 
