@@ -23,6 +23,34 @@ This project uses the **SwiftDeploy** CLI tool for managing AWS deployments. The
 
 **Prerequisites:** Configure AWS credentials and profile (see [CLAUDE.md](CLAUDE.md#aws-profile-configuration) for details)
 
+### Using aws-vault (MFA)
+
+If you use aws-vault with MFA, create a wrapper script and credential_process profile:
+
+```bash
+# 1. Create wrapper script
+cat > ~/.swiftSampleDemo/aws-vault-export.sh << 'EOF'
+#!/bin/bash
+export HOME=/Users/<your-username>
+export AWS_VAULT_KEYCHAIN_NAME=login
+exec /opt/homebrew/bin/aws-vault export --format=json <your-profile>
+EOF
+chmod +x ~/.swiftSampleDemo/aws-vault-export.sh
+
+# 2. Add to ~/.aws/config
+echo '[profile <your-profile>-vault]
+region = us-east-1
+credential_process = /Users/<your-username>/.swiftSampleDemo/aws-vault-export.sh' >> ~/.aws/config
+
+# 3. Configure app to use the new profile
+echo '{"profileName": "<your-profile>-vault", "useAWSVault": false}' > ~/.swiftSampleDemo/aws-config.json
+```
+
+Before using the CLI or Mac app, prime your session:
+```bash
+aws-vault exec <your-profile> -- echo "Session primed"
+```
+
 ### Quick Start
 
 Deploy with minimal AWS costs (no database, no NAT Gateway):

@@ -347,6 +347,10 @@ Add your profile to aws-vault:
 aws-vault add production
 ```
 
+#### Using aws-vault with the Mac App (MFA Required)
+
+See [README.md](README.md#using-aws-vault-mfa) for setup instructions. The Mac app will show a helpful error view with steps if your session expires.
+
 ## GitHub Actions Deployment
 
 ### Automated Deployment Pipeline

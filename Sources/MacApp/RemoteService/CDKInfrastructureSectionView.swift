@@ -81,32 +81,40 @@ struct CDKInfrastructureSectionView: View {
                 .help("Refresh status")
             }
 
-            // Status card
-            VStack(alignment: .leading, spacing: 10) {
-                // Stack name and status row
-                statusRow
-
-                // Configuration display (when deployed)
-                if case .deployed = status.status {
-                    configurationRow
+            // Credential error view (shown when aws-vault session expired)
+            if case .failed(let reason) = status.status,
+               AWSCredentialErrorView.isCredentialError(reason) {
+                AWSCredentialErrorView(errorMessage: reason) {
+                    Task { await service.refreshStatus() }
                 }
+            } else {
+                // Status card
+                VStack(alignment: .leading, spacing: 10) {
+                    // Stack name and status row
+                    statusRow
 
-                // Progress during deploy/destroy
-                if status.status.isBusy {
-                    progressRow
+                    // Configuration display (when deployed)
+                    if case .deployed = status.status {
+                        configurationRow
+                    }
+
+                    // Progress during deploy/destroy
+                    if status.status.isBusy {
+                        progressRow
+                    }
+
+                    // Action buttons
+                    actionButtons
+
+                    // Stack outputs (collapsible, when deployed)
+                    if case .deployed = status.status, !status.outputs.allOutputs.isEmpty {
+                        outputsSection
+                    }
                 }
-
-                // Action buttons
-                actionButtons
-
-                // Stack outputs (collapsible, when deployed)
-                if case .deployed = status.status, !status.outputs.allOutputs.isEmpty {
-                    outputsSection
-                }
+                .padding(12)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
             }
-            .padding(12)
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
         }
         .onReceive(timer) { time in
             if status.status.isBusy {
