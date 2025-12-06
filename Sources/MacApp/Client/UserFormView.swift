@@ -21,7 +21,7 @@ enum UserFormMode {
 }
 
 struct UserFormView: View {
-    @Environment(APIClient.self) var apiClient
+    var apiClient: APIClient
     let mode: UserFormMode
     let onComplete: (User?) -> Void
 
@@ -36,10 +36,11 @@ struct UserFormView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    init(mode: UserFormMode, onComplete: @escaping (User?) -> Void) {
+    init(apiClient: APIClient, mode: UserFormMode, onComplete: @escaping (User?) -> Void) {
         self.mode = mode
         self.onComplete = onComplete
-
+        self.apiClient = apiClient
+        
         if case .edit(let user) = mode {
             _email = State(initialValue: user.email)
             _firstName = State(initialValue: user.firstName)
@@ -210,5 +211,5 @@ struct UserFormView: View {
 }
 
 #Preview {
-    UserFormView(mode: .create) { _ in }
+    UserFormView(apiClient: .preview, mode: .create) { _ in }
 }

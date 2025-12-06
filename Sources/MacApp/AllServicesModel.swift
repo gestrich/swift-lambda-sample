@@ -175,11 +175,6 @@ class AllServicesModel {
         return mode.service.isConfigured
     }
 
-    /// The API client for the current service
-    var apiClient: APIClient {
-        return mode.service.apiClient
-    }
-
     /// Refresh status for the current service
     func refreshStatus() {
         mode.service.refreshStatus()

@@ -37,9 +37,6 @@ struct ServicesView: View {
         VStack(spacing: 0) {
             // MARK: - Service Mode Picker (Remote / Xcode / Linux)
             VStack(alignment: .leading, spacing: 8) {
-                Text("Service")
-                    .font(.headline)
-
                 Picker("Service Mode", selection: modeBinding) {
                     Text("Remote").tag(RemoteService.persistenceKey)
                     Text("Xcode").tag(XcodeLocalService.persistenceKey)
@@ -54,15 +51,38 @@ struct ServicesView: View {
             .padding(20)
 
             Divider()
+            
+            HStack(spacing: 0) {
+                // MARK: - Deployment Pane
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Deployment")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .padding()
 
-            // MARK: - Service-Specific Content
-            switch model.mode {
-            case .localXcode:
-                LocalServiceView(service: model.xcodeLocalModel)
-            case .localLinux:
-                LocalServiceView(service: model.linuxLocalModel)
-            case .remote(let service):
-                RemoteServiceView(service: service)
+                    switch model.mode {
+                    case .localXcode:
+                        LocalServiceView(service: model.xcodeLocalModel)
+                    case .localLinux:
+                        LocalServiceView(service: model.linuxLocalModel)
+                    case .remote(let service):
+                        RemoteServiceView(service: service)
+                    }
+                }
+
+                if model.isConfigured {
+                    Divider()
+
+                    // MARK: - Client API Pane
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Client API")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .padding()
+
+                        ClientView(apiClient: model.mode.service.apiClient)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

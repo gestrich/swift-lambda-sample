@@ -2,7 +2,7 @@ import Client
 import SwiftUI
 
 struct ClientView: View {
-    @Environment(APIClient.self) var apiClient
+    var apiClient: APIClient
 
     var body: some View {
         ScrollView {
@@ -14,7 +14,7 @@ struct ClientView: View {
 
                 // S3 Section
                 GroupBox {
-                    S3View()
+                    S3View(apiClient: apiClient)
                 } label: {
                     Label("S3", systemImage: "externaldrive.fill")
                         .font(.headline)
@@ -22,17 +22,17 @@ struct ClientView: View {
 
                 // PostgreSQL Section
                 GroupBox {
-                    PostgresView()
+                    PostgresView(apiClient: apiClient)
                 } label: {
                     Label("PostgreSQL", systemImage: "cylinder.fill")
                         .font(.headline)
                 }
             }
             .padding()
-        }
+        }.id(apiClient.baseURL) // To rebuild view when client changes
     }
 }
 
 #Preview {
-    ClientView()
+    ClientView(apiClient: .preview)
 }

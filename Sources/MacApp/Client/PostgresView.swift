@@ -3,7 +3,7 @@ import SwiftUI
 
 /// PostgreSQL section view for use in ClientView
 struct PostgresView: View {
-    @Environment(APIClient.self) var apiClient
+    var apiClient: APIClient
     @State private var users: [User] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -95,7 +95,7 @@ struct PostgresView: View {
         }
         .padding(.vertical, 8)
         .sheet(isPresented: $showingCreateUser) {
-            UserFormView(mode: .create) { _ in
+            UserFormView(apiClient: apiClient, mode: .create) { _ in
                 showingCreateUser = false
                 Task {
                     await loadUsers()
@@ -103,7 +103,7 @@ struct PostgresView: View {
             }
         }
         .sheet(item: $selectedUser) { user in
-            UserFormView(mode: .edit(user)) { _ in
+            UserFormView(apiClient: apiClient, mode: .edit(user)) { _ in
                 selectedUser = nil
                 Task {
                     await loadUsers()
@@ -255,5 +255,5 @@ struct UserRowView: View {
 }
 
 #Preview {
-    PostgresView()
+    PostgresView(apiClient: .preview)
 }

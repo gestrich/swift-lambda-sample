@@ -3,7 +3,7 @@ import Client
 import SwiftUI
 
 struct S3View: View {
-    @Environment(APIClient.self) var apiClient
+    var apiClient: APIClient
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var uploadedFiles: [String] = []
@@ -250,5 +250,5 @@ struct ImagePreviewView: View {
 }
 
 #Preview {
-    S3View()
+    S3View(apiClient: .preview)
 }
