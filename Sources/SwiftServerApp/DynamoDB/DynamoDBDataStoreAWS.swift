@@ -13,6 +13,7 @@ public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked 
 
     private let dynamoDB: SotoDynamoDB.DynamoDB
     private let tableName: String
+    private let dateFormatter = ISO8601DateFormatter()
 
     public init(awsClient: AWSClient, tableName: String, endpoint: String? = nil) {
         if let endpoint {
@@ -23,39 +24,41 @@ public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked 
         self.tableName = tableName
     }
 
-    public func createDynamoDBFileRecord(_ request: CreateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+    public func createReminder(_ request: CreateReminderRequest) async throws -> Reminder {
         let id = UUID().uuidString
         let now = Date()
 
-        guard let fileData = Data(base64Encoded: request.data) else {
-            throw DynamoDBError.invalidBase64Data
+        var item: [String: DynamoDB.AttributeValue] = [
+            "id": .s(id),
+            "name": .s(request.name),
+            "isComplete": .bool(false),
+            "createdAt": .s(dateFormatter.string(from: now)),
+            "updatedAt": .s(dateFormatter.string(from: now))
+        ]
+
+        if let details = request.details {
+            item["details"] = .s(details)
         }
 
-        let item: [String: DynamoDB.AttributeValue] = [
-            "id": .s(id),
-            "fileName": .s(request.fileName),
-            "fileSize": .n(String(fileData.count)),
-            "contentType": .s(request.contentType),
-            "data": .s(request.data),
-            "createdAt": .s(ISO8601DateFormatter().string(from: now)),
-            "updatedAt": .s(ISO8601DateFormatter().string(from: now))
-        ]
+        if let dueDate = request.dueDate {
+            item["dueDate"] = .s(dateFormatter.string(from: dueDate))
+        }
 
         let putRequest = DynamoDB.PutItemInput(item: item, tableName: tableName)
         _ = try await dynamoDB.putItem(putRequest)
 
-        return DynamoDBFileRecord(
+        return Reminder(
             id: id,
-            fileName: request.fileName,
-            fileSize: fileData.count,
-            contentType: request.contentType,
-            data: request.data,
+            name: request.name,
+            details: request.details,
+            dueDate: request.dueDate,
+            isComplete: false,
             createdAt: now,
             updatedAt: now
         )
     }
 
-    public func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord? {
+    public func getReminder(id: String) async throws -> Reminder? {
         let key: [String: DynamoDB.AttributeValue] = ["id": .s(id)]
         let getRequest = DynamoDB.GetItemInput(key: key, tableName: tableName)
         let response = try await dynamoDB.getItem(getRequest)
@@ -64,10 +67,10 @@ public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked 
             return nil
         }
 
-        return try parseDynamoDBFileRecord(from: item)
+        return try parseReminder(from: item)
     }
 
-    public func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord] {
+    public func listReminders() async throws -> [Reminder] {
         let scanRequest = DynamoDB.ScanInput(tableName: tableName)
         let response = try await dynamoDB.scan(scanRequest)
 
@@ -75,74 +78,84 @@ public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked 
             return []
         }
 
-        return try items.compactMap { try parseDynamoDBFileRecord(from: $0) }
+        return try items.compactMap { try parseReminder(from: $0) }
     }
 
-    public func updateDynamoDBFileRecord(id: String, request: UpdateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
-        guard let existing = try await getDynamoDBFileRecord(id: id) else {
+    public func updateReminder(id: String, request: UpdateReminderRequest) async throws -> Reminder {
+        guard let existing = try await getReminder(id: id) else {
             throw DynamoDBError.recordNotFound
         }
 
         let now = Date()
-        let newFileName = request.fileName ?? existing.fileName
-        let newContentType = request.contentType ?? existing.contentType
-        let newData = request.data ?? existing.data
+        let newName = request.name ?? existing.name
+        let newDetails = request.details ?? existing.details
+        let newDueDate = request.dueDate ?? existing.dueDate
+        let newIsComplete = request.isComplete ?? existing.isComplete
 
-        var newFileSize = existing.fileSize
-        if let newDataString = request.data, let fileData = Data(base64Encoded: newDataString) {
-            newFileSize = fileData.count
+        var item: [String: DynamoDB.AttributeValue] = [
+            "id": .s(id),
+            "name": .s(newName),
+            "isComplete": .bool(newIsComplete),
+            "createdAt": .s(dateFormatter.string(from: existing.createdAt)),
+            "updatedAt": .s(dateFormatter.string(from: now))
+        ]
+
+        if let details = newDetails {
+            item["details"] = .s(details)
         }
 
-        let item: [String: DynamoDB.AttributeValue] = [
-            "id": .s(id),
-            "fileName": .s(newFileName),
-            "fileSize": .n(String(newFileSize)),
-            "contentType": .s(newContentType),
-            "data": .s(newData),
-            "createdAt": .s(ISO8601DateFormatter().string(from: existing.createdAt)),
-            "updatedAt": .s(ISO8601DateFormatter().string(from: now))
-        ]
+        if let dueDate = newDueDate {
+            item["dueDate"] = .s(dateFormatter.string(from: dueDate))
+        }
 
         let putRequest = DynamoDB.PutItemInput(item: item, tableName: tableName)
         _ = try await dynamoDB.putItem(putRequest)
 
-        return DynamoDBFileRecord(
+        return Reminder(
             id: id,
-            fileName: newFileName,
-            fileSize: newFileSize,
-            contentType: newContentType,
-            data: newData,
+            name: newName,
+            details: newDetails,
+            dueDate: newDueDate,
+            isComplete: newIsComplete,
             createdAt: existing.createdAt,
             updatedAt: now
         )
     }
 
-    public func deleteDynamoDBFileRecord(id: String) async throws {
+    public func deleteReminder(id: String) async throws {
         let key: [String: DynamoDB.AttributeValue] = ["id": .s(id)]
         let deleteRequest = DynamoDB.DeleteItemInput(key: key, tableName: tableName)
         _ = try await dynamoDB.deleteItem(deleteRequest)
     }
 
-    private func parseDynamoDBFileRecord(from item: [String: DynamoDB.AttributeValue]) throws -> DynamoDBFileRecord {
+    private func parseReminder(from item: [String: DynamoDB.AttributeValue]) throws -> Reminder {
         guard case .s(let id) = item["id"],
-              case .s(let fileName) = item["fileName"],
-              case .n(let fileSizeStr) = item["fileSize"],
-              case .s(let contentType) = item["contentType"],
-              case .s(let data) = item["data"],
+              case .s(let name) = item["name"],
+              case .bool(let isComplete) = item["isComplete"],
               case .s(let createdAtStr) = item["createdAt"],
               case .s(let updatedAtStr) = item["updatedAt"],
-              let fileSize = Int(fileSizeStr),
-              let createdAt = ISO8601DateFormatter().date(from: createdAtStr),
-              let updatedAt = ISO8601DateFormatter().date(from: updatedAtStr) else {
+              let createdAt = dateFormatter.date(from: createdAtStr),
+              let updatedAt = dateFormatter.date(from: updatedAtStr) else {
             throw DynamoDBError.invalidItemFormat
         }
 
-        return DynamoDBFileRecord(
+        var details: String? = nil
+        if case .s(let detailsValue) = item["details"] {
+            details = detailsValue
+        }
+
+        var dueDate: Date? = nil
+        if case .s(let dueDateStr) = item["dueDate"],
+           let parsedDueDate = dateFormatter.date(from: dueDateStr) {
+            dueDate = parsedDueDate
+        }
+
+        return Reminder(
             id: id,
-            fileName: fileName,
-            fileSize: fileSize,
-            contentType: contentType,
-            data: data,
+            name: name,
+            details: details,
+            dueDate: dueDate,
+            isComplete: isComplete,
             createdAt: createdAt,
             updatedAt: updatedAt
         )
@@ -150,16 +163,13 @@ public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked 
 }
 
 public enum DynamoDBError: LocalizedError {
-    case invalidBase64Data
     case recordNotFound
     case invalidItemFormat
 
     public var errorDescription: String? {
         switch self {
-        case .invalidBase64Data:
-            return "Invalid base64 encoded data"
         case .recordNotFound:
-            return "File record not found"
+            return "Reminder not found"
         case .invalidItemFormat:
             return "Invalid DynamoDB item format"
         }

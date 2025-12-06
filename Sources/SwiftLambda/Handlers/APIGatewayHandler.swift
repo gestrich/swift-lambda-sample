@@ -135,37 +135,39 @@ struct APIGWHandler {
             default:
                 throw APIGWHandlerError.general(description: "Method not handled: \(event.httpMethod)")
             }
-        case "dynamodb-files":
+        case "reminders":
             switch event.httpMethod {
             case .get:
-                // GET /api/dynamodb-files - list all file records
-                // GET /api/dynamodb-files/{id} - get specific file record
+                // GET /api/reminders - list all reminders
+                // GET /api/reminders/{id} - get specific reminder
                 guard urlComponents.count > 1 else {
-                    let records = try await app.listDynamoDBFileRecords()
-                    return try records.apiGatewayOkResponse()
+                    let reminders = try await app.listReminders()
+                    return try reminders.apiGatewayOkResponse()
                 }
 
                 let id = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
-                guard let record = try await app.getDynamoDBFileRecord(id: id) else {
-                    return try "DynamoDB file record not found: \(id)".createAPIGatewayJSONResponse(statusCode: .notFound)
+                guard let reminder = try await app.getReminder(id: id) else {
+                    return try "Reminder not found: \(id)".createAPIGatewayJSONResponse(statusCode: .notFound)
                 }
-                return try record.apiGatewayOkResponse()
+                return try reminder.apiGatewayOkResponse()
 
             case .post:
-                // POST /api/dynamodb-files - create file record
+                // POST /api/reminders - create reminder
                 guard let bodyString = event.body,
                       let bodyData = bodyString.data(using: .utf8) else {
                     throw APIGWHandlerError.general(description: "Missing body data")
                 }
 
-                let createRequest = try JSONDecoder().decode(CreateDynamoDBFileRecordRequest.self, from: bodyData)
-                let record = try await app.createDynamoDBFileRecord(createRequest)
-                return try record.createAPIGatewayJSONResponse(statusCode: .created)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let createRequest = try decoder.decode(CreateReminderRequest.self, from: bodyData)
+                let reminder = try await app.createReminder(createRequest)
+                return try reminder.createAPIGatewayJSONResponse(statusCode: .created)
 
             case .put:
-                // PUT /api/dynamodb-files/{id} - update file record
+                // PUT /api/reminders/{id} - update reminder
                 guard urlComponents.count > 1 else {
-                    return try "DynamoDB file record id required".createAPIGatewayJSONResponse(statusCode: .badRequest)
+                    return try "Reminder id required".createAPIGatewayJSONResponse(statusCode: .badRequest)
                 }
 
                 guard let bodyString = event.body,
@@ -173,19 +175,21 @@ struct APIGWHandler {
                     throw APIGWHandlerError.general(description: "Missing body data")
                 }
 
-                let updateRequest = try JSONDecoder().decode(UpdateDynamoDBFileRecordRequest.self, from: bodyData)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let updateRequest = try decoder.decode(UpdateReminderRequest.self, from: bodyData)
                 let id = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
-                let record = try await app.updateDynamoDBFileRecord(id: id, request: updateRequest)
-                return try record.apiGatewayOkResponse()
+                let reminder = try await app.updateReminder(id: id, request: updateRequest)
+                return try reminder.apiGatewayOkResponse()
 
             case .delete:
-                // DELETE /api/dynamodb-files/{id} - delete file record
+                // DELETE /api/reminders/{id} - delete reminder
                 guard urlComponents.count > 1 else {
-                    throw APIGWHandlerError.general(description: "DynamoDB file record id required for delete")
+                    throw APIGWHandlerError.general(description: "Reminder id required for delete")
                 }
 
                 let id = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
-                try await app.deleteDynamoDBFileRecord(id: id)
+                try await app.deleteReminder(id: id)
                 return APIGatewayResponse(statusCode: .noContent)
 
             default:

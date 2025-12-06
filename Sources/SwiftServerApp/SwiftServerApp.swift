@@ -151,41 +151,41 @@ public struct SwiftServerApp {
     }
 
 
-    //MARK: DynamoDB Service
+    //MARK: DynamoDB Reminders Service
 
-    public func createDynamoDBFileRecord(_ request: CreateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+    public func createReminder(_ request: CreateReminderRequest) async throws -> Reminder {
         guard let dynamoDBDataStore else {
             throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
         }
-        return try await dynamoDBDataStore.createDynamoDBFileRecord(request)
+        return try await dynamoDBDataStore.createReminder(request)
     }
 
-    public func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord? {
+    public func getReminder(id: String) async throws -> Reminder? {
         guard let dynamoDBDataStore else {
             throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
         }
-        return try await dynamoDBDataStore.getDynamoDBFileRecord(id: id)
+        return try await dynamoDBDataStore.getReminder(id: id)
     }
 
-    public func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord] {
+    public func listReminders() async throws -> [Reminder] {
         guard let dynamoDBDataStore else {
             throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
         }
-        return try await dynamoDBDataStore.listDynamoDBFileRecords()
+        return try await dynamoDBDataStore.listReminders()
     }
 
-    public func updateDynamoDBFileRecord(id: String, request: UpdateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+    public func updateReminder(id: String, request: UpdateReminderRequest) async throws -> Reminder {
         guard let dynamoDBDataStore else {
             throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
         }
-        return try await dynamoDBDataStore.updateDynamoDBFileRecord(id: id, request: request)
+        return try await dynamoDBDataStore.updateReminder(id: id, request: request)
     }
 
-    public func deleteDynamoDBFileRecord(id: String) async throws {
+    public func deleteReminder(id: String) async throws {
         guard let dynamoDBDataStore else {
             throw LambdaDemoError.missingService(name: "dynamoDBDataStore")
         }
-        try await dynamoDBDataStore.deleteDynamoDBFileRecord(id: id)
+        try await dynamoDBDataStore.deleteReminder(id: id)
     }
 
 

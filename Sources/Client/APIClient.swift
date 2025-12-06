@@ -215,22 +215,10 @@ public class APIClient {
         return try await createUser(request)
     }
 
-    // MARK: - DynamoDB File Record Operations
+    // MARK: - Reminder Operations
 
-    public func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord] {
-        let endpoint = "/api/dynamodb-files"
-
-        let (data, _) = try await performRequest(
-            endpoint: endpoint,
-            method: "GET",
-            body: nil
-        )
-
-        return try decodeWithDateHandling([DynamoDBFileRecord].self, from: data)
-    }
-
-    public func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord {
-        let endpoint = "/api/dynamodb-files/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
+    public func listReminders() async throws -> [Reminder] {
+        let endpoint = "/api/reminders"
 
         let (data, _) = try await performRequest(
             endpoint: endpoint,
@@ -238,19 +226,33 @@ public class APIClient {
             body: nil
         )
 
-        return try decodeWithDateHandling(DynamoDBFileRecord.self, from: data)
+        return try decodeWithDateHandling([Reminder].self, from: data)
     }
 
-    public func createDynamoDBFileRecord(fileName: String, contentType: String, data: Data) async throws -> DynamoDBFileRecord {
-        let endpoint = "/api/dynamodb-files"
+    public func getReminder(id: String) async throws -> Reminder {
+        let endpoint = "/api/reminders/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
 
-        let createRequest = CreateDynamoDBFileRecordRequest(
-            fileName: fileName,
-            contentType: contentType,
-            data: data.base64EncodedString()
+        let (data, _) = try await performRequest(
+            endpoint: endpoint,
+            method: "GET",
+            body: nil
         )
 
-        let requestBody = try JSONEncoder().encode(createRequest)
+        return try decodeWithDateHandling(Reminder.self, from: data)
+    }
+
+    public func createReminder(name: String, details: String? = nil, dueDate: Date? = nil) async throws -> Reminder {
+        let endpoint = "/api/reminders"
+
+        let createRequest = CreateReminderRequest(
+            name: name,
+            details: details,
+            dueDate: dueDate
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let requestBody = try encoder.encode(createRequest)
 
         let (responseData, _) = try await performRequest(
             endpoint: endpoint,
@@ -259,19 +261,22 @@ public class APIClient {
             headers: ["Content-Type": "application/json"]
         )
 
-        return try decodeWithDateHandling(DynamoDBFileRecord.self, from: responseData)
+        return try decodeWithDateHandling(Reminder.self, from: responseData)
     }
 
-    public func updateDynamoDBFileRecord(id: String, fileName: String? = nil, contentType: String? = nil, data: Data? = nil) async throws -> DynamoDBFileRecord {
-        let endpoint = "/api/dynamodb-files/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
+    public func updateReminder(id: String, name: String? = nil, details: String? = nil, dueDate: Date? = nil, isComplete: Bool? = nil) async throws -> Reminder {
+        let endpoint = "/api/reminders/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
 
-        let updateRequest = UpdateDynamoDBFileRecordRequest(
-            fileName: fileName,
-            contentType: contentType,
-            data: data?.base64EncodedString()
+        let updateRequest = UpdateReminderRequest(
+            name: name,
+            details: details,
+            dueDate: dueDate,
+            isComplete: isComplete
         )
 
-        let requestBody = try JSONEncoder().encode(updateRequest)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let requestBody = try encoder.encode(updateRequest)
 
         let (responseData, _) = try await performRequest(
             endpoint: endpoint,
@@ -280,11 +285,11 @@ public class APIClient {
             headers: ["Content-Type": "application/json"]
         )
 
-        return try decodeWithDateHandling(DynamoDBFileRecord.self, from: responseData)
+        return try decodeWithDateHandling(Reminder.self, from: responseData)
     }
 
-    public func deleteDynamoDBFileRecord(id: String) async throws {
-        let endpoint = "/api/dynamodb-files/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
+    public func deleteReminder(id: String) async throws {
+        let endpoint = "/api/reminders/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
 
         let (_, _) = try await performRequest(
             endpoint: endpoint,

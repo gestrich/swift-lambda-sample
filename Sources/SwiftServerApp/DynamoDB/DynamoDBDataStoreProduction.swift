@@ -27,28 +27,28 @@ public actor DynamoDBDataStoreProduction: DynamoDBDataStoreInterface, Sendable {
         }
     }
 
-    public func createDynamoDBFileRecord(_ request: CreateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+    public func createReminder(_ request: CreateReminderRequest) async throws -> Reminder {
         let store = try await getOrCreateStore()
-        return try await store.createDynamoDBFileRecord(request)
+        return try await store.createReminder(request)
     }
 
-    public func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord? {
+    public func getReminder(id: String) async throws -> Reminder? {
         let store = try await getOrCreateStore()
-        return try await store.getDynamoDBFileRecord(id: id)
+        return try await store.getReminder(id: id)
     }
 
-    public func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord] {
+    public func listReminders() async throws -> [Reminder] {
         let store = try await getOrCreateStore()
-        return try await store.listDynamoDBFileRecords()
+        return try await store.listReminders()
     }
 
-    public func updateDynamoDBFileRecord(id: String, request: UpdateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord {
+    public func updateReminder(id: String, request: UpdateReminderRequest) async throws -> Reminder {
         let store = try await getOrCreateStore()
-        return try await store.updateDynamoDBFileRecord(id: id, request: request)
+        return try await store.updateReminder(id: id, request: request)
     }
 
-    public func deleteDynamoDBFileRecord(id: String) async throws {
+    public func deleteReminder(id: String) async throws {
         let store = try await getOrCreateStore()
-        try await store.deleteDynamoDBFileRecord(id: id)
+        try await store.deleteReminder(id: id)
     }
 }

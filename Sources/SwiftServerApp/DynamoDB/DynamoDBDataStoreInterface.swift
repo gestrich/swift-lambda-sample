@@ -9,9 +9,9 @@ import Foundation
 import Client
 
 public protocol DynamoDBDataStoreInterface: Sendable {
-    func createDynamoDBFileRecord(_ request: CreateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord
-    func getDynamoDBFileRecord(id: String) async throws -> DynamoDBFileRecord?
-    func listDynamoDBFileRecords() async throws -> [DynamoDBFileRecord]
-    func updateDynamoDBFileRecord(id: String, request: UpdateDynamoDBFileRecordRequest) async throws -> DynamoDBFileRecord
-    func deleteDynamoDBFileRecord(id: String) async throws
+    func createReminder(_ request: CreateReminderRequest) async throws -> Reminder
+    func getReminder(id: String) async throws -> Reminder?
+    func listReminders() async throws -> [Reminder]
+    func updateReminder(id: String, request: UpdateReminderRequest) async throws -> Reminder
+    func deleteReminder(id: String) async throws
 }

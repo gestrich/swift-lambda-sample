@@ -20,11 +20,11 @@ struct ClientView: View {
                         .font(.headline)
                 }
 
-                // DynamoDB Section
+                // DynamoDB Reminders Section
                 GroupBox {
-                    DynamoDBView(apiClient: apiClient)
+                    RemindersView(apiClient: apiClient)
                 } label: {
-                    Label("DynamoDB", systemImage: "tablecells.fill")
+                    Label("Reminders (DynamoDB)", systemImage: "bell.fill")
                         .font(.headline)
                 }
 
