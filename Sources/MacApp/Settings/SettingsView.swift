@@ -5,8 +5,15 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
+    // AWS settings
     @State private var profileName: String = ""
-    @State private var showingHelp: Bool = false
+    @State private var showingAWSHelp: Bool = false
+
+    // GitHub settings
+    @State private var githubRepository: String = ""
+    @State private var githubBranch: String = ""
+    @State private var showingGitHubHelp: Bool = false
+
     @State private var saveError: String?
     @State private var hasChanges: Bool = false
 
@@ -16,9 +23,15 @@ struct SettingsView: View {
     init(onSave: (() -> Void)? = nil) {
         self.onSave = onSave
 
-        // Load current config
+        // Load current AWS config
         if let config = AWSAuthConfiguration.loadConfig() {
             _profileName = State(initialValue: config.profileName)
+        }
+
+        // Load current GitHub config
+        if let config = GitHubConfiguration.loadConfig() {
+            _githubRepository = State(initialValue: config.repository)
+            _githubBranch = State(initialValue: config.branch)
         }
     }
 
@@ -50,8 +63,13 @@ struct SettingsView: View {
 
                     Divider()
 
-                    // Help Section
-                    helpSection
+                    // GitHub Configuration Section
+                    githubConfigSection
+
+                    Divider()
+
+                    // AWS Help Section
+                    awsHelpSection
                 }
                 .padding()
             }
@@ -70,11 +88,21 @@ struct SettingsView: View {
                     save()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(profileName.isEmpty)
+                .disabled(!hasValidInput)
             }
             .padding()
         }
-        .frame(width: 450, height: 500)
+        .frame(width: 450, height: 600)
+    }
+
+    // MARK: - Validation
+
+    private var hasValidInput: Bool {
+        // At least one section should be configured
+        let hasAWS = !profileName.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasGitHub = !githubRepository.trimmingCharacters(in: .whitespaces).isEmpty
+            && !githubBranch.trimmingCharacters(in: .whitespaces).isEmpty
+        return hasAWS || hasGitHub
     }
 
     // MARK: - AWS Configuration Section
@@ -98,7 +126,7 @@ struct SettingsView: View {
 
                 // aws-vault hint
                 Button {
-                    showingHelp = true
+                    showingAWSHelp = true
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "questionmark.circle")
@@ -127,25 +155,94 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Help Section
+    // MARK: - GitHub Configuration Section
 
     @ViewBuilder
-    private var helpSection: some View {
+    private var githubConfigSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("GitHub Configuration", systemImage: "arrow.triangle.branch")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 12) {
+                // Repository
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Repository")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    TextField("owner/repo (e.g., gestrich/swift-lambda-sample)", text: $githubRepository)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: githubRepository) { hasChanges = true }
+                }
+
+                // Branch
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Branch")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    TextField("e.g., dev, main", text: $githubBranch)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: githubBranch) { hasChanges = true }
+                }
+
+                // Help hint
+                Button {
+                    showingGitHubHelp.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "questionmark.circle")
+                        Text("What is this for?")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
+
+                if showingGitHubHelp {
+                    Text("GitHub CI integration monitors your repository's GitHub Actions workflows and enables deployment triggers from the app.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
+                }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+
+            // Config file location
+            HStack {
+                Text("Config file:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(GitHubConfiguration.configPath)
+                    .font(.caption)
+                    .fontDesign(.monospaced)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    // MARK: - AWS Help Section
+
+    @ViewBuilder
+    private var awsHelpSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
-                showingHelp.toggle()
+                showingAWSHelp.toggle()
             } label: {
                 HStack {
-                    Label("Setup Help", systemImage: "questionmark.circle")
+                    Label("AWS Setup Help", systemImage: "questionmark.circle")
                         .font(.headline)
                     Spacer()
-                    Image(systemName: showingHelp ? "chevron.up" : "chevron.down")
+                    Image(systemName: showingAWSHelp ? "chevron.up" : "chevron.down")
                         .foregroundColor(.secondary)
                 }
             }
             .buttonStyle(.plain)
 
-            if showingHelp {
+            if showingAWSHelp {
                 helpContent
             }
         }
@@ -263,13 +360,28 @@ struct SettingsView: View {
     private func save() {
         saveError = nil
 
-        let config = AWSAuthConfiguration(
-            profileName: profileName.trimmingCharacters(in: .whitespaces),
-            useAWSVault: false  // Mac app always uses profile mode
-        )
-
         do {
-            try config.save()
+            // Save AWS config if profile is provided
+            let trimmedProfile = profileName.trimmingCharacters(in: .whitespaces)
+            if !trimmedProfile.isEmpty {
+                let awsConfig = AWSAuthConfiguration(
+                    profileName: trimmedProfile,
+                    useAWSVault: false  // Mac app always uses profile mode
+                )
+                try awsConfig.save()
+            }
+
+            // Save GitHub config if both fields are provided
+            let trimmedRepo = githubRepository.trimmingCharacters(in: .whitespaces)
+            let trimmedBranch = githubBranch.trimmingCharacters(in: .whitespaces)
+            if !trimmedRepo.isEmpty && !trimmedBranch.isEmpty {
+                let githubConfig = GitHubConfiguration(
+                    repository: trimmedRepo,
+                    branch: trimmedBranch
+                )
+                try githubConfig.save()
+            }
+
             hasChanges = false
             onSave?()
             dismiss()

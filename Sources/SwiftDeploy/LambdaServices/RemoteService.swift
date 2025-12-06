@@ -46,12 +46,12 @@ public class RemoteService: LambdaService {
     // MARK: - GitHub Service
 
     /// GitHub service for CI operations. Non-nil if GitHub config is available.
-    public let githubService: GitHubService?
+    public private(set) var githubService: GitHubService?
 
     // MARK: - CDK Infrastructure Service
 
     /// CDK Infrastructure service for deployments. Non-nil if AWS config is available.
-    public let cdkInfrastructureService: CDKInfrastructureService?
+    public private(set) var cdkInfrastructureService: CDKInfrastructureService?
 
     // MARK: - LambdaService Protocol Properties
 
@@ -136,6 +136,20 @@ public class RemoteService: LambdaService {
         if let apiUrl = outputs["ApiGatewayUrl"] {
             setEndpoint(apiUrl)
         }
+    }
+
+    /// Reload configuration from disk (e.g., after settings are changed)
+    /// This recreates sub-services with updated configuration
+    public func reloadConfiguration() {
+        // Reload GitHub service if config is now available
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+        } else {
+            self.githubService = nil
+        }
+
+        // Note: AWS config and CDK service are set at init and require app restart to change
+        // This is intentional as changing AWS profile mid-session could cause issues
     }
 
     // MARK: - LambdaService Protocol: Testing
@@ -225,6 +239,9 @@ public class RemoteService: LambdaService {
     /// Always fetches the latest endpoint from CDK stack
     /// Also refreshes GitHub CI and CDK Infrastructure status
     public func refreshStatus() {
+        // Reload configuration in case settings were changed
+        reloadConfiguration()
+
         let statusSubject = self.statusSubject
         let isLoadingStatusSubject = self.isLoadingStatusSubject
 

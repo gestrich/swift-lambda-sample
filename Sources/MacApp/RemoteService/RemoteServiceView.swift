@@ -59,7 +59,7 @@ struct RemoteServiceView: View {
         if let ghService = service.githubService {
             GitHubCISectionView(service: ghService)
         } else {
-            GitHubCILoadingView()
+            GitHubCILoadingView(onOpenSettings: onOpenSettings)
         }
     }
 

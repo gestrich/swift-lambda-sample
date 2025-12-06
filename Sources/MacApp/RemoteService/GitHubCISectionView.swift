@@ -3,33 +3,38 @@ import SwiftUI
 
 /// Placeholder when GitHubService is not available (config missing or loading)
 struct GitHubCILoadingView: View {
+    /// Callback to open settings
+    var onOpenSettings: (() -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("GitHub CI")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle")
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
                     Text("Not Configured")
                         .font(.subheadline)
                         .fontWeight(.medium)
                 }
 
-                Text("Create ~/.swiftSampleDemo/github-config.json:")
+                Text("Configure your GitHub repository in Settings to enable CI/CD integration.")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                Text("""
-                    {
-                      "repository": "owner/repo",
-                      "branch": "dev"
+                if let onOpenSettings {
+                    Button {
+                        onOpenSettings()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "gearshape")
+                            Text("Open Settings")
+                        }
                     }
-                    """)
-                    .font(.caption)
-                    .fontDesign(.monospaced)
-                    .foregroundColor(.secondary)
+                    .buttonStyle(.borderedProminent)
+                }
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -294,36 +299,48 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var gitStatusRow: some View {
-        HStack(spacing: 12) {
-            // Branch
+        VStack(alignment: .leading, spacing: 6) {
+            // Repository
             HStack(spacing: 4) {
-                Image(systemName: "arrow.triangle.branch")
+                Image(systemName: "link")
                     .font(.caption)
-                Text(ciStatus.currentBranch)
+                Text(service.config.repository)
                     .font(.caption)
+                    .textSelection(.enabled)
             }
             .foregroundColor(.secondary)
 
-            // Uncommitted changes indicator
-            if ciStatus.hasUncommittedChanges {
+            HStack(spacing: 12) {
+                // Branch
                 HStack(spacing: 4) {
-                    Image(systemName: "pencil.circle.fill")
+                    Image(systemName: "arrow.triangle.branch")
                         .font(.caption)
-                    Text("Uncommitted")
+                    Text(ciStatus.currentBranch)
                         .font(.caption)
                 }
-                .foregroundColor(.orange)
-            }
+                .foregroundColor(.secondary)
 
-            // Unpushed commits indicator
-            if ciStatus.hasUnpushedCommits {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.caption)
-                    Text("Unpushed")
-                        .font(.caption)
+                // Uncommitted changes indicator
+                if ciStatus.hasUncommittedChanges {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.caption)
+                        Text("Uncommitted")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.orange)
                 }
-                .foregroundColor(.blue)
+
+                // Unpushed commits indicator
+                if ciStatus.hasUnpushedCommits {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.caption)
+                        Text("Unpushed")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.blue)
+                }
             }
         }
     }
@@ -463,7 +480,7 @@ struct GitHubCISectionView: View {
 
 #Preview {
     VStack {
-        GitHubCILoadingView()
+        GitHubCILoadingView(onOpenSettings: {})
             .padding()
     }
     .frame(width: 400)
