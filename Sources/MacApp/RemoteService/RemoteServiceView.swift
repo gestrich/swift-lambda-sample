@@ -17,13 +17,13 @@ struct RemoteServiceView: View {
 
                     Divider()
 
-                    // MARK: - GitHub CI Section
-                    githubCISection
+                    // MARK: - Endpoint Section
+                    endpointSection
 
                     Divider()
 
-                    // MARK: - Endpoint Section
-                    endpointSection
+                    // MARK: - GitHub CI Section
+                    githubCISection
                 }
                 .padding(20)
             }
@@ -75,7 +75,7 @@ struct RemoteServiceView: View {
     private var endpointSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Remote Lambda")
+                Text("API Gateway")
                     .font(.headline)
 
                 Spacer()
@@ -91,19 +91,11 @@ struct RemoteServiceView: View {
             }
 
             // Endpoint
-            VStack(alignment: .leading, spacing: 5) {
-                Text(service.endpointLabel)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                TextField("Endpoint", text: .constant(service.endpoint))
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(true)
-
-                Text(service.endpointHelpText)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+            CopyableEndpointView(
+                label: service.endpointLabel,
+                endpoint: service.endpoint,
+                helpText: service.endpointHelpText
+            )
         }
     }
 

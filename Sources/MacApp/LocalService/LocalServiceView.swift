@@ -138,7 +138,7 @@ struct LocalServiceView: View {
     private var lambdaSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Lambda")
+                Text("API Gateway")
                     .font(.headline)
 
                 Spacer()
@@ -182,19 +182,11 @@ struct LocalServiceView: View {
             }
 
             // Endpoint
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Endpoint")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                TextField("Endpoint", text: .constant(service.endpoint))
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(true)
-
-                Text(service.endpointHelpText)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+            CopyableEndpointView(
+                label: "Endpoint",
+                endpoint: service.endpoint,
+                helpText: service.endpointHelpText
+            )
         }
     }
 
