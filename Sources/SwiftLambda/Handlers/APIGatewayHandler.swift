@@ -277,8 +277,10 @@ extension Encodable {
     }
 
     func createAPIGatewayJSONResponse(statusCode: HTTPResponse.Status) throws -> APIGatewayResponse {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
 
-        guard let jsonData = try? JSONEncoder().encode(self) else {
+        guard let jsonData = try? encoder.encode(self) else {
             throw APIGWHandlerError.general(description: "Could not convert object to json data")
         }
 
