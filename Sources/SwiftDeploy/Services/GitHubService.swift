@@ -230,7 +230,7 @@ public final class GitHubService {
     nonisolated public func waitForNewWorkflowCompletion(
         branch: String,
         afterRunId: Int?,
-        timeoutMinutes: Int = 10
+        timeoutMinutes: Int = 20
     ) async throws {
         print("\n⏳ Waiting for new GitHub Actions workflow to start...")
 
@@ -306,7 +306,7 @@ public final class GitHubService {
     nonisolated public func triggerWorkflowAndWait(
         workflowName: String,
         branch: String,
-        timeoutMinutes: Int = 10
+        timeoutMinutes: Int = 20
     ) async throws {
         print("\n🔄 Triggering GitHub Actions workflow '\(workflowName)' on branch '\(branch)'...")
 
@@ -331,7 +331,7 @@ public final class GitHubService {
     /// Monitor a workflow run until completion, updating the UI with progress
     private func monitorWorkflowRun(runId: String) async {
         let pollInterval: Duration = .seconds(3)
-        let maxPollTime: Duration = .seconds(15 * 60)
+        let maxPollTime: Duration = .seconds(20 * 60)
         let startTime = ContinuousClock.now
 
         while true {
