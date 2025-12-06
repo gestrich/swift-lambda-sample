@@ -139,11 +139,14 @@ public class RemoteService: LambdaService {
     }
 
     /// Reload configuration from disk (e.g., after settings are changed)
-    /// This recreates sub-services with updated configuration
+    /// Only recreates sub-services if configuration has changed or they don't exist yet
     public func reloadConfiguration() {
-        // Reload GitHub service if config is now available
+        // Only reload GitHub service if it doesn't exist yet or config changed
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            if githubService == nil {
+                self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            }
+            // If service exists, keep using it (config changes require manual reload)
         } else {
             self.githubService = nil
         }
@@ -246,9 +249,17 @@ public class RemoteService: LambdaService {
         let isLoadingStatusSubject = self.isLoadingStatusSubject
 
         isLoadingStatusSubject.send(true)
+
+        // Start all refreshes in parallel using separate Tasks
+        // (withTaskGroup has concurrency issues with @MainActor)
+        if let cdk = cdkInfrastructureService {
+            Task { await cdk.refreshStatus() }
+        }
+        if let github = githubService {
+            Task { await github.refreshStatus() }
+        }
         Task {
-            // Always fetch the latest endpoint from AWS
-            try? await fetchEndpoint()
+            try? await self.fetchEndpoint()
 
             do {
                 let newStatus = try await self.status()
@@ -257,20 +268,6 @@ public class RemoteService: LambdaService {
                 statusSubject.send(.stopped)
             }
             isLoadingStatusSubject.send(false)
-
-            // Also refresh sub-services in parallel
-            await withTaskGroup(of: Void.self) { group in
-                if let github = githubService {
-                    group.addTask {
-                        await github.refreshStatus()
-                    }
-                }
-                if let cdk = cdkInfrastructureService {
-                    group.addTask {
-                        await cdk.refreshStatus()
-                    }
-                }
-            }
         }
     }
 
