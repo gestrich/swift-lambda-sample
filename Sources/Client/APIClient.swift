@@ -10,7 +10,6 @@ import Foundation
 import FoundationNetworking
 #endif
 
-@Observable
 @MainActor
 public class APIClient {
     public var baseURL: String
