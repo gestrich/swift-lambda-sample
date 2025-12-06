@@ -116,29 +116,17 @@ class AllServicesModel {
         }
     }
 
-    /// Path to the app config file
-    private static var configFilePath: String {
-        "\(FileManager.default.homeDirectoryForCurrentUser.path)/.swiftSampleDemo/swiftLambdaDemo.json"
-    }
-
-    /// Resolve the project directory from config file or fallback
+    /// Resolve the project directory automatically using ProjectPathResolver
     private static func resolveProjectDirectory() -> String {
-        // Try to read from config file
-        if let data = FileManager.default.contents(atPath: configFilePath),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let projectDir = json["projectDirectory"] as? String,
-           FileManager.default.fileExists(atPath: "\(projectDir)/Package.swift") {
-            return projectDir
+        do {
+            let resolver = ProjectPathResolver()
+            let projectRoot = try resolver.resolveProjectRoot()
+            return projectRoot.path
+        } catch {
+            print("⚠️ Failed to resolve project directory: \(error.localizedDescription)")
+            // Fallback to current directory
+            return FileManager.default.currentDirectoryPath
         }
-
-        // Fallback: check if current directory has Package.swift
-        let currentDir = FileManager.default.currentDirectoryPath
-        if FileManager.default.fileExists(atPath: "\(currentDir)/Package.swift") {
-            return currentDir
-        }
-
-        // Last resort: return current directory anyway
-        return currentDir
     }
 
     // MARK: - Mode Changes
