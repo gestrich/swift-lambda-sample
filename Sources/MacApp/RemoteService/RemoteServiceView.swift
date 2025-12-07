@@ -25,8 +25,8 @@ struct RemoteServiceView: View {
 
                     Divider()
 
-                    // MARK: - GitHub CI Section
-                    githubCISection
+                    // MARK: - Lambda Update Section
+                    lambdaUpdateSection
                 }
                 .padding(20)
             }
@@ -52,15 +52,11 @@ struct RemoteServiceView: View {
         }
     }
 
-    // MARK: - GitHub CI Section
+    // MARK: - Lambda Update Section
 
     @ViewBuilder
-    private var githubCISection: some View {
-        if let ghService = service.githubService {
-            GitHubCISectionView(service: ghService)
-        } else {
-            GitHubCILoadingView(onOpenSettings: onOpenSettings)
-        }
+    private var lambdaUpdateSection: some View {
+        LambdaUpdateView(service: service, onOpenSettings: onOpenSettings)
     }
 
     // MARK: - Endpoint Section

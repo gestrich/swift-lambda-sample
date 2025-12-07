@@ -11,6 +11,7 @@ struct AWSCommand: AsyncParsableCommand {
             DeployInitCommand.self,
             DeployCommand.self,
             UpdateLambdaCommand.self,
+            UploadLambdaCommand.self,
             TearDownCommand.self,
             StatusCommand.self,
             LogsCommand.self,
