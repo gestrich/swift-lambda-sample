@@ -43,11 +43,8 @@ struct LambdaUpdateView: View {
 
                 Picker("Method", selection: $selectedMethod) {
                     ForEach(LambdaUpdateMethod.allCases) { method in
-                        HStack {
-                            Image(systemName: method.icon)
-                            Text(method.rawValue)
-                        }
-                        .tag(method)
+                        Label(method.rawValue, systemImage: method.icon)
+                            .tag(method)
                     }
                 }
                 .pickerStyle(.segmented)
