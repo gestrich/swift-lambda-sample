@@ -81,8 +81,8 @@ struct LambdaUpdateView: View {
 
     @ViewBuilder
     private var localContent: some View {
-        if let uploadService = service.lambdaUploadService {
-            LocalLambdaUpdateView(service: uploadService)
+        if let buildService = service.lambdaBuildService {
+            LocalLambdaUpdateView(service: buildService)
                 .transition(.opacity)
         } else {
             LambdaUploadLoadingView(onOpenSettings: onOpenSettings)

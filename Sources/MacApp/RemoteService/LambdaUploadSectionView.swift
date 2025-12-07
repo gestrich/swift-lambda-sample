@@ -43,18 +43,18 @@ struct LambdaUploadLoadingView: View {
 
 /// View for local Lambda build and upload with two distinct steps
 struct LocalLambdaUpdateView: View {
-    @State var service: LambdaUploadService
+    @State var service: LambdaBuildService
     @State private var showingBuildOutput = false
     @State private var buildStartTime: Date?
 
     /// Convenience accessor for build state
     private var buildState: BuildState {
-        service.buildService.buildState
+        service.buildState
     }
 
     /// Check if lambda.zip exists (built successfully)
     private var isBuilt: Bool {
-        service.buildService.isLambdaBuilt()
+        service.isLambdaBuilt()
     }
 
     /// Check if currently building
@@ -118,7 +118,7 @@ struct LocalLambdaUpdateView: View {
             HStack {
                 Button {
                     Task {
-                        try? await service.buildService.build()
+                        try? await service.build()
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -127,7 +127,7 @@ struct LocalLambdaUpdateView: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .disabled(isBuilding || service.status == .uploading)
+                .disabled(isBuilding || service.uploadStatus == .uploading)
             }
         }
         .padding(12)
@@ -228,12 +228,12 @@ struct LocalLambdaUpdateView: View {
     }
 
     private var canUpload: Bool {
-        isBuilt && service.status.canUpload && !isBuilding
+        isBuilt && service.uploadStatus.canUpload && !isBuilding
     }
 
     @ViewBuilder
     private var uploadStatusIndicator: some View {
-        switch service.status {
+        switch service.uploadStatus {
         case .uploading:
             HStack(spacing: 4) {
                 ProgressView()

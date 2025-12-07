@@ -2,21 +2,67 @@
 //  LambdaBuildService.swift
 //  SwiftDeploy
 //
-//  Shared service for building Lambda for Linux using Docker
+//  Service for building and uploading Lambda for Linux using Docker
 //
 
 import CLIKit
 import Foundation
 
-/// Service for building Lambda for Linux (AMD64) using Docker
+/// Status of the Lambda upload process
+public enum LambdaUploadStatus: Equatable, Sendable {
+    case idle
+    case uploading
+    case success
+    case failed(reason: String)
+
+    public var isInProgress: Bool {
+        switch self {
+        case .uploading:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public var canUpload: Bool {
+        switch self {
+        case .idle, .success, .failed:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// Errors for Lambda upload operations
+public enum LambdaUploadError: LocalizedError {
+    case zipNotCreated(path: String)
+    case uploadFailed(output: String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .zipNotCreated(let path):
+            return "Lambda zip file not created at: \(path)"
+        case .uploadFailed(let output):
+            return "Upload failed: \(output.suffix(200))"
+        }
+    }
+}
+
+/// Service for building and uploading Lambda for Linux (AMD64) using Docker
 @MainActor
 @Observable
 public class LambdaBuildService {
     private let workingDirectory: String
     private let cliService: CLIService
+    private var awsConfig: AWSAuthConfiguration?
 
     /// Build state for tracking progress
     public let buildState = BuildState()
+
+    /// Upload status (separate from build status)
+    public private(set) var uploadStatus: LambdaUploadStatus = .idle
+    public private(set) var lastUploadTime: Date?
 
     /// Lambda build artifact paths
     private var lambdaDir: String { "\(workingDirectory)/lambda" }
@@ -27,9 +73,12 @@ public class LambdaBuildService {
     /// Paths to clean when deleting build artifacts (relative to workingDirectory)
     private var buildArtifactPaths: [String] { ["lambda", "lambda.zip", awsSamBuildDir] }
 
-    public init(workingDirectory: String, cliService: CLIService) {
+    private let functionName = "swift-lambda-sample"
+
+    public init(workingDirectory: String, cliService: CLIService, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
         self.cliService = cliService
+        self.awsConfig = awsConfig
     }
 
     /// Convenience initializer that creates its own CLIService
@@ -37,6 +86,14 @@ public class LambdaBuildService {
         let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
         self.init(workingDirectory: workingDirectory, cliService: cliService)
     }
+
+    /// Convenience initializer with AWS config for upload capability
+    public convenience init(workingDirectory: String, awsConfig: AWSAuthConfiguration) {
+        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        self.init(workingDirectory: workingDirectory, cliService: cliService, awsConfig: awsConfig)
+    }
+
+    // MARK: - Build Operations
 
     /// Build Lambda for Linux (AMD64) using Docker
     /// - Parameter clean: If true, cleans previous build artifacts first
@@ -106,5 +163,77 @@ public class LambdaBuildService {
             printCommand: false
         )
         buildState.clear()
+    }
+
+    // MARK: - Upload Operations
+
+    /// Upload the Lambda package to AWS
+    /// Requires awsConfig to be set
+    public func upload() async throws {
+        guard let awsConfig = awsConfig else {
+            throw LambdaUploadError.uploadFailed(output: "AWS config not provided")
+        }
+
+        uploadStatus = .uploading
+
+        do {
+            // Verify lambda.zip exists
+            guard FileManager.default.fileExists(atPath: lambdaZipPath) else {
+                throw LambdaUploadError.zipNotCreated(path: lambdaZipPath)
+            }
+
+            // Build the AWS CLI command
+            let command = Aws.Lambda.UpdateFunctionCode(
+                functionName: functionName,
+                zipFile: "fileb://\(lambdaZipPath)",
+                profile: awsConfig.profileName
+            )
+
+            // Build command line with optional aws-vault wrapping
+            let execCommand: String
+            let arguments: [String]
+
+            if awsConfig.useAWSVault {
+                let vaultService = AWSVaultService(profile: awsConfig.profileName)
+                let filteredArgs = AWSVaultService.removeProfileFlags(from: command.commandArguments)
+                (execCommand, arguments) = vaultService.wrapCommand(command: "aws", arguments: filteredArgs)
+            } else {
+                execCommand = "aws"
+                arguments = command.commandArguments
+            }
+
+            let result = try await cliService.execute(
+                command: execCommand,
+                arguments: arguments,
+                workingDirectory: workingDirectory,
+                environment: ["AWS_PROFILE": awsConfig.profileName],
+                printCommand: true
+            )
+
+            if !result.isSuccess {
+                throw LambdaUploadError.uploadFailed(output: result.output)
+            }
+
+            lastUploadTime = Date()
+            uploadStatus = .success
+
+        } catch let error as LambdaUploadError {
+            uploadStatus = .failed(reason: error.localizedDescription)
+            throw error
+        } catch {
+            uploadStatus = .failed(reason: error.localizedDescription)
+            throw error
+        }
+    }
+
+    /// Build and upload in one operation
+    public func buildAndUpload() async throws {
+        try await build()
+        try await upload()
+    }
+
+    /// Reset upload status to idle
+    public func resetUploadStatus() {
+        uploadStatus = .idle
     }
 }

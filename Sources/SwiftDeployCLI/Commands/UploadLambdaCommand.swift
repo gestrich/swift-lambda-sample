@@ -27,20 +27,20 @@ extension AWSCommand {
 
             let cliService = CLIService()
 
-            let uploadService = await MainActor.run {
-                LambdaUploadService(
-                    projectRoot: projectRoot,
-                    awsConfig: awsConfig,
-                    cliService: cliService
+            let buildService = await MainActor.run {
+                LambdaBuildService(
+                    workingDirectory: projectRoot,
+                    cliService: cliService,
+                    awsConfig: awsConfig
                 )
             }
 
             if skipBuild {
                 print("📦 Uploading existing lambda.zip to AWS...\n")
-                try await uploadService.upload()
+                try await buildService.upload()
             } else {
                 print("🔨 Building Lambda for linux/amd64...\n")
-                try await uploadService.buildAndUpload()
+                try await buildService.buildAndUpload()
             }
 
             print("\n🎉 Lambda upload completed successfully!")

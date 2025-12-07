@@ -53,10 +53,10 @@ public class RemoteService: LambdaService {
     /// CDK Infrastructure service for deployments. Non-nil if AWS config is available.
     public private(set) var cdkInfrastructureService: CDKInfrastructureService?
 
-    // MARK: - Lambda Upload Service
+    // MARK: - Lambda Build Service
 
-    /// Lambda upload service for direct builds and uploads. Non-nil if AWS config is available.
-    public private(set) var lambdaUploadService: LambdaUploadService?
+    /// Lambda build service for local builds and uploads. Non-nil if AWS config is available.
+    public private(set) var lambdaBuildService: LambdaBuildService?
 
     // MARK: - LambdaService Protocol Properties
 
@@ -117,11 +117,11 @@ public class RemoteService: LambdaService {
             cliService: cliService
         )
 
-        // Initialize Lambda Upload service (AWS config is already available)
-        self.lambdaUploadService = LambdaUploadService(
-            projectRoot: projectRoot,
-            awsConfig: awsConfig,
-            cliService: cliService
+        // Initialize Lambda Build service (AWS config is already available)
+        self.lambdaBuildService = LambdaBuildService(
+            workingDirectory: projectRoot,
+            cliService: cliService,
+            awsConfig: awsConfig
         )
     }
 
