@@ -123,11 +123,25 @@ check_and_fix_checkouts "fix"
 echo "Verifying checkouts after fix..."
 check_and_fix_checkouts "check"
 
-docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "swift build --product $PRODUCT -c release --build-path /build-target --disable-automatic-resolution"
+# Mount only the source files needed for building, not the entire project.
+# This prevents Xcode's local .build/ directory from interfering with the Linux build.
+docker run --platform $PLATFORM_NAME --rm \
+    -v $BUILD_DIR:/build-target \
+    -v $(pwd)/Sources:/build-src/Sources:ro \
+    -v $(pwd)/Tests:/build-src/Tests:ro \
+    -v $(pwd)/Package.swift:/build-src/Package.swift:ro \
+    -v $(pwd)/Package.resolved:/build-src/Package.resolved:ro \
+    -w /build-src \
+    builder bash -c "swift build --product $PRODUCT -c release --build-path /build-target --disable-automatic-resolution"
 
 # Copy swift dependencies
 echo "Copying Swift dependencies..."
-docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "ldd '/build-target/release/$PRODUCT' | grep swift | cut -d' ' -f3 | xargs cp -Lv -t /build-target/lambda"
+docker run --platform $PLATFORM_NAME --rm \
+    -v $BUILD_DIR:/build-target \
+    -v $(pwd)/Sources:/build-src/Sources:ro \
+    -v $(pwd)/Package.swift:/build-src/Package.swift:ro \
+    -w /build-src \
+    builder bash -c "ldd '/build-target/release/$PRODUCT' | grep swift | cut -d' ' -f3 | xargs cp -Lv -t /build-target/lambda"
 
 # Strip debug symbols from binary
 echo "Stripping debug symbols from binary..."
