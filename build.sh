@@ -90,6 +90,39 @@ fi
 
 # Compile application
 echo "Compiling application..."
+
+# Fix corrupted git checkouts before building.
+# When copying .build/checkouts from Docker (Linux) to macOS, git state can become
+# corrupted - files appear as "deleted" in git's index even though they exist on disk.
+# This happens due to filesystem differences between Linux containers and macOS.
+# We detect and fix these by resetting to HEAD.
+check_and_fix_checkouts() {
+    local fix_mode=$1  # "check" or "fix"
+    docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -w /build-target builder bash -c "
+for d in /build-target/checkouts/*/; do
+    if [ -d \"\$d/.git\" ]; then
+        cd \"\$d\"
+        if git status --porcelain | grep -q '^D\|^M'; then
+            pkg_name=\$(basename \"\$d\")
+            if [ \"$fix_mode\" = \"check\" ]; then
+                echo \"  ⚠️  Corrupted checkout detected: \$pkg_name\"
+            else
+                echo \"  ✓ Fixed: \$pkg_name\"
+                git reset --hard HEAD >/dev/null 2>&1
+                git clean -fd >/dev/null 2>&1
+            fi
+        fi
+    fi
+done
+"
+}
+
+echo "Checking git checkouts for corruption..."
+check_and_fix_checkouts "check"
+check_and_fix_checkouts "fix"
+echo "Verifying checkouts after fix..."
+check_and_fix_checkouts "check"
+
 docker run --platform $PLATFORM_NAME --rm -v $BUILD_DIR:/build-target -v $(pwd):/build-src -w /build-src builder bash -c "swift build --product $PRODUCT -c release --build-path /build-target --disable-automatic-resolution"
 
 # Copy swift dependencies
