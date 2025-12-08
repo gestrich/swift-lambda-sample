@@ -24,13 +24,19 @@ public actor CLIService {
     public init(defaultWorkingDirectory: String? = nil) {
         self.defaultWorkingDirectory = defaultWorkingDirectory
 
-        // Pre-compute environment with git paths
+        // Pre-compute environment with common tool paths
         var environment = ProcessInfo.processInfo.environment
         let currentPath = environment["PATH"] ?? ""
-        let brewPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
+        var brewPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
+
+        // Add nvm node bin path if nvm is installed
+        if let nvmNodeBin = Self.findNvmNodeBinPath() {
+            brewPaths.insert(nvmNodeBin, at: 0)
+        }
+
         let pathComponents = currentPath.components(separatedBy: ":")
 
-        // Add brew paths if they're not already in PATH
+        // Add paths if they're not already in PATH
         var updatedPathComponents = pathComponents
         for brewPath in brewPaths {
             if !pathComponents.contains(brewPath) {
@@ -40,6 +46,65 @@ public actor CLIService {
 
         environment["PATH"] = updatedPathComponents.joined(separator: ":")
         self.defaultEnvironment = environment
+    }
+
+    /// Find the nvm node bin path (for cdk, npm, etc.)
+    private static func findNvmNodeBinPath() -> String? {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        let nvmVersionsPath = "\(homeDir)/.nvm/versions/node"
+
+        // Check if nvm versions directory exists
+        guard FileManager.default.fileExists(atPath: nvmVersionsPath) else {
+            return nil
+        }
+
+        // First, try to read the default alias
+        let defaultAliasPath = "\(homeDir)/.nvm/alias/default"
+        if let defaultVersion = try? String(contentsOfFile: defaultAliasPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) {
+            // defaultVersion might be a version like "22" or "lts/iron" or "v22.17.0"
+            // Try to find a matching version directory
+            if let matchingVersion = findMatchingNodeVersion(nvmVersionsPath: nvmVersionsPath, alias: defaultVersion) {
+                let binPath = "\(nvmVersionsPath)/\(matchingVersion)/bin"
+                if FileManager.default.fileExists(atPath: binPath) {
+                    return binPath
+                }
+            }
+        }
+
+        // Fallback: find the latest installed version
+        if let versions = try? FileManager.default.contentsOfDirectory(atPath: nvmVersionsPath) {
+            let sortedVersions = versions.filter { $0.hasPrefix("v") }.sorted { v1, v2 in
+                v1.compare(v2, options: .numeric) == .orderedDescending
+            }
+            if let latestVersion = sortedVersions.first {
+                let binPath = "\(nvmVersionsPath)/\(latestVersion)/bin"
+                if FileManager.default.fileExists(atPath: binPath) {
+                    return binPath
+                }
+            }
+        }
+
+        return nil
+    }
+
+    /// Find a node version directory matching an alias
+    private static func findMatchingNodeVersion(nvmVersionsPath: String, alias: String) -> String? {
+        guard let versions = try? FileManager.default.contentsOfDirectory(atPath: nvmVersionsPath) else {
+            return nil
+        }
+
+        // If alias is already a full version like "v22.17.0"
+        if versions.contains(alias) {
+            return alias
+        }
+
+        // If alias is a major version like "22", find matching "v22.x.x"
+        let versionPrefix = alias.hasPrefix("v") ? alias : "v\(alias)"
+        let matching = versions.filter { $0.hasPrefix(versionPrefix) }.sorted { v1, v2 in
+            v1.compare(v2, options: .numeric) == .orderedDescending
+        }
+
+        return matching.first
     }
 
     /// Set the default working directory for all commands
