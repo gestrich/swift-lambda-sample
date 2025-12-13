@@ -4,11 +4,11 @@ This document tracks planned improvements, known issues, and testing checklists 
 
 ## Release V1
 
+- [ ] Learn Views
+- [ ] Setup Views - include status buttons and do-for-me.
 - [ ] Validate clean install experience (Both mac and CLI pathways)
     - Add DynamoDB local instance
-- [ ] First Run walk-through
-- [ ] Principles tab
-- [ ] README and DocC (with Claude commands to maintain these)
+- [ ] README and DocC - Use Claude commands to maintain these. Add screenshots to README
 - [ ] Video
 - [ ] Social Media Share (LinkedIn, Swift Open Source Slack, others?)
 

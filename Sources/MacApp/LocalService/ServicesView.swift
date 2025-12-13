@@ -5,6 +5,7 @@ import SwiftUI
 enum AppCategory: Identifiable, Hashable {
     // Learn
     case overview
+    case projectStructure
     case awsServices
 
     // Setup (Dependencies)
@@ -24,6 +25,7 @@ enum AppCategory: Identifiable, Hashable {
     var id: String {
         switch self {
         case .overview: return "overview"
+        case .projectStructure: return "projectStructure"
         case .awsServices: return "awsServices"
         case .docker: return "docker"
         case .awsCLI: return "awsCLI"
@@ -39,6 +41,7 @@ enum AppCategory: Identifiable, Hashable {
     var title: String {
         switch self {
         case .overview: return "Overview"
+        case .projectStructure: return "Project Structure"
         case .awsServices: return "AWS Services"
         case .docker: return "Docker"
         case .awsCLI: return "AWS CLI"
@@ -54,6 +57,7 @@ enum AppCategory: Identifiable, Hashable {
     var iconName: String {
         switch self {
         case .overview: return "swift"
+        case .projectStructure: return "folder.fill"
         case .awsServices: return "cloud.fill"
         case .docker: return "shippingbox.fill"
         case .awsCLI: return "terminal.fill"
@@ -69,6 +73,7 @@ enum AppCategory: Identifiable, Hashable {
     var iconColor: Color {
         switch self {
         case .overview: return .orange
+        case .projectStructure: return .blue
         case .awsServices: return .orange
         case .docker: return .blue
         case .awsCLI: return .orange
@@ -95,6 +100,7 @@ enum AppCategory: Identifiable, Hashable {
     static func from(id: String) -> AppCategory? {
         switch id {
         case "overview": return .overview
+        case "projectStructure": return .projectStructure
         case "awsServices": return .awsServices
         case "docker": return .docker
         case "awsCLI": return .awsCLI
@@ -160,6 +166,9 @@ struct ServicesView: View {
                 NavigationLink(value: AppCategory.overview) {
                     categoryRow(.overview)
                 }
+                NavigationLink(value: AppCategory.projectStructure) {
+                    categoryRow(.projectStructure)
+                }
                 NavigationLink(value: AppCategory.awsServices) {
                     categoryRow(.awsServices)
                 }
@@ -171,7 +180,7 @@ struct ServicesView: View {
             }
 
             Section("Setup") {
-                ForEach([AppCategory.docker, .awsCLI, .cdk, .githubCLI], id: \.self) { category in
+                ForEach([AppCategory.cdk, .awsCLI, .docker, .githubCLI], id: \.self) { category in
                     NavigationLink(value: category) {
                         categoryRow(category)
                     }
@@ -240,6 +249,8 @@ struct ServicesView: View {
         switch category {
         case .overview:
             OverviewView()
+        case .projectStructure:
+            ProjectStructureView()
         case .awsServices:
             AWSServicesView()
         case .docker:
@@ -251,7 +262,16 @@ struct ServicesView: View {
         case .githubCLI:
             DependencyView(dependency: .githubCLI)
         case .principle(let principle):
-            PrincipleDetailView(principle: principle)
+            switch principle {
+            case .cicd:
+                CICDView()
+            case .localDevelopment:
+                LocalDevelopmentView()
+            case .productionMonitoring:
+                ProductionMonitoringView()
+            case .security:
+                SecurityView()
+            }
         case .remote:
             remoteDetailView
         case .xcode:
@@ -267,7 +287,34 @@ struct ServicesView: View {
     private var remoteDetailView: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                sectionHeader(title: "Deployment", subtitle: RemoteService.detailText)
+                DeploymentExplainer(
+                    icon: "cloud.fill",
+                    iconColor: .blue,
+                    title: "Deploy to AWS",
+                    summary: "Deploy infrastructure with CDK and Lambda code via GitHub Actions",
+                    details: [
+                        ExplainerDetail(
+                            icon: "square.stack.3d.up.fill",
+                            title: "CDK Infrastructure",
+                            description: "AWS CDK deploys the full infrastructure stack including VPC, API Gateway, RDS, S3, and SQS. Run deploy commands from this view to provision or update resources.",
+                            color: .purple
+                        ),
+                        ExplainerDetail(
+                            icon: "arrow.triangle.2.circlepath",
+                            title: "GitHub Actions",
+                            description: "Lambda code is built and deployed automatically via GitHub Actions when you push to dev or main. The build uses Docker to compile Swift for Linux.",
+                            color: .blue
+                        ),
+                        ExplainerDetail(
+                            icon: "bolt.fill",
+                            title: "Lambda Updates",
+                            description: "After GitHub Actions builds the Lambda, it uploads the zip directly to AWS. Infrastructure and Lambda code are deployed independently.",
+                            color: .orange
+                        )
+                    ]
+                )
+                .padding()
+
                 RemoteServiceView(service: model.remoteService, onOpenSettings: {
                     showingSettings = true
                 })
@@ -287,7 +334,34 @@ struct ServicesView: View {
     private var xcodeDetailView: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                sectionHeader(title: "Deployment", subtitle: XcodeLocalService.detailText)
+                DeploymentExplainer(
+                    icon: "hammer.fill",
+                    iconColor: .blue,
+                    title: "Xcode Development",
+                    summary: "Build and run natively on macOS for fast iteration",
+                    details: [
+                        ExplainerDetail(
+                            icon: "swift",
+                            title: "Native Builds",
+                            description: "Compiles Swift directly on macOS without Docker. Fastest build times for rapid development and debugging with full Xcode integration.",
+                            color: .orange
+                        ),
+                        ExplainerDetail(
+                            icon: "shippingbox.fill",
+                            title: "Local Services",
+                            description: "Uses Docker containers for PostgreSQL and MinIO (S3-compatible). Services run locally with data persisted in ~/.swiftSampleDemo/.",
+                            color: .blue
+                        ),
+                        ExplainerDetail(
+                            icon: "exclamationmark.triangle.fill",
+                            title: "Platform Differences",
+                            description: "Native builds run on macOS, not Linux. Some platform-specific behavior may differ. Use Linux workflow to verify compatibility before deploying.",
+                            color: .orange
+                        )
+                    ]
+                )
+                .padding()
+
                 LocalServiceView(service: model.xcodeLocalModel)
             }
 
@@ -310,7 +384,34 @@ struct ServicesView: View {
     private var linuxDetailView: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                sectionHeader(title: "Deployment", subtitle: LinuxLocalService.detailText)
+                DeploymentExplainer(
+                    icon: "server.rack",
+                    iconColor: .orange,
+                    title: "Linux Container",
+                    summary: "Build and run in a Docker container matching AWS Lambda",
+                    details: [
+                        ExplainerDetail(
+                            icon: "checkmark.seal.fill",
+                            title: "AWS Compatibility",
+                            description: "Builds using the same Amazon Linux 2 Docker image as CI/CD. Ensures your code works correctly on the AWS Lambda runtime before deploying.",
+                            color: .green
+                        ),
+                        ExplainerDetail(
+                            icon: "shippingbox.fill",
+                            title: "Docker Build",
+                            description: "Uses build.sh to compile Swift for linux/amd64. Slower than native builds but guarantees Linux compatibility.",
+                            color: .blue
+                        ),
+                        ExplainerDetail(
+                            icon: "network",
+                            title: "Container Networking",
+                            description: "Lambda container connects to PostgreSQL and MinIO via Docker network. All services communicate as they would in a real deployment.",
+                            color: .purple
+                        )
+                    ]
+                )
+                .padding()
+
                 LocalServiceView(service: model.linuxLocalModel)
             }
 

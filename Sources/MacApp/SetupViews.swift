@@ -95,6 +95,179 @@ private struct WorkflowRow: View {
     }
 }
 
+// MARK: - Project Structure View
+
+struct ProjectStructureView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                headerSection
+                overviewSection
+                targetsSection
+                dependenciesSection
+            }
+            .padding(32)
+            .frame(maxWidth: 600, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "folder.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.blue)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Project Structure")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Text("Swift package targets and dependencies")
+                    .bodyText()
+            }
+        }
+    }
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Overview")
+                .sectionHeader()
+
+            Text("This Swift package contains multiple targets that work together. The Lambda runs on AWS, while the Mac app and CLI tools help with deployment and testing.")
+                .bodyText()
+        }
+        .card()
+    }
+
+    private var targetsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Targets")
+                .sectionHeader()
+
+            Text("Executable and library targets in Package.swift.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "bolt.fill",
+                    title: "SwiftLambda",
+                    description: "The AWS Lambda executable",
+                    details: "The main entry point for AWS Lambda. Handles API Gateway events and routes requests to SwiftServerApp. Built for Linux and deployed as a zip package.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "gearshape.2.fill",
+                    title: "SwiftServerApp",
+                    description: "Business logic and AWS service interactions",
+                    details: "Contains all the application logic including database models, S3 operations, and API handlers. Depends on Fluent for PostgreSQL and Soto for AWS services. Designed to be testable in isolation.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "macwindow",
+                    title: "MacApp",
+                    description: "This macOS deployment application",
+                    details: "The SwiftUI app you're using now. Provides a GUI for deploying infrastructure, running local services, and testing API endpoints. Depends on SwiftDeploy for deployment logic.",
+                    color: .purple
+                )
+                ExpandableRow(
+                    icon: "terminal.fill",
+                    title: "SwiftDeployCLI",
+                    description: "Command-line deployment tool",
+                    details: "CLI alternative to the Mac app. Run with 'swift run SwiftDeployCLI' or use the tools.sh wrapper. Uses ArgumentParser for command handling.",
+                    color: .green
+                )
+                ExpandableRow(
+                    icon: "shippingbox.fill",
+                    title: "SwiftDeploy",
+                    description: "Shared deployment library",
+                    details: "Core deployment logic shared by MacApp and SwiftDeployCLI. Handles CDK deployment, GitHub Actions integration, Docker service management, and AWS testing.",
+                    color: .cyan
+                )
+                ExpandableRow(
+                    icon: "network",
+                    title: "Client",
+                    description: "Shared API client and models",
+                    details: "Data models and API client code shared between SwiftLambda, MacApp, and SwiftDeploy. Defines the User model and API request/response types.",
+                    color: .pink
+                )
+                ExpandableRow(
+                    icon: "text.word.spacing",
+                    title: "CLIKit / CLIMacros",
+                    description: "CLI utilities with Swift macros",
+                    details: "Helper utilities for CLI output formatting and command execution. CLIMacros provides Swift macros for reducing boilerplate in CLI services.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "folder.badge.gearshape",
+                    title: "LocalStorageService",
+                    description: "Local file path management",
+                    details: "Manages paths under ~/.swiftSampleDemo/ for local development data. Uses a SwiftUI EnvironmentKey-inspired pattern for type-safe path resolution.",
+                    color: .gray
+                )
+            }
+        }
+        .card()
+    }
+
+    private var dependenciesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Dependencies")
+                .sectionHeader()
+
+            Text("External Swift packages used by this project.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "cloud.fill",
+                    title: "Soto",
+                    description: "AWS SDK for Swift",
+                    details: "Community-maintained AWS SDK providing SotoS3, SotoSecretsManager, and SotoDynamoDB. Used by SwiftServerApp to interact with AWS services from the Lambda.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "bolt.circle.fill",
+                    title: "Swift AWS Lambda Runtime",
+                    description: "Lambda execution environment",
+                    details: "Official Swift server library for running code on AWS Lambda. Handles the Lambda lifecycle, event parsing, and response formatting.",
+                    color: .yellow
+                )
+                ExpandableRow(
+                    icon: "arrow.left.arrow.right.circle.fill",
+                    title: "Swift AWS Lambda Events",
+                    description: "API Gateway event types",
+                    details: "Defines Swift types for API Gateway request and response events. Used by SwiftLambda to parse incoming HTTP requests.",
+                    color: .purple
+                )
+                ExpandableRow(
+                    icon: "cylinder.fill",
+                    title: "Fluent + PostgresDriver",
+                    description: "Database ORM and PostgreSQL driver",
+                    details: "Vapor's ORM for database operations. FluentPostgresDriver connects to RDS PostgreSQL in production. FluentSQLiteDriver available for local testing.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "terminal.fill",
+                    title: "Swift Argument Parser",
+                    description: "CLI argument handling",
+                    details: "Apple's library for building command-line interfaces. Used by SwiftDeployCLI to parse commands like 'aws deploy' and 'local start-all'.",
+                    color: .green
+                )
+                ExpandableRow(
+                    icon: "chevron.left.forwardslash.chevron.right",
+                    title: "Swift Syntax",
+                    description: "Swift macro support",
+                    details: "Required for CLIMacros target. Provides SwiftSyntaxMacros and SwiftCompilerPlugin for implementing custom Swift macros.",
+                    color: .red
+                )
+            }
+        }
+        .card()
+    }
+}
+
 // MARK: - AWS Services View
 
 struct AWSServicesView: View {
@@ -137,99 +310,51 @@ struct AWSServicesView: View {
                 .bodyText()
 
             VStack(spacing: 8) {
-                AWSServiceRow(
-                    name: "API Gateway",
+                ExpandableRow(
+                    icon: "arrow.left.arrow.right",
+                    title: "API Gateway",
                     description: "REST API endpoint that routes HTTP requests to Lambda",
                     details: "Provides a public HTTPS endpoint for the application. Routes incoming requests to the Lambda function based on path and HTTP method. Handles request/response transformation and provides built-in throttling and monitoring.",
-                    icon: "arrow.left.arrow.right",
                     color: .purple
                 )
-                AWSServiceRow(
-                    name: "Lambda",
-                    description: "Serverless compute running your Swift code",
-                    details: "Executes the Swift application code in response to API Gateway requests. Scales automatically based on demand. Configured with VPC access to reach RDS and other private resources. Includes environment variables for service configuration.",
-                    icon: "bolt.fill",
+                ExpandableRow(
+                    icon: "tablecells.fill",
+                    title: "DynamoDB",
+                    description: "NoSQL database for flexible data storage",
+                    details: "Fully managed NoSQL database with single-digit millisecond latency. Useful for high-throughput workloads and flexible schema requirements. The Lambda function uses the AWS SDK for Swift to read and write items.",
                     color: .orange
                 )
-                AWSServiceRow(
-                    name: "RDS",
+                ExpandableRow(
+                    icon: "bolt.fill",
+                    title: "Lambda",
+                    description: "Serverless compute running your Swift code",
+                    details: "Executes the Swift application code in response to API Gateway requests. Scales automatically based on demand. Configured with VPC access to reach RDS and other private resources. Includes environment variables for service configuration.",
+                    color: .yellow
+                )
+                ExpandableRow(
+                    icon: "cylinder.fill",
+                    title: "RDS",
                     description: "PostgreSQL relational database for structured data",
                     details: "Managed PostgreSQL instance running in a private subnet. Stores user data and application state. Connected via SSL/TLS with credentials managed in Secrets Manager. The Lambda function uses the Swift PostgresNIO driver to interact with the database.",
-                    icon: "cylinder.fill",
                     color: .blue
                 )
-                AWSServiceRow(
-                    name: "S3",
+                ExpandableRow(
+                    icon: "externaldrive.fill",
+                    title: "S3",
                     description: "Object storage for files and assets",
                     details: "Stores uploaded files and binary assets. The Lambda function uses the AWS SDK for Swift to upload and download objects. Bucket is configured with appropriate IAM permissions for Lambda access.",
-                    icon: "externaldrive.fill",
                     color: .green
                 )
-                AWSServiceRow(
-                    name: "SQS",
+                ExpandableRow(
+                    icon: "tray.full.fill",
+                    title: "SQS",
                     description: "Message queue for async task processing",
                     details: "Enables asynchronous processing of tasks. Messages can be sent from the Lambda function for background processing. Includes a Dead Letter Queue for failed message handling.",
-                    icon: "tray.full.fill",
                     color: .pink
                 )
             }
         }
         .card()
-    }
-}
-
-// MARK: - AWS Service Row
-
-private struct AWSServiceRow: View {
-    let name: String
-    let description: String
-    let details: String
-    let icon: String
-    let color: Color
-
-    @State private var isExpanded = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.title2)
-                        .foregroundStyle(color)
-                        .frame(width: 28)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(name)
-                            .subheader()
-                        Text(description)
-                            .bodyText()
-                    }
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                }
-                .padding(12)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                Text(details)
-                    .bodyText()
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
-                    .padding(.leading, 40)
-            }
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

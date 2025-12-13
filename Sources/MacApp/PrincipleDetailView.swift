@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Principle Enum
+// MARK: - Principle Enum (for sidebar navigation)
 
 enum Principle: String, CaseIterable, Identifiable {
     case cicd
@@ -45,168 +45,19 @@ enum Principle: String, CaseIterable, Identifiable {
         case .security: return .purple
         }
     }
-
-    var items: [PrincipleItem] {
-        switch self {
-        case .cicd:
-            return [
-                PrincipleItem(
-                    title: "Published Documentation",
-                    status: .notImplemented,
-                    details: "Explore GitHub actions for the Open API Generator and DocC. Publish as GitHub pages."
-                ),
-                PrincipleItem(
-                    title: "Automatic Builds",
-                    status: .implemented,
-                    details: "Using GitHub Actions"
-                ),
-                PrincipleItem(
-                    title: "Automatic Tests",
-                    status: .implemented,
-                    details: "Using GitHub Actions"
-                ),
-                PrincipleItem(
-                    title: "Automatic Deploys",
-                    status: .implemented,
-                    details: "Using GitHub Actions"
-                ),
-                PrincipleItem(
-                    title: "Dev Staging Environment",
-                    status: .notImplemented,
-                    details: "Explore terraform workspaces"
-                ),
-                PrincipleItem(
-                    title: "CI/CD Failure Alerts",
-                    status: .notImplemented,
-                    details: "Explore GitHub email/Slack alerting"
-                ),
-                PrincipleItem(
-                    title: "Dependency Version Reporting",
-                    status: .notImplemented,
-                    details: "Explore GitHub Dependabot"
-                ),
-            ]
-
-        case .localDevelopment:
-            return [
-                PrincipleItem(
-                    title: "Local Dev Environment",
-                    status: .partial,
-                    details: "Local Docker containers to run local services (S3, DynamoDB, Postgres, etc.)."
-                ),
-                PrincipleItem(
-                    title: "Trigger Remote APIs Locally",
-                    status: .partial,
-                    details: "Lambdas can be triggered from the AWS CLI with proper permissions. API GW can be hit as REST endpoints."
-                ),
-                PrincipleItem(
-                    title: "Select Local Dependencies",
-                    status: .implemented,
-                    details: "Use local Swift Package dependencies by providing a local package path in Package.swift."
-                ),
-                PrincipleItem(
-                    title: "Unit Tests Have No Environment Restrictions",
-                    status: .implemented,
-                    details: "Dependency injection is used to hide AWS services from testable code."
-                ),
-                PrincipleItem(
-                    title: "Dev Environment Documentation",
-                    status: .partial,
-                    details: "This README has most relevant documentation but it needs improvement."
-                ),
-                PrincipleItem(
-                    title: "Option to Build Product Locally",
-                    status: .notImplemented,
-                    details: "Need instructions for how to build the Docker image locally and how to log in to the Docker container for troubleshooting."
-                ),
-            ]
-
-        case .productionMonitoring:
-            return [
-                PrincipleItem(
-                    title: "Remote Logs",
-                    status: .partial,
-                    details: "CloudWatch is used for logging. The search capabilities are not ideal though."
-                ),
-                PrincipleItem(
-                    title: "Failure Alerts",
-                    status: .notImplemented,
-                    details: "Use CloudWatch Alarms. Need to show the error in the alert somehow. Also, need to support crash logs."
-                ),
-                PrincipleItem(
-                    title: "Remote Performance",
-                    status: .notImplemented,
-                    details: "Look into CloudWatch."
-                ),
-            ]
-
-        case .security:
-            return [
-                PrincipleItem(
-                    title: "No secrets in the repository",
-                    status: .implemented,
-                    details: "AWS Secrets Manager is used to store any required secrets."
-                ),
-                PrincipleItem(
-                    title: "No plain-text secrets in server logs",
-                    status: .partial,
-                    details: "This needs to be audited. Look at the security of environment variables and what is in build logs."
-                ),
-            ]
-        }
-    }
 }
 
-// MARK: - Principle Item
+// MARK: - CI/CD View
 
-struct PrincipleItem: Identifiable {
-    let id = UUID()
-    let title: String
-    let status: PrincipleStatus
-    let details: String
-}
-
-enum PrincipleStatus {
-    case implemented
-    case partial
-    case notImplemented
-
-    var iconName: String {
-        switch self {
-        case .implemented: return "checkmark.circle.fill"
-        case .partial: return "exclamationmark.triangle.fill"
-        case .notImplemented: return "circle"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .implemented: return .green
-        case .partial: return .orange
-        case .notImplemented: return .secondary
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .implemented: return "Implemented"
-        case .partial: return "Partial"
-        case .notImplemented: return "Not Implemented"
-        }
-    }
-}
-
-// MARK: - Principle Detail View
-
-struct PrincipleDetailView: View {
-    let principle: Principle
-
+struct CICDView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
-                statusSummary
-                itemsList
+                overviewSection
+                workflowsSection
+                buildSection
+                deploymentSection
             }
             .padding(32)
             .frame(maxWidth: 600, alignment: .leading)
@@ -215,113 +66,481 @@ struct PrincipleDetailView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    // MARK: - Header
-
     private var headerSection: some View {
         HStack(spacing: 16) {
-            Image(systemName: principle.iconName)
-                .font(.system(size: 40))
-                .foregroundStyle(principle.iconColor)
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 48))
+                .foregroundStyle(.blue)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(principle.title)
+                Text("CI / CD")
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text(principle.subtitle)
+                Text("Automated builds and deployments")
                     .bodyText()
             }
         }
     }
 
-    // MARK: - Status Summary
-
-    private var statusSummary: some View {
-        let implemented = principle.items.filter { $0.status == .implemented }.count
-        let partial = principle.items.filter { $0.status == .partial }.count
-        let notImplemented = principle.items.filter { $0.status == .notImplemented }.count
-
-        return HStack(spacing: 24) {
-            StatusCount(count: implemented, status: .implemented)
-            StatusCount(count: partial, status: .partial)
-            StatusCount(count: notImplemented, status: .notImplemented)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    // MARK: - Items List
-
-    private var itemsList: some View {
+    private var overviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Principles")
+            Text("Overview")
                 .sectionHeader()
 
-            ForEach(principle.items) { item in
-                PrincipleItemRow(item: item)
+            Text("This project uses GitHub Actions for continuous integration and deployment. When code is pushed to the dev or main branch, it automatically builds the Swift Lambda and deploys it to AWS.")
+                .bodyText()
+        }
+        .card()
+    }
+
+    private var workflowsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("GitHub Actions Workflows")
+                .sectionHeader()
+
+            Text("Workflow files in .github/workflows/ define the CI/CD pipeline.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "play.circle.fill",
+                    title: "deploy_dev.yml",
+                    description: "Triggers on pushes to dev branch",
+                    details: "The main development workflow. Triggers on pushes to the dev branch and manual dispatch. Calls the reusable deploy.yml workflow with the dev environment configuration. Tests are currently disabled for faster iteration.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "checkmark.seal.fill",
+                    title: "deploy_prod.yml",
+                    description: "Triggers on pushes to main branch",
+                    details: "Production deployment workflow. Triggers on pushes to main and manual dispatch. Runs tests before deployment and only deploys if tests pass. Uses a different Lambda function name for production isolation.",
+                    color: .green
+                )
+                ExpandableRow(
+                    icon: "arrow.triangle.2.circlepath.circle.fill",
+                    title: "deploy.yml",
+                    description: "Reusable deployment workflow",
+                    details: "Parameterized workflow that handles the actual build and deployment. Accepts environment, Lambda name, and platform parameters. Configures AWS credentials via OIDC, runs build.sh for Docker-based compilation, and updates Lambda code via AWS CLI.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "testtube.2",
+                    title: "test.yml",
+                    description: "Runs Swift unit tests",
+                    details: "Executes swift test with Swift 5.9. Requires GitHub netrc configuration for private package dependencies. Runs on pushes to feature branches (not dev or main).",
+                    color: .purple
+                )
             }
         }
+        .card()
     }
-}
 
-// MARK: - Status Count
+    private var buildSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Build Process")
+                .sectionHeader()
 
-private struct StatusCount: View {
-    let count: Int
-    let status: PrincipleStatus
+            Text("The build process compiles Swift for AWS Lambda's Linux environment using Docker.")
+                .bodyText()
 
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: status.iconName)
-                .foregroundStyle(status.color)
-            Text("\(count)")
-                .font(.title3)
-                .fontWeight(.semibold)
-            Text(status.label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "hammer.fill",
+                    title: "build.sh",
+                    description: "Docker-based Lambda compilation script",
+                    details: "Cross-compiles Swift for linux/amd64 using the swift:6.0-amazonlinux2 Docker image. Resolves Swift packages, builds in release mode, strips debug symbols, and packages the binary with runtime dependencies into lambda.zip. Validates the package is under AWS Lambda's 50MB limit.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "shippingbox.fill",
+                    title: "Docker Environment",
+                    description: "Amazon Linux 2 with Swift 6.0",
+                    details: "Uses the official Swift Amazon Linux 2 image to match AWS Lambda's runtime environment. Installs build dependencies (git, openssl, sqlite, curl) and mounts GitHub credentials for private package access.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "doc.zipper",
+                    title: "lambda.zip",
+                    description: "Deployment package artifact",
+                    details: "The final deployment package containing the Swift binary (named 'bootstrap' for Lambda), all Swift runtime libraries, and shared library dependencies. Automatically collected from the Docker build and uploaded as a GitHub Actions artifact.",
+                    color: .green
+                )
+            }
         }
+        .card()
+    }
+
+    private var deploymentSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Deployment")
+                .sectionHeader()
+
+            Text("Lambda code is deployed directly via AWS CLI after a successful build.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "key.fill",
+                    title: "OIDC Authentication",
+                    description: "Secure, keyless AWS access",
+                    details: "Uses OpenID Connect (OIDC) to assume an AWS IAM role without storing credentials. GitHub Actions exchanges a short-lived token for temporary AWS credentials. The role ARN is stored as a repository secret.",
+                    color: .purple
+                )
+                ExpandableRow(
+                    icon: "arrow.up.circle.fill",
+                    title: "Lambda Update",
+                    description: "aws lambda update-function-code",
+                    details: "After building, the workflow uploads lambda.zip directly to AWS Lambda using the AWS CLI. The function code is updated in place without changing configuration. Deployment typically completes in 2-3 minutes from push.",
+                    color: .green
+                )
+                ExpandableRow(
+                    icon: "square.stack.3d.up.fill",
+                    title: "Infrastructure (CDK)",
+                    description: "Managed separately via AWS CDK",
+                    details: "Infrastructure changes (VPC, RDS, API Gateway, etc.) are deployed separately using the SwiftDeploy CLI tool. CDK deployment is not part of the automated CI/CD pipeline to prevent accidental infrastructure changes.",
+                    color: .cyan
+                )
+            }
+        }
+        .card()
     }
 }
 
-// MARK: - Principle Item Row
+// MARK: - Local Development View
 
-private struct PrincipleItemRow: View {
-    let item: PrincipleItem
-
+struct LocalDevelopmentView: View {
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: item.status.iconName)
-                .font(.title3)
-                .foregroundStyle(item.status.color)
-                .frame(width: 24)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                headerSection
+                overviewSection
+                workflowsSection
+                servicesSection
+            }
+            .padding(32)
+            .frame(maxWidth: 600, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "laptopcomputer")
+                .font(.system(size: 48))
+                .foregroundStyle(.green)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.title)
-                    .font(.headline)
+                Text("Local Development")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
 
-                Text(item.details)
+                Text("Development environment setup")
                     .bodyText()
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Overview")
+                .sectionHeader()
+
+            Text("Local development uses Docker containers to run AWS-compatible services on your Mac. This allows you to develop and test without deploying to AWS.")
+                .bodyText()
+        }
+        .card()
+    }
+
+    private var workflowsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Development Workflows")
+                .sectionHeader()
+
+            Text("Two workflows are available depending on your needs.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "hammer.fill",
+                    title: "Xcode Workflow",
+                    description: "Fast iteration with native builds",
+                    details: "Builds and runs the Lambda natively on macOS for the fastest development cycle. Great for rapid iteration and debugging. Uses local Docker services for PostgreSQL and S3 (MinIO). Start with 'swift run SwiftDeploy local xcode start-all'.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "server.rack",
+                    title: "Linux Workflow",
+                    description: "AWS-compatible container testing",
+                    details: "Builds and runs the Lambda in a Docker container matching the AWS environment. Use this to verify Linux compatibility before deploying. Start with 'swift run SwiftDeploy local linux start-all'.",
+                    color: .orange
+                )
+            }
+        }
+        .card()
+    }
+
+    private var servicesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Local Services")
+                .sectionHeader()
+
+            Text("Docker containers provide local versions of AWS services.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "cylinder.fill",
+                    title: "PostgreSQL",
+                    description: "Local database container",
+                    details: "Runs PostgreSQL in Docker with persistent data storage in ~/.swiftSampleDemo/postgres/. Accessible on localhost:5432. Credentials are configured in the local environment.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "externaldrive.fill",
+                    title: "MinIO (S3)",
+                    description: "S3-compatible object storage",
+                    details: "MinIO provides an S3-compatible API for local file storage testing. Runs on localhost:9000 with a web console on localhost:9001. Data persists in ~/.swiftSampleDemo/minio/.",
+                    color: .green
+                )
+            }
+        }
+        .card()
     }
 }
 
-// MARK: - Preview
+// MARK: - Production Monitoring View
+
+struct ProductionMonitoringView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                headerSection
+                overviewSection
+                loggingSection
+                alertingSection
+            }
+            .padding(32)
+            .frame(maxWidth: 600, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 48))
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Production Monitoring")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Text("Logs, alerts, and performance")
+                    .bodyText()
+            }
+        }
+    }
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Overview")
+                .sectionHeader()
+
+            Text("AWS CloudWatch provides logging and monitoring for the Lambda function. Logs are automatically captured and can be viewed via the AWS Console or CLI.")
+                .bodyText()
+        }
+        .card()
+    }
+
+    private var loggingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Logging")
+                .sectionHeader()
+
+            Text("Lambda execution logs are sent to CloudWatch Logs.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "doc.text.fill",
+                    title: "CloudWatch Logs",
+                    description: "Centralized log storage",
+                    details: "All Lambda output (print statements, errors, Swift logging) is captured in CloudWatch Logs under /aws/lambda/swift-lambda-sample. Logs are retained according to your CloudWatch retention policy.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "terminal.fill",
+                    title: "CLI Log Access",
+                    description: "View logs via SwiftDeploy",
+                    details: "Use 'swift run SwiftDeploy aws logs' to tail recent logs. Supports --since flag for time-based filtering (e.g., --since 1h). Also available via 'aws logs tail' directly.",
+                    color: .green
+                )
+            }
+        }
+        .card()
+    }
+
+    private var alertingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Alerting & Performance")
+                .sectionHeader()
+
+            Text("CloudWatch can be configured for alerts and performance monitoring.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "bell.fill",
+                    title: "CloudWatch Alarms",
+                    description: "Error and threshold alerts",
+                    details: "CloudWatch Alarms can notify you of Lambda errors, high latency, or throttling. Configure alarms in the AWS Console or via CDK. Notifications can be sent to email, Slack, or PagerDuty via SNS.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "gauge.with.dots.needle.bottom.50percent",
+                    title: "Performance Metrics",
+                    description: "Invocation duration and memory",
+                    details: "CloudWatch automatically tracks Lambda invocation count, duration, errors, and memory usage. View metrics in the AWS Console under Lambda > Monitor, or create custom dashboards.",
+                    color: .purple
+                )
+            }
+        }
+        .card()
+    }
+}
+
+// MARK: - Security View
+
+struct SecurityView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                headerSection
+                overviewSection
+                secretsSection
+                authSection
+            }
+            .padding(32)
+            .frame(maxWidth: 600, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.purple)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Security")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Text("Secrets and credential management")
+                    .bodyText()
+            }
+        }
+    }
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Overview")
+                .sectionHeader()
+
+            Text("Security best practices are followed to protect credentials and sensitive data. No secrets are stored in the repository, and all credentials are managed through AWS services.")
+                .bodyText()
+        }
+        .card()
+    }
+
+    private var secretsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Secrets Management")
+                .sectionHeader()
+
+            Text("Sensitive values are stored securely and accessed at runtime.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "key.fill",
+                    title: "AWS Secrets Manager",
+                    description: "Database credentials storage",
+                    details: "Database passwords are stored in AWS Secrets Manager and retrieved by the Lambda at runtime. The CDK automatically creates and manages the secret. Credentials are never logged or exposed in environment variables.",
+                    color: .purple
+                )
+                ExpandableRow(
+                    icon: "lock.rectangle.fill",
+                    title: "GitHub Secrets",
+                    description: "CI/CD credentials",
+                    details: "The AWS role ARN and Swift package manager token are stored as GitHub repository secrets. These are injected into GitHub Actions workflows but never exposed in logs. OIDC is used instead of long-lived access keys.",
+                    color: .blue
+                )
+                ExpandableRow(
+                    icon: "externaldrive.badge.person.crop",
+                    title: "Local Credentials",
+                    description: "Developer machine security",
+                    details: "Local AWS credentials can be stored in ~/.aws/credentials or managed via aws-vault for enhanced security. aws-vault stores credentials in your system keychain rather than plaintext files.",
+                    color: .green
+                )
+            }
+        }
+        .card()
+    }
+
+    private var authSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Authentication")
+                .sectionHeader()
+
+            Text("Secure authentication patterns for CI/CD and runtime.")
+                .bodyText()
+
+            VStack(spacing: 8) {
+                ExpandableRow(
+                    icon: "person.badge.key.fill",
+                    title: "OIDC for CI/CD",
+                    description: "Keyless AWS authentication",
+                    details: "GitHub Actions uses OpenID Connect to authenticate with AWS without storing access keys. A short-lived token is exchanged for temporary AWS credentials that expire after the workflow completes.",
+                    color: .orange
+                )
+                ExpandableRow(
+                    icon: "checkmark.shield.fill",
+                    title: "IAM Least Privilege",
+                    description: "Minimal required permissions",
+                    details: "The Lambda execution role has only the permissions needed to access specific resources (RDS, S3, SQS, Secrets Manager). Permissions are defined in CDK and can be audited in the AWS Console.",
+                    color: .cyan
+                )
+            }
+        }
+        .card()
+    }
+}
+
+// MARK: - Previews
 
 #Preview("CI/CD") {
-    PrincipleDetailView(principle: .cicd)
+    CICDView()
+        .frame(width: 600, height: 800)
+}
+
+#Preview("Local Development") {
+    LocalDevelopmentView()
+        .frame(width: 600, height: 700)
+}
+
+#Preview("Production Monitoring") {
+    ProductionMonitoringView()
         .frame(width: 600, height: 700)
 }
 
 #Preview("Security") {
-    PrincipleDetailView(principle: .security)
-        .frame(width: 600, height: 500)
+    SecurityView()
+        .frame(width: 600, height: 700)
 }
