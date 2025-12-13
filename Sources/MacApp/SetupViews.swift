@@ -3,14 +3,11 @@ import SwiftUI
 // MARK: - Overview View
 
 struct OverviewView: View {
-    var onNavigateToSetup: (() -> Void)?
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
                 aboutSection
-                gettingStartedSection
             }
             .padding(32)
             .frame(maxWidth: 600, alignment: .leading)
@@ -37,68 +34,64 @@ struct OverviewView: View {
     }
 
     private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("About This App")
                 .sectionHeader()
 
-            Text("This app demonstrates building and deploying a complete serverless application using Swift on AWS Lambda.")
+            Text("This app demonstrates building and deploying a complete serverless application using Swift on AWS Lambda. It also serves as a starting point for creating your own serverless applications.")
                 .bodyText()
 
-            Text("It also serves as a starting point for creating your own serverless applications. There are many decisions to make when building a Swift serverless app—infrastructure, CI/CD, local development, security, and more. This project provides sensible defaults so you can get started quickly and customize from there.")
-                .bodyText()
-
-            Text("Explore development principles and deployment options using the sidebar navigation.")
-                .bodyText()
-        }
-        .card()
-    }
-
-    private var gettingStartedSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Getting Started")
-                .sectionHeader()
-
-            HStack(spacing: 0) {
-                Spacer()
-                WorkflowStep(icon: "book.fill", title: "Learn", color: .blue)
-                WorkflowArrow()
-                WorkflowStep(icon: "wrench.and.screwdriver.fill", title: "Setup", color: .orange)
-                WorkflowArrow()
-                WorkflowStep(icon: "arrow.up.circle.fill", title: "Deploy", color: .green)
-                Spacer()
+            VStack(spacing: 8) {
+                WorkflowRow(
+                    icon: "book.fill",
+                    title: "Learn",
+                    description: "Understand the AWS services and development principles used in this project",
+                    color: .blue
+                )
+                WorkflowRow(
+                    icon: "wrench.and.screwdriver.fill",
+                    title: "Setup",
+                    description: "Install required dependencies like Docker, AWS CLI, and CDK",
+                    color: .orange
+                )
+                WorkflowRow(
+                    icon: "arrow.up.circle.fill",
+                    title: "Deploy",
+                    description: "Deploy to AWS, run locally with Xcode, or test in a Linux container",
+                    color: .green
+                )
             }
-            .padding(.vertical, 8)
         }
         .card()
     }
 }
 
-// MARK: - Workflow Components
+// MARK: - Workflow Row
 
-private struct WorkflowStep: View {
+private struct WorkflowRow: View {
     let icon: String
     let title: String
+    let description: String
     let color: Color
 
     var body: some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 28))
+                .font(.title2)
                 .foregroundStyle(color)
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-        }
-        .frame(width: 80)
-    }
-}
+                .frame(width: 28)
 
-private struct WorkflowArrow: View {
-    var body: some View {
-        Image(systemName: "chevron.right")
-            .font(.title3)
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 12)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .subheader()
+                Text(description)
+                    .bodyText()
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -140,34 +133,42 @@ struct AWSServicesView: View {
             Text("Services")
                 .sectionHeader()
 
+            Text("These AWS cloud services are deployed via CDK infrastructure-as-code. The Swift Lambda function interacts with each of these services at runtime.")
+                .bodyText()
+
             VStack(spacing: 8) {
                 AWSServiceRow(
                     name: "API Gateway",
                     description: "REST API endpoint that routes HTTP requests to Lambda",
+                    details: "Provides a public HTTPS endpoint for the application. Routes incoming requests to the Lambda function based on path and HTTP method. Handles request/response transformation and provides built-in throttling and monitoring.",
                     icon: "arrow.left.arrow.right",
                     color: .purple
                 )
                 AWSServiceRow(
                     name: "Lambda",
                     description: "Serverless compute running your Swift code",
+                    details: "Executes the Swift application code in response to API Gateway requests. Scales automatically based on demand. Configured with VPC access to reach RDS and other private resources. Includes environment variables for service configuration.",
                     icon: "bolt.fill",
                     color: .orange
                 )
                 AWSServiceRow(
-                    name: "PostgreSQL (RDS)",
-                    description: "Relational database for structured data storage",
+                    name: "RDS",
+                    description: "PostgreSQL relational database for structured data",
+                    details: "Managed PostgreSQL instance running in a private subnet. Stores user data and application state. Connected via SSL/TLS with credentials managed in Secrets Manager. The Lambda function uses the Swift PostgresNIO driver to interact with the database.",
                     icon: "cylinder.fill",
                     color: .blue
                 )
                 AWSServiceRow(
                     name: "S3",
                     description: "Object storage for files and assets",
+                    details: "Stores uploaded files and binary assets. The Lambda function uses the AWS SDK for Swift to upload and download objects. Bucket is configured with appropriate IAM permissions for Lambda access.",
                     icon: "externaldrive.fill",
                     color: .green
                 )
                 AWSServiceRow(
                     name: "SQS",
                     description: "Message queue for async task processing",
+                    details: "Enables asynchronous processing of tasks. Messages can be sent from the Lambda function for background processing. Includes a Dead Letter Queue for failed message handling.",
                     icon: "tray.full.fill",
                     color: .pink
                 )
@@ -182,25 +183,51 @@ struct AWSServicesView: View {
 private struct AWSServiceRow: View {
     let name: String
     let description: String
+    let details: String
     let icon: String
     let color: Color
 
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
-                .frame(width: 28)
+    @State private var isExpanded = false
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .subheader()
-                Text(description)
-                    .bodyText()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundStyle(color)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(name)
+                            .subheader()
+                        Text(description)
+                            .bodyText()
+                    }
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .padding(12)
+                .contentShape(Rectangle())
             }
-            Spacer()
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                Text(details)
+                    .bodyText()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .padding(.leading, 40)
+            }
         }
-        .padding(12)
         .background(Color(nsColor: .windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
@@ -406,7 +433,7 @@ private struct CodeBlock: View {
 // MARK: - Previews
 
 #Preview("Overview") {
-    OverviewView(onNavigateToSetup: {})
+    OverviewView()
         .frame(width: 600, height: 500)
 }
 

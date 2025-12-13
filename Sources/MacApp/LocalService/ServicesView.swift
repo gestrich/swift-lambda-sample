@@ -239,9 +239,7 @@ struct ServicesView: View {
     private func detailView(for category: AppCategory) -> some View {
         switch category {
         case .overview:
-            OverviewView(onNavigateToSetup: {
-                selectedCategory = .docker
-            })
+            OverviewView()
         case .awsServices:
             AWSServicesView()
         case .docker:
