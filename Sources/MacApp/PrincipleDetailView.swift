@@ -60,9 +60,8 @@ struct CICDView: View {
                 deploymentSection
             }
             .padding(32)
-            .frame(maxWidth: 600, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -219,9 +218,8 @@ struct LocalDevelopmentView: View {
                 servicesSection
             }
             .padding(32)
-            .frame(maxWidth: 600, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -322,9 +320,8 @@ struct ProductionMonitoringView: View {
                 alertingSection
             }
             .padding(32)
-            .frame(maxWidth: 600, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -425,9 +422,8 @@ struct SecurityView: View {
                 authSection
             }
             .padding(32)
-            .frame(maxWidth: 600, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 

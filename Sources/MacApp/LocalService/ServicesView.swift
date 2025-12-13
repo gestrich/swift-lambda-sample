@@ -5,7 +5,6 @@ import SwiftUI
 enum AppCategory: Identifiable, Hashable {
     // Learn
     case overview
-    case projectStructure
     case awsServices
 
     // Setup (Dependencies)
@@ -25,7 +24,6 @@ enum AppCategory: Identifiable, Hashable {
     var id: String {
         switch self {
         case .overview: return "overview"
-        case .projectStructure: return "projectStructure"
         case .awsServices: return "awsServices"
         case .docker: return "docker"
         case .awsCLI: return "awsCLI"
@@ -41,7 +39,6 @@ enum AppCategory: Identifiable, Hashable {
     var title: String {
         switch self {
         case .overview: return "Overview"
-        case .projectStructure: return "Project Structure"
         case .awsServices: return "AWS Services"
         case .docker: return "Docker"
         case .awsCLI: return "AWS CLI"
@@ -57,7 +54,6 @@ enum AppCategory: Identifiable, Hashable {
     var iconName: String {
         switch self {
         case .overview: return "swift"
-        case .projectStructure: return "folder.fill"
         case .awsServices: return "cloud.fill"
         case .docker: return "shippingbox.fill"
         case .awsCLI: return "terminal.fill"
@@ -73,7 +69,6 @@ enum AppCategory: Identifiable, Hashable {
     var iconColor: Color {
         switch self {
         case .overview: return .orange
-        case .projectStructure: return .blue
         case .awsServices: return .orange
         case .docker: return .blue
         case .awsCLI: return .orange
@@ -100,7 +95,7 @@ enum AppCategory: Identifiable, Hashable {
     static func from(id: String) -> AppCategory? {
         switch id {
         case "overview": return .overview
-        case "projectStructure": return .projectStructure
+        case "projectStructure": return .overview  // Legacy: redirect to overview
         case "awsServices": return .awsServices
         case "docker": return .docker
         case "awsCLI": return .awsCLI
@@ -165,9 +160,6 @@ struct ServicesView: View {
             Section("Learn") {
                 NavigationLink(value: AppCategory.overview) {
                     categoryRow(.overview)
-                }
-                NavigationLink(value: AppCategory.projectStructure) {
-                    categoryRow(.projectStructure)
                 }
                 NavigationLink(value: AppCategory.awsServices) {
                     categoryRow(.awsServices)
@@ -249,8 +241,6 @@ struct ServicesView: View {
         switch category {
         case .overview:
             OverviewView()
-        case .projectStructure:
-            ProjectStructureView()
         case .awsServices:
             AWSServicesView()
         case .docker:
