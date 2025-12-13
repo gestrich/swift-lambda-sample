@@ -3,8 +3,9 @@ import SwiftUI
 
 /// Navigation category for the main sidebar
 enum AppCategory: Identifiable, Hashable {
-    // Getting Started
+    // Learn
     case overview
+    case awsServices
 
     // Setup (Dependencies)
     case docker
@@ -23,6 +24,7 @@ enum AppCategory: Identifiable, Hashable {
     var id: String {
         switch self {
         case .overview: return "overview"
+        case .awsServices: return "awsServices"
         case .docker: return "docker"
         case .awsCLI: return "awsCLI"
         case .cdk: return "cdk"
@@ -37,6 +39,7 @@ enum AppCategory: Identifiable, Hashable {
     var title: String {
         switch self {
         case .overview: return "Overview"
+        case .awsServices: return "AWS Services"
         case .docker: return "Docker"
         case .awsCLI: return "AWS CLI"
         case .cdk: return "AWS CDK"
@@ -51,6 +54,7 @@ enum AppCategory: Identifiable, Hashable {
     var iconName: String {
         switch self {
         case .overview: return "swift"
+        case .awsServices: return "cloud.fill"
         case .docker: return "shippingbox.fill"
         case .awsCLI: return "terminal.fill"
         case .cdk: return "square.stack.3d.up.fill"
@@ -65,6 +69,7 @@ enum AppCategory: Identifiable, Hashable {
     var iconColor: Color {
         switch self {
         case .overview: return .orange
+        case .awsServices: return .orange
         case .docker: return .blue
         case .awsCLI: return .orange
         case .cdk: return .purple
@@ -90,6 +95,7 @@ enum AppCategory: Identifiable, Hashable {
     static func from(id: String) -> AppCategory? {
         switch id {
         case "overview": return .overview
+        case "awsServices": return .awsServices
         case "docker": return .docker
         case "awsCLI": return .awsCLI
         case "cdk": return .cdk
@@ -150,9 +156,12 @@ struct ServicesView: View {
 
     private var sidebarContent: some View {
         List(selection: $selectedCategory) {
-            Section("About") {
+            Section("Learn") {
                 NavigationLink(value: AppCategory.overview) {
                     categoryRow(.overview)
+                }
+                NavigationLink(value: AppCategory.awsServices) {
+                    categoryRow(.awsServices)
                 }
                 ForEach(Principle.allCases) { principle in
                     NavigationLink(value: AppCategory.principle(principle)) {
@@ -233,6 +242,8 @@ struct ServicesView: View {
             OverviewView(onNavigateToSetup: {
                 selectedCategory = .docker
             })
+        case .awsServices:
+            AWSServicesView()
         case .docker:
             DependencyView(dependency: .docker)
         case .awsCLI:

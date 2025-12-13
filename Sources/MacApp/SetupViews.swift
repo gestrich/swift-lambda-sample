@@ -41,40 +41,168 @@ struct OverviewView: View {
             Text("About This App")
                 .sectionHeader()
 
-            Text("This app demonstrates building and deploying a complete serverless application using Swift on AWS Lambda. Explore development principles and deployment options using the sidebar navigation.")
+            Text("This app demonstrates building and deploying a complete serverless application using Swift on AWS Lambda.")
+                .bodyText()
+
+            Text("It also serves as a starting point for creating your own serverless applications. There are many decisions to make when building a Swift serverless app—infrastructure, CI/CD, local development, security, and more. This project provides sensible defaults so you can get started quickly and customize from there.")
+                .bodyText()
+
+            Text("Explore development principles and deployment options using the sidebar navigation.")
                 .bodyText()
         }
         .card()
     }
 
     private var gettingStartedSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Getting Started")
                 .sectionHeader()
 
-            HStack(spacing: 12) {
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.blue)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("To begin, install the required dependencies in the Setup section.")
-                        .bodyText()
-
-                    if let onNavigate = onNavigateToSetup {
-                        Button("Open Setup") {
-                            onNavigate()
-                        }
-                        .buttonStyle(.link)
-                    }
-                }
+            HStack(spacing: 0) {
+                Spacer()
+                WorkflowStep(icon: "book.fill", title: "Learn", color: .blue)
+                WorkflowArrow()
+                WorkflowStep(icon: "wrench.and.screwdriver.fill", title: "Setup", color: .orange)
+                WorkflowArrow()
+                WorkflowStep(icon: "arrow.up.circle.fill", title: "Deploy", color: .green)
+                Spacer()
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.vertical, 8)
         }
         .card()
+    }
+}
+
+// MARK: - Workflow Components
+
+private struct WorkflowStep: View {
+    let icon: String
+    let title: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 28))
+                .foregroundStyle(color)
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+        }
+        .frame(width: 80)
+    }
+}
+
+private struct WorkflowArrow: View {
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.title3)
+            .foregroundStyle(.tertiary)
+            .padding(.horizontal, 12)
+    }
+}
+
+// MARK: - AWS Services View
+
+struct AWSServicesView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                headerSection
+                servicesSection
+            }
+            .padding(32)
+            .frame(maxWidth: 600, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var headerSection: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "cloud.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("AWS Services")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Text("Cloud services used in this application")
+                    .bodyText()
+            }
+        }
+    }
+
+    private var servicesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Services")
+                .sectionHeader()
+
+            VStack(spacing: 8) {
+                AWSServiceRow(
+                    name: "API Gateway",
+                    description: "REST API endpoint that routes HTTP requests to Lambda",
+                    icon: "arrow.left.arrow.right",
+                    color: .purple
+                )
+                AWSServiceRow(
+                    name: "Lambda",
+                    description: "Serverless compute running your Swift code",
+                    icon: "bolt.fill",
+                    color: .orange
+                )
+                AWSServiceRow(
+                    name: "PostgreSQL (RDS)",
+                    description: "Relational database for structured data storage",
+                    icon: "cylinder.fill",
+                    color: .blue
+                )
+                AWSServiceRow(
+                    name: "S3",
+                    description: "Object storage for files and assets",
+                    icon: "externaldrive.fill",
+                    color: .green
+                )
+                AWSServiceRow(
+                    name: "SQS",
+                    description: "Message queue for async task processing",
+                    icon: "tray.full.fill",
+                    color: .pink
+                )
+            }
+        }
+        .card()
+    }
+}
+
+// MARK: - AWS Service Row
+
+private struct AWSServiceRow: View {
+    let name: String
+    let description: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .subheader()
+                Text(description)
+                    .bodyText()
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
