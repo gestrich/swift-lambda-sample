@@ -3,12 +3,14 @@ import SwiftUI
 // MARK: - Overview View
 
 struct OverviewView: View {
+    var onNavigateToSetup: (() -> Void)?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
                 aboutSection
-                dependenciesOverview
+                gettingStartedSection
             }
             .padding(32)
             .frame(maxWidth: 600, alignment: .leading)
@@ -39,54 +41,40 @@ struct OverviewView: View {
             Text("About This App")
                 .sectionHeader()
 
-            Text("This app demonstrates building and deploying a complete serverless application using Swift on AWS Lambda. Use the sidebar to learn about required dependencies, development principles, and deployment options.")
+            Text("This app demonstrates building and deploying a complete serverless application using Swift on AWS Lambda. Explore development principles and deployment options using the sidebar navigation.")
                 .bodyText()
         }
         .card()
     }
 
-    private var dependenciesOverview: some View {
+    private var gettingStartedSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Required Dependencies")
+            Text("Getting Started")
                 .sectionHeader()
 
-            VStack(spacing: 8) {
-                DependencyRow(name: "Docker", description: "Container runtime for local development", icon: "shippingbox.fill", color: .blue)
-                DependencyRow(name: "AWS CLI", description: "Command line interface for AWS services", icon: "terminal.fill", color: .orange)
-                DependencyRow(name: "AWS CDK", description: "Infrastructure as code toolkit", icon: "square.stack.3d.up.fill", color: .purple)
-                DependencyRow(name: "GitHub CLI", description: "For deployment monitoring", icon: "chevron.left.forwardslash.chevron.right", color: .primary)
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.blue)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("To begin, install the required dependencies in the Setup section.")
+                        .bodyText()
+
+                    if let onNavigate = onNavigateToSetup {
+                        Button("Open Setup") {
+                            onNavigate()
+                        }
+                        .buttonStyle(.link)
+                    }
+                }
             }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .card()
-    }
-}
-
-private struct DependencyRow: View {
-    let name: String
-    let description: String
-    let icon: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(color)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(10)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -290,7 +278,7 @@ private struct CodeBlock: View {
 // MARK: - Previews
 
 #Preview("Overview") {
-    OverviewView()
+    OverviewView(onNavigateToSetup: {})
         .frame(width: 600, height: 500)
 }
 

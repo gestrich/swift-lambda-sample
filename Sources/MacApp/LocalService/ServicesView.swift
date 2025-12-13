@@ -150,9 +150,14 @@ struct ServicesView: View {
 
     private var sidebarContent: some View {
         List(selection: $selectedCategory) {
-            Section("Getting Started") {
+            Section("About") {
                 NavigationLink(value: AppCategory.overview) {
                     categoryRow(.overview)
+                }
+                ForEach(Principle.allCases) { principle in
+                    NavigationLink(value: AppCategory.principle(principle)) {
+                        categoryRow(.principle(principle))
+                    }
                 }
             }
 
@@ -160,14 +165,6 @@ struct ServicesView: View {
                 ForEach([AppCategory.docker, .awsCLI, .cdk, .githubCLI], id: \.self) { category in
                     NavigationLink(value: category) {
                         categoryRow(category)
-                    }
-                }
-            }
-
-            Section("Development Principles") {
-                ForEach(Principle.allCases) { principle in
-                    NavigationLink(value: AppCategory.principle(principle)) {
-                        categoryRow(.principle(principle))
                     }
                 }
             }
@@ -233,7 +230,9 @@ struct ServicesView: View {
     private func detailView(for category: AppCategory) -> some View {
         switch category {
         case .overview:
-            OverviewView()
+            OverviewView(onNavigateToSetup: {
+                selectedCategory = .docker
+            })
         case .docker:
             DependencyView(dependency: .docker)
         case .awsCLI:
