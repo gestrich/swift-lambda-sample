@@ -2,6 +2,16 @@
 
 This document tracks planned improvements, known issues, and testing checklists for the Swift Lambda Sample project.
 
+## Release V1
+
+- [ ] Validate clean install experience (Both mac and CLI pathways)
+    - Add DynamoDB local instance
+- [ ] First Run walk-through
+- [ ] Principles tab
+- [ ] README and DocC (with Claude commands to maintain these)
+- [ ] Video
+- [ ] Social Media Share (LinkedIn, Swift Open Source Slack, others?)
+
 ## Clean Install Experience
 
 Need to verify the clean install experience works end-to-end. Test checklist:
@@ -55,6 +65,26 @@ TODO: Document the steps to verify fresh install works correctly.
 - [ ] Ensure a complete Github teardown
 - [ ] Delete all Github environment and passwords
 
+## SwiftDeployCLI
+
+- [ ] Make parity between CLI commands and Mac app
+
+## CLIKit
+
+- [ ] Support collecting all input/output for a single call to be used for generating bash scripts
+
+## SwiftLambda
+
+- [ ] Vend client models from APIGW rather than fluent models
+- [ ] Add bash scripts that reflect MacApp Steps
+
+## MacApp
+
+- [ ] Add first run experience
+- [ ] Add principles tab
+
 ## Documentation
 
-See [PRINCIPLES.md](PRINCIPLES.md) for tracking progress on server development principles.
+- [ ] README cleanup - consider a Claude code command to maintain this
+- [ ] CLAUDE.md cleanup - consider a Claude code command to maintain this
+- [ ] Delete old markdowns in docs/

@@ -7,15 +7,16 @@ This repository demonstrates how to build and deploy a complete serverless appli
 The project demonstrates integration with various AWS services:
 
 * **API Gateway** - HTTP/S REST API endpoints
+* **CloudWatch** - Scheduled invocations and logging
+* **DynamoDB** - DynamoDB for storgage
 * **Lambda** - Swift-based serverless compute
 * **RDS (PostgreSQL)** - Managed relational database with SSL/TLS
 * **S3** - Object storage for file operations
-* **SQS** - Message queuing with Dead Letter Queue
-* **CloudWatch** - Scheduled invocations and logging
 * **Secrets Manager** - Secure credential storage
+* **SQS** - Message queuing with Dead Letter Queue
 * **VPC** - Network isolation with public/private subnets
 
-The repository includes infrastructure-as-code using **AWS CDK (TypeScript)**, automated CI/CD via **GitHub Actions**, and a custom **SwiftDeploy CLI** for streamlined deployment management.
+The repository includes infrastructure-as-code using **AWS CDK (TypeScript)**, automated CI/CD via **GitHub Actions**, and a custom **SwiftDeploy CLI** and mac app for streamlined deployment management.
 
 ## Deployment
 
