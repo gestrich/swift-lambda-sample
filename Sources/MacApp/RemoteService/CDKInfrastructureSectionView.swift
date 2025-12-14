@@ -64,8 +64,8 @@ struct CDKInfrastructureSectionView: View {
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    // Operation-scoped output stream (client-owned)
-    @State private var operationOutput: CLIOutputStream?
+    // Persistent output stream owned by this view - accumulates across operations
+    @State private var operationOutput = CLIOutputStream()
 
     private var status: CDKInfrastructureStatus {
         service.infrastructureStatus
@@ -547,31 +547,17 @@ struct CDKInfrastructureSectionView: View {
                 }
             }
 
-            // Operation-scoped CLI output
-            if let output = operationOutput {
-                StreamingTextView(
-                    streamProvider: { await output.makeStream() }
-                )
-            }
+            // CLI output (accumulates across operations)
+            StreamingTextView(
+                streamProvider: { await operationOutput.makeStream() }
+            )
         }
     }
 
-    /// Start an operation with a client-owned output stream
+    /// Start an operation using the view's persistent output stream
     private func startOperation(_ operation: @escaping (CLIOutputStream) async throws -> Void) {
-        // 1. Client CREATES the stream
-        let stream = CLIOutputStream()
-        operationOutput = stream
-
         Task {
-            defer {
-                // 3. Client FINISHES the stream
-                Task {
-                    await stream.finishAll()
-                }
-            }
-
-            // 2. Client PASSES stream to service
-            try? await operation(stream)
+            try? await operation(operationOutput)
         }
     }
 

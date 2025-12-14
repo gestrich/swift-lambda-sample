@@ -153,47 +153,52 @@ public final class GitHubService {
     public func pushAndDeploy(output: CLIOutputStream? = nil) async throws {
         ciStatus.runDetail = nil
 
-        // Check if we have commits to push
-        let hasCommitsToPush = try await gitService.hasCommitsToPush()
+        do {
+            // Check if we have commits to push
+            let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
-        var runIdToWatch: String?
+            var runIdToWatch: String?
 
-        if hasCommitsToPush {
-            // Get the current latest run ID before pushing
-            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
+            if hasCommitsToPush {
+                // Get the current latest run ID before pushing
+                let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
 
-            ciStatus.status = .deploying(runId: "pending")
+                ciStatus.status = .deploying(runId: "pending")
 
-            try await gitService.push(output: output)
+                try await gitService.push(output: output)
 
-            // Poll for a new run to appear
-            runIdToWatch = try await waitForNewRun(
-                branch: config.branch,
-                afterRunId: beforeRunId
-            )
-        } else {
-            // No commits to push - trigger workflow manually
-            ciStatus.status = .deploying(runId: "pending")
+                // Poll for a new run to appear
+                runIdToWatch = try await waitForNewRun(
+                    branch: config.branch,
+                    afterRunId: beforeRunId
+                )
+            } else {
+                // No commits to push - trigger workflow manually
+                ciStatus.status = .deploying(runId: "pending")
 
-            try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: config.branch, output: output)
+                try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: config.branch, output: output)
 
-            // Wait for the triggered run to appear
-            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
-            try await Task.sleep(for: .seconds(2))
-            runIdToWatch = try await waitForNewRun(
-                branch: config.branch,
-                afterRunId: beforeRunId
-            )
+                // Wait for the triggered run to appear
+                let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
+                try await Task.sleep(for: .seconds(2))
+                runIdToWatch = try await waitForNewRun(
+                    branch: config.branch,
+                    afterRunId: beforeRunId
+                )
+            }
+
+            guard let runId = runIdToWatch else {
+                throw DeployError.deploymentFailed(reason: "Could not find new workflow run")
+            }
+
+            ciStatus.status = .deploying(runId: runId)
+
+            // Monitor the workflow until completion
+            await monitorWorkflowRun(runId: runId)
+        } catch {
+            ciStatus.status = .failed(runId: "", reason: error.localizedDescription)
+            throw error
         }
-
-        guard let runId = runIdToWatch else {
-            throw DeployError.deploymentFailed(reason: "Could not find new workflow run")
-        }
-
-        ciStatus.status = .deploying(runId: runId)
-
-        // Monitor the workflow until completion
-        await monitorWorkflowRun(runId: runId)
     }
 
     /// Open workflow logs in browser

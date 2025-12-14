@@ -54,8 +54,8 @@ struct GitHubCISectionView: View {
     @State private var currentTime = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    // Operation-scoped output stream (client-owned)
-    @State private var operationOutput: CLIOutputStream?
+    // Persistent output stream owned by this view - accumulates across operations
+    @State private var operationOutput = CLIOutputStream()
 
     private var ciStatus: GitHubCIStatus {
         service.ciStatus
@@ -447,20 +447,8 @@ struct GitHubCISectionView: View {
             HStack(spacing: 12) {
                 // Push & Deploy button
                 Button {
-                    // 1. Client CREATES the stream
-                    let stream = CLIOutputStream()
-                    operationOutput = stream
-
                     Task {
-                        defer {
-                            // 4. Client FINISHES the stream
-                            Task {
-                                await stream.finishAll()
-                            }
-                        }
-
-                        // 2. Client PASSES stream to service
-                        try? await service.pushAndDeploy(output: stream)
+                        try? await service.pushAndDeploy(output: operationOutput)
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -485,12 +473,10 @@ struct GitHubCISectionView: View {
                 }
             }
 
-            // 3. Client CONSUMES stream via StreamingTextView
-            if let output = operationOutput {
-                StreamingTextView(
-                    streamProvider: { await output.makeStream() }
-                )
-            }
+            // CLI output (accumulates across operations)
+            StreamingTextView(
+                streamProvider: { await operationOutput.makeStream() }
+            )
         }
     }
 
