@@ -1,3 +1,4 @@
+import CLIKit
 import SwiftDeploy
 import SwiftUI
 
@@ -52,6 +53,9 @@ struct GitHubCISectionView: View {
     // Timer for updating elapsed time display
     @State private var currentTime = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    // Operation-scoped output stream (client-owned)
+    @State private var operationOutput: CLIOutputStream?
 
     private var ciStatus: GitHubCIStatus {
         service.ciStatus
@@ -439,30 +443,53 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        HStack(spacing: 12) {
-            // Push & Deploy button
-            Button {
-                Task { try? await service.pushAndDeploy() }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.circle")
-                    Text(buttonLabel)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!ciStatus.status.canDeploy)
-
-            // View Logs button
-            if let runId = ciStatus.status.runId {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                // Push & Deploy button
                 Button {
-                    Task { try? await service.viewWorkflowLogs(runId: runId) }
+                    // 1. Client CREATES the stream
+                    let stream = CLIOutputStream()
+                    operationOutput = stream
+
+                    Task {
+                        defer {
+                            // 4. Client FINISHES the stream
+                            Task {
+                                await stream.finishAll()
+                            }
+                        }
+
+                        // 2. Client PASSES stream to service
+                        try? await service.pushAndDeploy(output: stream)
+                    }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "doc.text")
-                        Text("View Logs")
+                        Image(systemName: "arrow.up.circle")
+                        Text(buttonLabel)
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .disabled(!ciStatus.status.canDeploy)
+
+                // View Logs button
+                if let runId = ciStatus.status.runId {
+                    Button {
+                        Task { try? await service.viewWorkflowLogs(runId: runId) }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.text")
+                            Text("View Logs")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            // 3. Client CONSUMES stream via StreamingTextView
+            if let output = operationOutput {
+                StreamingTextView(
+                    streamProvider: { await output.makeStream() }
+                )
             }
         }
     }

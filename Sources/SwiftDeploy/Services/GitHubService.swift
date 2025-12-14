@@ -150,7 +150,7 @@ public final class GitHubService {
     }
 
     /// Push commits and deploy via GitHub Actions with polling progress
-    public func pushAndDeploy() async throws {
+    public func pushAndDeploy(output: CLIOutputStream? = nil) async throws {
         ciStatus.runDetail = nil
 
         // Check if we have commits to push
@@ -164,7 +164,7 @@ public final class GitHubService {
 
             ciStatus.status = .deploying(runId: "pending")
 
-            try await gitService.push()
+            try await gitService.push(output: output)
 
             // Poll for a new run to appear
             runIdToWatch = try await waitForNewRun(
@@ -175,7 +175,7 @@ public final class GitHubService {
             // No commits to push - trigger workflow manually
             ciStatus.status = .deploying(runId: "pending")
 
-            try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: config.branch)
+            try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: config.branch, output: output)
 
             // Wait for the triggered run to appear
             let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id

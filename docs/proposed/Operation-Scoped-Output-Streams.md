@@ -561,11 +561,13 @@ Create a dedicated test service and view to verify the architecture before migra
 
 ---
 
-### Phase 5: Migrate GitHubService
+### Phase 5: Migrate GitHubService ✅ COMPLETE
 
-- [ ] Add `output` parameter to `GitHubService.pushAndDeploy()`
-- [ ] Thread `output` to child service calls (GitService, GitHubCLIService)
-- [ ] Update `LambdaUpdateView` to use operation-scoped output
+- [x] Add `output` parameter to `GitHubService.pushAndDeploy()`
+- [x] Thread `output` to child service calls (GitService, GitHubCLIService)
+- [x] Update `GitHubCISectionView` to use operation-scoped output
+
+**Result**: GitHubService.pushAndDeploy() now threads the client-owned output stream to git push and workflow trigger operations. GitHubCISectionView creates and manages the stream, displaying operation-specific CLI output below the action buttons.
 
 ---
 
