@@ -419,6 +419,29 @@ struct AWSServicesView: View {
     }
 }
 
+// MARK: - Installation Method
+
+struct InstallationMethod: Identifiable {
+    let id = UUID()
+    let name: String
+    let icon: String
+    let commandString: String?
+    let downloadURL: String?
+    let note: String?
+
+    static func homebrew(_ command: String) -> InstallationMethod {
+        InstallationMethod(name: "Homebrew", icon: "mug.fill", commandString: command, downloadURL: nil, note: nil)
+    }
+
+    static func npm(_ command: String, note: String? = nil) -> InstallationMethod {
+        InstallationMethod(name: "npm", icon: "shippingbox.fill", commandString: command, downloadURL: nil, note: note)
+    }
+
+    static func download(_ name: String, url: String, note: String? = nil) -> InstallationMethod {
+        InstallationMethod(name: name, icon: "arrow.down.circle.fill", commandString: nil, downloadURL: url, note: note)
+    }
+}
+
 // MARK: - Dependency Model
 
 enum Dependency {
@@ -461,48 +484,42 @@ enum Dependency {
         case .awsCLI:
             return "The AWS CLI is used for deploying Lambda code and interacting with AWS services."
         case .cdk:
-            return "AWS CDK (Cloud Development Kit) is used to define and deploy the infrastructure as TypeScript code. Requires Node.js and npm."
+            return "AWS CDK (Cloud Development Kit) is used to define and deploy the infrastructure as TypeScript code."
         case .githubCLI:
             return "The GitHub CLI (gh) is used for monitoring GitHub Actions deployment workflows."
         }
     }
 
-    var installCommand: any CLICommand {
+    var installationMethods: [InstallationMethod] {
         switch self {
         case .docker:
-            return Brew.Install(cask: true, package: "docker")
+            return [
+                .download("Docker Desktop", url: "https://docs.docker.com/desktop/install/mac-install/", note: "Recommended for macOS"),
+                .homebrew("brew install --cask docker")
+            ]
         case .awsCLI:
-            return Brew.Install(package: "awscli")
+            return [
+                .homebrew("brew install awscli"),
+                .download("macOS PKG Installer", url: "https://awscli.amazonaws.com/AWSCLIV2.pkg", note: "Official AWS installer")
+            ]
         case .cdk:
-            return Npm.Install(global: true, package: "aws-cdk")
+            return [
+                .npm("npm install -g aws-cdk", note: "Requires Node.js. Install via: brew install node"),
+            ]
         case .githubCLI:
-            return Brew.Install(package: "gh")
+            return [
+                .homebrew("brew install gh"),
+                .download("Binary Releases", url: "https://github.com/cli/cli/releases", note: "Download from GitHub")
+            ]
         }
     }
 
-    var verifyCommand: any CLICommand {
+    var verifyCommand: String {
         switch self {
-        case .docker:
-            return Docker.Version()
-        case .awsCLI:
-            return Aws.Version()
-        case .cdk:
-            return Cdk.Version()
-        case .githubCLI:
-            return Gh.Version()
-        }
-    }
-
-    var uninstallCommand: any CLICommand {
-        switch self {
-        case .docker:
-            return Brew.Uninstall(cask: true, package: "docker")
-        case .awsCLI:
-            return Brew.Uninstall(package: "awscli")
-        case .cdk:
-            return Npm.Uninstall(global: true, package: "aws-cdk")
-        case .githubCLI:
-            return Brew.Uninstall(package: "gh")
+        case .docker: return "docker --version"
+        case .awsCLI: return "aws --version"
+        case .cdk: return "cdk --version"
+        case .githubCLI: return "gh --version"
         }
     }
 
@@ -526,8 +543,6 @@ struct DependencyView: View {
     let dependency: Dependency
     let statusService: DependencyStatusService
 
-    @State private var showCommandsSheet = false
-
     private var cliService: CLIService {
         statusService.cliService
     }
@@ -547,15 +562,13 @@ struct DependencyView: View {
                 headerSection
                 statusSection
                 descriptionSection
-                documentationSection
+                installationSection
+                verifySection
             }
             .padding(32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
-        .sheet(isPresented: $showCommandsSheet) {
-            DependencyCommandsSheet(dependency: dependency, cliService: cliService, statusService: statusService)
-        }
     }
 
     private var headerSection: some View {
@@ -563,10 +576,6 @@ struct DependencyView: View {
             Image(systemName: dependency.iconName)
                 .font(.system(size: 40))
                 .foregroundStyle(dependency.iconColor)
-                .onLongPressGesture {
-                    showCommandsSheet = true
-                }
-                .help("Long press for developer commands")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(dependency.title)
@@ -689,244 +698,120 @@ struct DependencyView: View {
         .card()
     }
 
-    private var documentationSection: some View {
+    private var installationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Installation")
+            Text("Installation Options")
                 .sectionHeader()
 
-            Text("Follow the official documentation to install this dependency:")
-                .bodyText()
+            ForEach(dependency.installationMethods) { method in
+                InstallationMethodRow(method: method)
+            }
 
             Link(destination: URL(string: dependency.documentationURL)!) {
                 HStack(spacing: 8) {
                     Image(systemName: "book.fill")
-                    Text("View Installation Guide")
+                    Text("View Official Documentation")
                     Spacer()
                     Image(systemName: "arrow.up.right")
                 }
-                .font(.body)
-                .padding(12)
-                .background(Color.accentColor.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .card()
+    }
+
+    private var verifySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Verify Installation")
+                .sectionHeader()
+
+            Text("Run this command in Terminal to verify:")
+                .bodyText()
+
+            CopyableCodeBlock(code: dependency.verifyCommand)
         }
         .card()
     }
 }
 
-// MARK: - Dependency Commands Sheet (Secret Developer View)
+// MARK: - Installation Method Row
 
-private struct DependencyCommandsSheet: View {
-    let dependency: Dependency
-    let cliService: CLIService
-    let statusService: DependencyStatusService
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                Text("Developer Commands")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-            .background(Color(nsColor: .windowBackgroundColor))
-
-            Divider()
-
-            // Content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("These commands assume Homebrew (brew) and npm are installed.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-
-                    // Install
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Install")
-                            .font(.headline)
-                        RunnableCommandView(command: dependency.installCommand, cliService: cliService, onComplete: refreshStatus)
-                    }
-
-                    // Verify
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Verify Installation")
-                            .font(.headline)
-                        RunnableCommandView(command: dependency.verifyCommand, cliService: cliService, onComplete: refreshStatus)
-                    }
-
-                    // Uninstall
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Uninstall")
-                            .font(.headline)
-                        RunnableCommandView(command: dependency.uninstallCommand, cliService: cliService, onComplete: refreshStatus)
-                    }
-                }
-                .padding()
-            }
-        }
-        .frame(width: 500, height: 450)
-    }
-
-    private func refreshStatus() async {
-        switch dependency {
-        case .docker:
-            await statusService.checkDocker()
-        case .awsCLI:
-            await statusService.checkAWSCLI()
-        case .cdk:
-            await statusService.checkCDK()
-        case .githubCLI:
-            await statusService.checkGitHubCLI()
-        }
-    }
-}
-
-// MARK: - Runnable Command View
-
-/// A command block that can be run with streaming output display
-struct RunnableCommandView: View {
-    let command: any CLICommand
-    let cliService: CLIService
-    var onComplete: (() async -> Void)? = nil
-
-    @State private var isRunning = false
-    @State private var outputText = ""
-    @State private var exitCode: Int32?
-
-    private var commandString: String {
-        command.commandString
-    }
+private struct InstallationMethodRow: View {
+    let method: InstallationMethod
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Command display with buttons
-            HStack(spacing: 0) {
-                // Run button on the left
-                Button {
-                    Task {
-                        await runCommand()
-                    }
-                } label: {
-                    Group {
-                        if isRunning {
-                            ProgressView()
-                                .scaleEffect(0.6)
-                                .frame(width: 16, height: 16)
-                        } else {
-                            Image(systemName: "play.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(width: 40, height: 40)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(isRunning)
-                .help("Run command")
+            HStack(spacing: 8) {
+                Image(systemName: method.icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
 
-                // Command text
-                Text(commandString)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.2))
+                Text(method.name)
+                    .font(.headline)
 
-                // Copy button on the right
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(commandString, forType: .string)
-                } label: {
-                    Image(systemName: "doc.on.doc")
+                if let note = method.note {
+                    Text("— \(note)")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
-                .help("Copy to clipboard")
-                .padding(.trailing, 12)
             }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            // Output section (shown when running or has output)
-            if isRunning || !outputText.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        if isRunning {
-                            ProgressView()
-                                .scaleEffect(0.5)
-                                .frame(width: 14, height: 14)
-                        } else if let code = exitCode {
-                            Image(systemName: code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(code == 0 ? .green : .red)
-                        }
-                        Text(isRunning ? "Running..." : "Output")
+            if let command = method.commandString {
+                CopyableCodeBlock(code: command)
+            }
+
+            if let url = method.downloadURL {
+                Link(destination: URL(string: url)!) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle.fill")
+                        Text("Download")
+                        Image(systemName: "arrow.up.right")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        if !isRunning && !outputText.isEmpty {
-                            Button("Clear") {
-                                outputText = ""
-                                exitCode = nil
-                            }
-                            .font(.caption2)
-                            .buttonStyle(.borderless)
-                        }
                     }
-
-                    ScrollView {
-                        Text(outputText.isEmpty ? " " : outputText)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.primary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
-                    }
-                    .frame(maxHeight: 150)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .font(.subheadline)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.accentColor.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
-                .padding(.leading, 12)
+                .buttonStyle(.plain)
             }
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
+}
 
-    private func runCommand() async {
-        isRunning = true
-        outputText = ""
-        exitCode = nil
+// MARK: - Copyable Code Block
 
-        // Use stream() for real-time output with typed command
-        let stream = await cliService.stream(command)
+struct CopyableCodeBlock: View {
+    let code: String
 
-        for await output in stream {
-            switch output {
-            case .command(_, let text):
-                outputText += text
-            case .stdout(_, let text):
-                outputText += text
-            case .stderr(_, let text):
-                outputText += text
-            case .exit(_, let code):
-                exitCode = code
-            case .error(_, let error):
-                outputText += "Error: \(error.localizedDescription)\n"
-                exitCode = 1
+    var body: some View {
+        HStack {
+            Text(code)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+
+            Spacer()
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(code, forType: .string)
+            } label: {
+                Image(systemName: "doc.on.doc")
             }
+            .buttonStyle(.borderless)
+            .help("Copy to clipboard")
         }
-
-        isRunning = false
-
-        if let onComplete {
-            await onComplete()
-        }
+        .padding(12)
+        .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
