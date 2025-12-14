@@ -11,7 +11,7 @@ class AppModel {
 
     /// All services are created at app startup. The active mode determines which is in use.
     let remoteService: RemoteModel
-    let xcodeLocalService: XcodeLocalServiceModel
+    let xcodeLocalService: XcodeLocalModel
     let linuxLocalService: LinuxLocalServiceModel
 
     /// Model for checking dependency installation status
@@ -51,7 +51,7 @@ class AppModel {
 
         // Create all services eagerly at startup
         let remote = RemoteModel(workingDirectory: projectDirectory)
-        let xcode = XcodeLocalServiceModel(workingDirectory: projectDirectory)
+        let xcode = XcodeLocalModel(workingDirectory: projectDirectory)
         let linux = LinuxLocalServiceModel(workingDirectory: projectDirectory)
 
         self.remoteService = remote
@@ -68,7 +68,7 @@ class AppModel {
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? "remote"
         let initialMode: ConnectionMode
         switch savedKey {
-        case XcodeLocalServiceModel.persistenceKey:
+        case XcodeLocalModel.persistenceKey:
             initialMode = .localXcode(xcode)
         case LinuxLocalServiceModel.persistenceKey:
             initialMode = .localLinux(linux)
@@ -164,14 +164,14 @@ class AppModel {
 @MainActor
 enum ConnectionMode {
     case remote(RemoteModel)
-    case localXcode(XcodeLocalServiceModel)
+    case localXcode(XcodeLocalModel)
     case localLinux(LinuxLocalServiceModel)
 
     /// Persistence key for saving/restoring mode selection
     var persistenceKey: String {
         switch self {
         case .remote: return RemoteModel.persistenceKey
-        case .localXcode: return XcodeLocalServiceModel.persistenceKey
+        case .localXcode: return XcodeLocalModel.persistenceKey
         case .localLinux: return LinuxLocalServiceModel.persistenceKey
         }
     }

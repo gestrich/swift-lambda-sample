@@ -105,9 +105,10 @@ This creates issues:
 
 ---
 
-## 3. XcodeLocalServiceModel
+## 3. XcodeLocalServiceModel ✅ COMPLETED
 
-**Current Location:** `Sources/SwiftDeploy/Models/XcodeLocalServiceModel.swift` (~800 lines)
+**Current Location:** `Sources/MacApp/Models/XcodeLocalModel.swift` (slimmed down)
+**Service Location:** `Sources/SwiftDeploy/Services/XcodeLocalDevelopmentService.swift`
 
 **Analysis:**
 - State: `statusSubject`, `isLoadingStatusSubject`, `isTransitioning`, `buildState`, `lambdaState`
@@ -121,7 +122,7 @@ This creates issues:
 
 **Refactor Plan:**
 
-### [ ] 3.1 Create XcodeLocalDevelopmentService (high-level facade)
+### [x] 3.1 Create XcodeLocalDevelopmentService (high-level facade)
 - Location: `Sources/SwiftDeploy/Services/XcodeLocalDevelopmentService.swift`
 - Stateless facade for Xcode local development
 - Methods:
@@ -132,27 +133,27 @@ This creates issues:
   - `func stopWithServices() async throws`
   - `func startAllServices() async throws`
   - `func stopAllServices() async throws`
-  - `func getStatus() async throws -> DeploymentStatus`
-  - `func testEndpoints() async throws`
+  - `func status() async throws -> DeploymentStatus`
+  - `func testLambda() async throws`
 
-### [ ] 3.2 Update CLI LocalMacCommand to use XcodeLocalDevelopmentService
+### [x] 3.2 Update CLI LocalMacCommand to use XcodeLocalDevelopmentService
 - Each subcommand: create service, call one method, print result
 - Remove direct Model instantiation
 
-### [ ] 3.3 Slim down XcodeLocalServiceModel → XcodeLocalModel
-- Rename to `XcodeLocalModel` (drop "Service")
-- Move to `Sources/MacApp/Models/XcodeLocalModel.swift`
-- Keep only:
+### [x] 3.3 Slim down XcodeLocalServiceModel → XcodeLocalModel
+- Renamed to `XcodeLocalModel` (dropped "Service")
+- Moved to `Sources/MacApp/Models/XcodeLocalModel.swift`
+- Keeps only:
   - Observable state (`buildState`, `lambdaState`, publishers)
   - `refreshStatus()` - updates state
   - State transition flags (`isTransitioning`)
-- Delegate operations to `XcodeLocalDevelopmentService`
+- Delegates operations to `XcodeLocalDevelopmentService`
 
-### [ ] 3.4 Update MacApp references
-- Update `AppModel`
-- Update `LocalServicesModel` usage
+### [x] 3.4 Update MacApp references
+- Updated `AppModel`
+- Updated `ConnectionMode` enum
 
-### [ ] 3.5 Verify build
+### [x] 3.5 Verify build
 
 ---
 
@@ -222,7 +223,29 @@ SwiftDeploy/Models/
 CLI → Model → sub-services
 ```
 
-### After
+### Current State (Phase 3 Complete)
+```
+SwiftDeploy/Services/
+├── RemoteDeploymentService.swift       (stateless facade) ✅
+├── XcodeLocalDevelopmentService.swift  (stateless facade) ✅
+├── LinuxLocalDevelopmentService.swift  (stateless facade) - TODO
+├── DependencyCheckerService.swift      (stateless) ✅
+└── ... (existing services)
+
+SwiftDeploy/Models/
+└── LinuxLocalServiceModel.swift  (state + logic mixed) - TODO
+
+MacApp/Models/
+├── RemoteModel.swift           (@Observable state only) ✅
+├── XcodeLocalModel.swift       (@Observable state only) ✅
+├── LinuxLocalModel.swift       (@Observable state only) - TODO
+└── DependencyStatusModel.swift (@Observable state only) ✅
+
+CLI → Service (single call)
+MacApp View → Model → Service
+```
+
+### After (Target)
 ```
 SwiftDeploy/Services/
 ├── RemoteDeploymentService.swift       (stateless facade)

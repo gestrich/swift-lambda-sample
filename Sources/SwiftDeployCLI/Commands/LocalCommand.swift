@@ -42,8 +42,7 @@ extension LocalMacCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let clean = self.clean
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.build(clean: clean)
         }
     }
@@ -56,7 +55,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startLambda()
         }
     }
@@ -69,7 +68,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopLambda()
         }
     }
@@ -82,7 +81,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startWithServices()
         }
     }
@@ -95,7 +94,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopWithServices()
         }
     }
@@ -108,7 +107,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startDatabase()
         }
     }
@@ -121,7 +120,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopDatabase()
         }
     }
@@ -134,7 +133,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startDynamoDB()
         }
     }
@@ -147,7 +146,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopDynamoDB()
         }
     }
@@ -160,7 +159,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startS3()
         }
     }
@@ -173,7 +172,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopS3()
         }
     }
@@ -186,7 +185,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.testLambda()
         }
     }
@@ -199,7 +198,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let status = try await service.status()
             printStatus(status, mode: "Mac (Native)")
         }
@@ -213,7 +212,7 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.copyConfig()
         }
     }
@@ -458,8 +457,8 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            // Reuse XcodeLocalServiceModel for config copy - same operation
-            let service = await MainActor.run { XcodeLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            // Reuse XcodeLocalDevelopmentService for config copy - same operation
+            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.copyConfig()
         }
     }
