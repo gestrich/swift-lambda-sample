@@ -29,11 +29,20 @@ public protocol LocalService: LambdaService {
     /// Stop PostgreSQL database
     func stopDatabase() async throws
 
+    /// Start DynamoDB Local
+    func startDynamoDB() async throws
+
+    /// Stop DynamoDB Local
+    func stopDynamoDB() async throws
+
     /// Data directory for S3 (MinIO) - for UI to show "Open in Finder" button
     var s3DataDirectory: String { get }
 
     /// Data directory for PostgreSQL - for UI to show "Open in Finder" button
     var postgresDataDirectory: String { get }
+
+    /// Data directory for DynamoDB Local - for UI to show "Open in Finder" button
+    var dynamodbDataDirectory: String { get }
 
     // MARK: - Build
 
@@ -124,12 +133,13 @@ extension LocalService {
         print("🔄 startIfNecessary called")
         do {
             let currentStatus = try await status()
-            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState)")
+            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState), DynamoDB: \(currentStatus.dynamodbState)")
 
             // Start if any service is stopped
             let anyServiceStopped = currentStatus.lambdaState == .stopped ||
                                     currentStatus.s3State == .stopped ||
-                                    currentStatus.postgresState == .stopped
+                                    currentStatus.postgresState == .stopped ||
+                                    currentStatus.dynamodbState == .stopped
 
             if anyServiceStopped {
                 print("🔄 Starting services (some are stopped)...")

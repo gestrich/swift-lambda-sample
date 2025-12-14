@@ -19,6 +19,7 @@ enum LambdaExecutionContext {
 func createEnvironmentVariables(
     postgresService: PostgreSQLService,
     minioService: MinIOService,
+    dynamodbService: DynamoDBLocalService? = nil,
     context: LambdaExecutionContext = .container
 ) -> [String: String] {
     let postgresInfo = postgresService.connectionInfo
@@ -29,6 +30,8 @@ func createEnvironmentVariables(
     let postgresPort: Int
     let minioHost: String
     let minioPort: Int
+    let dynamodbHost: String
+    let dynamodbPort: Int
 
     switch context {
     case .xcode:
@@ -37,6 +40,8 @@ func createEnvironmentVariables(
         postgresPort = postgresInfo.port  // External/host port
         minioHost = "localhost"
         minioPort = minioService.s3Port  // External/host port
+        dynamodbHost = "localhost"
+        dynamodbPort = dynamodbService?.connectionInfo.port ?? 8000
     case .container:
         // Container connects via Docker network DNS (container names)
         // Use internal ports since we're connecting container-to-container
@@ -44,9 +49,11 @@ func createEnvironmentVariables(
         postgresPort = postgresInfo.internalPort  // Internal port (always 5432)
         minioHost = minioService.minioContainerName
         minioPort = minioService.internalS3Port  // Internal port (always 9000)
+        dynamodbHost = dynamodbService?.connectionInfo.containerName ?? "dynamodb-linux"
+        dynamodbPort = 8000  // DynamoDB Local always uses internal port 8000
     }
 
-    return [
+    var env: [String: String] = [
         // PostgreSQL configuration
         "POSTGRES_HOST": postgresHost,
         "POSTGRES_PORT": "\(postgresPort)",
@@ -63,6 +70,11 @@ func createEnvironmentVariables(
         "AWS_REGION": minioCreds.region,
         "AWS_DEFAULT_REGION": minioCreds.region,
 
+        // DynamoDB configuration (always included for local development)
+        "DYNAMODB_ENDPOINT": "http://\(dynamodbHost):\(dynamodbPort)",
+        "DYNAMODB_TABLE_NAME": "Reminders",
+        "DYNAMODB_AWS_REGION": minioCreds.region,
+
         // Disable AWS credential chain for local testing
         "AWS_EC2_METADATA_DISABLED": "true",
         "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",  // Disable ECS credentials
@@ -72,4 +84,6 @@ func createEnvironmentVariables(
         "LOCAL_LAMBDA_SERVER_ENABLED": "true",
         "LOCAL_LAMBDA_HOST": "0.0.0.0"
     ]
+
+    return env
 }

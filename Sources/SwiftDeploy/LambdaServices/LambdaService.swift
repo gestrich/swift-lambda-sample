@@ -102,31 +102,36 @@ public struct DeploymentStatus: Sendable {
     public let lambdaState: ServiceState
     public let s3State: ServiceState
     public let postgresState: ServiceState
+    public let dynamodbState: ServiceState
 
-    public init(lambdaState: ServiceState, s3State: ServiceState, postgresState: ServiceState) {
+    public init(lambdaState: ServiceState, s3State: ServiceState, postgresState: ServiceState, dynamodbState: ServiceState = .stopped) {
         self.lambdaState = lambdaState
         self.s3State = s3State
         self.postgresState = postgresState
+        self.dynamodbState = dynamodbState
     }
 
     /// All services stopped
     public static let stopped = DeploymentStatus(
         lambdaState: .stopped,
         s3State: .stopped,
-        postgresState: .stopped
+        postgresState: .stopped,
+        dynamodbState: .stopped
     )
 
     /// All services stopping
     public static let stopping = DeploymentStatus(
         lambdaState: .stopping,
         s3State: .stopping,
-        postgresState: .stopping
+        postgresState: .stopping,
+        dynamodbState: .stopping
     )
 
     /// All services starting
     public static let starting = DeploymentStatus(
         lambdaState: .starting,
         s3State: .starting,
-        postgresState: .starting
+        postgresState: .starting,
+        dynamodbState: .starting
     )
 }

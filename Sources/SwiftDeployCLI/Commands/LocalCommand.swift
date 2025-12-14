@@ -15,11 +15,13 @@ struct LocalMacCommand: AsyncParsableCommand {
             StartAllCommand.self,
             StartCommand.self,
             StartDatabaseCommand.self,
+            StartDynamoDBCommand.self,
             StartS3Command.self,
             StatusCommand.self,
             StopAllCommand.self,
             StopCommand.self,
             StopDatabaseCommand.self,
+            StopDynamoDBCommand.self,
             StopS3Command.self,
             TestCommand.self
         ]
@@ -124,6 +126,32 @@ extension LocalMacCommand {
         }
     }
 
+    /// Start DynamoDB Local
+    struct StartDynamoDBCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-dynamodb",
+            abstract: "Start local DynamoDB"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.startDynamoDB()
+        }
+    }
+
+    /// Stop DynamoDB Local
+    struct StopDynamoDBCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-dynamodb",
+            abstract: "Stop local DynamoDB"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { XcodeLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.stopDynamoDB()
+        }
+    }
+
     /// Start MinIO S3
     struct StartS3Command: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -206,11 +234,13 @@ struct LocalLinuxCommand: AsyncParsableCommand {
             StartAllCommand.self,
             StartCommand.self,
             StartDatabaseCommand.self,
+            StartDynamoDBCommand.self,
             StartS3Command.self,
             StatusCommand.self,
             StopAllCommand.self,
             StopCommand.self,
             StopDatabaseCommand.self,
+            StopDynamoDBCommand.self,
             StopS3Command.self,
             TestCommand.self
         ]
@@ -315,6 +345,32 @@ extension LocalLinuxCommand {
         }
     }
 
+    /// Start DynamoDB Local
+    struct StartDynamoDBCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "start-dynamodb",
+            abstract: "Start local DynamoDB"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.startDynamoDB()
+        }
+    }
+
+    /// Stop DynamoDB Local
+    struct StopDynamoDBCommand: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "stop-dynamodb",
+            abstract: "Stop local DynamoDB"
+        )
+
+        func run() async throws {
+            let service = await MainActor.run { LinuxLocalService(workingDirectory: FileManager.default.currentDirectoryPath) }
+            try await service.stopDynamoDB()
+        }
+    }
+
     /// Start MinIO S3
     struct StartS3Command: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
@@ -416,6 +472,7 @@ private func printStatus(_ status: DeploymentStatus, mode: String) {
     let lambdaIcon = status.lambdaState == .running ? "✅" : "⏹️"
     let s3Icon = status.s3State == .running ? "✅" : "⏹️"
     let postgresIcon = status.postgresState == .running ? "✅" : "⏹️"
+    let dynamodbIcon = status.dynamodbState == .running ? "✅" : "⏹️"
 
     print("")
     print("📊 Services Status (\(mode))")
@@ -423,5 +480,6 @@ private func printStatus(_ status: DeploymentStatus, mode: String) {
     print("\(lambdaIcon) Lambda:     \(status.lambdaState)")
     print("\(s3Icon) S3:         \(status.s3State)")
     print("\(postgresIcon) PostgreSQL: \(status.postgresState)")
+    print("\(dynamodbIcon) DynamoDB:   \(status.dynamodbState)")
     print("")
 }

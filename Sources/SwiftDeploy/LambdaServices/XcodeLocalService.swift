@@ -14,6 +14,7 @@ public class XcodeLocalService: LocalService {
 
     private let postgresService: PostgreSQLService
     private let minioService: MinIOService
+    private let dynamodbService: DynamoDBLocalService
 
     // Lambda configuration
     private let lambdaHostPort = 8080
@@ -93,6 +94,11 @@ public class XcodeLocalService: LocalService {
             config: .xcode,
             storageService: storageService
         )
+        self.dynamodbService = DynamoDBLocalService(
+            dockerService: dockerService,
+            config: .xcode,
+            storageService: storageService
+        )
 
         // Check for existing build artifacts
         refreshBuildStatus()
@@ -100,7 +106,7 @@ public class XcodeLocalService: LocalService {
 
     // MARK: - Service Management
 
-    /// Start all services (PostgreSQL + MinIO)
+    /// Start all services (PostgreSQL + MinIO + DynamoDB)
     /// Services persist between mode switches - only starts if not already running
     public func startAllServices() async throws {
         try await dockerService.ensureDockerRunning()
@@ -117,12 +123,19 @@ public class XcodeLocalService: LocalService {
         } else {
             print("✓ PostgreSQL (xcode) already running")
         }
+
+        if !(try await dynamodbService.isRunning()) {
+            try await dynamodbService.start()
+        } else {
+            print("✓ DynamoDB Local (xcode) already running")
+        }
     }
 
     /// Stop all services
     public func stopAllServices() async throws {
         try await minioService.stop()
         try await postgresService.stop()
+        try await dynamodbService.stop()
     }
 
     /// Start MinIO S3 service
@@ -152,6 +165,17 @@ public class XcodeLocalService: LocalService {
         try await postgresService.stop()
     }
 
+    /// Start DynamoDB Local
+    public func startDynamoDB() async throws {
+        try await dockerService.ensureDockerRunning()
+        try await dynamodbService.start()
+    }
+
+    /// Stop DynamoDB Local
+    public func stopDynamoDB() async throws {
+        try await dynamodbService.stop()
+    }
+
     /// Data directory for S3 (MinIO)
     public var s3DataDirectory: String {
         storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
@@ -160,6 +184,11 @@ public class XcodeLocalService: LocalService {
     /// Data directory for PostgreSQL
     public var postgresDataDirectory: String {
         storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
+    }
+
+    /// Data directory for DynamoDB Local
+    public var dynamodbDataDirectory: String {
+        storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
     }
 
     // MARK: - LambdaService Protocol: Build
@@ -464,12 +493,13 @@ public class XcodeLocalService: LocalService {
 
         do {
             let currentStatus = try await status()
-            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState)")
+            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState), DynamoDB: \(currentStatus.dynamodbState)")
 
             // Start if any service is stopped
             let anyServiceStopped = currentStatus.lambdaState == .stopped ||
                                     currentStatus.s3State == .stopped ||
-                                    currentStatus.postgresState == .stopped
+                                    currentStatus.postgresState == .stopped ||
+                                    currentStatus.dynamodbState == .stopped
 
             if anyServiceStopped {
                 print("🔄 Starting services (some are stopped)...")
@@ -564,7 +594,7 @@ public class XcodeLocalService: LocalService {
 
     // MARK: - LambdaService Protocol: Status
 
-    /// Get the status of all services (Lambda, S3, PostgreSQL)
+    /// Get the status of all services (Lambda, S3, PostgreSQL, DynamoDB)
     public func status() async throws -> DeploymentStatus {
         // Check Lambda (native process on port)
         let lambdaRunning = await isLambdaRunning()
@@ -575,10 +605,14 @@ public class XcodeLocalService: LocalService {
         // Check PostgreSQL
         let postgresRunning = try await postgresService.isRunning()
 
+        // Check DynamoDB Local
+        let dynamodbRunning = try await dynamodbService.isRunning()
+
         return DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
             s3State: s3Running ? .running : .stopped,
-            postgresState: postgresRunning ? .running : .stopped
+            postgresState: postgresRunning ? .running : .stopped,
+            dynamodbState: dynamodbRunning ? .running : .stopped
         )
     }
 
@@ -669,6 +703,7 @@ public class XcodeLocalService: LocalService {
         return createEnvironmentVariables(
             postgresService: postgresService,
             minioService: minioService,
+            dynamodbService: dynamodbService,
             context: .xcode  // Native process connects via localhost
         )
     }

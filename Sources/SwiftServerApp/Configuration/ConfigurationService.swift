@@ -119,7 +119,7 @@ public final class ConfigurationService: Sendable {
 
     private func dynamoDBConfigurationFromEnvironment() throws -> DynamoDBConfiguration {
         let tableName = try getEnvironmentVariable(key: "DYNAMODB_TABLE_NAME")
-        let endpoint = try? getEnvironmentVariable(key: "AWS_ENDPOINT_URL")
+        let endpoint = try? getEnvironmentVariable(key: "DYNAMODB_ENDPOINT")
         return DynamoDBConfiguration(tableName: tableName, endpoint: endpoint)
     }
 

@@ -14,6 +14,7 @@ public class LinuxLocalService: LocalService {
 
     private let postgresService: PostgreSQLService
     private let minioService: MinIOService
+    private let dynamodbService: DynamoDBLocalService
     private let config: LinuxContainerConfig
 
     // Working directory
@@ -98,6 +99,11 @@ public class LinuxLocalService: LocalService {
             config: .linux,
             storageService: storageService
         )
+        self.dynamodbService = DynamoDBLocalService(
+            dockerService: dockerService,
+            config: .linux,
+            storageService: storageService
+        )
 
         // Check for existing build artifacts
         refreshBuildStatus()
@@ -105,7 +111,7 @@ public class LinuxLocalService: LocalService {
 
     // MARK: - Service Management
 
-    /// Start all services (PostgreSQL + MinIO)
+    /// Start all services (PostgreSQL + MinIO + DynamoDB)
     /// Services persist between mode switches - only starts if not already running
     public func startAllServices() async throws {
         try await dockerService.ensureDockerRunning()
@@ -122,12 +128,19 @@ public class LinuxLocalService: LocalService {
         } else {
             print("✓ PostgreSQL (linux) already running")
         }
+
+        if !(try await dynamodbService.isRunning()) {
+            try await dynamodbService.start()
+        } else {
+            print("✓ DynamoDB Local (linux) already running")
+        }
     }
 
     /// Stop all services
     public func stopAllServices() async throws {
         try await minioService.stop()
         try await postgresService.stop()
+        try await dynamodbService.stop()
     }
 
     /// Start MinIO S3 service
@@ -157,6 +170,17 @@ public class LinuxLocalService: LocalService {
         try await postgresService.stop()
     }
 
+    /// Start DynamoDB Local
+    public func startDynamoDB() async throws {
+        try await dockerService.ensureDockerRunning()
+        try await dynamodbService.start()
+    }
+
+    /// Stop DynamoDB Local
+    public func stopDynamoDB() async throws {
+        try await dynamodbService.stop()
+    }
+
     /// Data directory for S3 (MinIO)
     public var s3DataDirectory: String {
         storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
@@ -165,6 +189,11 @@ public class LinuxLocalService: LocalService {
     /// Data directory for PostgreSQL
     public var postgresDataDirectory: String {
         storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+    }
+
+    /// Data directory for DynamoDB Local
+    public var dynamodbDataDirectory: String {
+        storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
     }
 
     // MARK: - LambdaService Protocol: Build
@@ -381,12 +410,13 @@ public class LinuxLocalService: LocalService {
 
         do {
             let currentStatus = try await status()
-            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState)")
+            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState), DynamoDB: \(currentStatus.dynamodbState)")
 
             // Start if any service is stopped
             let anyServiceStopped = currentStatus.lambdaState == .stopped ||
                                     currentStatus.s3State == .stopped ||
-                                    currentStatus.postgresState == .stopped
+                                    currentStatus.postgresState == .stopped ||
+                                    currentStatus.dynamodbState == .stopped
 
             if anyServiceStopped {
                 print("🔄 Starting services (some are stopped)...")
@@ -472,7 +502,7 @@ public class LinuxLocalService: LocalService {
 
     // MARK: - LambdaService Protocol: Status
 
-    /// Get the status of all services (Lambda, S3, PostgreSQL)
+    /// Get the status of all services (Lambda, S3, PostgreSQL, DynamoDB)
     public func status() async throws -> DeploymentStatus {
         // Check Lambda container
         let lambdaRunning = try await isRunning()
@@ -483,10 +513,14 @@ public class LinuxLocalService: LocalService {
         // Check PostgreSQL
         let postgresRunning = try await postgresService.isRunning()
 
+        // Check DynamoDB Local
+        let dynamodbRunning = try await dynamodbService.isRunning()
+
         return DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
             s3State: s3Running ? .running : .stopped,
-            postgresState: postgresRunning ? .running : .stopped
+            postgresState: postgresRunning ? .running : .stopped,
+            dynamodbState: dynamodbRunning ? .running : .stopped
         )
     }
 
@@ -528,6 +562,9 @@ public class LinuxLocalService: LocalService {
 
         // Connect MinIO to network
         try await connectContainerToNetwork(container: minioService.minioContainerName)
+
+        // Connect DynamoDB Local to network
+        try await connectContainerToNetwork(container: dynamodbService.connectionInfo.containerName)
     }
 
     /// Print the Docker command to run Lambda interactively
@@ -637,6 +674,7 @@ public class LinuxLocalService: LocalService {
         return createEnvironmentVariables(
             postgresService: postgresService,
             minioService: minioService,
+            dynamodbService: dynamodbService,
             context: .container  // Container connects via Docker network DNS
         )
     }

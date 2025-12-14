@@ -2,12 +2,13 @@ import AppKit
 import SwiftDeploy
 import SwiftUI
 
-/// View for managing Docker services (MinIO S3 and PostgreSQL)
+/// View for managing Docker services (MinIO S3, PostgreSQL, and DynamoDB)
 /// Used in local development modes (Xcode and Linux)
 struct DockerServicesView: View {
     let dockerProvider: any LocalService
     let s3State: ServiceState
     let postgresState: ServiceState
+    let dynamodbState: ServiceState
     let onRefreshStatus: () -> Void
 
     var body: some View {
@@ -41,6 +42,21 @@ struct DockerServicesView: View {
                 },
                 onStop: {
                     try await dockerProvider.stopDatabase()
+                    onRefreshStatus()
+                }
+            )
+
+            // DynamoDB Row
+            DockerServiceRow(
+                name: "DynamoDB",
+                state: dynamodbState,
+                dataDirectory: dockerProvider.dynamodbDataDirectory,
+                onStart: {
+                    try await dockerProvider.startDynamoDB()
+                    onRefreshStatus()
+                },
+                onStop: {
+                    try await dockerProvider.stopDynamoDB()
                     onRefreshStatus()
                 }
             )

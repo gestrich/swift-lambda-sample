@@ -18,6 +18,7 @@ struct LocalServiceView: View {
                         dockerProvider: service,
                         s3State: service.status.s3State,
                         postgresState: service.status.postgresState,
+                        dynamodbState: service.status.dynamodbState,
                         onRefreshStatus: { service.refreshStatus() }
                     )
 

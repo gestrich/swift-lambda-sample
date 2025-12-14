@@ -39,7 +39,7 @@ class LocalServicesModel: LocalService {
         service.statusPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newStatus in
-                print("📊 LocalServicesModel received status: Lambda=\(newStatus.lambdaState), S3=\(newStatus.s3State), Postgres=\(newStatus.postgresState)")
+                print("📊 LocalServicesModel received status: Lambda=\(newStatus.lambdaState), S3=\(newStatus.s3State), Postgres=\(newStatus.postgresState), DynamoDB=\(newStatus.dynamodbState)")
                 self?.status = newStatus
                 self?.statusSubject.send(newStatus)
             }
@@ -131,9 +131,19 @@ class LocalServicesModel: LocalService {
         try await service.stopDatabase()
     }
 
+    public func startDynamoDB() async throws {
+        try await service.startDynamoDB()
+    }
+
+    public func stopDynamoDB() async throws {
+        try await service.stopDynamoDB()
+    }
+
     public var s3DataDirectory: String { service.s3DataDirectory }
 
     public var postgresDataDirectory: String { service.postgresDataDirectory }
+
+    public var dynamodbDataDirectory: String { service.dynamodbDataDirectory }
 
     // MARK: - Build
 
