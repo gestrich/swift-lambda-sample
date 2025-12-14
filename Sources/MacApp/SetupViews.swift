@@ -546,6 +546,36 @@ enum Dependency {
             return "https://cli.github.com/manual/installation"
         }
     }
+
+    /// Whether this dependency requires interactive terminal (sudo) for install/uninstall
+    var requiresInteractiveInstall: Bool {
+        switch self {
+        case .homebrew:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Install command as a string for display (used when requiresInteractiveInstall is true)
+    var installCommandString: String? {
+        switch self {
+        case .homebrew:
+            return "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        default:
+            return nil
+        }
+    }
+
+    /// Uninstall command as a string for display (used when requiresInteractiveInstall is true)
+    var uninstallCommandString: String? {
+        switch self {
+        case .homebrew:
+            return "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)\""
+        default:
+            return nil
+        }
+    }
 }
 
 // MARK: - Dependency View
@@ -721,7 +751,15 @@ struct DependencyView: View {
             Text("Installation")
                 .sectionHeader()
 
-            RunnableCommandView(command: dependency.installCommand, cliService: cliService, onComplete: refreshStatus)
+            if dependency.requiresInteractiveInstall {
+                InteractiveWarningView()
+
+                if let commandString = dependency.installCommandString {
+                    CopyableCodeBlock(code: commandString)
+                }
+            } else {
+                RunnableCommandView(command: dependency.installCommand, cliService: cliService, onComplete: refreshStatus)
+            }
 
             Link(destination: URL(string: dependency.documentationURL)!) {
                 HStack(spacing: 4) {
@@ -755,7 +793,15 @@ struct DependencyView: View {
             Text("To remove this dependency:")
                 .bodyText()
 
-            RunnableCommandView(command: dependency.uninstallCommand, cliService: cliService, onComplete: refreshStatus)
+            if dependency.requiresInteractiveInstall {
+                InteractiveWarningView()
+
+                if let commandString = dependency.uninstallCommandString {
+                    CopyableCodeBlock(code: commandString)
+                }
+            } else {
+                RunnableCommandView(command: dependency.uninstallCommand, cliService: cliService, onComplete: refreshStatus)
+            }
         }
         .card()
     }
@@ -907,9 +953,30 @@ struct RunnableCommandView: View {
     }
 }
 
-// MARK: - Code Block (Non-runnable)
+/// MARK: - Interactive Warning View
 
-private struct CodeBlock: View {
+/// Warning banner for commands that require interactive terminal (sudo)
+private struct InteractiveWarningView: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+
+            Text("This command requires sudo and must be run in Terminal. Copy and paste the command below.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Copyable Code Block
+
+/// A code block with copy button (non-runnable)
+struct CopyableCodeBlock: View {
     let code: String
 
     var body: some View {
