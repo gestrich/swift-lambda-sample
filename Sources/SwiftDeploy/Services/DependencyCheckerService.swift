@@ -1,24 +1,6 @@
 import CLIKit
 import Foundation
 
-/// Installation status for a dependency
-public enum DependencyInstallStatus: Equatable, Sendable {
-    case unknown
-    case checking
-    case installed(version: String?)
-    case notInstalled
-
-    public var isInstalled: Bool {
-        if case .installed = self { return true }
-        return false
-    }
-
-    public var isChecking: Bool {
-        if case .checking = self { return true }
-        return false
-    }
-}
-
 /// Stateless service for checking dependency installation status
 public actor DependencyCheckerService {
     private let cliService: CLIService
@@ -84,5 +66,23 @@ public actor DependencyCheckerService {
     /// Check GitHub CLI installation status
     public func checkGitHubCLI() async -> DependencyInstallStatus {
         await checkDependency("gh")
+    }
+}
+
+/// Installation status for a dependency
+public enum DependencyInstallStatus: Equatable, Sendable {
+    case unknown
+    case checking
+    case installed(version: String?)
+    case notInstalled
+
+    public var isInstalled: Bool {
+        if case .installed = self { return true }
+        return false
+    }
+
+    public var isChecking: Bool {
+        if case .checking = self { return true }
+        return false
     }
 }

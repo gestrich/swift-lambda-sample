@@ -3,13 +3,6 @@ import Client
 import Foundation
 import LocalStorageService
 
-/// Result of a local build operation
-public struct LocalBuildResult: Sendable {
-    public let success: Bool
-    public let exitCode: Int32
-    public let output: String
-}
-
 /// Stateless service for native macOS Xcode development workflow
 /// Orchestrates Docker services, native Swift builds, and Lambda process management
 public actor XcodeLocalDevelopmentService {
@@ -583,4 +576,11 @@ public actor XcodeLocalDevelopmentService {
 /// Storage key for app configuration file
 public struct AppConfigFileKey: StorageFileKey {
     public static let filename = "swiftLambdaDemo.json"
+}
+
+/// Result of a local build operation
+public struct LocalBuildResult: Sendable {
+    public let success: Bool
+    public let exitCode: Int32
+    public let output: String
 }

@@ -2,44 +2,6 @@ import CLIKit
 import Client
 import Foundation
 
-/// Detected state of deployed infrastructure
-public struct DeployedState: Sendable {
-    public let hasDatabase: Bool
-    public let hasNATGateway: Bool
-    public let hasVPC: Bool
-}
-
-/// Result of a deployment operation
-public struct DeploymentResult: Sendable {
-    public let outputs: [String: String]
-    public let apiGatewayUrl: String?
-
-    public init(outputs: [String: String]) {
-        self.outputs = outputs
-        self.apiGatewayUrl = outputs["ApiGatewayUrl"]
-    }
-}
-
-/// Result of a status check
-public struct RemoteStatus: Sendable {
-    public let stackOutputs: [String: String]
-    public let gitStatus: GitStatus
-    public let githubStatus: GitHubStatus?
-
-    public struct GitStatus: Sendable {
-        public let hasUncommittedChanges: Bool
-        public let hasCommitsToPush: Bool
-        public let currentBranch: String
-    }
-
-    public struct GitHubStatus: Sendable {
-        public let repository: String
-        public let branch: String
-        public let latestRunStatus: String
-        public let conclusion: String?
-    }
-}
-
 /// Stateless service for remote AWS Lambda deployment and management
 /// Orchestrates CDKService, AWSCLIService, GitService, and GitHubService
 public actor RemoteDeploymentService {
@@ -568,5 +530,43 @@ public actor RemoteDeploymentService {
                 throw DeployError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
             }
         }
+    }
+}
+
+/// Detected state of deployed infrastructure
+public struct DeployedState: Sendable {
+    public let hasDatabase: Bool
+    public let hasNATGateway: Bool
+    public let hasVPC: Bool
+}
+
+/// Result of a deployment operation
+public struct DeploymentResult: Sendable {
+    public let outputs: [String: String]
+    public let apiGatewayUrl: String?
+
+    public init(outputs: [String: String]) {
+        self.outputs = outputs
+        self.apiGatewayUrl = outputs["ApiGatewayUrl"]
+    }
+}
+
+/// Result of a status check
+public struct RemoteStatus: Sendable {
+    public let stackOutputs: [String: String]
+    public let gitStatus: GitStatus
+    public let githubStatus: GitHubStatus?
+
+    public struct GitStatus: Sendable {
+        public let hasUncommittedChanges: Bool
+        public let hasCommitsToPush: Bool
+        public let currentBranch: String
+    }
+
+    public struct GitHubStatus: Sendable {
+        public let repository: String
+        public let branch: String
+        public let latestRunStatus: String
+        public let conclusion: String?
     }
 }

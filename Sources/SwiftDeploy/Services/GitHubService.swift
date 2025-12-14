@@ -2,81 +2,6 @@ import CLIKit
 import Foundation
 import Observation
 
-/// State for GitHub CI workflow tracking
-public struct GitHubCIStatus: Equatable {
-    public enum RunStatus: Equatable {
-        case unknown
-        case loading
-        case idle(lastRun: WorkflowRunInfo?)
-        case deploying(runId: String)
-        case success(runId: String)
-        case failed(runId: String, reason: String)
-
-        public var isDeploying: Bool {
-            if case .deploying = self { return true }
-            return false
-        }
-
-        public var canDeploy: Bool {
-            switch self {
-            case .loading, .deploying:
-                return false
-            default:
-                return true
-            }
-        }
-
-        public var runId: String? {
-            switch self {
-            case .deploying(let id), .success(let id), .failed(let id, _):
-                return id
-            case .idle(let lastRun):
-                return lastRun?.id
-            default:
-                return nil
-            }
-        }
-    }
-
-    /// Information about a workflow run (summary)
-    public struct WorkflowRunInfo: Equatable {
-        public let id: String
-        public let status: String
-        public let conclusion: String?
-        public let title: String
-        public let createdAt: Date?
-
-        public var isSuccess: Bool {
-            conclusion == "success"
-        }
-
-        public var isFailed: Bool {
-            guard let conclusion else { return false }
-            return ["failure", "cancelled", "timed_out"].contains(conclusion)
-        }
-
-        public var isInProgress: Bool {
-            status == "in_progress" || status == "queued" || status == "pending"
-        }
-
-        /// Relative time string (e.g., "2 min ago")
-        public var relativeTime: String {
-            guard let createdAt else { return "" }
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            return formatter.localizedString(for: createdAt, relativeTo: Date())
-        }
-    }
-
-    public var status: RunStatus = .unknown
-    public var runDetail: GitHubRunDetail?
-    public var hasUnpushedCommits: Bool = false
-    public var hasUncommittedChanges: Bool = false
-    public var currentBranch: String = ""
-
-    public init() {}
-}
-
 /// Service for GitHub Actions operations with UI state management
 @MainActor
 @Observable
@@ -406,4 +331,79 @@ public final class GitHubService {
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.date(from: dateString)
     }
+}
+
+/// State for GitHub CI workflow tracking
+public struct GitHubCIStatus: Equatable {
+    public enum RunStatus: Equatable {
+        case unknown
+        case loading
+        case idle(lastRun: WorkflowRunInfo?)
+        case deploying(runId: String)
+        case success(runId: String)
+        case failed(runId: String, reason: String)
+
+        public var isDeploying: Bool {
+            if case .deploying = self { return true }
+            return false
+        }
+
+        public var canDeploy: Bool {
+            switch self {
+            case .loading, .deploying:
+                return false
+            default:
+                return true
+            }
+        }
+
+        public var runId: String? {
+            switch self {
+            case .deploying(let id), .success(let id), .failed(let id, _):
+                return id
+            case .idle(let lastRun):
+                return lastRun?.id
+            default:
+                return nil
+            }
+        }
+    }
+
+    /// Information about a workflow run (summary)
+    public struct WorkflowRunInfo: Equatable {
+        public let id: String
+        public let status: String
+        public let conclusion: String?
+        public let title: String
+        public let createdAt: Date?
+
+        public var isSuccess: Bool {
+            conclusion == "success"
+        }
+
+        public var isFailed: Bool {
+            guard let conclusion else { return false }
+            return ["failure", "cancelled", "timed_out"].contains(conclusion)
+        }
+
+        public var isInProgress: Bool {
+            status == "in_progress" || status == "queued" || status == "pending"
+        }
+
+        /// Relative time string (e.g., "2 min ago")
+        public var relativeTime: String {
+            guard let createdAt else { return "" }
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .abbreviated
+            return formatter.localizedString(for: createdAt, relativeTo: Date())
+        }
+    }
+
+    public var status: RunStatus = .unknown
+    public var runDetail: GitHubRunDetail?
+    public var hasUnpushedCommits: Bool = false
+    public var hasUncommittedChanges: Bool = false
+    public var currentBranch: String = ""
+
+    public init() {}
 }

@@ -2,258 +2,6 @@ import CLIKit
 import Foundation
 import Observation
 
-/// CloudFormation stack status values
-/// See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html
-public enum CloudFormationStackStatus {
-    // Successful states
-    static let createComplete = "CREATE_COMPLETE"
-    static let updateComplete = "UPDATE_COMPLETE"
-
-    // In-progress states
-    static let createInProgress = "CREATE_IN_PROGRESS"
-    static let updateInProgress = "UPDATE_IN_PROGRESS"
-    static let updateCompleteCleanupInProgress = "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS"
-    static let deleteInProgress = "DELETE_IN_PROGRESS"
-
-    // Failed states
-    static let createFailed = "CREATE_FAILED"
-    static let updateFailed = "UPDATE_FAILED"
-    static let rollbackComplete = "ROLLBACK_COMPLETE"
-    static let rollbackFailed = "ROLLBACK_FAILED"
-    static let deleteFailed = "DELETE_FAILED"
-}
-
-/// State for CDK Infrastructure tracking
-public struct CDKInfrastructureStatus: Equatable {
-    public enum StackStatus: Equatable {
-        case unknown
-        case loading
-        case notDeployed
-        case deployed
-        case deploying(operation: String)
-        case destroying
-        case failed(reason: String)
-
-        public var isDeploying: Bool {
-            if case .deploying = self { return true }
-            return false
-        }
-
-        public var isDestroying: Bool {
-            if case .destroying = self { return true }
-            return false
-        }
-
-        public var isBusy: Bool {
-            switch self {
-            case .loading, .deploying, .destroying:
-                return true
-            default:
-                return false
-            }
-        }
-
-        public var canDeploy: Bool {
-            switch self {
-            case .loading, .deploying, .destroying:
-                return false
-            default:
-                return true
-            }
-        }
-
-        public var canDestroy: Bool {
-            switch self {
-            case .deployed:
-                return true
-            default:
-                return false
-            }
-        }
-    }
-
-    /// Detected infrastructure configuration
-    public struct Configuration: Equatable {
-        public let hasDatabase: Bool
-        public let hasNATGateway: Bool
-        public let hasVPC: Bool
-
-        public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
-            self.hasDatabase = hasDatabase
-            self.hasNATGateway = hasNATGateway
-            self.hasVPC = hasVPC
-        }
-    }
-
-    /// Stack output values
-    public struct StackOutputs: Equatable {
-        public let apiGatewayUrl: String?
-        public let lambdaFunctionName: String?
-        public let bucketName: String?
-        public let allOutputs: [String: String]
-
-        public init(
-            apiGatewayUrl: String? = nil,
-            lambdaFunctionName: String? = nil,
-            bucketName: String? = nil,
-            allOutputs: [String: String] = [:]
-        ) {
-            self.apiGatewayUrl = apiGatewayUrl
-            self.lambdaFunctionName = lambdaFunctionName
-            self.bucketName = bucketName
-            self.allOutputs = allOutputs
-        }
-
-        public static func from(_ outputs: [String: String]) -> StackOutputs {
-            StackOutputs(
-                apiGatewayUrl: outputs["ApiGatewayUrl"],
-                lambdaFunctionName: outputs["LambdaFunctionName"],
-                bucketName: outputs["BucketName"],
-                allOutputs: outputs
-            )
-        }
-    }
-
-    public var status: StackStatus = .unknown
-    public var configuration: Configuration = Configuration()
-    public var outputs: StackOutputs = StackOutputs()
-    public var stackName: String = "SwiftLambdaSampleStack"
-    public var deployStartTime: Date?
-
-    /// Deployment progress - aggregated resource states during deploy/destroy
-    public var deploymentProgress: DeploymentProgress = DeploymentProgress()
-
-    public init() {}
-
-    /// Aggregated deployment progress for UI display
-    public struct DeploymentProgress: Equatable {
-        /// Resources being tracked during deployment
-        public var resources: [ResourceProgress] = []
-
-        /// Total resources expected (if known)
-        public var totalExpected: Int?
-
-        /// Number of resources completed
-        public var completedCount: Int {
-            resources.filter { $0.status.isComplete }.count
-        }
-
-        /// Number of resources in progress
-        public var inProgressCount: Int {
-            resources.filter { $0.status.isInProgress }.count
-        }
-
-        /// Whether there are any failures
-        public var hasFailures: Bool {
-            resources.contains { $0.status.isFailed }
-        }
-
-        public init() {}
-
-        /// Number of times we've polled
-        public var pollCount: Int = 0
-
-        /// Whether we've polled at least once
-        public var hasPolled: Bool { pollCount > 0 }
-
-        /// Whether we've polled enough times to conclude no changes (e.g., 5+ polls = 10+ seconds)
-        public var hasPolledEnough: Bool { pollCount >= 5 }
-
-        /// Update with new events (aggregates by resource)
-        public mutating func update(from events: [CloudFormationStackEvent], since: Date?) {
-            pollCount += 1
-
-            // Filter to events since deployment started
-            let relevantEvents = events.filter { event in
-                guard let since = since else { return true }
-                return event.timestamp >= since
-            }
-
-            // Group events by logical resource ID, keeping latest event per resource
-            var latestByResource: [String: CloudFormationStackEvent] = [:]
-            for event in relevantEvents {
-                // Skip the stack itself
-                if event.resourceType == "AWS::CloudFormation::Stack" { continue }
-
-                if let existing = latestByResource[event.logicalResourceId] {
-                    if event.timestamp > existing.timestamp {
-                        latestByResource[event.logicalResourceId] = event
-                    }
-                } else {
-                    latestByResource[event.logicalResourceId] = event
-                }
-            }
-
-            // Convert to ResourceProgress sorted by timestamp (most recent first)
-            resources = latestByResource.values
-                .sorted { $0.timestamp > $1.timestamp }
-                .map { ResourceProgress(from: $0) }
-        }
-
-        public mutating func clear() {
-            resources = []
-            totalExpected = nil
-            pollCount = 0
-        }
-    }
-
-    /// Progress for a single resource
-    public struct ResourceProgress: Equatable, Identifiable {
-        public let resourceId: String
-        public let displayName: String
-        public let resourceType: String
-        public let status: ResourceStatus
-        public let statusReason: String?
-        public let timestamp: Date
-
-        public var id: String { resourceId }
-
-        public init(from event: CloudFormationStackEvent) {
-            self.resourceId = event.logicalResourceId
-            self.displayName = event.displayName
-            self.resourceType = event.displayType
-            self.status = ResourceStatus(from: event.resourceStatus)
-            self.statusReason = event.resourceStatusReason
-            self.timestamp = event.timestamp
-        }
-    }
-
-    /// Status of a resource during deployment
-    public enum ResourceStatus: Equatable {
-        case pending
-        case inProgress
-        case complete
-        case failed(reason: String?)
-
-        public var isInProgress: Bool {
-            if case .inProgress = self { return true }
-            return false
-        }
-
-        public var isComplete: Bool {
-            if case .complete = self { return true }
-            return false
-        }
-
-        public var isFailed: Bool {
-            if case .failed = self { return true }
-            return false
-        }
-
-        public init(from status: String) {
-            if status.contains("COMPLETE") && !status.contains("CLEANUP") && !status.contains("ROLLBACK") {
-                self = .complete
-            } else if status.contains("IN_PROGRESS") {
-                self = .inProgress
-            } else if status.contains("FAILED") || status.contains("ROLLBACK") {
-                self = .failed(reason: nil)
-            } else {
-                self = .pending
-            }
-        }
-    }
-}
-
 /// Service for CDK Infrastructure operations with UI state management
 @MainActor
 @Observable
@@ -603,4 +351,256 @@ public final class CDKInfrastructureService {
         )
     }
 
+}
+
+/// CloudFormation stack status values
+/// See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html
+public enum CloudFormationStackStatus {
+    // Successful states
+    static let createComplete = "CREATE_COMPLETE"
+    static let updateComplete = "UPDATE_COMPLETE"
+
+    // In-progress states
+    static let createInProgress = "CREATE_IN_PROGRESS"
+    static let updateInProgress = "UPDATE_IN_PROGRESS"
+    static let updateCompleteCleanupInProgress = "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS"
+    static let deleteInProgress = "DELETE_IN_PROGRESS"
+
+    // Failed states
+    static let createFailed = "CREATE_FAILED"
+    static let updateFailed = "UPDATE_FAILED"
+    static let rollbackComplete = "ROLLBACK_COMPLETE"
+    static let rollbackFailed = "ROLLBACK_FAILED"
+    static let deleteFailed = "DELETE_FAILED"
+}
+
+/// State for CDK Infrastructure tracking
+public struct CDKInfrastructureStatus: Equatable {
+    public enum StackStatus: Equatable {
+        case unknown
+        case loading
+        case notDeployed
+        case deployed
+        case deploying(operation: String)
+        case destroying
+        case failed(reason: String)
+
+        public var isDeploying: Bool {
+            if case .deploying = self { return true }
+            return false
+        }
+
+        public var isDestroying: Bool {
+            if case .destroying = self { return true }
+            return false
+        }
+
+        public var isBusy: Bool {
+            switch self {
+            case .loading, .deploying, .destroying:
+                return true
+            default:
+                return false
+            }
+        }
+
+        public var canDeploy: Bool {
+            switch self {
+            case .loading, .deploying, .destroying:
+                return false
+            default:
+                return true
+            }
+        }
+
+        public var canDestroy: Bool {
+            switch self {
+            case .deployed:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    /// Detected infrastructure configuration
+    public struct Configuration: Equatable {
+        public let hasDatabase: Bool
+        public let hasNATGateway: Bool
+        public let hasVPC: Bool
+
+        public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
+            self.hasDatabase = hasDatabase
+            self.hasNATGateway = hasNATGateway
+            self.hasVPC = hasVPC
+        }
+    }
+
+    /// Stack output values
+    public struct StackOutputs: Equatable {
+        public let apiGatewayUrl: String?
+        public let lambdaFunctionName: String?
+        public let bucketName: String?
+        public let allOutputs: [String: String]
+
+        public init(
+            apiGatewayUrl: String? = nil,
+            lambdaFunctionName: String? = nil,
+            bucketName: String? = nil,
+            allOutputs: [String: String] = [:]
+        ) {
+            self.apiGatewayUrl = apiGatewayUrl
+            self.lambdaFunctionName = lambdaFunctionName
+            self.bucketName = bucketName
+            self.allOutputs = allOutputs
+        }
+
+        public static func from(_ outputs: [String: String]) -> StackOutputs {
+            StackOutputs(
+                apiGatewayUrl: outputs["ApiGatewayUrl"],
+                lambdaFunctionName: outputs["LambdaFunctionName"],
+                bucketName: outputs["BucketName"],
+                allOutputs: outputs
+            )
+        }
+    }
+
+    public var status: StackStatus = .unknown
+    public var configuration: Configuration = Configuration()
+    public var outputs: StackOutputs = StackOutputs()
+    public var stackName: String = "SwiftLambdaSampleStack"
+    public var deployStartTime: Date?
+
+    /// Deployment progress - aggregated resource states during deploy/destroy
+    public var deploymentProgress: DeploymentProgress = DeploymentProgress()
+
+    public init() {}
+
+    /// Aggregated deployment progress for UI display
+    public struct DeploymentProgress: Equatable {
+        /// Resources being tracked during deployment
+        public var resources: [ResourceProgress] = []
+
+        /// Total resources expected (if known)
+        public var totalExpected: Int?
+
+        /// Number of resources completed
+        public var completedCount: Int {
+            resources.filter { $0.status.isComplete }.count
+        }
+
+        /// Number of resources in progress
+        public var inProgressCount: Int {
+            resources.filter { $0.status.isInProgress }.count
+        }
+
+        /// Whether there are any failures
+        public var hasFailures: Bool {
+            resources.contains { $0.status.isFailed }
+        }
+
+        public init() {}
+
+        /// Number of times we've polled
+        public var pollCount: Int = 0
+
+        /// Whether we've polled at least once
+        public var hasPolled: Bool { pollCount > 0 }
+
+        /// Whether we've polled enough times to conclude no changes (e.g., 5+ polls = 10+ seconds)
+        public var hasPolledEnough: Bool { pollCount >= 5 }
+
+        /// Update with new events (aggregates by resource)
+        public mutating func update(from events: [CloudFormationStackEvent], since: Date?) {
+            pollCount += 1
+
+            // Filter to events since deployment started
+            let relevantEvents = events.filter { event in
+                guard let since = since else { return true }
+                return event.timestamp >= since
+            }
+
+            // Group events by logical resource ID, keeping latest event per resource
+            var latestByResource: [String: CloudFormationStackEvent] = [:]
+            for event in relevantEvents {
+                // Skip the stack itself
+                if event.resourceType == "AWS::CloudFormation::Stack" { continue }
+
+                if let existing = latestByResource[event.logicalResourceId] {
+                    if event.timestamp > existing.timestamp {
+                        latestByResource[event.logicalResourceId] = event
+                    }
+                } else {
+                    latestByResource[event.logicalResourceId] = event
+                }
+            }
+
+            // Convert to ResourceProgress sorted by timestamp (most recent first)
+            resources = latestByResource.values
+                .sorted { $0.timestamp > $1.timestamp }
+                .map { ResourceProgress(from: $0) }
+        }
+
+        public mutating func clear() {
+            resources = []
+            totalExpected = nil
+            pollCount = 0
+        }
+    }
+
+    /// Progress for a single resource
+    public struct ResourceProgress: Equatable, Identifiable {
+        public let resourceId: String
+        public let displayName: String
+        public let resourceType: String
+        public let status: ResourceStatus
+        public let statusReason: String?
+        public let timestamp: Date
+
+        public var id: String { resourceId }
+
+        public init(from event: CloudFormationStackEvent) {
+            self.resourceId = event.logicalResourceId
+            self.displayName = event.displayName
+            self.resourceType = event.displayType
+            self.status = ResourceStatus(from: event.resourceStatus)
+            self.statusReason = event.resourceStatusReason
+            self.timestamp = event.timestamp
+        }
+    }
+
+    /// Status of a resource during deployment
+    public enum ResourceStatus: Equatable {
+        case pending
+        case inProgress
+        case complete
+        case failed(reason: String?)
+
+        public var isInProgress: Bool {
+            if case .inProgress = self { return true }
+            return false
+        }
+
+        public var isComplete: Bool {
+            if case .complete = self { return true }
+            return false
+        }
+
+        public var isFailed: Bool {
+            if case .failed = self { return true }
+            return false
+        }
+
+        public init(from status: String) {
+            if status.contains("COMPLETE") && !status.contains("CLEANUP") && !status.contains("ROLLBACK") {
+                self = .complete
+            } else if status.contains("IN_PROGRESS") {
+                self = .inProgress
+            } else if status.contains("FAILED") || status.contains("ROLLBACK") {
+                self = .failed(reason: nil)
+            } else {
+                self = .pending
+            }
+        }
+    }
 }
