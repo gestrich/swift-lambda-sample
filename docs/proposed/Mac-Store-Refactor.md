@@ -157,9 +157,10 @@ This creates issues:
 
 ---
 
-## 4. LinuxLocalServiceModel
+## 4. LinuxLocalServiceModel ✅ COMPLETED
 
-**Current Location:** `Sources/SwiftDeploy/Models/LinuxLocalServiceModel.swift` (~800 lines)
+**Current Location:** `Sources/MacApp/Models/LinuxLocalModel.swift` (slimmed down)
+**Service Location:** `Sources/SwiftDeploy/Services/LinuxLocalDevelopmentService.swift`
 
 **Analysis:**
 - Nearly identical structure to XcodeLocalServiceModel
@@ -168,24 +169,26 @@ This creates issues:
 
 **Refactor Plan:**
 
-### [ ] 4.1 Create LinuxLocalDevelopmentService (high-level facade)
+### [x] 4.1 Create LinuxLocalDevelopmentService (high-level facade)
 - Location: `Sources/SwiftDeploy/Services/LinuxLocalDevelopmentService.swift`
 - Same interface as XcodeLocalDevelopmentService
 - Additional methods:
   - `func setupDockerNetwork() async throws`
   - `func runInteractive() async throws`
 
-### [ ] 4.2 Update CLI LocalLinuxCommand to use LinuxLocalDevelopmentService
+### [x] 4.2 Update CLI LocalLinuxCommand to use LinuxLocalDevelopmentService
 - Each subcommand: create service, call one method, print result
 
-### [ ] 4.3 Slim down LinuxLocalServiceModel → LinuxLocalModel
-- Rename to `LinuxLocalModel` (drop "Service")
-- Move to `Sources/MacApp/Models/LinuxLocalModel.swift`
+### [x] 4.3 Slim down LinuxLocalServiceModel → LinuxLocalModel
+- Renamed to `LinuxLocalModel` (dropped "Service")
+- Moved to `Sources/MacApp/Models/LinuxLocalModel.swift`
 - Same pattern as XcodeLocalModel
 
-### [ ] 4.4 Update MacApp references
+### [x] 4.4 Update MacApp references
+- Updated `AppModel`
+- Updated `ConnectionMode` enum
 
-### [ ] 4.5 Verify build
+### [x] 4.5 Verify build
 
 ---
 
@@ -223,22 +226,22 @@ SwiftDeploy/Models/
 CLI → Model → sub-services
 ```
 
-### Current State (Phase 3 Complete)
+### Current State (Phase 4 Complete)
 ```
 SwiftDeploy/Services/
 ├── RemoteDeploymentService.swift       (stateless facade) ✅
 ├── XcodeLocalDevelopmentService.swift  (stateless facade) ✅
-├── LinuxLocalDevelopmentService.swift  (stateless facade) - TODO
+├── LinuxLocalDevelopmentService.swift  (stateless facade) ✅
 ├── DependencyCheckerService.swift      (stateless) ✅
 └── ... (existing services)
 
 SwiftDeploy/Models/
-└── LinuxLocalServiceModel.swift  (state + logic mixed) - TODO
+└── (empty - all models moved to MacApp)
 
 MacApp/Models/
 ├── RemoteModel.swift           (@Observable state only) ✅
 ├── XcodeLocalModel.swift       (@Observable state only) ✅
-├── LinuxLocalModel.swift       (@Observable state only) - TODO
+├── LinuxLocalModel.swift       (@Observable state only) ✅
 └── DependencyStatusModel.swift (@Observable state only) ✅
 
 CLI → Service (single call)

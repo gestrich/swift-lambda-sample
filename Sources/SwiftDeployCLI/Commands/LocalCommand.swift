@@ -260,8 +260,7 @@ extension LocalLinuxCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let clean = self.clean
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.build(clean: clean)
         }
     }
@@ -274,7 +273,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startLambda()
         }
     }
@@ -287,7 +286,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopLambda()
         }
     }
@@ -300,7 +299,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startWithServices()
         }
     }
@@ -313,7 +312,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopWithServices()
         }
     }
@@ -326,7 +325,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startDatabase()
         }
     }
@@ -339,7 +338,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopDatabase()
         }
     }
@@ -352,7 +351,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startDynamoDB()
         }
     }
@@ -365,7 +364,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopDynamoDB()
         }
     }
@@ -378,7 +377,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.startS3()
         }
     }
@@ -391,7 +390,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.stopS3()
         }
     }
@@ -404,7 +403,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.testLambda()
         }
     }
@@ -417,7 +416,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let status = try await service.status()
             printStatus(status, mode: "Linux (Container)")
         }
@@ -431,7 +430,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.setupDockerNetwork()
         }
     }
@@ -444,7 +443,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = await MainActor.run { LinuxLocalServiceModel(workingDirectory: FileManager.default.currentDirectoryPath) }
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.runInteractive()
         }
     }
@@ -457,8 +456,7 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            // Reuse XcodeLocalDevelopmentService for config copy - same operation
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
+            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             try await service.copyConfig()
         }
     }
