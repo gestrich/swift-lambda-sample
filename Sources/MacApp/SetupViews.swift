@@ -1,3 +1,5 @@
+import CLIKit
+import SwiftDeploy
 import SwiftUI
 
 // MARK: - Overview View
@@ -465,29 +467,42 @@ enum Dependency {
         }
     }
 
-    var installCommand: String {
+    var installCommand: any CLICommand {
         switch self {
         case .docker:
-            return "brew install --cask docker"
+            return Brew.Install(cask: true, package: "docker")
         case .awsCLI:
-            return "brew install awscli"
+            return Brew.Install(package: "awscli")
         case .cdk:
-            return "npm install -g aws-cdk"
+            return Npm.Install(global: true, package: "aws-cdk")
         case .githubCLI:
-            return "brew install gh"
+            return Brew.Install(package: "gh")
         }
     }
 
-    var verifyCommand: String {
+    var verifyCommand: any CLICommand {
         switch self {
         case .docker:
-            return "docker --version"
+            return Docker.Version()
         case .awsCLI:
-            return "aws --version"
+            return Aws.Version()
         case .cdk:
-            return "cdk --version"
+            return Cdk.Version()
         case .githubCLI:
-            return "gh --version"
+            return Gh.Version()
+        }
+    }
+
+    var uninstallCommand: any CLICommand {
+        switch self {
+        case .docker:
+            return Brew.Uninstall(cask: true, package: "docker")
+        case .awsCLI:
+            return Brew.Uninstall(package: "awscli")
+        case .cdk:
+            return Npm.Uninstall(global: true, package: "aws-cdk")
+        case .githubCLI:
+            return Brew.Uninstall(package: "gh")
         }
     }
 
@@ -509,14 +524,30 @@ enum Dependency {
 
 struct DependencyView: View {
     let dependency: Dependency
+    let statusService: DependencyStatusService
+
+    private var cliService: CLIService {
+        statusService.cliService
+    }
+
+    private var status: DependencyInstallStatus {
+        switch dependency {
+        case .docker: return statusService.dockerStatus
+        case .awsCLI: return statusService.awsCLIStatus
+        case .cdk: return statusService.cdkStatus
+        case .githubCLI: return statusService.githubCLIStatus
+        }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
+                statusSection
                 descriptionSection
                 installSection
                 verifySection
+                uninstallSection
             }
             .padding(32)
         }
@@ -541,6 +572,105 @@ struct DependencyView: View {
         }
     }
 
+    private var statusSection: some View {
+        HStack(spacing: 12) {
+            statusIndicator
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(statusTitle)
+                    .font(.headline)
+                    .foregroundStyle(statusColor)
+
+                if case .installed(let version) = status, let version {
+                    Text(version)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                Task {
+                    await checkStatus()
+                }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(status.isChecking)
+            .help("Check again")
+        }
+        .padding(16)
+        .background(statusBackgroundColor)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        switch status {
+        case .unknown, .checking:
+            ProgressView()
+                .scaleEffect(0.8)
+                .frame(width: 24, height: 24)
+        case .installed:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.green)
+        case .notInstalled:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.title2)
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private var statusTitle: String {
+        switch status {
+        case .unknown, .checking:
+            return "Checking..."
+        case .installed:
+            return "Installed"
+        case .notInstalled:
+            return "Not Installed"
+        }
+    }
+
+    private var statusColor: Color {
+        switch status {
+        case .unknown, .checking:
+            return .secondary
+        case .installed:
+            return .green
+        case .notInstalled:
+            return .orange
+        }
+    }
+
+    private var statusBackgroundColor: Color {
+        switch status {
+        case .unknown, .checking:
+            return Color(nsColor: .windowBackgroundColor)
+        case .installed:
+            return Color.green.opacity(0.1)
+        case .notInstalled:
+            return Color.orange.opacity(0.1)
+        }
+    }
+
+    private func checkStatus() async {
+        switch dependency {
+        case .docker:
+            await statusService.checkDocker()
+        case .awsCLI:
+            await statusService.checkAWSCLI()
+        case .cdk:
+            await statusService.checkCDK()
+        case .githubCLI:
+            await statusService.checkGitHubCLI()
+        }
+    }
+
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("About")
@@ -557,7 +687,7 @@ struct DependencyView: View {
             Text("Installation")
                 .sectionHeader()
 
-            CodeBlock(code: dependency.installCommand)
+            RunnableCommandView(command: dependency.installCommand, cliService: cliService, onComplete: refreshStatus)
 
             Link(destination: URL(string: dependency.documentationURL)!) {
                 HStack(spacing: 4) {
@@ -578,13 +708,172 @@ struct DependencyView: View {
             Text("Run this command to verify the installation:")
                 .bodyText()
 
-            CodeBlock(code: dependency.verifyCommand)
+            RunnableCommandView(command: dependency.verifyCommand, cliService: cliService, onComplete: refreshStatus)
         }
         .card()
     }
+
+    private var uninstallSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Uninstall")
+                .sectionHeader()
+
+            Text("To remove this dependency:")
+                .bodyText()
+
+            RunnableCommandView(command: dependency.uninstallCommand, cliService: cliService, onComplete: refreshStatus)
+        }
+        .card()
+    }
+
+    private func refreshStatus() async {
+        await checkStatus()
+    }
 }
 
-// MARK: - Code Block
+// MARK: - Runnable Command View
+
+/// A command block that can be run with streaming output display
+struct RunnableCommandView: View {
+    let command: any CLICommand
+    let cliService: CLIService
+    var onComplete: (() async -> Void)? = nil
+
+    @State private var isRunning = false
+    @State private var outputText = ""
+    @State private var exitCode: Int32?
+
+    private var commandString: String {
+        command.commandString
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Command display with buttons
+            HStack(spacing: 0) {
+                // Run button on the left
+                Button {
+                    Task {
+                        await runCommand()
+                    }
+                } label: {
+                    Group {
+                        if isRunning {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 16, height: 16)
+                        } else {
+                            Image(systemName: "play.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(isRunning)
+                .help("Run command")
+
+                // Command text
+                Text(commandString)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black.opacity(0.2))
+
+                // Copy button on the right
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(commandString, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Copy to clipboard")
+                .padding(.trailing, 12)
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            // Output section (shown when running or has output)
+            if isRunning || !outputText.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        if isRunning {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .frame(width: 14, height: 14)
+                        } else if let code = exitCode {
+                            Image(systemName: code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(code == 0 ? .green : .red)
+                        }
+                        Text(isRunning ? "Running..." : "Output")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if !isRunning && !outputText.isEmpty {
+                            Button("Clear") {
+                                outputText = ""
+                                exitCode = nil
+                            }
+                            .font(.caption2)
+                            .buttonStyle(.borderless)
+                        }
+                    }
+
+                    ScrollView {
+                        Text(outputText.isEmpty ? " " : outputText)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.primary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
+                    .frame(maxHeight: 150)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .padding(.leading, 12)
+            }
+        }
+    }
+
+    private func runCommand() async {
+        isRunning = true
+        outputText = ""
+        exitCode = nil
+
+        // Use stream() for real-time output with typed command
+        let stream = await cliService.stream(command)
+
+        for await output in stream {
+            switch output {
+            case .command(_, let text):
+                outputText += text
+            case .stdout(_, let text):
+                outputText += text
+            case .stderr(_, let text):
+                outputText += text
+            case .exit(_, let code):
+                exitCode = code
+            case .error(_, let error):
+                outputText += "Error: \(error.localizedDescription)\n"
+                exitCode = 1
+            }
+        }
+
+        isRunning = false
+
+        if let onComplete {
+            await onComplete()
+        }
+    }
+}
+
+// MARK: - Code Block (Non-runnable)
 
 private struct CodeBlock: View {
     let code: String
@@ -621,6 +910,10 @@ private struct CodeBlock: View {
 }
 
 #Preview("Dependency") {
-    DependencyView(dependency: .docker)
-        .frame(width: 600, height: 600)
+    let model = AllServicesModel()
+    return DependencyView(
+        dependency: .docker,
+        statusService: model.dependencyStatusService
+    )
+    .frame(width: 600, height: 600)
 }

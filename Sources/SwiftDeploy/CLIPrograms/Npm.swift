@@ -18,10 +18,26 @@ public struct Npm {
     // MARK: - Install
 
     /// npm install command
-    /// Example: npm install
+    /// Example: npm install -g aws-cdk
     @CLICommand
     public struct Install {
-        /// Optional package to install
+        /// Install globally
+        @Flag("-g") public var global: Bool = false
+
+        /// Package to install (optional for project dependencies)
         @Positional public var package: String?
+    }
+
+    // MARK: - Uninstall
+
+    /// npm uninstall command
+    /// Example: npm uninstall -g aws-cdk
+    @CLICommand
+    public struct Uninstall {
+        /// Uninstall globally
+        @Flag("-g") public var global: Bool = false
+
+        /// Package to uninstall
+        @Positional public var package: String
     }
 }

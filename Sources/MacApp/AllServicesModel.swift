@@ -39,6 +39,9 @@ class AllServicesModel {
     let xcodeLocalService: XcodeLocalService
     let linuxLocalService: LinuxLocalService
 
+    /// Service for checking dependency installation status
+    let dependencyStatusService: DependencyStatusService
+
     /// Observable models for local services (used by LocalServiceView)
     let xcodeLocalModel: LocalServicesModel
     let linuxLocalModel: LocalServicesModel
@@ -80,6 +83,8 @@ class AllServicesModel {
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
 
+        self.dependencyStatusService = DependencyStatusService(cliService: CLIService(defaultWorkingDirectory: projectDirectory))
+
         // Create observable models for local services
         self.xcodeLocalModel = LocalServicesModel(service: xcode)
         self.linuxLocalModel = LocalServicesModel(service: linux)
@@ -100,6 +105,11 @@ class AllServicesModel {
         // Start services if necessary for initial mode
         Task {
             await self.startCurrentServiceIfNecessary()
+        }
+
+        // Check dependency installation status
+        Task {
+            await self.dependencyStatusService.checkAll()
         }
     }
 

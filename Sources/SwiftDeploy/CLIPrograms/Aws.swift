@@ -5,6 +5,15 @@ import Foundation
 @CLIProgram
 public struct Aws {
 
+    // MARK: - Version
+
+    /// AWS CLI version command
+    /// Example: aws --version
+    @CLICommand("--version")
+    public struct Version {
+        public init() {}
+    }
+
     // MARK: - CloudFormation
 
     /// AWS CloudFormation namespace

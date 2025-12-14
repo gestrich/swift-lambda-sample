@@ -5,6 +5,15 @@ import Foundation
 @CLIProgram
 public struct Docker {
 
+    // MARK: - Version
+
+    /// Docker version command
+    /// Example: docker --version
+    @CLICommand("--version")
+    public struct Version {
+        public init() {}
+    }
+
     // MARK: - Daemon Commands
 
     /// Docker info command

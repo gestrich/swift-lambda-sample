@@ -5,6 +5,15 @@ import Foundation
 @CLIProgram
 public struct Cdk {
 
+    // MARK: - Version
+
+    /// CDK version command
+    /// Example: cdk --version
+    @CLICommand("--version")
+    public struct Version {
+        public init() {}
+    }
+
     // MARK: - Deploy
 
     /// CDK deploy command

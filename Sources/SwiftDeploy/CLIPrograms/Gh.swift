@@ -5,6 +5,15 @@ import Foundation
 @CLIProgram
 public struct Gh {
 
+    // MARK: - Version
+
+    /// gh version command
+    /// Example: gh --version
+    @CLICommand("--version")
+    public struct Version {
+        public init() {}
+    }
+
     // MARK: - Run Commands
 
     @CLICommand("run")

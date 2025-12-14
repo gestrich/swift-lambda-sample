@@ -210,8 +210,42 @@ struct ServicesView: View {
 
             Text(category.title)
                 .font(.body)
+
+            Spacer()
+
+            dependencyStatusIndicator(for: category)
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private func dependencyStatusIndicator(for category: AppCategory) -> some View {
+        let status: DependencyInstallStatus? = {
+            switch category {
+            case .docker: return model.dependencyStatusService.dockerStatus
+            case .awsCLI: return model.dependencyStatusService.awsCLIStatus
+            case .cdk: return model.dependencyStatusService.cdkStatus
+            case .githubCLI: return model.dependencyStatusService.githubCLIStatus
+            default: return nil
+            }
+        }()
+
+        if let status {
+            switch status {
+            case .unknown, .checking:
+                ProgressView()
+                    .scaleEffect(0.5)
+                    .frame(width: 16, height: 16)
+            case .installed:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            case .notInstalled:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
     }
 
     private func deploymentRow(_ category: AppCategory) -> some View {
@@ -244,13 +278,13 @@ struct ServicesView: View {
         case .awsServices:
             AWSServicesView()
         case .docker:
-            DependencyView(dependency: .docker)
+            DependencyView(dependency: .docker, statusService: model.dependencyStatusService)
         case .awsCLI:
-            DependencyView(dependency: .awsCLI)
+            DependencyView(dependency: .awsCLI, statusService: model.dependencyStatusService)
         case .cdk:
-            DependencyView(dependency: .cdk)
+            DependencyView(dependency: .cdk, statusService: model.dependencyStatusService)
         case .githubCLI:
-            DependencyView(dependency: .githubCLI)
+            DependencyView(dependency: .githubCLI, statusService: model.dependencyStatusService)
         case .principle(let principle):
             switch principle {
             case .cicd:
