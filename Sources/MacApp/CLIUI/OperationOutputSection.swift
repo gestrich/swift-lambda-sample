@@ -36,11 +36,14 @@ struct OperationOutputSection<Actions: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             actions(output) { isExpanded = true }
 
-            if isExpanded {
-                StreamingTextView(
-                    streamProvider: { await output.makeStream() }
-                )
-            }
+            // Always render StreamingTextView so it subscribes immediately,
+            // but hide it visually until expanded
+            StreamingTextView(
+                streamProvider: { await output.makeStream() }
+            )
+            .frame(height: isExpanded ? nil : 0)
+            .clipped()
+            .opacity(isExpanded ? 1 : 0)
         }
     }
 }
