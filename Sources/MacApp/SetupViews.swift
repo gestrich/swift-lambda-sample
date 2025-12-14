@@ -523,6 +523,29 @@ enum Dependency {
         }
     }
 
+    var uninstallMethods: [InstallationMethod] {
+        switch self {
+        case .docker:
+            return [
+                .homebrew("brew uninstall --cask docker"),
+                InstallationMethod(name: "Manual", icon: "trash", commandString: nil, downloadURL: nil, note: "Delete Docker.app from Applications")
+            ]
+        case .awsCLI:
+            return [
+                .homebrew("brew uninstall awscli"),
+                InstallationMethod(name: "Manual (PKG install)", icon: "trash", commandString: "sudo rm -rf /usr/local/aws-cli && sudo rm /usr/local/bin/aws", downloadURL: nil, note: "For PKG-installed AWS CLI")
+            ]
+        case .cdk:
+            return [
+                .npm("npm uninstall -g aws-cdk", note: nil)
+            ]
+        case .githubCLI:
+            return [
+                .homebrew("brew uninstall gh")
+            ]
+        }
+    }
+
     var documentationURL: String {
         switch self {
         case .docker:
@@ -542,6 +565,8 @@ enum Dependency {
 struct DependencyView: View {
     let dependency: Dependency
     let statusService: DependencyStatusService
+
+    @State private var showUninstallSheet = false
 
     private var cliService: CLIService {
         statusService.cliService
@@ -569,6 +594,9 @@ struct DependencyView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showUninstallSheet) {
+            UninstallSheet(dependency: dependency)
+        }
     }
 
     private var headerSection: some View {
@@ -576,6 +604,10 @@ struct DependencyView: View {
             Image(systemName: dependency.iconName)
                 .font(.system(size: 40))
                 .foregroundStyle(dependency.iconColor)
+                .onLongPressGesture {
+                    showUninstallSheet = true
+                }
+                .help("Long press for uninstall options")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(dependency.title)
@@ -811,6 +843,80 @@ struct CopyableCodeBlock: View {
         }
         .padding(12)
         .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Uninstall Sheet
+
+private struct UninstallSheet: View {
+    let dependency: Dependency
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Image(systemName: "trash")
+                    .foregroundStyle(.red)
+                Text("Uninstall \(dependency.title)")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+            .background(Color(nsColor: .windowBackgroundColor))
+
+            Divider()
+
+            // Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Choose the uninstall method that matches how you installed \(dependency.title):")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(dependency.uninstallMethods) { method in
+                        UninstallMethodRow(method: method)
+                    }
+                }
+                .padding()
+            }
+        }
+        .frame(width: 500, height: 300)
+    }
+}
+
+private struct UninstallMethodRow: View {
+    let method: InstallationMethod
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: method.icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+
+                Text(method.name)
+                    .font(.headline)
+
+                if let note = method.note {
+                    Text("— \(note)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let command = method.commandString {
+                CopyableCodeBlock(code: command)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
