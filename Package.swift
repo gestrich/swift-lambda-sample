@@ -92,6 +92,7 @@ let package = Package(
                 .product(name: "SotoS3", package: "soto"),
                 .product(name: "SotoSecretsManager", package: "soto"),
                 .product(name: "SotoDynamoDB", package: "soto"),
+                .target(name: "Client"),
             ]
         ),
         .testTarget(

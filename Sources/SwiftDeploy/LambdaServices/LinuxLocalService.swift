@@ -538,6 +538,13 @@ public class LinuxLocalService: LocalService {
             do {
                 let newStatus = try await self.status()
                 statusSubject.send(newStatus)
+
+                // Sync lambdaState with actual running state (for app restart scenarios)
+                if newStatus.lambdaState == .running && lambdaState.status == .stopped {
+                    lambdaState.setRunning()
+                } else if newStatus.lambdaState == .stopped && lambdaState.status == .running {
+                    lambdaState.clear()
+                }
             } catch {
                 statusSubject.send(.stopped)
             }
