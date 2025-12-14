@@ -44,7 +44,6 @@ struct LambdaUploadLoadingView: View {
 /// View for local Lambda build and upload with two distinct steps
 struct LocalLambdaUpdateView: View {
     @State var service: LambdaBuildService
-    @State private var showingBuildOutput = false
     @State private var buildStartTime: Date?
 
     /// Convenience accessor for build state
@@ -75,11 +74,6 @@ struct LocalLambdaUpdateView: View {
 
             // Step 2: Upload
             uploadSection
-
-            // Build output (collapsible)
-            if !buildState.outputLines.isEmpty {
-                buildOutputSection
-            }
         }
         .onChange(of: isBuilding) { _, newValue in
             if newValue {
@@ -110,19 +104,22 @@ struct LocalLambdaUpdateView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            HStack {
-                Button {
-                    Task {
-                        try? await service.build()
+            OperationOutputSection { stream, showOutput in
+                HStack {
+                    Button {
+                        showOutput()
+                        Task {
+                            try? await service.build(output: stream)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hammer")
+                            Text("Build")
+                        }
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "hammer")
-                        Text("Build")
-                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isBuilding || service.uploadStatus == .uploading)
                 }
-                .buttonStyle(.bordered)
-                .disabled(isBuilding || service.uploadStatus == .uploading)
             }
         }
         .padding(12)
@@ -264,31 +261,6 @@ struct LocalLambdaUpdateView: View {
         }
     }
 
-    // MARK: - Build Output Section
-
-    @ViewBuilder
-    private var buildOutputSection: some View {
-        DisclosureGroup(
-            isExpanded: $showingBuildOutput,
-            content: {
-                StreamingTextView(
-                    lines: buildState.outputLines,
-                    isClearDisabled: isBuilding
-                ) {
-                    // Clear is handled by buildState, but we don't expose it here
-                }
-            },
-            label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "terminal")
-                        .font(.caption)
-                    Text("Build Output")
-                        .font(.caption)
-                }
-                .foregroundColor(.secondary)
-            }
-        )
-    }
 }
 
 // MARK: - Preview
