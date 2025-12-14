@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** - Not yet implemented
+**Implemented** - All phases complete
 
 ## Problem
 
@@ -397,12 +397,17 @@ struct CDKInfrastructureSectionView: View {
 | Layer | File | Change |
 |-------|------|--------|
 | CLIService | `CLIService.swift` | Add `output` parameter to `execute()`, `stream()`, `executeForResult()`, `runProcess()` |
-| Git | `GitService.swift` | Add `output` to `push()`, `commit()`, etc. |
-| GitHub CLI | `GitHubCLIService.swift` | Add `output` to `triggerWorkflow()`, `watchWorkflow()`, etc. |
-| CDK | `CDKService.swift` | Add `output` to `build()`, `deploy()`, `destroy()` |
-| AWS CLI | `AWSCLIService.swift` | Add `output` to methods that produce output |
+| Git | `GitService.swift` | Add `output` to `push()` |
+| GitHub CLI | `GitHubCLIService.swift` | Add `output` to `triggerWorkflow()`, `watchWorkflowRun()`, `watchWorkflowRunStreaming()` |
+| CDK | `CDKService.swift` | Add `output` to `build()`, `deploy()`, `destroy()`, `install()` |
+| AWS CLI | `AWSCLIService.swift` | Add `output` to `updateLambdaCode()`, `tailLogs()` |
+| Docker | `DockerService.swift` | Add `output` to `run()`, `build()` |
+| LambdaBuild | `LambdaBuildService.swift` | Add `output` to `build()`, `upload()`, `buildAndUpload()` |
+| LocalService | `LocalService.swift` | Add `output` to `build()`, `startLambda()`, `stopLambda()`, `startWithServices()`, `stopWithServices()` |
+| XcodeLocalService | `XcodeLocalService.swift` | Implement protocol methods with `output` parameter |
+| LinuxLocalService | `LinuxLocalService.swift` | Implement protocol methods with `output` parameter |
 | GitHubService | `GitHubService.swift` | Add `output` parameter to `pushAndDeploy()` (no property) |
-| CDKInfrastructureService | `CDKInfrastructureService.swift` | Add `output` parameter to `deploy()`, `destroy()` (no property) |
+| CDKInfrastructureService | `CDKInfrastructureService.swift` | Add `output` parameter to `deploy()`, `updateInfrastructure()`, `destroy()` (no property) |
 | Views | Various | Client creates stream, passes to service, consumes via `.task(id:)` |
 
 ## Backward Compatibility
@@ -594,20 +599,48 @@ Create a dedicated test service and view to verify the architecture before migra
 
 ---
 
-### Phase 8: Migrate Remaining Services
+### Phase 8: Migrate Remaining Services ✅ COMPLETE
 
-- [ ] Add `output` parameter to `AWSCLIService` methods
-- [ ] Add `output` parameter to `DockerService` methods
-- [ ] Add `output` parameter to `LambdaBuildService` methods
-- [ ] Add `output` parameter to local service methods (XcodeLocalService, LinuxLocalService)
+- [x] Add `output` parameter to `AWSCLIService` methods (`updateLambdaCode`, `tailLogs`)
+- [x] Add `output` parameter to `DockerService` methods (`run`, `build`)
+- [x] Add `output` parameter to `LambdaBuildService` methods (`build`, `upload`, `buildAndUpload`)
+- [x] Add `output` parameter to `LocalService` protocol (`build`, `startLambda`, `stopLambda`, `startWithServices`, `stopWithServices`)
+- [x] Add `output` parameter to `XcodeLocalService` methods (implements protocol)
+- [x] Add `output` parameter to `LinuxLocalService` methods (implements protocol)
+- [x] Update `LocalServicesModel` in MacApp to conform to updated protocol
+
+**Result**: All remaining services now support client-owned output streams. The output parameter threads through from high-level orchestration methods down to low-level CLI execution.
 
 ---
 
-### Phase 9: Cleanup
+### Phase 9: Cleanup ✅ COMPLETE
 
-- [ ] Remove `UnifiedOutputState` if no longer needed
-- [ ] Update documentation
-- [ ] Remove test service/view (or keep for regression testing)
+- [x] Remove `UnifiedOutputState` if no longer needed
+- [x] Update documentation
+- [x] Keep test service/view for regression testing
+
+**Result**: `UnifiedOutputState` has been removed from the codebase. It was an intermediate solution that tracked output state but was never consumed by views. With operation-scoped output streams in place, the client-owned `output` parameter handles operation-specific output, and the global CLIService stream handles global output. The test service/view (`TestCLIService` and `TestOutputStreamView`) are kept for validation and regression testing of the output stream architecture.
+
+**Files Removed**:
+- `Sources/SwiftDeploy/UnifiedOutputState.swift`
+
+**Files Modified** (removed `unifiedOutput` references):
+- `Sources/SwiftDeploy/LambdaServices/LambdaService.swift` - Removed protocol requirement
+- `Sources/SwiftDeploy/LambdaServices/XcodeLocalService.swift` - Removed property and all usages
+- `Sources/SwiftDeploy/LambdaServices/LinuxLocalService.swift` - Removed property and all usages
+- `Sources/SwiftDeploy/LambdaServices/RemoteService.swift` - Removed property
+- `Sources/MacApp/LocalService/LocalServicesModel.swift` - Removed property forwarding
+
+---
+
+## Implementation Complete
+
+All phases are now complete. The operation-scoped output streams feature is fully implemented:
+
+1. **CLIService** supports dual-stream output (global + client-owned)
+2. **All services** thread the `output` parameter through to CLI execution
+3. **Views** can create and manage their own output streams for operation isolation
+4. **Legacy code** continues to work via the global stream (backward compatible)
 
 ## Open Questions
 

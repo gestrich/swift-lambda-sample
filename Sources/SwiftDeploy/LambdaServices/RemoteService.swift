@@ -39,10 +39,6 @@ public class RemoteService: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
-    // MARK: - Unified Output
-
-    public let unifiedOutput = UnifiedOutputState()
-
     // MARK: - GitHub Service
 
     /// GitHub service for CI operations. Non-nil if GitHub config is available.

@@ -90,10 +90,16 @@ public actor DockerService {
     }
 
     /// Run a Docker container
+    /// - Parameters:
+    ///   - image: Docker image to run
+    ///   - command: Command to execute in the container
+    ///   - options: Run options (ports, volumes, environment, etc.)
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func run(
         image: String,
         command: [String] = [],
-        options: RunOptions = RunOptions()
+        options: RunOptions = RunOptions(),
+        output: CLIOutputStream? = nil
     ) async throws {
         // Build port mappings as strings
         let portMappings = options.ports.map { "\($0.host):\($0.container)" }
@@ -123,7 +129,8 @@ public actor DockerService {
 
         let result = try await cliService.executeForResult(
             dockerRun,
-            inheritIO: options.interactive && options.tty
+            inheritIO: options.interactive && options.tty,
+            output: output
         )
 
         guard result.isSuccess else {
@@ -225,9 +232,14 @@ public actor DockerService {
     }
 
     /// Build a Docker image
+    /// - Parameters:
+    ///   - context: Build context directory (default: ".")
+    ///   - options: Build options (platform, tag, Dockerfile, build args, etc.)
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func build(
         context: String = ".",
-        options: BuildOptions = BuildOptions()
+        options: BuildOptions = BuildOptions(),
+        output: CLIOutputStream? = nil
     ) async throws {
         // Build buildArg as KEY=value strings
         let buildArgStrings = options.buildArgs.map { "\($0.key)=\($0.value)" }
@@ -254,7 +266,7 @@ public actor DockerService {
             fullCommand = dockerCommand
         }
 
-        let result = try await cliService.executeForResult(Sh(command: fullCommand))
+        let result = try await cliService.executeForResult(Sh(command: fullCommand), output: output)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(

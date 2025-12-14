@@ -45,10 +45,6 @@ public class LinuxLocalService: LocalService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
-    // MARK: - Unified Output
-
-    public let unifiedOutput = UnifiedOutputState()
-
     // MARK: - Build State
 
     public let buildState = BuildState()
@@ -174,65 +170,63 @@ public class LinuxLocalService: LocalService {
     // MARK: - LambdaService Protocol: Build
 
     /// Build Lambda for Linux (AMD64) using Docker, updating buildState
-    public func build(clean: Bool = false) async throws {
+    /// - Parameters:
+    ///   - clean: Whether to clean build artifacts first
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
         buildState.startBuild()
-        unifiedOutput.startOperation()
 
         // Clean if requested
         if clean {
             let cleanMsg = "🧹 Cleaning previous build artifacts...\n"
             buildState.appendOutput(cleanMsg)
-            unifiedOutput.appendOutput(cleanMsg)
+            await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
                 let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
                 _ = try await cliService.execute(
                     rmCmd,
                     workingDirectory: workingDirectory,
-                    printCommand: false
+                    printCommand: false,
+                    output: output
                 )
                 let successMsg = "  ✅ Cleaned\n"
                 buildState.appendOutput(successMsg)
-                unifiedOutput.appendOutput(successMsg)
+                await output?.send(.stdout(commandID: .init(), text: successMsg))
             } catch {
                 let errorMsg = "  ❌ Clean failed: \(error)\n"
                 buildState.appendOutput(errorMsg)
-                unifiedOutput.appendOutput(errorMsg)
+                await output?.send(.stderr(commandID: .init(), text: errorMsg))
                 buildState.markFailed(exitCode: 1)
-                unifiedOutput.endOperation()
                 throw BuildError.failed(exitCode: 1)
             }
         }
 
         let buildMsg = "🔨 Building Lambda for Linux (Docker)...\n"
         buildState.appendOutput(buildMsg)
-        unifiedOutput.appendOutput(buildMsg)
+        await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         // Stream the build output using typed command
         let buildCmd = BuildScript.Build.lambda(target: "SwiftLambda")
         let stream = await cliService.stream(
             buildCmd,
             workingDirectory: workingDirectory,
-            printCommand: false
+            printCommand: false,
+            output: output
         )
 
         var exitCode: Int32 = 0
-        for await output in stream {
-            if let code = buildState.processStreamOutput(output) {
+        for await streamOutput in stream {
+            if let code = buildState.processStreamOutput(streamOutput) {
                 exitCode = code
             }
-            _ = unifiedOutput.processStreamOutput(output)
         }
 
         if exitCode == 0 {
             buildState.markSuccess()
-            unifiedOutput.appendOutput("\n✅ Build completed successfully\n")
         } else {
             buildState.markFailed(exitCode: exitCode)
-            unifiedOutput.appendOutput("\n❌ Build failed with exit code \(exitCode)\n")
-            unifiedOutput.endOperation()
             throw BuildError.failed(exitCode: exitCode)
         }
-        unifiedOutput.endOperation()
     }
 
     /// Check if Lambda is already built (Linux artifacts)
@@ -256,58 +250,59 @@ public class LinuxLocalService: LocalService {
     // MARK: - LambdaService Protocol: Lifecycle
 
     /// Start Lambda container in detached mode
-    public func startLambda() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func startLambda(output: CLIOutputStream? = nil) async throws {
         lambdaState.startLambda()
-        unifiedOutput.startOperation()
 
         let startMsg = "🚀 Starting Lambda container...\n"
         lambdaState.appendOutput(startMsg)
-        unifiedOutput.appendOutput(startMsg)
+        await output?.send(.stdout(commandID: .init(), text: startMsg))
 
         do {
-            try await startDetached(lambdaPath: nil)
+            try await startDetached(lambdaPath: nil, output: output)
             let containerMsg = "   Container: \(config.containerName)\n"
             let portMsg = "   Port: http://localhost:\(port)\n"
             lambdaState.appendOutput(containerMsg)
             lambdaState.appendOutput(portMsg)
-            unifiedOutput.appendOutput(containerMsg)
-            unifiedOutput.appendOutput(portMsg)
+            await output?.send(.stdout(commandID: .init(), text: containerMsg))
+            await output?.send(.stdout(commandID: .init(), text: portMsg))
             lambdaState.markRunning()
-            unifiedOutput.appendOutput("\n✅ Lambda is running\n")
+            let doneMsg = "\n✅ Lambda is running\n"
+            await output?.send(.stdout(commandID: .init(), text: doneMsg))
         } catch {
             lambdaState.markFailed(reason: error.localizedDescription)
-            unifiedOutput.appendOutput("\n❌ Lambda failed: \(error.localizedDescription)\n")
-            unifiedOutput.endOperation()
+            let errorMsg = "\n❌ Lambda failed: \(error.localizedDescription)\n"
+            await output?.send(.stderr(commandID: .init(), text: errorMsg))
             throw error
         }
-        unifiedOutput.endOperation()
     }
 
     /// Stop Lambda container
-    public func stopLambda() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func stopLambda(output: CLIOutputStream? = nil) async throws {
         lambdaState.beginStop()
-        unifiedOutput.startOperation()
 
         let stopMsg = "🛑 Stopping Lambda container...\n"
         lambdaState.appendOutput(stopMsg)
-        unifiedOutput.appendOutput(stopMsg)
+        await output?.send(.stdout(commandID: .init(), text: stopMsg))
 
         do {
             try await dockerService.stop(container: config.containerName)
             lambdaState.markStopped()
-            unifiedOutput.appendOutput("\n✅ Lambda stopped\n")
+            let doneMsg = "\n✅ Lambda stopped\n"
+            await output?.send(.stdout(commandID: .init(), text: doneMsg))
         } catch {
             // Container may already be stopped
             let warnMsg = "⚠️  Container may already be stopped\n"
             lambdaState.appendOutput(warnMsg)
-            unifiedOutput.appendOutput(warnMsg)
+            await output?.send(.stdout(commandID: .init(), text: warnMsg))
             lambdaState.markStopped()
         }
-        unifiedOutput.endOperation()
     }
 
     /// Start Lambda container with all services (complete flow)
-    public func startWithServices() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func startWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
         defer { isTransitioning = false }
 
@@ -318,7 +313,7 @@ public class LinuxLocalService: LocalService {
         // 1. Stop any existing Lambda container
         print("\n→ Checking for existing Lambda container...")
         do {
-            try await stopLambda()
+            try await stopLambda(output: output)
         } catch {
             print("  (No existing container to stop)")
         }
@@ -337,7 +332,7 @@ public class LinuxLocalService: LocalService {
 
         // 5. Start Lambda container in detached mode
         print("\n→ Starting Lambda container in background...")
-        try await startLambda()
+        try await startLambda(output: output)
 
         print("\n✅ Lambda container started!")
         print("   Container: \(config.containerName)")
@@ -350,7 +345,8 @@ public class LinuxLocalService: LocalService {
     }
 
     /// Stop Lambda container and all services
-    public func stopWithServices() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
         defer { isTransitioning = false }
 
@@ -361,7 +357,7 @@ public class LinuxLocalService: LocalService {
         // 1. Stop Lambda container
         print("\n→ Stopping Lambda container...")
         do {
-            try await stopLambda()
+            try await stopLambda(output: output)
         } catch {
             print("  (No container to stop)")
         }
@@ -598,7 +594,10 @@ public class LinuxLocalService: LocalService {
     }
 
     /// Start Lambda container in detached mode (for automated testing)
-    public func startDetached(lambdaPath: String? = nil) async throws {
+    /// - Parameters:
+    ///   - lambdaPath: Optional path to the lambda directory (defaults to standard location)
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func startDetached(lambdaPath: String? = nil, output: CLIOutputStream? = nil) async throws {
         // Ensure Docker is running
         try await dockerService.ensureDockerRunning()
 
@@ -626,7 +625,8 @@ public class LinuxLocalService: LocalService {
         try await dockerService.run(
             image: config.swiftImage,
             command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
-            options: options
+            options: options,
+            output: output
         )
     }
 

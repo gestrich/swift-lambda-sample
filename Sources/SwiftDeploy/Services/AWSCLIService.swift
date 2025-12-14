@@ -62,9 +62,11 @@ public actor AWSCLIService {
     /// - Parameters:
     ///   - command: The AWS CLI command to execute
     ///   - printCommand: Whether to print the command
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     private func executeForSideEffect<C: CLICommand>(
         _ command: C,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        output: CLIOutputStream? = nil
     ) async throws where C.Program == Aws {
         let (execCommand, arguments) = buildCommandLine(command)
 
@@ -72,7 +74,8 @@ public actor AWSCLIService {
             command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
-            printCommand: printCommand
+            printCommand: printCommand,
+            output: output
         )
 
         guard result.isSuccess else {
@@ -217,9 +220,14 @@ public actor AWSCLIService {
     // MARK: - Lambda
 
     /// Update Lambda function code
+    /// - Parameters:
+    ///   - functionName: Name of the Lambda function
+    ///   - zipFile: Path to the zip file
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func updateLambdaCode(
         functionName: String,
-        zipFile: String
+        zipFile: String,
+        output: CLIOutputStream? = nil
     ) async throws {
         let command = Aws.Lambda.UpdateFunctionCode(
             functionName: functionName,
@@ -227,7 +235,7 @@ public actor AWSCLIService {
             profile: profile
         )
 
-        try await executeForSideEffect(command)
+        try await executeForSideEffect(command, output: output)
     }
 
     /// Get Lambda function configuration
@@ -266,11 +274,18 @@ public actor AWSCLIService {
     // MARK: - CloudWatch Logs
 
     /// Tail CloudWatch logs
+    /// - Parameters:
+    ///   - logGroup: CloudWatch log group name
+    ///   - since: Time period to fetch logs from (default: "5m")
+    ///   - format: Output format (default: "short")
+    ///   - follow: Whether to follow logs in real-time
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func tailLogs(
         logGroup: String,
         since: String = "5m",
         format: String = "short",
-        follow: Bool = false
+        follow: Bool = false,
+        output: CLIOutputStream? = nil
     ) async throws {
         let command = Aws.Logs.Tail(
             logGroup: logGroup,
@@ -280,7 +295,7 @@ public actor AWSCLIService {
             profile: profile
         )
 
-        try await executeForSideEffect(command)
+        try await executeForSideEffect(command, output: output)
     }
 
     // MARK: - S3

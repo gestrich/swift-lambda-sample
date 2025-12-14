@@ -96,26 +96,32 @@ public class LambdaBuildService {
     // MARK: - Build Operations
 
     /// Build Lambda for Linux (AMD64) using Docker
-    /// - Parameter clean: If true, cleans previous build artifacts first
-    public func build(clean: Bool = false) async throws {
+    /// - Parameters:
+    ///   - clean: If true, cleans previous build artifacts first
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
         buildState.startBuild()
 
         // Clean if requested
         if clean {
             let cleanMsg = "🧹 Cleaning previous build artifacts...\n"
             buildState.appendOutput(cleanMsg)
+            await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
                 let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
                 _ = try await cliService.execute(
                     rmCmd,
                     workingDirectory: workingDirectory,
-                    printCommand: false
+                    printCommand: false,
+                    output: output
                 )
                 let successMsg = "  ✅ Cleaned\n"
                 buildState.appendOutput(successMsg)
+                await output?.send(.stdout(commandID: .init(), text: successMsg))
             } catch {
                 let errorMsg = "  ❌ Clean failed: \(error)\n"
                 buildState.appendOutput(errorMsg)
+                await output?.send(.stderr(commandID: .init(), text: errorMsg))
                 buildState.markFailed(exitCode: 1)
                 throw BuildError.failed(exitCode: 1)
             }
@@ -123,18 +129,20 @@ public class LambdaBuildService {
 
         let buildMsg = "🔨 Building Lambda for Linux (Docker)...\n"
         buildState.appendOutput(buildMsg)
+        await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         // Stream the build output using typed command
         let buildCmd = BuildScript.Build.lambda(target: "SwiftLambda")
         let stream = await cliService.stream(
             buildCmd,
             workingDirectory: workingDirectory,
-            printCommand: false
+            printCommand: false,
+            output: output
         )
 
         var exitCode: Int32 = 0
-        for await output in stream {
-            if let code = buildState.processStreamOutput(output) {
+        for await streamOutput in stream {
+            if let code = buildState.processStreamOutput(streamOutput) {
                 exitCode = code
             }
         }
@@ -169,7 +177,8 @@ public class LambdaBuildService {
 
     /// Upload the Lambda package to AWS
     /// Requires awsConfig to be set
-    public func upload() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func upload(output: CLIOutputStream? = nil) async throws {
         guard let awsConfig = awsConfig else {
             throw LambdaUploadError.uploadFailed(output: "AWS config not provided")
         }
@@ -207,7 +216,8 @@ public class LambdaBuildService {
                 arguments: arguments,
                 workingDirectory: workingDirectory,
                 environment: ["AWS_PROFILE": awsConfig.profileName],
-                printCommand: true
+                printCommand: true,
+                output: output
             )
 
             if !result.isSuccess {
@@ -227,9 +237,10 @@ public class LambdaBuildService {
     }
 
     /// Build and upload in one operation
-    public func buildAndUpload() async throws {
-        try await build()
-        try await upload()
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func buildAndUpload(output: CLIOutputStream? = nil) async throws {
+        try await build(output: output)
+        try await upload(output: output)
     }
 
     /// Reset upload status to idle

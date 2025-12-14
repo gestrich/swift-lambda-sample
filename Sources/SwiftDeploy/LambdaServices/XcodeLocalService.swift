@@ -41,10 +41,6 @@ public class XcodeLocalService: LocalService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
-    // MARK: - Unified Output
-
-    public let unifiedOutput = UnifiedOutputState()
-
     // MARK: - Build State
 
     public let buildState = BuildState()
@@ -169,65 +165,62 @@ public class XcodeLocalService: LocalService {
     // MARK: - LambdaService Protocol: Build
 
     /// Build Lambda for macOS (native Swift build), updating buildState
-    public func build(clean: Bool = false) async throws {
+    /// - Parameters:
+    ///   - clean: Whether to clean build artifacts first
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
         buildState.startBuild()
-        unifiedOutput.startOperation()
 
         // Clean if requested
         if clean {
             let cleanMsg = "🧹 Cleaning previous build artifacts...\n"
             buildState.appendOutput(cleanMsg)
-            unifiedOutput.appendOutput(cleanMsg)
+            await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
                 _ = try await cliService.execute(
                     SwiftCLI.Package.Clean(),
                     workingDirectory: workingDirectory,
-                    printCommand: false
+                    printCommand: false,
+                    output: output
                 )
                 let successMsg = "  ✅ Cleaned\n"
                 buildState.appendOutput(successMsg)
-                unifiedOutput.appendOutput(successMsg)
+                await output?.send(.stdout(commandID: .init(), text: successMsg))
             } catch {
                 let errorMsg = "  ❌ Clean failed: \(error)\n"
                 buildState.appendOutput(errorMsg)
-                unifiedOutput.appendOutput(errorMsg)
+                await output?.send(.stderr(commandID: .init(), text: errorMsg))
                 buildState.markFailed(exitCode: 1)
-                unifiedOutput.endOperation()
                 throw BuildError.failed(exitCode: 1)
             }
         }
 
         let buildMsg = "🔨 Building Lambda for macOS (native)...\n"
         buildState.appendOutput(buildMsg)
-        unifiedOutput.appendOutput(buildMsg)
+        await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         // Stream the build output
         let buildCommand = SwiftCLI.Build(product: lambdaProductName)
         let stream = await cliService.stream(
             buildCommand,
             workingDirectory: workingDirectory,
-            printCommand: false
+            printCommand: false,
+            output: output
         )
 
         var exitCode: Int32 = 0
-        for await output in stream {
-            // Process for both build state and unified output
-            if let code = buildState.processStreamOutput(output) {
+        for await streamOutput in stream {
+            if let code = buildState.processStreamOutput(streamOutput) {
                 exitCode = code
             }
-            _ = unifiedOutput.processStreamOutput(output)
         }
 
         if exitCode == 0 {
             buildState.markSuccess()
-            unifiedOutput.appendOutput("\n✅ Build completed successfully\n")
         } else {
             buildState.markFailed(exitCode: exitCode)
-            unifiedOutput.appendOutput("\n❌ Build failed with exit code \(exitCode)\n")
-            unifiedOutput.endOperation()
             throw BuildError.failed(exitCode: exitCode)
         }
-        unifiedOutput.endOperation()
     }
 
     /// Get the path to the built executable
@@ -284,20 +277,20 @@ public class XcodeLocalService: LocalService {
     // MARK: - LambdaService Protocol: Lifecycle
 
     /// Start Lambda locally (native process)
-    public func startLambda() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func startLambda(output: CLIOutputStream? = nil) async throws {
         lambdaState.startLambda()
-        unifiedOutput.startOperation()
 
         let startMsg = "🚀 Starting Lambda locally (native)...\n"
         lambdaState.appendOutput(startMsg)
-        unifiedOutput.appendOutput(startMsg)
+        await output?.send(.stdout(commandID: .init(), text: startMsg))
 
         // Build Lambda if not already built
         if !isLambdaBuilt() {
             let buildMsg = "→ Building Lambda first...\n"
             lambdaState.appendOutput(buildMsg)
-            unifiedOutput.appendOutput(buildMsg)
-            try await build()
+            await output?.send(.stdout(commandID: .init(), text: buildMsg))
+            try await build(output: output)
         }
 
         // Get the built executable path
@@ -306,7 +299,7 @@ public class XcodeLocalService: LocalService {
         // Start Lambda in background with environment variables
         let portMsg = "→ Starting Lambda on port \(lambdaHostPort)...\n"
         lambdaState.appendOutput(portMsg)
-        unifiedOutput.appendOutput(portMsg)
+        await output?.send(.stdout(commandID: .init(), text: portMsg))
 
         var env = getLambdaEnvironmentVariables()
         env["LOCAL_LAMBDA_PORT"] = "\(lambdaHostPort)"
@@ -318,40 +311,41 @@ public class XcodeLocalService: LocalService {
         _ = try await cliService.execute(
             Sh(command: "\(envVars) \(executablePath) > /tmp/lambda.log 2>&1 & echo $!"),
             workingDirectory: workingDirectory,
-            printCommand: false
+            printCommand: false,
+            output: output
         )
 
         // Wait a bit for Lambda to start
         let waitMsg = "→ Waiting for Lambda to start...\n"
         lambdaState.appendOutput(waitMsg)
-        unifiedOutput.appendOutput(waitMsg)
+        await output?.send(.stdout(commandID: .init(), text: waitMsg))
         try await Task.sleep(for: .seconds(3))
 
         // Check if it's running
         if await isPortInUse(lambdaHostPort) {
             let successMsg = "   Test with: ./tools.sh local xcode test\n   Stop with: ./tools.sh local xcode stop\n"
             lambdaState.appendOutput(successMsg)
-            unifiedOutput.appendOutput(successMsg)
+            await output?.send(.stdout(commandID: .init(), text: successMsg))
             lambdaState.markRunning()
-            unifiedOutput.appendOutput("\n✅ Lambda is running\n")
+            let doneMsg = "\n✅ Lambda is running\n"
+            await output?.send(.stdout(commandID: .init(), text: doneMsg))
         } else {
             let failMsg = "Failed to start on port \(lambdaHostPort)"
             lambdaState.markFailed(reason: failMsg)
-            unifiedOutput.appendOutput("\n❌ Lambda failed: \(failMsg)\n")
-            unifiedOutput.endOperation()
+            let errorMsg = "\n❌ Lambda failed: \(failMsg)\n"
+            await output?.send(.stderr(commandID: .init(), text: errorMsg))
             throw DeployError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
         }
-        unifiedOutput.endOperation()
     }
 
     /// Stop locally running Lambda
-    public func stopLambda() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func stopLambda(output: CLIOutputStream? = nil) async throws {
         lambdaState.beginStop()
-        unifiedOutput.startOperation()
 
         let stopMsg = "🛑 Stopping Lambda...\n"
         lambdaState.appendOutput(stopMsg)
-        unifiedOutput.appendOutput(stopMsg)
+        await output?.send(.stdout(commandID: .init(), text: stopMsg))
 
         // Find process on port
         let pids = await getProcessIDsOnPort(lambdaHostPort)
@@ -359,20 +353,21 @@ public class XcodeLocalService: LocalService {
         if !pids.isEmpty {
             let killMsg = "→ Killing process(es): \(pids.joined(separator: ", "))...\n"
             lambdaState.appendOutput(killMsg)
-            unifiedOutput.appendOutput(killMsg)
+            await output?.send(.stdout(commandID: .init(), text: killMsg))
 
             // Kill each process
             for pid in pids {
                 let killResult = try await cliService.executeForResult(
                     Kill(pid: pid),
-                    printCommand: false
+                    printCommand: false,
+                    output: output
                 )
 
                 if !killResult.isSuccess {
                     let failMsg = "Failed to kill process \(pid)"
                     lambdaState.markFailed(reason: failMsg)
-                    unifiedOutput.appendOutput("❌ \(failMsg)\n")
-                    unifiedOutput.endOperation()
+                    let errorMsg = "❌ \(failMsg)\n"
+                    await output?.send(.stderr(commandID: .init(), text: errorMsg))
                     throw DeployError.commandFailed(
                         command: Kill(pid: pid).commandString,
                         exitCode: killResult.exitCode,
@@ -383,20 +378,21 @@ public class XcodeLocalService: LocalService {
 
             let stoppedMsg = "Stopped \(pids.count) process\(pids.count == 1 ? "" : "es")\n"
             lambdaState.appendOutput(stoppedMsg)
-            unifiedOutput.appendOutput(stoppedMsg)
+            await output?.send(.stdout(commandID: .init(), text: stoppedMsg))
             lambdaState.markStopped()
-            unifiedOutput.appendOutput("\n✅ Lambda stopped\n")
+            let doneMsg = "\n✅ Lambda stopped\n"
+            await output?.send(.stdout(commandID: .init(), text: doneMsg))
         } else {
             let notFoundMsg = "⚠️  No Lambda process found on port \(lambdaHostPort)\n"
             lambdaState.appendOutput(notFoundMsg)
-            unifiedOutput.appendOutput(notFoundMsg)
+            await output?.send(.stdout(commandID: .init(), text: notFoundMsg))
             lambdaState.markStopped()
         }
-        unifiedOutput.endOperation()
     }
 
     /// Start Lambda with all services (complete flow)
-    public func startWithServices() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func startWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
         defer { isTransitioning = false }
 
@@ -410,7 +406,7 @@ public class XcodeLocalService: LocalService {
         try await setupNetworkAndBucket()
 
         // Then start Lambda
-        try await startLambda()
+        try await startLambda(output: output)
 
         refreshStatus()
     }
@@ -441,14 +437,15 @@ public class XcodeLocalService: LocalService {
     }
 
     /// Stop Lambda and all services (complete flow)
-    public func stopWithServices() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
         defer { isTransitioning = false }
 
         statusSubject.send(.stopping)
 
         // Stop Lambda first
-        try await stopLambda()
+        try await stopLambda(output: output)
 
         // Then stop services
         print("\n📦 Stopping local services...")

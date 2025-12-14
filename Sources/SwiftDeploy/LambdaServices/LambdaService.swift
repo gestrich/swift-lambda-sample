@@ -43,11 +43,6 @@ public protocol LambdaService {
     /// Each service has its own dedicated CLIService to isolate output streams.
     var cliService: CLIService { get }
 
-    // MARK: - Unified Output
-
-    /// Unified output state that collects all CLI output (build, lambda, etc.)
-    var unifiedOutput: UnifiedOutputState { get }
-
     // MARK: - Testing
 
     /// Test Lambda endpoints

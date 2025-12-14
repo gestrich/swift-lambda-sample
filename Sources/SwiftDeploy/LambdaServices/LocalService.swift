@@ -1,3 +1,4 @@
+import CLIKit
 import Foundation
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
@@ -40,9 +41,11 @@ public protocol LocalService: LambdaService {
     var buildState: BuildState { get }
 
     /// Build Lambda for the target platform, updating buildState
-    /// - Parameter clean: Whether to clean build artifacts first
+    /// - Parameters:
+    ///   - clean: Whether to clean build artifacts first
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Throws: BuildError.failed if the build fails
-    func build(clean: Bool) async throws
+    func build(clean: Bool, output: CLIOutputStream?) async throws
 
     /// Check if Lambda is already built
     func isLambdaBuilt() -> Bool
@@ -59,16 +62,20 @@ public protocol LocalService: LambdaService {
     var lambdaState: LambdaState { get }
 
     /// Start Lambda process/container only
-    func startLambda() async throws
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    func startLambda(output: CLIOutputStream?) async throws
 
     /// Stop Lambda process/container only
-    func stopLambda() async throws
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    func stopLambda(output: CLIOutputStream?) async throws
 
     /// Start Lambda with all supporting services (PostgreSQL + S3)
-    func startWithServices() async throws
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    func startWithServices(output: CLIOutputStream?) async throws
 
     /// Stop Lambda and all supporting services
-    func stopWithServices() async throws
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    func stopWithServices(output: CLIOutputStream?) async throws
 
     /// Start services if not already running, then refresh status
     func startIfNecessary() async
@@ -77,9 +84,34 @@ public protocol LocalService: LambdaService {
 // MARK: - Default Implementations
 
 extension LocalService {
-    /// Default implementation for build without clean parameter
+    /// Default implementation for build without clean or output parameters
     public func build() async throws {
-        try await build(clean: false)
+        try await build(clean: false, output: nil)
+    }
+
+    /// Default implementation for build with clean but no output parameter
+    public func build(clean: Bool) async throws {
+        try await build(clean: clean, output: nil)
+    }
+
+    /// Default implementation for startLambda without output parameter
+    public func startLambda() async throws {
+        try await startLambda(output: nil)
+    }
+
+    /// Default implementation for stopLambda without output parameter
+    public func stopLambda() async throws {
+        try await stopLambda(output: nil)
+    }
+
+    /// Default implementation for startWithServices without output parameter
+    public func startWithServices() async throws {
+        try await startWithServices(output: nil)
+    }
+
+    /// Default implementation for stopWithServices without output parameter
+    public func stopWithServices() async throws {
+        try await stopWithServices(output: nil)
     }
 
     /// Default implementation for refreshing build status
@@ -101,7 +133,7 @@ extension LocalService {
 
             if anyServiceStopped {
                 print("🔄 Starting services (some are stopped)...")
-                try await startWithServices()
+                try await startWithServices(output: nil)
             } else {
                 print("🔄 All services already running, skipping start")
             }

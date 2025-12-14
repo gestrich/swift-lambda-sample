@@ -77,8 +77,6 @@ class LocalServicesModel: LocalService {
 
     public var cliService: CLIService { service.cliService }
 
-    public var unifiedOutput: UnifiedOutputState { service.unifiedOutput }
-
     public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         statusSubject.eraseToAnyPublisher()
     }
@@ -141,8 +139,8 @@ class LocalServicesModel: LocalService {
 
     public var buildState: BuildState { service.buildState }
 
-    public func build(clean: Bool) async throws {
-        try await service.build(clean: clean)
+    public func build(clean: Bool, output: CLIOutputStream?) async throws {
+        try await service.build(clean: clean, output: output)
     }
 
     public func isLambdaBuilt() -> Bool {
@@ -157,20 +155,20 @@ class LocalServicesModel: LocalService {
 
     public var lambdaState: LambdaState { service.lambdaState }
 
-    public func startLambda() async throws {
-        try await service.startLambda()
+    public func startLambda(output: CLIOutputStream?) async throws {
+        try await service.startLambda(output: output)
     }
 
-    public func stopLambda() async throws {
-        try await service.stopLambda()
+    public func stopLambda(output: CLIOutputStream?) async throws {
+        try await service.stopLambda(output: output)
     }
 
-    public func startWithServices() async throws {
-        try await service.startWithServices()
+    public func startWithServices(output: CLIOutputStream?) async throws {
+        try await service.startWithServices(output: output)
     }
 
-    public func stopWithServices() async throws {
-        try await service.stopWithServices()
+    public func stopWithServices(output: CLIOutputStream?) async throws {
+        try await service.stopWithServices(output: output)
     }
 
     public func startIfNecessary() async {
