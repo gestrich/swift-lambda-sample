@@ -2,7 +2,7 @@ import CLIKit
 import Foundation
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
-/// Both XcodeLocalModel and LinuxLocalServiceModel conform to this protocol.
+/// Both XcodeLocalModel and LinuxLocalModel conform to this protocol.
 /// RemoteModel does NOT conform - it only conforms to LambdaService.
 @MainActor
 public protocol LocalService: LambdaService {

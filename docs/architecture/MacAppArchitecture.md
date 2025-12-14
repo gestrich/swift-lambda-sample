@@ -4,6 +4,29 @@
 
 The app follows a **Model-View (MV)** architecture pattern with Services.
 
+## Project Structure
+
+```
+MacApp/Models/                           # Observable state (UI binding)
+├── AppModel.swift                       # Root model, composes all services
+├── RemoteModel.swift                    # AWS deployment state
+├── XcodeLocalModel.swift                # Native macOS local dev state
+├── LinuxLocalModel.swift                # Linux container local dev state
+├── DependencyStatusModel.swift          # Dependency checker state
+└── LocalServicesModel.swift             # Local services state wrapper
+
+SwiftDeploy/Services/                    # Stateless business logic
+├── RemoteDeploymentService.swift        # AWS deployment operations
+├── XcodeLocalDevelopmentService.swift   # Native macOS local dev operations
+├── LinuxLocalDevelopmentService.swift   # Linux container local dev operations
+├── DependencyCheckerService.swift       # Dependency checking operations
+└── ... (other services)
+
+SwiftDeploy/LambdaServices/              # Protocols and shared types
+├── LambdaService.swift                  # Base protocol + DeploymentStatus
+└── LocalService.swift                   # Extended protocol for local services
+```
+
 ## Models
 
 Models hold app state and serve as the API that views interact with.
@@ -21,32 +44,41 @@ A top-level `AppModel` serves as the root, composing all domain models.
 ```swift
 @Observable
 class AppModel {
-    let userModel: UserModel
-    let settingsModel: SettingsModel
+    let remoteService: RemoteModel
+    let xcodeLocalService: XcodeLocalModel
+    let linuxLocalService: LinuxLocalModel
+    let dependencyStatusModel: DependencyStatusModel
+
+    var mode: ConnectionMode  // Current active mode
 }
 ```
 
 ### Domain Models
 
+Models are thin wrappers that hold observable state and delegate to stateless services:
+
 ```swift
-@Observable
-class UserModel {
-    private let userService: UserService
+@MainActor
+class XcodeLocalModel: LocalService {
+    private let developmentService: XcodeLocalDevelopmentService
 
-    var users: [User] = []
-    var isLoading = false
+    // Observable state for UI
+    let buildState = BuildState()
+    let lambdaState = LambdaState()
+    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
 
-    func loadUsers() async {
-        isLoading = true
-        users = await userService.fetchUsers()
-        isLoading = false
+    // Delegate to service
+    func startLambda() async throws {
+        lambdaState.startLambda()
+        try await developmentService.startLambda()
+        lambdaState.markRunning()
     }
 }
 ```
 
 ### Optional Models
 
-Some models are defined as optional. These represent state that only exists after configuration or user action. If the model exists, it is ready to use—avoiding optional values within the model itself.
+Some models are defined as optional. These represent state that only exists after configuration or user action.
 
 ```swift
 @Observable
@@ -56,34 +88,29 @@ class AppModel {
 }
 ```
 
-## State
-
-State is represented by structs. Services define the state types; models hold the current values.
-
-```swift
-struct UserState {
-    var users: [User]
-    var selectedUser: User?
-}
-```
-
 ## Services
 
-Services are stateless and handle external interactions. They define the state structs they work with.
+Services are **stateless actors** that handle business logic and external interactions.
 
-- Network requests
-- Database operations
-- File system access
-- External APIs
+- No UI state (no `@Observable`, no Combine publishers)
+- Orchestrate sub-services (Docker, CLI, AWS)
+- Return results, don't store them
+- Can be used directly by CLI (no MainActor requirement)
 
 ```swift
-struct UserService {
-    func fetchUsers() async -> [User] {
-        // Network call
+public actor XcodeLocalDevelopmentService {
+    private let dockerService: DockerService
+    private let postgresService: PostgreSQLService
+    private let minioService: MinIOService
+
+    public func startWithServices() async throws {
+        try await startAllServices()
+        try await setupNetworkAndBucket()
+        try await startLambda()
     }
 
-    func saveUser(_ user: User) async {
-        // Database operation
+    public func status() async throws -> DeploymentStatus {
+        // Query actual state, return result
     }
 }
 ```
@@ -91,7 +118,25 @@ struct UserService {
 ## Data Flow
 
 ```
-View → Model → Service → External (Network/DB/etc.)
+MacApp View → Model (observable state) → Service (stateless) → External
+CLI Command → Service (stateless) → External
 ```
 
-Views observe models. Models call services. Services return data.
+- **MacApp**: Views observe models. Models call services. Services return data.
+- **CLI**: Commands call services directly. Services return data. Commands print results.
+
+## Protocols
+
+### LambdaService
+
+Base protocol for all Lambda services (remote and local). Provides:
+- Endpoint configuration
+- Status publishing (Combine)
+- Testing capabilities
+
+### LocalService
+
+Extended protocol for local services (Xcode and Linux). Adds:
+- Docker service management (PostgreSQL, MinIO, DynamoDB)
+- Build operations
+- Lambda lifecycle management

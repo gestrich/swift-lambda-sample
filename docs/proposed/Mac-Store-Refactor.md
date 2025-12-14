@@ -192,24 +192,28 @@ This creates issues:
 
 ---
 
-## 5. Final Cleanup
+## 5. Final Cleanup ✅ COMPLETED
 
-### [ ] 5.1 Remove empty Models folder from SwiftDeploy
-- After all models moved to MacApp
+### [x] 5.1 Remove empty Models folder from SwiftDeploy
+- Removed empty `Sources/SwiftDeploy/Models/` directory
 
-### [ ] 5.2 Update LambdaService protocol
-- May need adjustment since Models no longer in SwiftDeploy
-- Consider if protocol should move to MacApp or be split
+### [x] 5.2 Update LambdaService protocol
+- Protocol stays in SwiftDeploy (provides shared types used by services)
+- Fixed outdated comment: `LinuxLocalServiceModel` → `LinuxLocalModel`
 
-### [ ] 5.3 Update LocalService protocol
-- Same consideration as LambdaService
+### [x] 5.3 Update LocalService protocol
+- Protocol stays in SwiftDeploy (provides shared interface)
+- Fixed outdated comment: `LinuxLocalServiceModel` → `LinuxLocalModel`
 
-### [ ] 5.4 Final build verification
-- `swift build --target MacApp`
-- `swift build --target SwiftDeployCLI`
+### [x] 5.4 Final build verification
+- `swift build` passes successfully
 
-### [ ] 5.5 Update architecture documentation
-- Update `docs/architecture/MacAppArchitecture.md` with final structure
+### [x] 5.5 Update architecture documentation
+- Updated `docs/architecture/MacAppArchitecture.md` with:
+  - Project structure diagram
+  - Model/Service separation explanation
+  - Data flow for MacApp and CLI
+  - Protocol documentation
 
 ---
 
@@ -226,29 +230,7 @@ SwiftDeploy/Models/
 CLI → Model → sub-services
 ```
 
-### Current State (Phase 4 Complete)
-```
-SwiftDeploy/Services/
-├── RemoteDeploymentService.swift       (stateless facade) ✅
-├── XcodeLocalDevelopmentService.swift  (stateless facade) ✅
-├── LinuxLocalDevelopmentService.swift  (stateless facade) ✅
-├── DependencyCheckerService.swift      (stateless) ✅
-└── ... (existing services)
-
-SwiftDeploy/Models/
-└── (empty - all models moved to MacApp)
-
-MacApp/Models/
-├── RemoteModel.swift           (@Observable state only) ✅
-├── XcodeLocalModel.swift       (@Observable state only) ✅
-├── LinuxLocalModel.swift       (@Observable state only) ✅
-└── DependencyStatusModel.swift (@Observable state only) ✅
-
-CLI → Service (single call)
-MacApp View → Model → Service
-```
-
-### After (Target)
+### After (Refactor Complete ✅)
 ```
 SwiftDeploy/Services/
 ├── RemoteDeploymentService.swift       (stateless facade)
@@ -256,6 +238,10 @@ SwiftDeploy/Services/
 ├── LinuxLocalDevelopmentService.swift  (stateless facade)
 ├── DependencyCheckerService.swift      (stateless)
 └── ... (existing services)
+
+SwiftDeploy/LambdaServices/
+├── LambdaService.swift                 (protocol + DeploymentStatus)
+└── LocalService.swift                  (protocol for local services)
 
 MacApp/Models/
 ├── RemoteModel.swift           (@Observable state only)
