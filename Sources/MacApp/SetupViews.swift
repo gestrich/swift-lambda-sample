@@ -422,6 +422,8 @@ struct AWSServicesView: View {
 // MARK: - Dependency Model
 
 enum Dependency {
+    case homebrew
+    case nodejs
     case docker
     case awsCLI
     case cdk
@@ -429,6 +431,8 @@ enum Dependency {
 
     var title: String {
         switch self {
+        case .homebrew: return "Homebrew"
+        case .nodejs: return "Node.js"
         case .docker: return "Docker"
         case .awsCLI: return "AWS CLI"
         case .cdk: return "AWS CDK"
@@ -438,6 +442,8 @@ enum Dependency {
 
     var iconName: String {
         switch self {
+        case .homebrew: return "mug.fill"
+        case .nodejs: return "circle.hexagongrid.fill"
         case .docker: return "shippingbox.fill"
         case .awsCLI: return "terminal.fill"
         case .cdk: return "square.stack.3d.up.fill"
@@ -447,6 +453,8 @@ enum Dependency {
 
     var iconColor: Color {
         switch self {
+        case .homebrew: return .orange
+        case .nodejs: return .green
         case .docker: return .blue
         case .awsCLI: return .orange
         case .cdk: return .purple
@@ -456,6 +464,10 @@ enum Dependency {
 
     var description: String {
         switch self {
+        case .homebrew:
+            return "Homebrew is the package manager for macOS. It's used to install most of the other dependencies like Docker, AWS CLI, and GitHub CLI."
+        case .nodejs:
+            return "Node.js provides the JavaScript runtime and npm package manager needed to install and run AWS CDK."
         case .docker:
             return "Docker is required to run local development services (PostgreSQL, MinIO) and to build the Lambda for Linux deployment."
         case .awsCLI:
@@ -469,6 +481,10 @@ enum Dependency {
 
     var installCommand: any CLICommand {
         switch self {
+        case .homebrew:
+            return Homebrew.installCommand()
+        case .nodejs:
+            return Brew.Install(package: "node")
         case .docker:
             return Brew.Install(cask: true, package: "docker")
         case .awsCLI:
@@ -482,6 +498,10 @@ enum Dependency {
 
     var verifyCommand: any CLICommand {
         switch self {
+        case .homebrew:
+            return Brew.Version()
+        case .nodejs:
+            return Node.Version()
         case .docker:
             return Docker.Version()
         case .awsCLI:
@@ -495,6 +515,10 @@ enum Dependency {
 
     var uninstallCommand: any CLICommand {
         switch self {
+        case .homebrew:
+            return Homebrew.uninstallCommand()
+        case .nodejs:
+            return Brew.Uninstall(package: "node")
         case .docker:
             return Brew.Uninstall(cask: true, package: "docker")
         case .awsCLI:
@@ -508,6 +532,10 @@ enum Dependency {
 
     var documentationURL: String {
         switch self {
+        case .homebrew:
+            return "https://brew.sh"
+        case .nodejs:
+            return "https://nodejs.org"
         case .docker:
             return "https://docs.docker.com/desktop/install/mac-install/"
         case .awsCLI:
@@ -532,6 +560,8 @@ struct DependencyView: View {
 
     private var status: DependencyInstallStatus {
         switch dependency {
+        case .homebrew: return statusService.homebrewStatus
+        case .nodejs: return statusService.nodejsStatus
         case .docker: return statusService.dockerStatus
         case .awsCLI: return statusService.awsCLIStatus
         case .cdk: return statusService.cdkStatus
@@ -660,6 +690,10 @@ struct DependencyView: View {
 
     private func checkStatus() async {
         switch dependency {
+        case .homebrew:
+            await statusService.checkHomebrew()
+        case .nodejs:
+            await statusService.checkNodeJS()
         case .docker:
             await statusService.checkDocker()
         case .awsCLI:

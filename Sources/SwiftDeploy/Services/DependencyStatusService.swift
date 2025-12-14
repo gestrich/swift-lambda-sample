@@ -26,6 +26,8 @@ public enum DependencyInstallStatus: Equatable, Sendable {
 public final class DependencyStatusService {
     // MARK: - Status Properties
 
+    public private(set) var homebrewStatus: DependencyInstallStatus = .unknown
+    public private(set) var nodejsStatus: DependencyInstallStatus = .unknown
     public private(set) var dockerStatus: DependencyInstallStatus = .unknown
     public private(set) var awsCLIStatus: DependencyInstallStatus = .unknown
     public private(set) var cdkStatus: DependencyInstallStatus = .unknown
@@ -46,11 +48,25 @@ public final class DependencyStatusService {
     /// Check all dependency statuses
     public func checkAll() async {
         await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.checkHomebrew() }
+            group.addTask { await self.checkNodeJS() }
             group.addTask { await self.checkDocker() }
             group.addTask { await self.checkAWSCLI() }
             group.addTask { await self.checkCDK() }
             group.addTask { await self.checkGitHubCLI() }
         }
+    }
+
+    /// Check Homebrew installation status
+    public func checkHomebrew() async {
+        homebrewStatus = .checking
+        homebrewStatus = await checkCommand("brew", versionArgs: ["--version"])
+    }
+
+    /// Check Node.js installation status
+    public func checkNodeJS() async {
+        nodejsStatus = .checking
+        nodejsStatus = await checkCommand("node", versionArgs: ["--version"])
     }
 
     /// Check Docker installation status

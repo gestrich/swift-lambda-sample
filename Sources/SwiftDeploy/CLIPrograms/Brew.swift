@@ -5,6 +5,15 @@ import Foundation
 @CLIProgram
 public struct Brew {
 
+    // MARK: - Version
+
+    /// brew --version command
+    /// Example: brew --version
+    @CLICommand("--version")
+    public struct Version {
+        public init() {}
+    }
+
     // MARK: - Install
 
     /// brew install command
