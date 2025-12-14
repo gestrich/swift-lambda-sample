@@ -1,4 +1,5 @@
 import Client
+import CLIKit
 import Foundation
 import SwiftDeploy
 

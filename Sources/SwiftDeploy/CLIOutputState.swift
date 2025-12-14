@@ -167,15 +167,3 @@ extension LambdaStatus: CLIOutputStatus {
         return nil
     }
 }
-
-// MARK: - BuildState Conformance
-
-extension BuildState: CLIOutputState {
-    public typealias Status = BuildStatus
-}
-
-// MARK: - LambdaState Conformance
-
-extension LambdaState: CLIOutputState {
-    public typealias Status = LambdaStatus
-}
