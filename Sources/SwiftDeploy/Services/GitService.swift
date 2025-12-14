@@ -55,12 +55,14 @@ public actor GitService {
     }
 
     /// Push commits to remote
-    public func push() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func push(output: CLIOutputStream? = nil) async throws {
         print("\n📤 Pushing commits to remote...")
 
         let result = try await cliService.executeForResult(
             Git.Push(),
-            workingDirectory: repoPath
+            workingDirectory: repoPath,
+            output: output
         )
 
         guard result.isSuccess else {
