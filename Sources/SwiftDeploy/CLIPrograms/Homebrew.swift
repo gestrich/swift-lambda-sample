@@ -18,11 +18,11 @@ public enum Homebrew {
 
     /// Install Homebrew using the official install script
     public static func installCommand() -> BashShell.Command {
-        BashShell.Command(script: "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)")
+        BashShell.Command(script: "curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash")
     }
 
     /// Uninstall Homebrew using the official uninstall script
     public static func uninstallCommand() -> BashShell.Command {
-        BashShell.Command(script: "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)")
+        BashShell.Command(script: "curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh | bash")
     }
 }
