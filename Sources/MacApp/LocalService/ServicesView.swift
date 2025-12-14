@@ -174,7 +174,7 @@ struct ServicesView: View {
             }
 
             Section("Setup") {
-                ForEach([AppCategory.docker, .awsCLI, .cdk, .githubCLI], id: \.self) { category in
+                ForEach([AppCategory.cdk, .awsCLI, .docker, .githubCLI], id: \.self) { category in
                     NavigationLink(value: category) {
                         categoryRow(category)
                     }

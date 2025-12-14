@@ -421,24 +421,45 @@ struct AWSServicesView: View {
 
 // MARK: - Installation Method
 
+enum InstallMethodType: String, CaseIterable, Identifiable {
+    case homebrew = "Brew"
+    case npm = "npm"
+    case binary = "Binary"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .homebrew: return "mug.fill"
+        case .npm: return "shippingbox.fill"
+        case .binary: return "arrow.down.circle.fill"
+        }
+    }
+}
+
 struct InstallationMethod: Identifiable {
     let id = UUID()
+    let type: InstallMethodType
     let name: String
     let icon: String
     let commandString: String?
     let downloadURL: String?
     let note: String?
 
-    static func homebrew(_ command: String) -> InstallationMethod {
-        InstallationMethod(name: "Homebrew", icon: "mug.fill", commandString: command, downloadURL: nil, note: nil)
+    static func homebrew(_ command: String, note: String? = nil) -> InstallationMethod {
+        InstallationMethod(type: .homebrew, name: "Homebrew", icon: "mug.fill", commandString: command, downloadURL: nil, note: note)
     }
 
     static func npm(_ command: String, note: String? = nil) -> InstallationMethod {
-        InstallationMethod(name: "npm", icon: "shippingbox.fill", commandString: command, downloadURL: nil, note: note)
+        InstallationMethod(type: .npm, name: "npm", icon: "shippingbox.fill", commandString: command, downloadURL: nil, note: note)
     }
 
     static func download(_ name: String, url: String, note: String? = nil) -> InstallationMethod {
-        InstallationMethod(name: name, icon: "arrow.down.circle.fill", commandString: nil, downloadURL: url, note: note)
+        InstallationMethod(type: .binary, name: name, icon: "arrow.down.circle.fill", commandString: nil, downloadURL: url, note: note)
+    }
+
+    static func manual(_ note: String, command: String? = nil) -> InstallationMethod {
+        InstallationMethod(type: .binary, name: "Manual", icon: "trash", commandString: command, downloadURL: nil, note: note)
     }
 }
 
@@ -504,7 +525,8 @@ enum Dependency {
             ]
         case .cdk:
             return [
-                .npm("npm install -g aws-cdk", note: "Requires Node.js. Install via: brew install node"),
+                .homebrew("brew install aws-cdk"),
+                .npm("npm install -g aws-cdk", note: "Requires Node.js")
             ]
         case .githubCLI:
             return [
@@ -528,22 +550,37 @@ enum Dependency {
         case .docker:
             return [
                 .homebrew("brew uninstall --cask docker"),
-                InstallationMethod(name: "Manual", icon: "trash", commandString: nil, downloadURL: nil, note: "Delete Docker.app from Applications")
+                .manual("Delete Docker.app from Applications")
             ]
         case .awsCLI:
             return [
                 .homebrew("brew uninstall awscli"),
-                InstallationMethod(name: "Manual (PKG install)", icon: "trash", commandString: "sudo rm -rf /usr/local/aws-cli && sudo rm /usr/local/bin/aws", downloadURL: nil, note: "For PKG-installed AWS CLI")
+                .manual("For PKG-installed AWS CLI", command: "sudo rm -rf /usr/local/aws-cli && sudo rm /usr/local/bin/aws")
             ]
         case .cdk:
             return [
-                .npm("npm uninstall -g aws-cdk", note: nil)
+                .homebrew("brew uninstall aws-cdk"),
+                .npm("npm uninstall -g aws-cdk")
             ]
         case .githubCLI:
             return [
-                .homebrew("brew uninstall gh")
+                .homebrew("brew uninstall gh"),
+                .manual("For binary-installed GitHub CLI", command: "sudo rm -f /usr/local/bin/gh")
             ]
         }
+    }
+
+    var availableMethodTypes: [InstallMethodType] {
+        let types = installationMethods.map { $0.type }
+        return InstallMethodType.allCases.filter { types.contains($0) }
+    }
+
+    func installMethod(for type: InstallMethodType) -> InstallationMethod? {
+        installationMethods.first { $0.type == type }
+    }
+
+    func uninstallMethod(for type: InstallMethodType) -> InstallationMethod? {
+        uninstallMethods.first { $0.type == type }
     }
 
     var documentationURL: String {
@@ -567,9 +604,14 @@ struct DependencyView: View {
     let statusService: DependencyStatusService
 
     @State private var showUninstallSheet = false
+    @State private var selectedMethodType: InstallMethodType?
 
     private var cliService: CLIService {
         statusService.cliService
+    }
+
+    private var effectiveMethodType: InstallMethodType {
+        selectedMethodType ?? dependency.availableMethodTypes.first ?? .homebrew
     }
 
     private var status: DependencyInstallStatus {
@@ -731,11 +773,26 @@ struct DependencyView: View {
     }
 
     private var installationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Installation Options")
-                .sectionHeader()
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Installation")
+                    .sectionHeader()
+                Spacer()
+                Picker("Method", selection: Binding(
+                    get: { effectiveMethodType },
+                    set: { selectedMethodType = $0 }
+                )) {
+                    ForEach(dependency.availableMethodTypes) { type in
+                        Label(type.rawValue, systemImage: type.icon)
+                            .tag(type)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
 
-            ForEach(dependency.installationMethods) { method in
+            if let method = dependency.installMethod(for: effectiveMethodType) {
                 InstallationMethodRow(method: method)
             }
 
@@ -852,6 +909,16 @@ struct CopyableCodeBlock: View {
 private struct UninstallSheet: View {
     let dependency: Dependency
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedMethodType: InstallMethodType?
+
+    private var availableUninstallTypes: [InstallMethodType] {
+        let types = dependency.uninstallMethods.map { $0.type }
+        return InstallMethodType.allCases.filter { types.contains($0) }
+    }
+
+    private var effectiveMethodType: InstallMethodType {
+        selectedMethodType ?? availableUninstallTypes.first ?? .homebrew
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -873,20 +940,35 @@ private struct UninstallSheet: View {
             Divider()
 
             // Content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Choose the uninstall method that matches how you installed \(dependency.title):")
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Choose how you installed \(dependency.title):")
                         .font(.callout)
                         .foregroundStyle(.secondary)
-
-                    ForEach(dependency.uninstallMethods) { method in
-                        UninstallMethodRow(method: method)
+                    Spacer()
+                    Picker("Method", selection: Binding(
+                        get: { effectiveMethodType },
+                        set: { selectedMethodType = $0 }
+                    )) {
+                        ForEach(availableUninstallTypes) { type in
+                            Label(type.rawValue, systemImage: type.icon)
+                                .tag(type)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .padding()
+
+                if let method = dependency.uninstallMethod(for: effectiveMethodType) {
+                    UninstallMethodRow(method: method)
+                }
+
+                Spacer()
             }
+            .padding()
         }
-        .frame(width: 500, height: 300)
+        .frame(width: 500, height: 250)
     }
 }
 
