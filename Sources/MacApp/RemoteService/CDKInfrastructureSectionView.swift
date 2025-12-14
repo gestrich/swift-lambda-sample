@@ -1,3 +1,4 @@
+import CLIKit
 import SwiftDeploy
 import SwiftUI
 
@@ -62,6 +63,9 @@ struct CDKInfrastructureSectionView: View {
 
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
+
+    // Operation-scoped output stream (client-owned)
+    @State private var operationOutput: CLIOutputStream?
 
     private var status: CDKInfrastructureStatus {
         service.infrastructureStatus
@@ -137,7 +141,9 @@ struct CDKInfrastructureSectionView: View {
             titleVisibility: .visible
         ) {
             Button("Destroy", role: .destructive) {
-                Task { try? await service.destroy() }
+                startOperation { stream in
+                    try await service.destroy(output: stream)
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -476,68 +482,96 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        HStack(spacing: 12) {
-            // Deploy button with options menu
-            Menu {
-                Button {
-                    Task {
-                        try? await service.deploy(withPostgres: false, withNATGateway: false)
-                    }
-                } label: {
-                    Label("Minimal (No Database)", systemImage: "leaf")
-                }
-
-                Button {
-                    Task {
-                        try? await service.deploy(withPostgres: true, withNATGateway: false)
-                    }
-                } label: {
-                    Label("With PostgreSQL", systemImage: "cylinder")
-                }
-
-                Button {
-                    Task {
-                        try? await service.deploy(withPostgres: true, withNATGateway: true)
-                    }
-                } label: {
-                    Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
-                }
-
-                if case .deployed = status.status {
-                    Divider()
-
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                // Deploy button with options menu
+                Menu {
                     Button {
-                        Task {
-                            try? await service.updateInfrastructure()
+                        startOperation { stream in
+                            try await service.deploy(withPostgres: false, withNATGateway: false, output: stream)
                         }
                     } label: {
-                        Label("Update (Keep Config)", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Minimal (No Database)", systemImage: "leaf")
                     }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "cloud.fill")
-                    Text(deployButtonLabel)
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
-                }
-            }
-            .menuStyle(.borderedButton)
-            .disabled(!status.status.canDeploy)
 
-            // Destroy button
-            if status.status.canDestroy {
-                Button {
-                    showDestroyConfirmation = true
+                    Button {
+                        startOperation { stream in
+                            try await service.deploy(withPostgres: true, withNATGateway: false, output: stream)
+                        }
+                    } label: {
+                        Label("With PostgreSQL", systemImage: "cylinder")
+                    }
+
+                    Button {
+                        startOperation { stream in
+                            try await service.deploy(withPostgres: true, withNATGateway: true, output: stream)
+                        }
+                    } label: {
+                        Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
+                    }
+
+                    if case .deployed = status.status {
+                        Divider()
+
+                        Button {
+                            startOperation { stream in
+                                try await service.updateInfrastructure(output: stream)
+                            }
+                        } label: {
+                            Label("Update (Keep Config)", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                        Text("Destroy")
+                        Image(systemName: "cloud.fill")
+                        Text(deployButtonLabel)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
                     }
                 }
-                .buttonStyle(.bordered)
-                .tint(.red)
+                .menuStyle(.borderedButton)
+                .disabled(!status.status.canDeploy)
+
+                // Destroy button
+                if status.status.canDestroy {
+                    Button {
+                        showDestroyConfirmation = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                            Text("Destroy")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                }
             }
+
+            // Operation-scoped CLI output
+            if let output = operationOutput {
+                StreamingTextView(
+                    streamProvider: { await output.makeStream() }
+                )
+            }
+        }
+    }
+
+    /// Start an operation with a client-owned output stream
+    private func startOperation(_ operation: @escaping (CLIOutputStream) async throws -> Void) {
+        // 1. Client CREATES the stream
+        let stream = CLIOutputStream()
+        operationOutput = stream
+
+        Task {
+            defer {
+                // 3. Client FINISHES the stream
+                Task {
+                    await stream.finishAll()
+                }
+            }
+
+            // 2. Client PASSES stream to service
+            try? await operation(stream)
         }
     }
 

@@ -582,12 +582,15 @@ Create a dedicated test service and view to verify the architecture before migra
 
 ---
 
-### Phase 7: Migrate CDKInfrastructureService
+### Phase 7: Migrate CDKInfrastructureService ✅ COMPLETE
 
-- [ ] Add `output` parameter to `CDKInfrastructureService.deploy()`
-- [ ] Add `output` parameter to `CDKInfrastructureService.destroy()`
-- [ ] Thread `output` to child service calls (CDKService)
-- [ ] Update `CDKInfrastructureSectionView` to use operation-scoped output
+- [x] Add `output` parameter to `CDKInfrastructureService.deploy()`
+- [x] Add `output` parameter to `CDKInfrastructureService.updateInfrastructure()`
+- [x] Add `output` parameter to `CDKInfrastructureService.destroy()`
+- [x] Thread `output` to child service calls (CDKService)
+- [x] Update `CDKInfrastructureSectionView` to use operation-scoped output
+
+**Result**: CDKInfrastructureService methods now support client-owned output streams. CDKInfrastructureSectionView creates and manages the stream using a `startOperation` helper function, displaying operation-specific CLI output below the action buttons during deploy/update/destroy operations.
 
 ---
 

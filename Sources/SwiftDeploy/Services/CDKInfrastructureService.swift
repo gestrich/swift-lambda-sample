@@ -363,14 +363,18 @@ public final class CDKInfrastructureService {
     }
 
     /// Deploy infrastructure with specified configuration
-    public func deploy(withPostgres: Bool, withNATGateway: Bool) async throws {
+    /// - Parameters:
+    ///   - withPostgres: Include PostgreSQL database
+    ///   - withNATGateway: Include NAT Gateway
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func deploy(withPostgres: Bool, withNATGateway: Bool, output: CLIOutputStream? = nil) async throws {
         infrastructureStatus.deployStartTime = Date()
         infrastructureStatus.deploymentProgress.clear()
         infrastructureStatus.status = .deploying(operation: withPostgres ? "Deploying with Database" : "Deploying")
 
         do {
             // Build CDK first
-            try await cdkService.build()
+            try await cdkService.build(output: output)
 
             // Deploy with options
             let options = CDKService.DeployOptions(
@@ -381,7 +385,7 @@ public final class CDKInfrastructureService {
 
             // Run CDK deploy in background while polling for progress
             try await runDeployWithProgressPolling {
-                try await self.cdkService.deploy(options: options)
+                try await self.cdkService.deploy(options: options, output: output)
             }
 
             // Refresh to get final state (force: true to bypass isBusy check since status is still .deploying)
@@ -395,14 +399,15 @@ public final class CDKInfrastructureService {
     }
 
     /// Update infrastructure maintaining current configuration
-    public func updateInfrastructure() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func updateInfrastructure(output: CLIOutputStream? = nil) async throws {
         infrastructureStatus.deployStartTime = Date()
         infrastructureStatus.deploymentProgress.clear()
         infrastructureStatus.status = .deploying(operation: "Updating")
 
         do {
             // Build CDK first
-            try await cdkService.build()
+            try await cdkService.build(output: output)
 
             // Deploy maintaining current config
             let options = CDKService.DeployOptions(
@@ -413,7 +418,7 @@ public final class CDKInfrastructureService {
 
             // Run CDK deploy in background while polling for progress
             try await runDeployWithProgressPolling {
-                try await self.cdkService.deploy(options: options)
+                try await self.cdkService.deploy(options: options, output: output)
             }
 
             // Refresh to get final state (force: true to bypass isBusy check since status is still .deploying)
@@ -511,7 +516,8 @@ public final class CDKInfrastructureService {
     }
 
     /// Destroy infrastructure
-    public func destroy() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func destroy(output: CLIOutputStream? = nil) async throws {
         infrastructureStatus.status = .destroying
         infrastructureStatus.deployStartTime = Date()
         infrastructureStatus.deploymentProgress.clear()
@@ -519,7 +525,7 @@ public final class CDKInfrastructureService {
         do {
             // Run CDK destroy in background while polling for progress
             try await runDeployWithProgressPolling {
-                try await self.cdkService.destroy(force: true)
+                try await self.cdkService.destroy(force: true, output: output)
             }
 
             infrastructureStatus.status = .notDeployed
