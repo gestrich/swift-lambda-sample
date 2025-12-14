@@ -60,45 +60,49 @@ struct LocalServiceView: View {
 
                 // Build status badge
                 buildStatusBadge
+            }
 
-                Button(action: {
-                    Task {
-                        try? await service.build(clean: false)
-                    }
-                }) {
-                    if service.buildState.status.isBuilding {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    } else {
-                        Image(systemName: "hammer")
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(service.buildState.status.isBuilding)
-                .help("Build Lambda")
-
-                Button(action: {
-                    Task {
-                        try? await service.build(clean: true)
-                    }
-                }) {
-                    Image(systemName: "sparkles")
-                }
-                .buttonStyle(.borderless)
-                .disabled(service.buildState.status.isBuilding)
-                .help("Clean and Build Lambda")
-
-                if service.buildState.status.hasArtifact {
+            OperationOutputSection { stream in
+                HStack {
                     Button(action: {
                         Task {
-                            try? await service.deleteBuild()
+                            try? await service.build(clean: false, output: stream)
                         }
                     }) {
-                        Image(systemName: "trash")
+                        if service.buildState.status.isBuilding {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "hammer")
+                        }
                     }
                     .buttonStyle(.borderless)
                     .disabled(service.buildState.status.isBuilding)
-                    .help("Delete Build")
+                    .help("Build Lambda")
+
+                    Button(action: {
+                        Task {
+                            try? await service.build(clean: true, output: stream)
+                        }
+                    }) {
+                        Image(systemName: "sparkles")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(service.buildState.status.isBuilding)
+                    .help("Clean and Build Lambda")
+
+                    if service.buildState.status.hasArtifact {
+                        Button(action: {
+                            Task {
+                                try? await service.deleteBuild()
+                            }
+                        }) {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(service.buildState.status.isBuilding)
+                        .help("Delete Build")
+                    }
                 }
             }
         }
@@ -145,40 +149,44 @@ struct LocalServiceView: View {
 
                 // Lambda status badge
                 lambdaStatusBadge
+            }
 
-                Button(action: {
-                    Task {
-                        try? await service.startWithServices()
+            OperationOutputSection { stream in
+                HStack {
+                    Button(action: {
+                        Task {
+                            try? await service.startWithServices(output: stream)
+                        }
+                    }) {
+                        if service.lambdaState.status.isTransitioning {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "play.circle")
+                        }
                     }
-                }) {
-                    if service.lambdaState.status.isTransitioning {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    } else {
-                        Image(systemName: "play.circle")
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(service.lambdaState.status.isTransitioning)
-                .help("Start Lambda")
+                    .buttonStyle(.borderless)
+                    .disabled(service.lambdaState.status.isTransitioning)
+                    .help("Start Lambda")
 
-                Button(action: {
-                    Task {
-                        try? await service.stopWithServices()
+                    Button(action: {
+                        Task {
+                            try? await service.stopWithServices(output: stream)
+                        }
+                    }) {
+                        Image(systemName: "stop.circle")
                     }
-                }) {
-                    Image(systemName: "stop.circle")
-                }
-                .buttonStyle(.borderless)
-                .disabled(service.lambdaState.status.isTransitioning || service.lambdaState.status == .stopped)
-                .help("Stop Lambda")
+                    .buttonStyle(.borderless)
+                    .disabled(service.lambdaState.status.isTransitioning || service.lambdaState.status == .stopped)
+                    .help("Stop Lambda")
 
-                Button(action: { service.refreshStatus() }) {
-                    Image(systemName: "arrow.clockwise")
+                    Button(action: { service.refreshStatus() }) {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(service.lambdaState.status.isTransitioning)
+                    .help("Refresh status")
                 }
-                .buttonStyle(.borderless)
-                .disabled(service.lambdaState.status.isTransitioning)
-                .help("Refresh status")
             }
 
             // Endpoint

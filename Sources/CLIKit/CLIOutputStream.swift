@@ -29,6 +29,9 @@ import Foundation
 public actor CLIOutputStream {
     private var continuations: [UUID: AsyncStream<StreamOutput>.Continuation] = [:]
 
+    /// Whether any output has been sent to this stream
+    public private(set) var hasOutput: Bool = false
+
     public init() {}
 
     /// Create a new stream for a subscriber.
@@ -56,6 +59,7 @@ public actor CLIOutputStream {
 
     /// Send output to all active subscribers
     public func send(_ output: StreamOutput) {
+        hasOutput = true
         for continuation in continuations.values {
             continuation.yield(output)
         }

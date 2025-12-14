@@ -190,24 +190,26 @@ struct LocalLambdaUpdateView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            HStack {
-                Button {
-                    Task {
-                        try? await service.upload()
+            OperationOutputSection { stream in
+                HStack {
+                    Button {
+                        Task {
+                            try? await service.upload(output: stream)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.circle")
+                            Text("Upload")
+                        }
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.circle")
-                        Text("Upload")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canUpload)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canUpload)
 
-                if let lastUpload = service.lastUploadTime {
-                    Text("Uploaded \(lastUpload, style: .relative) ago")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let lastUpload = service.lastUploadTime {
+                        Text("Uploaded \(lastUpload, style: .relative) ago")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
 
