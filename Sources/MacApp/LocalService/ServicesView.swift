@@ -8,8 +8,6 @@ enum AppCategory: Identifiable, Hashable {
     case awsServices
 
     // Setup (Dependencies)
-    case homebrew
-    case nodejs
     case docker
     case awsCLI
     case cdk
@@ -27,8 +25,6 @@ enum AppCategory: Identifiable, Hashable {
         switch self {
         case .overview: return "overview"
         case .awsServices: return "awsServices"
-        case .homebrew: return "homebrew"
-        case .nodejs: return "nodejs"
         case .docker: return "docker"
         case .awsCLI: return "awsCLI"
         case .cdk: return "cdk"
@@ -44,8 +40,6 @@ enum AppCategory: Identifiable, Hashable {
         switch self {
         case .overview: return "Overview"
         case .awsServices: return "AWS Services"
-        case .homebrew: return "Homebrew"
-        case .nodejs: return "Node.js"
         case .docker: return "Docker"
         case .awsCLI: return "AWS CLI"
         case .cdk: return "AWS CDK"
@@ -61,8 +55,6 @@ enum AppCategory: Identifiable, Hashable {
         switch self {
         case .overview: return "swift"
         case .awsServices: return "cloud.fill"
-        case .homebrew: return "mug.fill"
-        case .nodejs: return "circle.hexagongrid.fill"
         case .docker: return "shippingbox.fill"
         case .awsCLI: return "terminal.fill"
         case .cdk: return "square.stack.3d.up.fill"
@@ -78,8 +70,6 @@ enum AppCategory: Identifiable, Hashable {
         switch self {
         case .overview: return .orange
         case .awsServices: return .orange
-        case .homebrew: return .orange
-        case .nodejs: return .green
         case .docker: return .blue
         case .awsCLI: return .orange
         case .cdk: return .purple
@@ -107,8 +97,8 @@ enum AppCategory: Identifiable, Hashable {
         case "overview": return .overview
         case "projectStructure": return .overview  // Legacy: redirect to overview
         case "awsServices": return .awsServices
-        case "homebrew": return .homebrew
-        case "nodejs": return .nodejs
+        case "homebrew": return .docker  // Legacy: redirect to docker
+        case "nodejs": return .cdk  // Legacy: redirect to cdk
         case "docker": return .docker
         case "awsCLI": return .awsCLI
         case "cdk": return .cdk
@@ -184,7 +174,7 @@ struct ServicesView: View {
             }
 
             Section("Setup") {
-                ForEach([AppCategory.homebrew, .nodejs, .cdk, .awsCLI, .docker, .githubCLI], id: \.self) { category in
+                ForEach([AppCategory.docker, .awsCLI, .cdk, .githubCLI], id: \.self) { category in
                     NavigationLink(value: category) {
                         categoryRow(category)
                     }
@@ -234,8 +224,6 @@ struct ServicesView: View {
     private func dependencyStatusIndicator(for category: AppCategory) -> some View {
         let status: DependencyInstallStatus? = {
             switch category {
-            case .homebrew: return model.dependencyStatusService.homebrewStatus
-            case .nodejs: return model.dependencyStatusService.nodejsStatus
             case .docker: return model.dependencyStatusService.dockerStatus
             case .awsCLI: return model.dependencyStatusService.awsCLIStatus
             case .cdk: return model.dependencyStatusService.cdkStatus
@@ -291,10 +279,6 @@ struct ServicesView: View {
             OverviewView()
         case .awsServices:
             AWSServicesView()
-        case .homebrew:
-            DependencyView(dependency: .homebrew, statusService: model.dependencyStatusService)
-        case .nodejs:
-            DependencyView(dependency: .nodejs, statusService: model.dependencyStatusService)
         case .docker:
             DependencyView(dependency: .docker, statusService: model.dependencyStatusService)
         case .awsCLI:

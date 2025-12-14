@@ -5,7 +5,7 @@ This document tracks planned improvements, known issues, and testing checklists 
 ## Release V1
 
 - [ ] Learn Views
-- [ ] Setup Views - include status buttons and do-for-me.
+- [ ] Setup Views - include status buttons and do-for-me. Ensure both nvm, brew, and binary installs work
 - [ ] Validate clean install experience (Both mac and CLI pathways)
     - Add DynamoDB local instance
 - [ ] README and DocC - Use Claude commands to maintain these. Add screenshots to README

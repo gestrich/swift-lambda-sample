@@ -422,8 +422,6 @@ struct AWSServicesView: View {
 // MARK: - Dependency Model
 
 enum Dependency {
-    case homebrew
-    case nodejs
     case docker
     case awsCLI
     case cdk
@@ -431,8 +429,6 @@ enum Dependency {
 
     var title: String {
         switch self {
-        case .homebrew: return "Homebrew"
-        case .nodejs: return "Node.js"
         case .docker: return "Docker"
         case .awsCLI: return "AWS CLI"
         case .cdk: return "AWS CDK"
@@ -442,8 +438,6 @@ enum Dependency {
 
     var iconName: String {
         switch self {
-        case .homebrew: return "mug.fill"
-        case .nodejs: return "circle.hexagongrid.fill"
         case .docker: return "shippingbox.fill"
         case .awsCLI: return "terminal.fill"
         case .cdk: return "square.stack.3d.up.fill"
@@ -453,8 +447,6 @@ enum Dependency {
 
     var iconColor: Color {
         switch self {
-        case .homebrew: return .orange
-        case .nodejs: return .green
         case .docker: return .blue
         case .awsCLI: return .orange
         case .cdk: return .purple
@@ -464,16 +456,12 @@ enum Dependency {
 
     var description: String {
         switch self {
-        case .homebrew:
-            return "Homebrew is the package manager for macOS. It's used to install most of the other dependencies like Docker, AWS CLI, and GitHub CLI."
-        case .nodejs:
-            return "Node.js provides the JavaScript runtime and npm package manager needed to install and run AWS CDK."
         case .docker:
             return "Docker is required to run local development services (PostgreSQL, MinIO) and to build the Lambda for Linux deployment."
         case .awsCLI:
             return "The AWS CLI is used for deploying Lambda code and interacting with AWS services."
         case .cdk:
-            return "AWS CDK (Cloud Development Kit) is used to define and deploy the infrastructure as TypeScript code."
+            return "AWS CDK (Cloud Development Kit) is used to define and deploy the infrastructure as TypeScript code. Requires Node.js and npm."
         case .githubCLI:
             return "The GitHub CLI (gh) is used for monitoring GitHub Actions deployment workflows."
         }
@@ -481,10 +469,6 @@ enum Dependency {
 
     var installCommand: any CLICommand {
         switch self {
-        case .homebrew:
-            return Homebrew.installCommand()
-        case .nodejs:
-            return Brew.Install(package: "node")
         case .docker:
             return Brew.Install(cask: true, package: "docker")
         case .awsCLI:
@@ -498,10 +482,6 @@ enum Dependency {
 
     var verifyCommand: any CLICommand {
         switch self {
-        case .homebrew:
-            return Brew.Version()
-        case .nodejs:
-            return Node.Version()
         case .docker:
             return Docker.Version()
         case .awsCLI:
@@ -515,10 +495,6 @@ enum Dependency {
 
     var uninstallCommand: any CLICommand {
         switch self {
-        case .homebrew:
-            return Homebrew.uninstallCommand()
-        case .nodejs:
-            return Brew.Uninstall(package: "node")
         case .docker:
             return Brew.Uninstall(cask: true, package: "docker")
         case .awsCLI:
@@ -532,10 +508,6 @@ enum Dependency {
 
     var documentationURL: String {
         switch self {
-        case .homebrew:
-            return "https://brew.sh"
-        case .nodejs:
-            return "https://nodejs.org"
         case .docker:
             return "https://docs.docker.com/desktop/install/mac-install/"
         case .awsCLI:
@@ -546,36 +518,6 @@ enum Dependency {
             return "https://cli.github.com/manual/installation"
         }
     }
-
-    /// Whether this dependency requires interactive terminal (sudo) for install/uninstall
-    var requiresInteractiveInstall: Bool {
-        switch self {
-        case .homebrew:
-            return true
-        default:
-            return false
-        }
-    }
-
-    /// Install command as a string for display (used when requiresInteractiveInstall is true)
-    var installCommandString: String? {
-        switch self {
-        case .homebrew:
-            return "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-        default:
-            return nil
-        }
-    }
-
-    /// Uninstall command as a string for display (used when requiresInteractiveInstall is true)
-    var uninstallCommandString: String? {
-        switch self {
-        case .homebrew:
-            return "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)\""
-        default:
-            return nil
-        }
-    }
 }
 
 // MARK: - Dependency View
@@ -584,14 +526,14 @@ struct DependencyView: View {
     let dependency: Dependency
     let statusService: DependencyStatusService
 
+    @State private var showCommandsSheet = false
+
     private var cliService: CLIService {
         statusService.cliService
     }
 
     private var status: DependencyInstallStatus {
         switch dependency {
-        case .homebrew: return statusService.homebrewStatus
-        case .nodejs: return statusService.nodejsStatus
         case .docker: return statusService.dockerStatus
         case .awsCLI: return statusService.awsCLIStatus
         case .cdk: return statusService.cdkStatus
@@ -605,14 +547,15 @@ struct DependencyView: View {
                 headerSection
                 statusSection
                 descriptionSection
-                installSection
-                verifySection
-                uninstallSection
+                documentationSection
             }
             .padding(32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showCommandsSheet) {
+            DependencyCommandsSheet(dependency: dependency, cliService: cliService, statusService: statusService)
+        }
     }
 
     private var headerSection: some View {
@@ -620,6 +563,10 @@ struct DependencyView: View {
             Image(systemName: dependency.iconName)
                 .font(.system(size: 40))
                 .foregroundStyle(dependency.iconColor)
+                .onLongPressGesture {
+                    showCommandsSheet = true
+                }
+                .help("Long press for developer commands")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(dependency.title)
@@ -720,10 +667,6 @@ struct DependencyView: View {
 
     private func checkStatus() async {
         switch dependency {
-        case .homebrew:
-            await statusService.checkHomebrew()
-        case .nodejs:
-            await statusService.checkNodeJS()
         case .docker:
             await statusService.checkDocker()
         case .awsCLI:
@@ -746,68 +689,102 @@ struct DependencyView: View {
         .card()
     }
 
-    private var installSection: some View {
+    private var documentationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Installation")
                 .sectionHeader()
 
-            if dependency.requiresInteractiveInstall {
-                InteractiveWarningView()
-
-                if let commandString = dependency.installCommandString {
-                    CopyableCodeBlock(code: commandString)
-                }
-            } else {
-                RunnableCommandView(command: dependency.installCommand, cliService: cliService, onComplete: refreshStatus)
-            }
+            Text("Follow the official documentation to install this dependency:")
+                .bodyText()
 
             Link(destination: URL(string: dependency.documentationURL)!) {
-                HStack(spacing: 4) {
-                    Text("View documentation")
+                HStack(spacing: 8) {
+                    Image(systemName: "book.fill")
+                    Text("View Installation Guide")
+                    Spacer()
                     Image(systemName: "arrow.up.right")
                 }
-                .font(.subheadline)
+                .font(.body)
+                .padding(12)
+                .background(Color.accentColor.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
+            .buttonStyle(.plain)
         }
         .card()
     }
+}
 
-    private var verifySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Verify Installation")
-                .sectionHeader()
+// MARK: - Dependency Commands Sheet (Secret Developer View)
 
-            Text("Run this command to verify the installation:")
-                .bodyText()
+private struct DependencyCommandsSheet: View {
+    let dependency: Dependency
+    let cliService: CLIService
+    let statusService: DependencyStatusService
+    @Environment(\.dismiss) private var dismiss
 
-            RunnableCommandView(command: dependency.verifyCommand, cliService: cliService, onComplete: refreshStatus)
-        }
-        .card()
-    }
-
-    private var uninstallSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Uninstall")
-                .sectionHeader()
-
-            Text("To remove this dependency:")
-                .bodyText()
-
-            if dependency.requiresInteractiveInstall {
-                InteractiveWarningView()
-
-                if let commandString = dependency.uninstallCommandString {
-                    CopyableCodeBlock(code: commandString)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Text("Developer Commands")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    dismiss()
                 }
-            } else {
-                RunnableCommandView(command: dependency.uninstallCommand, cliService: cliService, onComplete: refreshStatus)
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+            .background(Color(nsColor: .windowBackgroundColor))
+
+            Divider()
+
+            // Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("These commands assume Homebrew (brew) and npm are installed.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    // Install
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Install")
+                            .font(.headline)
+                        RunnableCommandView(command: dependency.installCommand, cliService: cliService, onComplete: refreshStatus)
+                    }
+
+                    // Verify
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Verify Installation")
+                            .font(.headline)
+                        RunnableCommandView(command: dependency.verifyCommand, cliService: cliService, onComplete: refreshStatus)
+                    }
+
+                    // Uninstall
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Uninstall")
+                            .font(.headline)
+                        RunnableCommandView(command: dependency.uninstallCommand, cliService: cliService, onComplete: refreshStatus)
+                    }
+                }
+                .padding()
             }
         }
-        .card()
+        .frame(width: 500, height: 450)
     }
 
     private func refreshStatus() async {
-        await checkStatus()
+        switch dependency {
+        case .docker:
+            await statusService.checkDocker()
+        case .awsCLI:
+            await statusService.checkAWSCLI()
+        case .cdk:
+            await statusService.checkCDK()
+        case .githubCLI:
+            await statusService.checkGitHubCLI()
+        }
     }
 }
 
@@ -950,56 +927,6 @@ struct RunnableCommandView: View {
         if let onComplete {
             await onComplete()
         }
-    }
-}
-
-/// MARK: - Interactive Warning View
-
-/// Warning banner for commands that require interactive terminal (sudo)
-private struct InteractiveWarningView: View {
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-
-            Text("This command requires sudo and must be run in Terminal. Copy and paste the command below.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-// MARK: - Copyable Code Block
-
-/// A code block with copy button (non-runnable)
-struct CopyableCodeBlock: View {
-    let code: String
-
-    var body: some View {
-        HStack {
-            Text(code)
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
-
-            Spacer()
-
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(code, forType: .string)
-            } label: {
-                Image(systemName: "doc.on.doc")
-            }
-            .buttonStyle(.borderless)
-            .help("Copy to clipboard")
-        }
-        .padding(12)
-        .background(Color(nsColor: .textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
