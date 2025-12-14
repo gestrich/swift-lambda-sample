@@ -62,9 +62,10 @@ struct LocalServiceView: View {
                 buildStatusBadge
             }
 
-            OperationOutputSection { stream in
+            OperationOutputSection { stream, showOutput in
                 HStack {
                     Button(action: {
+                        showOutput()
                         Task {
                             try? await service.build(clean: false, output: stream)
                         }
@@ -81,6 +82,7 @@ struct LocalServiceView: View {
                     .help("Build Lambda")
 
                     Button(action: {
+                        showOutput()
                         Task {
                             try? await service.build(clean: true, output: stream)
                         }
@@ -151,9 +153,10 @@ struct LocalServiceView: View {
                 lambdaStatusBadge
             }
 
-            OperationOutputSection { stream in
+            OperationOutputSection { stream, showOutput in
                 HStack {
                     Button(action: {
+                        showOutput()
                         Task {
                             try? await service.startWithServices(output: stream)
                         }
@@ -170,6 +173,7 @@ struct LocalServiceView: View {
                     .help("Start Lambda")
 
                     Button(action: {
+                        showOutput()
                         Task {
                             try? await service.stopWithServices(output: stream)
                         }

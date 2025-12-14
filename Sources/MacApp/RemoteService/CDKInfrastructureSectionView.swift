@@ -465,11 +465,12 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        OperationOutputSection { stream in
+        OperationOutputSection { stream, showOutput in
             HStack(spacing: 12) {
                 // Deploy button with options menu
                 Menu {
                     Button {
+                        showOutput()
                         Task {
                             try? await service.deploy(withPostgres: false, withNATGateway: false, output: stream)
                         }
@@ -478,6 +479,7 @@ struct CDKInfrastructureSectionView: View {
                     }
 
                     Button {
+                        showOutput()
                         Task {
                             try? await service.deploy(withPostgres: true, withNATGateway: false, output: stream)
                         }
@@ -486,6 +488,7 @@ struct CDKInfrastructureSectionView: View {
                     }
 
                     Button {
+                        showOutput()
                         Task {
                             try? await service.deploy(withPostgres: true, withNATGateway: true, output: stream)
                         }
@@ -497,6 +500,7 @@ struct CDKInfrastructureSectionView: View {
                         Divider()
 
                         Button {
+                            showOutput()
                             Task {
                                 try? await service.updateInfrastructure(output: stream)
                             }
@@ -535,6 +539,7 @@ struct CDKInfrastructureSectionView: View {
                 titleVisibility: .visible
             ) {
                 Button("Destroy", role: .destructive) {
+                    showOutput()
                     Task {
                         try? await service.destroy(output: stream)
                     }

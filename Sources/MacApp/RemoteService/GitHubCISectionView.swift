@@ -440,10 +440,11 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        OperationOutputSection { stream in
+        OperationOutputSection { stream, showOutput in
             HStack(spacing: 12) {
                 // Push & Deploy button
                 Button {
+                    showOutput()
                     Task {
                         try? await service.pushAndDeploy(output: stream)
                     }

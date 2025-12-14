@@ -190,9 +190,10 @@ struct LocalLambdaUpdateView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            OperationOutputSection { stream in
+            OperationOutputSection { stream, showOutput in
                 HStack {
                     Button {
+                        showOutput()
                         Task {
                             try? await service.upload(output: stream)
                         }
