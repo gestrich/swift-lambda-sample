@@ -1,11 +1,4 @@
 import Foundation
-import CLIKit
-
-// Re-export CLIKit types that are needed by SwiftDeploy clients
-public typealias CLIService = CLIKit.CLIService
-public typealias CLIServiceError = CLIKit.CLIServiceError
-public typealias ExecutionResult = CLIKit.ExecutionResult
-public typealias StreamOutput = CLIKit.StreamOutput
 
 /// Application-specific errors for deployment operations
 public enum DeployError: Error, LocalizedError, Sendable {
