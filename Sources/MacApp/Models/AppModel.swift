@@ -10,7 +10,7 @@ class AppModel {
     // MARK: - Services (Eager Initialization)
 
     /// All services are created at app startup. The active mode determines which is in use.
-    let remoteService: RemoteServiceModel
+    let remoteService: RemoteModel
     let xcodeLocalService: XcodeLocalServiceModel
     let linuxLocalService: LinuxLocalServiceModel
 
@@ -50,7 +50,7 @@ class AppModel {
         let projectDirectory = Self.resolveProjectDirectory()
 
         // Create all services eagerly at startup
-        let remote = RemoteServiceModel(workingDirectory: projectDirectory)
+        let remote = RemoteModel(workingDirectory: projectDirectory)
         let xcode = XcodeLocalServiceModel(workingDirectory: projectDirectory)
         let linux = LinuxLocalServiceModel(workingDirectory: projectDirectory)
 
@@ -163,19 +163,19 @@ class AppModel {
 /// Connection mode for the API - simple enum holding service references
 @MainActor
 enum ConnectionMode {
-    case remote(RemoteServiceModel)
+    case remote(RemoteModel)
     case localXcode(XcodeLocalServiceModel)
     case localLinux(LinuxLocalServiceModel)
 
     /// Persistence key for saving/restoring mode selection
     var persistenceKey: String {
         switch self {
-        case .remote: return RemoteServiceModel.persistenceKey
+        case .remote: return RemoteModel.persistenceKey
         case .localXcode: return XcodeLocalServiceModel.persistenceKey
         case .localLinux: return LinuxLocalServiceModel.persistenceKey
         }
     }
-    
+
     var service: LambdaService {
         switch self {
         case .localXcode(let service): return service

@@ -9,83 +9,60 @@ extension AWSCommand {
             abstract: "Check deployment and git status"
         )
 
-    @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
-    var awsProfile: String?
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
-    @Option(name: .long, help: "Use aws-vault for credential management")
-    var useAwsVault: Bool?
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
 
-    mutating func run() async throws {
-        // Resolve AWS configuration from CLI args and config file
-        let awsConfig = try AWSAuthConfiguration.resolve(
-            profileName: awsProfile,
-            useAWSVault: useAwsVault
-        )
+        mutating func run() async throws {
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
+            )
 
-        print("📊 Checking status...\n")
+            print("📊 Checking status...\n")
 
-        let projectRoot = FileManager.default.currentDirectoryPath
-        let cliService = CLIService()
-        let remoteService = await MainActor.run {
-            RemoteServiceModel(
+            let projectRoot = FileManager.default.currentDirectoryPath
+            let deploymentService = RemoteDeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )
-        }
-        let gitService = GitService(repoPath: projectRoot, cliService: cliService)
 
-        // Git status
-        print("📝 Git Status:")
-        let hasUncommitted = try await gitService.hasUncommittedChanges()
-        print("  Uncommitted changes: \(hasUncommitted ? "YES" : "NO")")
+            let status = try await deploymentService.getStatus()
 
-        let hasCommitsToPush = try await gitService.hasCommitsToPush()
-        print("  Commits to push: \(hasCommitsToPush ? "YES" : "NO")")
+            // Git status
+            print("📝 Git Status:")
+            print("  Uncommitted changes: \(status.gitStatus.hasUncommittedChanges ? "YES" : "NO")")
+            print("  Commits to push: \(status.gitStatus.hasCommitsToPush ? "YES" : "NO")")
+            print("  Current branch: \(status.gitStatus.currentBranch)")
 
-        let currentBranch = try await gitService.getCurrentBranch()
-        print("  Current branch: \(currentBranch)")
-
-        // GitHub Actions status
-        if let githubConfig = GitHubConfiguration.loadConfig() {
-            do {
-                let githubService = await MainActor.run {
-                    GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
-                }
-                let (status, conclusion) = try await githubService.getLatestRunStatus(branch: githubConfig.branch)
-
+            // GitHub Actions status
+            if let github = status.githubStatus {
                 print("\n🔄 GitHub Actions:")
-                print("  Repository: \(githubConfig.repository)")
-                print("  Branch: \(githubConfig.branch)")
-                print("  Latest workflow status: \(status)")
-                if let conclusion = conclusion {
+                print("  Repository: \(github.repository)")
+                print("  Branch: \(github.branch)")
+                print("  Latest workflow status: \(github.latestRunStatus)")
+                if let conclusion = github.conclusion {
                     print("  Conclusion: \(conclusion)")
                 }
-            } catch {
+            } else if GitHubConfiguration.loadConfig() == nil {
+                print("\n🔄 GitHub Actions: Not configured")
+                print("  Create \(GitHubConfiguration.configPath) with:")
+                print("  {\"repository\": \"owner/repo\", \"branch\": \"dev\"}")
+            } else {
                 print("\n🔄 GitHub Actions: Unable to fetch status")
             }
-        } else {
-            print("\n🔄 GitHub Actions: Not configured")
-            print("  Create \(GitHubConfiguration.configPath) with:")
-            print("  {\"repository\": \"owner/repo\", \"branch\": \"dev\"}")
-        }
 
-        // CDK Stack status
-        do {
-            let outputs = try await remoteService.getStackOutputs(
-                stackName: "SwiftLambdaSampleStack"
-            )
-
+            // CDK Stack status
             print("\n☁️  CDK Stack:")
-            if !outputs.isEmpty {
-                for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
+            if !status.stackOutputs.isEmpty {
+                for (key, value) in status.stackOutputs.sorted(by: { $0.key < $1.key }) {
                     print("  \(key): \(value)")
                 }
             } else {
                 print("  Stack not found or no outputs")
             }
-        } catch {
-            print("\n☁️  CDK Stack: Not deployed or error fetching status")
         }
-    }
     }
 }

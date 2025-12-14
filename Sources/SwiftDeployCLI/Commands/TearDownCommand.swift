@@ -9,51 +9,47 @@ extension AWSCommand {
             abstract: "Destroy the CDK deployment"
         )
 
-    @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
-    var awsProfile: String?
+        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        var awsProfile: String?
 
-    @Option(name: .long, help: "Use aws-vault for credential management")
-    var useAwsVault: Bool?
+        @Option(name: .long, help: "Use aws-vault for credential management")
+        var useAwsVault: Bool?
 
-    @Option(name: .long, help: "CDK directory path")
-    var cdkDirectory: String = "cdk"
+        @Option(name: .long, help: "CDK directory path")
+        var cdkDirectory: String = "cdk"
 
-    @Flag(name: .long, help: "Skip confirmation prompt")
-    var force: Bool = false
+        @Flag(name: .long, help: "Skip confirmation prompt")
+        var force: Bool = false
 
-    mutating func run() async throws {
-        // Resolve AWS configuration from CLI args and config file
-        let awsConfig = try AWSAuthConfiguration.resolve(
-            profileName: awsProfile,
-            useAWSVault: useAwsVault
-        )
-
-        print("🗑️  Starting tear down...\n")
-
-        if !force {
-            print("⚠️  This will destroy the entire CDK stack and all associated resources.")
-            print("   Are you sure you want to continue? (yes/no): ", terminator: "")
-
-            guard let response = readLine()?.lowercased(),
-                  response == "yes" || response == "y" else {
-                print("Cancelled.")
-                return
-            }
-        }
-
-        let projectRoot = FileManager.default.currentDirectoryPath
-        let remoteService = await MainActor.run {
-            RemoteServiceModel(
-                projectRoot: projectRoot,
-                awsConfig: awsConfig
+        mutating func run() async throws {
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: awsProfile,
+                useAWSVault: useAwsVault
             )
+
+            print("🗑️  Starting tear down...\n")
+
+            if !force {
+                print("⚠️  This will destroy the entire CDK stack and all associated resources.")
+                print("   Are you sure you want to continue? (yes/no): ", terminator: "")
+
+                guard let response = readLine()?.lowercased(),
+                      response == "yes" || response == "y" else {
+                    print("Cancelled.")
+                    return
+                }
+            }
+
+            let projectRoot = FileManager.default.currentDirectoryPath
+            let deploymentService = RemoteDeploymentService(
+                projectRoot: projectRoot,
+                awsConfig: awsConfig,
+                cdkDirectory: cdkDirectory
+            )
+
+            try await deploymentService.tearDown(cdkDirectory: cdkDirectory)
+
+            print("\n🎉 Tear down completed successfully!")
         }
-
-        try await remoteService.tearDown(
-            cdkDirectory: cdkDirectory
-        )
-
-        print("\n🎉 Tear down completed successfully!")
-    }
     }
 }

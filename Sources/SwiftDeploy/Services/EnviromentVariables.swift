@@ -53,7 +53,7 @@ func createEnvironmentVariables(
         dynamodbPort = dynamodbService.connectionInfo.internalPort
     }
 
-    var env: [String: String] = [
+    let env: [String: String] = [
         // PostgreSQL configuration
         "POSTGRES_HOST": postgresHost,
         "POSTGRES_PORT": "\(postgresPort)",

@@ -26,7 +26,7 @@ enum LambdaUpdateMethod: String, CaseIterable, Identifiable {
 
 /// View for Lambda code updates with GitHub CI or direct upload options
 struct LambdaUpdateView: View {
-    @State var service: RemoteServiceModel
+    @State var service: RemoteModel
     @State private var selectedMethod: LambdaUpdateMethod = .github
 
     /// Callback to open settings
@@ -91,7 +91,7 @@ struct LambdaUpdateView: View {
 // MARK: - Preview
 
 #Preview {
-    let service = RemoteServiceModel(workingDirectory: FileManager.default.currentDirectoryPath)
+    let service = RemoteModel(workingDirectory: FileManager.default.currentDirectoryPath)
     return LambdaUpdateView(service: service)
         .padding()
         .frame(width: 500)

@@ -4,9 +4,9 @@ import SwiftDeploy
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management
-/// Connects directly to RemoteServiceModel without going through MacAppModel
+/// Connects directly to RemoteModel without going through MacAppModel
 struct RemoteServiceView: View {
-    @State var service: RemoteServiceModel
+    @State var service: RemoteModel
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
@@ -34,7 +34,7 @@ struct RemoteServiceView: View {
             // Collapsible output panel pinned to bottom
             CollapsibleOutputPanel(
                 streamProvider: { await service.cliService.outputStream() },
-                streamId: RemoteServiceModel.persistenceKey,
+                streamId: RemoteModel.persistenceKey,
                 onCommand: { runCommand($0) }
             )
         }
@@ -127,7 +127,7 @@ struct RemoteServiceView: View {
 // MARK: - Preview
 
 #Preview {
-    let service = RemoteServiceModel(workingDirectory: FileManager.default.currentDirectoryPath)
+    let service = RemoteModel(workingDirectory: FileManager.default.currentDirectoryPath)
     return RemoteServiceView(service: service)
         .padding()
         .frame(width: 500)

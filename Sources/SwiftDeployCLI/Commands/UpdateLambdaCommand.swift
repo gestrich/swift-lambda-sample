@@ -9,28 +9,26 @@ extension AWSCommand {
             abstract: "Update Lambda code only (via GitHub Actions)"
         )
 
-    @Flag(name: .long, help: "Skip git push (manually trigger workflow instead)")
-    var skipPush: Bool = false
+        @Flag(name: .long, help: "Skip git push (manually trigger workflow instead)")
+        var skipPush: Bool = false
 
-    mutating func run() async throws {
-        print("🚀 Updating Lambda code...\n")
+        mutating func run() async throws {
+            print("🚀 Updating Lambda code...\n")
 
-        let projectRoot = FileManager.default.currentDirectoryPath
-        let awsConfig = try AWSAuthConfiguration.resolve(
-            profileName: nil,
-            useAWSVault: nil
-        )
+            let projectRoot = FileManager.default.currentDirectoryPath
+            let awsConfig = try AWSAuthConfiguration.resolve(
+                profileName: nil,
+                useAWSVault: nil
+            )
 
-        let remoteService = await MainActor.run {
-            RemoteServiceModel(
+            let deploymentService = RemoteDeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )
+
+            try await deploymentService.updateLambdaCode(skipPush: skipPush)
+
+            print("\n🎉 Lambda deployment completed successfully!")
         }
-
-        try await remoteService.updateLambdaCode(skipPush: skipPush)
-
-        print("\n🎉 Lambda deployment completed successfully!")
-    }
     }
 }

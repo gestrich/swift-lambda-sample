@@ -19,9 +19,10 @@ This creates issues:
 
 ---
 
-## 1. DependencyStatusServiceModel
+## 1. DependencyStatusServiceModel ✅ COMPLETED
 
-**Current Location:** `Sources/SwiftDeploy/Models/DependencyStatusServiceModel.swift`
+**Current Location:** `Sources/MacApp/Models/DependencyStatusModel.swift` (slimmed down)
+**Service Location:** `Sources/SwiftDeploy/Services/DependencyCheckerService.swift`
 
 **Analysis:**
 - State: `homebrewStatus`, `nodejsStatus`, `dockerStatus`, `awsCLIStatus`, `cdkStatus`, `githubCLIStatus`
@@ -29,29 +30,30 @@ This creates issues:
 
 **Refactor Plan:**
 
-### [ ] 1.1 Create DependencyCheckerService
+### [x] 1.1 Create DependencyCheckerService
 - Location: `Sources/SwiftDeploy/Services/DependencyCheckerService.swift`
 - Stateless service with method: `func checkDependency(_ name: String) async -> DependencyInstallStatus`
 - Returns result, doesn't store it
 
-### [ ] 1.2 Slim down DependencyStatusServiceModel → DependencyStatusModel
-- Rename to `DependencyStatusModel` (drop "Service")
-- Move to `Sources/MacApp/Models/DependencyStatusModel.swift`
-- Keep `@Observable` state properties
-- Inject `DependencyCheckerService`
+### [x] 1.2 Slim down DependencyStatusServiceModel → DependencyStatusModel
+- Renamed to `DependencyStatusModel` (dropped "Service")
+- Moved to `Sources/MacApp/Models/DependencyStatusModel.swift`
+- Keeps `@Observable` state properties
+- Injects `DependencyCheckerService`
 - `checkAll()` calls service, stores results in state
 
-### [ ] 1.3 Update MacApp references
-- Update `AppModel` to use new location
-- Update `SetupViews.swift` parameter type
+### [x] 1.3 Update MacApp references
+- Updated `AppModel` to use new location
+- Updated `SetupViews.swift` parameter type
 
-### [ ] 1.4 Verify build
+### [x] 1.4 Verify build
 
 ---
 
-## 2. RemoteServiceModel
+## 2. RemoteServiceModel ✅ COMPLETED
 
-**Current Location:** `Sources/SwiftDeploy/Models/RemoteServiceModel.swift` (~670 lines)
+**Current Location:** `Sources/MacApp/Models/RemoteModel.swift` (slimmed down)
+**Service Location:** `Sources/SwiftDeploy/Services/RemoteDeploymentService.swift`
 
 **Analysis:**
 - State: `cachedEndpoint`, `statusSubject`, `isLoadingStatusSubject`, `githubService?`, `cdkInfrastructureService?`, `lambdaBuildService?`
@@ -66,7 +68,7 @@ This creates issues:
 
 **Refactor Plan:**
 
-### [ ] 2.1 Create RemoteDeploymentService (high-level facade)
+### [x] 2.1 Create RemoteDeploymentService (high-level facade)
 - Location: `Sources/SwiftDeploy/Services/RemoteDeploymentService.swift`
 - Stateless facade that orchestrates sub-services
 - Methods:
@@ -77,7 +79,7 @@ This creates issues:
   - `func getStatus() async throws -> RemoteStatus`
   - `func testEndpoints(apiUrl: String) async throws`
 
-### [ ] 2.2 Update CLI commands to use RemoteDeploymentService
+### [x] 2.2 Update CLI commands to use RemoteDeploymentService
 - `DeployCommand` → `remoteDeploymentService.deploy()`
 - `DeployInitCommand` → `remoteDeploymentService.deployInit()`
 - `TearDownCommand` → `remoteDeploymentService.tearDown()`
@@ -85,21 +87,21 @@ This creates issues:
 - `StatusCommand` → `remoteDeploymentService.getStatus()`
 - Each CLI command: create service, call one method, print result
 
-### [ ] 2.3 Slim down RemoteServiceModel → RemoteModel
-- Rename to `RemoteModel` (drop "Service")
-- Move to `Sources/MacApp/Models/RemoteModel.swift`
-- Keep only:
+### [x] 2.3 Slim down RemoteServiceModel → RemoteModel
+- Renamed to `RemoteModel` (dropped "Service")
+- Moved to `Sources/MacApp/Models/RemoteModel.swift`
+- Keeps only:
   - Observable state (`cachedEndpoint`, publishers, sub-service references for UI)
   - `refreshStatus()` - updates state by calling service
   - Computed properties for UI (`endpoint`, `isConfigured`, etc.)
-- Delegate all operations to `RemoteDeploymentService`
+  - LambdaService protocol conformance for testing
 
-### [ ] 2.4 Update MacApp references
-- Update `AppModel`
-- Update `RemoteServiceView`
-- Update `LambdaUpdateView`
+### [x] 2.4 Update MacApp references
+- Updated `AppModel`
+- Updated `RemoteServiceView`
+- Updated `LambdaUpdateView`
 
-### [ ] 2.5 Verify build
+### [x] 2.5 Verify build
 
 ---
 
