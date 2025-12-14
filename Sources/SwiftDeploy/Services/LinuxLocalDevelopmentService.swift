@@ -10,7 +10,7 @@ public actor LinuxLocalDevelopmentService {
     private let cliService: CLIService
     private let storageService: LocalStorageService
 
-    private let postgresService: PostgreSQLService
+    private let postgresService: PostgreSQLLocalService
     private let minioService: MinIOService
     private let dynamodbService: DynamoDBLocalService
     private let config: LinuxContainerConfig
@@ -38,7 +38,7 @@ public actor LinuxLocalDevelopmentService {
         self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
 
-        self.postgresService = PostgreSQLService(
+        self.postgresService = PostgreSQLLocalService(
             dockerService: dockerService,
             config: .linux,
             storageService: storageService

@@ -2,7 +2,7 @@ import Foundation
 import LocalStorageService
 
 /// Service for managing local PostgreSQL database via Docker
-public actor PostgreSQLService {
+public actor PostgreSQLLocalService {
     private let dockerService: DockerService
     private let config: PostgreSQLConfig
     private let storageService: LocalStorageService

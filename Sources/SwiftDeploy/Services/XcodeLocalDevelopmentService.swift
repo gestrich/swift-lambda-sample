@@ -10,7 +10,7 @@ public actor XcodeLocalDevelopmentService {
     private let cliService: CLIService
     private let storageService: LocalStorageService
 
-    private let postgresService: PostgreSQLService
+    private let postgresService: PostgreSQLLocalService
     private let minioService: MinIOService
     private let dynamodbService: DynamoDBLocalService
 
@@ -31,7 +31,7 @@ public actor XcodeLocalDevelopmentService {
         self.workingDirectory = workingDirectory
         self.storageService = LocalStorageService()
 
-        self.postgresService = PostgreSQLService(
+        self.postgresService = PostgreSQLLocalService(
             dockerService: dockerService,
             config: .xcode,
             storageService: storageService

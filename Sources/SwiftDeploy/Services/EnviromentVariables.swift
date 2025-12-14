@@ -17,7 +17,7 @@ enum LambdaExecutionContext {
 
 /// Create environment variables for Lambda based on execution context
 func createEnvironmentVariables(
-    postgresService: PostgreSQLService,
+    postgresService: PostgreSQLLocalService,
     minioService: MinIOService,
     dynamodbService: DynamoDBLocalService,
     context: LambdaExecutionContext = .container
