@@ -48,10 +48,10 @@ public actor GitHubCLIService {
     }
 
     /// Watch a workflow run (polls until completion)
-    public func watchWorkflowRun(runId: String? = nil) async throws {
+    public func watchWorkflowRun(runId: String? = nil, output: CLIOutputStream? = nil) async throws {
         let command = Gh.Run.Watch(runId: runId, repo: repository)
 
-        let result = try await cliService.executeForResult(command)
+        let result = try await cliService.executeForResult(command, output: output)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -64,9 +64,9 @@ public actor GitHubCLIService {
 
     /// Watch a workflow run with streaming output
     /// Returns an AsyncStream that yields progress updates until the run completes
-    public func watchWorkflowRunStreaming(runId: String? = nil) async -> AsyncStream<StreamOutput> {
+    public func watchWorkflowRunStreaming(runId: String? = nil, output: CLIOutputStream? = nil) async -> AsyncStream<StreamOutput> {
         let command = Gh.Run.Watch(runId: runId, repo: repository)
-        return await cliService.stream(command)
+        return await cliService.stream(command, output: output)
     }
 
     /// Get detailed run information with jobs and steps
@@ -101,11 +101,12 @@ public actor GitHubCLIService {
     /// Trigger a workflow manually
     public func triggerWorkflow(
         workflow: String,
-        branch: String
+        branch: String,
+        output: CLIOutputStream? = nil
     ) async throws {
         let command = Gh.Workflow.Run(workflow: workflow, repo: repository, ref: branch)
 
-        let result = try await cliService.executeForResult(command)
+        let result = try await cliService.executeForResult(command, output: output)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(

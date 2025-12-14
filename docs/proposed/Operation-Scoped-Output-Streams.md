@@ -551,11 +551,13 @@ Create a dedicated test service and view to verify the architecture before migra
 
 ---
 
-### Phase 4: Migrate GitHubCLIService
+### Phase 4: Migrate GitHubCLIService ✅ COMPLETE
 
-- [ ] Add `output` parameter to `GitHubCLIService.triggerWorkflow()`
-- [ ] Add `output` parameter to `GitHubCLIService.watchWorkflow()`
-- [ ] Add `output` parameter to other GitHubCLIService methods as needed
+- [x] Add `output` parameter to `GitHubCLIService.triggerWorkflow()`
+- [x] Add `output` parameter to `GitHubCLIService.watchWorkflowRun()`
+- [x] Add `output` parameter to `GitHubCLIService.watchWorkflowRunStreaming()`
+
+**Result**: GitHubCLIService methods that produce user-visible output now support client-owned output streams. Other methods like `listWorkflowRuns()` and `getRunDetail()` are internal queries with `printCommand: false` and don't need the output parameter.
 
 ---
 
