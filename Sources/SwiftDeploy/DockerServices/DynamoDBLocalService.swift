@@ -23,6 +23,7 @@ public actor DynamoDBLocalService {
         DynamoDBLocalConnectionInfo(
             endpoint: endpoint,
             port: config.port,
+            internalPort: config.internalPort,
             containerName: config.containerName,
             region: config.region
         )
@@ -116,6 +117,7 @@ public actor DynamoDBLocalService {
 public struct DynamoDBLocalConnectionInfo: Sendable {
     public let endpoint: String
     public let port: Int
+    public let internalPort: Int
     public let containerName: String
     public let region: String
 }

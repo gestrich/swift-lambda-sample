@@ -33,16 +33,4 @@ public struct PostgresConfiguration: Codable {
         self.enableTLS = enableTLS
     }
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        name = try container.decode(String.self, forKey: .name)
-        identifier = try container.decode(String.self, forKey: .identifier)
-        host = try container.decode(String.self, forKey: .host)
-        port = try container.decode(Int.self, forKey: .port)
-        tableName = try container.decode(String.self, forKey: .tableName)
-        username = try container.decode(String.self, forKey: .username)
-        userPassword = try container.decode(String.self, forKey: .userPassword)
-        // Default to false (local development) if not present in JSON
-        enableTLS = try container.decodeIfPresent(Bool.self, forKey: .enableTLS) ?? false
-    }
 }

@@ -6,7 +6,8 @@
     "port":5432,
     "tableName":"sugar",
     "username":"docker",
-    "userPassword":"docker"
+    "userPassword":"docker",
+    "enableTLS": false
   },
   "s3": {
     "bucketName": "org.gestrich.sandbox",

@@ -19,7 +19,7 @@ enum LambdaExecutionContext {
 func createEnvironmentVariables(
     postgresService: PostgreSQLService,
     minioService: MinIOService,
-    dynamodbService: DynamoDBLocalService? = nil,
+    dynamodbService: DynamoDBLocalService,
     context: LambdaExecutionContext = .container
 ) -> [String: String] {
     let postgresInfo = postgresService.connectionInfo
@@ -41,7 +41,7 @@ func createEnvironmentVariables(
         minioHost = "localhost"
         minioPort = minioService.s3Port  // External/host port
         dynamodbHost = "localhost"
-        dynamodbPort = dynamodbService?.connectionInfo.port ?? 8000
+        dynamodbPort = dynamodbService.connectionInfo.port
     case .container:
         // Container connects via Docker network DNS (container names)
         // Use internal ports since we're connecting container-to-container
@@ -49,8 +49,8 @@ func createEnvironmentVariables(
         postgresPort = postgresInfo.internalPort  // Internal port (always 5432)
         minioHost = minioService.minioContainerName
         minioPort = minioService.internalS3Port  // Internal port (always 9000)
-        dynamodbHost = dynamodbService?.connectionInfo.containerName ?? "dynamodb-linux"
-        dynamodbPort = 8000  // DynamoDB Local always uses internal port 8000
+        dynamodbHost = dynamodbService.connectionInfo.containerName
+        dynamodbPort = dynamodbService.connectionInfo.internalPort
     }
 
     var env: [String: String] = [
