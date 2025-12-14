@@ -45,11 +45,12 @@ public actor CDKService {
     // MARK: - Build Operations
 
     /// Build TypeScript CDK code
-    public func build() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func build(output: CLIOutputStream? = nil) async throws {
         // Check if node_modules exists, install if needed
         let nodeModulesPath = (cdkDirectory as NSString).appendingPathComponent("node_modules")
         if !FileManager.default.fileExists(atPath: nodeModulesPath) {
-            try await install()
+            try await install(output: output)
         }
 
         print("\n🔨 Building CDK TypeScript...")
@@ -60,7 +61,8 @@ public actor CDKService {
         let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
-            workingDirectory: cdkDirectory
+            workingDirectory: cdkDirectory,
+            output: output
         )
 
         guard result.isSuccess else {
@@ -91,7 +93,10 @@ public actor CDKService {
     }
 
     /// Deploy CDK stack
-    public func deploy(options: DeployOptions = DeployOptions()) async throws {
+    /// - Parameters:
+    ///   - options: Deployment options (skipPostgres, skipNATGateway, requireApproval)
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func deploy(options: DeployOptions = DeployOptions(), output: CLIOutputStream? = nil) async throws {
         print("\n🚀 Deploying CDK stack...")
 
         // Build context array
@@ -115,7 +120,8 @@ public actor CDKService {
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
-            environment: ["AWS_PROFILE": awsProfile]
+            environment: ["AWS_PROFILE": awsProfile],
+            output: output
         )
 
         guard result.isSuccess else {
@@ -128,7 +134,10 @@ public actor CDKService {
     }
 
     /// Destroy CDK stack
-    public func destroy(force: Bool = false) async throws {
+    /// - Parameters:
+    ///   - force: If true, skip confirmation prompts
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
+    public func destroy(force: Bool = false, output: CLIOutputStream? = nil) async throws {
         print("\n🗑️  Destroying CDK stack...")
 
         let command = Cdk.Destroy(
@@ -142,7 +151,8 @@ public actor CDKService {
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
-            environment: ["AWS_PROFILE": awsProfile]
+            environment: ["AWS_PROFILE": awsProfile],
+            output: output
         )
 
         guard result.isSuccess else {
@@ -231,7 +241,8 @@ public actor CDKService {
     // MARK: - Installation & Setup
 
     /// Install CDK dependencies
-    public func install() async throws {
+    /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
+    public func install(output: CLIOutputStream? = nil) async throws {
         print("\n📦 Installing CDK dependencies...")
 
         let command = Npm.Install()
@@ -240,7 +251,8 @@ public actor CDKService {
         let result = try await cliService.execute(
             command: execCommand,
             arguments: arguments,
-            workingDirectory: cdkDirectory
+            workingDirectory: cdkDirectory,
+            output: output
         )
 
         guard result.isSuccess else {

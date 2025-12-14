@@ -571,11 +571,14 @@ Create a dedicated test service and view to verify the architecture before migra
 
 ---
 
-### Phase 6: Migrate CDKService
+### Phase 6: Migrate CDKService ✅ COMPLETE
 
-- [ ] Add `output` parameter to `CDKService.build()`
-- [ ] Add `output` parameter to `CDKService.deploy()`
-- [ ] Add `output` parameter to `CDKService.destroy()`
+- [x] Add `output` parameter to `CDKService.build()`
+- [x] Add `output` parameter to `CDKService.deploy()`
+- [x] Add `output` parameter to `CDKService.destroy()`
+- [x] Add `output` parameter to `CDKService.install()` (called by `build()`)
+
+**Result**: CDKService methods now support client-owned output streams. The `install()` method was also updated since `build()` calls it when node_modules is missing.
 
 ---
 
