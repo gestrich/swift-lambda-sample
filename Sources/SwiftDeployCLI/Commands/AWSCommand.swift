@@ -45,8 +45,7 @@ extension AWSCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let cliService = CLIService()
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.checkLogs(since: since)
         }
     }
@@ -69,8 +68,7 @@ extension AWSCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let cliService = CLIService()
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
+            let service = AWSTestingService(awsConfig: awsConfig)
             let url = try await service.getApiGatewayUrl()
             print(url)
         }
@@ -111,8 +109,7 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let cliService = CLIService()
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.runAllTests()
         }
     }
@@ -138,8 +135,7 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let cliService = CLIService()
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
+            let service = AWSTestingService(awsConfig: awsConfig)
 
             if verbose {
                 try await service.testFileEndpointVerbose()
@@ -170,8 +166,7 @@ extension AWSCommand.TestCommand {
                 profileName: awsProfile,
                 useAWSVault: useAwsVault
             )
-            let cliService = CLIService()
-            let service = AWSTestingService(awsConfig: awsConfig, cliService: cliService)
+            let service = AWSTestingService(awsConfig: awsConfig)
             try await service.testUserEndpoints()
         }
     }

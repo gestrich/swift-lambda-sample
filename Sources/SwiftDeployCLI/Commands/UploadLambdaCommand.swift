@@ -25,12 +25,9 @@ extension AWSCommand {
                 useAWSVault: useAwsVault
             )
 
-            let cliService = CLIService()
-
             let buildService = await MainActor.run {
                 LambdaBuildService(
                     workingDirectory: projectRoot,
-                    cliService: cliService,
                     awsConfig: awsConfig
                 )
             }

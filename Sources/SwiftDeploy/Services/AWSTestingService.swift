@@ -14,6 +14,13 @@ public actor AWSTestingService {
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
     }
 
+    /// Convenience initializer that creates its own CLIService
+    public init(awsConfig: AWSAuthConfiguration) {
+        let cliService = CLIService()
+        self.cliService = cliService
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
+    }
+
     /// Create an API client configured with the deployed API Gateway URL
     @MainActor
     private func createAPIClient() async throws -> APIClient {

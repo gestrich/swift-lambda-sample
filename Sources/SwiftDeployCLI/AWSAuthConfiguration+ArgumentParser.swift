@@ -36,7 +36,7 @@ extension AWSAuthConfiguration {
         } else if let config = config {
             profileName = config.profileName
         } else {
-            throw CLIServiceError.invalidCommand(
+            throw DeployError.invalidConfiguration(
                 "AWS profile not specified. Either:\n" +
                 "  1. Pass --aws-profile <name>, OR\n" +
                 "  2. Configure profileName in ~/.swiftSampleDemo/aws-config.json\n\n" +

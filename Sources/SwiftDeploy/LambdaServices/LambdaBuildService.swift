@@ -8,47 +8,6 @@
 import CLIKit
 import Foundation
 
-/// Status of the Lambda upload process
-public enum LambdaUploadStatus: Equatable, Sendable {
-    case idle
-    case uploading
-    case success
-    case failed(reason: String)
-
-    public var isInProgress: Bool {
-        switch self {
-        case .uploading:
-            return true
-        default:
-            return false
-        }
-    }
-
-    public var canUpload: Bool {
-        switch self {
-        case .idle, .success, .failed:
-            return true
-        default:
-            return false
-        }
-    }
-}
-
-/// Errors for Lambda upload operations
-public enum LambdaUploadError: LocalizedError {
-    case zipNotCreated(path: String)
-    case uploadFailed(output: String)
-
-    public var errorDescription: String? {
-        switch self {
-        case .zipNotCreated(let path):
-            return "Lambda zip file not created at: \(path)"
-        case .uploadFailed(let output):
-            return "Upload failed: \(output.suffix(200))"
-        }
-    }
-}
-
 /// Service for building and uploading Lambda for Linux (AMD64) using Docker
 @MainActor
 @Observable
@@ -78,6 +37,13 @@ public class LambdaBuildService {
     public init(workingDirectory: String, cliService: CLIService, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
         self.cliService = cliService
+        self.awsConfig = awsConfig
+    }
+
+    /// Convenience initializer that creates its own CLIService
+    public init(workingDirectory: String, awsConfig: AWSAuthConfiguration? = nil) {
+        self.workingDirectory = workingDirectory
+        self.cliService = CLIService(defaultWorkingDirectory: workingDirectory)
         self.awsConfig = awsConfig
     }
 
@@ -246,5 +212,46 @@ public class LambdaBuildService {
     /// Reset upload status to idle
     public func resetUploadStatus() {
         uploadStatus = .idle
+    }
+}
+
+/// Status of the Lambda upload process
+public enum LambdaUploadStatus: Equatable, Sendable {
+    case idle
+    case uploading
+    case success
+    case failed(reason: String)
+
+    public var isInProgress: Bool {
+        switch self {
+        case .uploading:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public var canUpload: Bool {
+        switch self {
+        case .idle, .success, .failed:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// Errors for Lambda upload operations
+public enum LambdaUploadError: LocalizedError {
+    case zipNotCreated(path: String)
+    case uploadFailed(output: String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .zipNotCreated(let path):
+            return "Lambda zip file not created at: \(path)"
+        case .uploadFailed(let output):
+            return "Upload failed: \(output.suffix(200))"
+        }
     }
 }
