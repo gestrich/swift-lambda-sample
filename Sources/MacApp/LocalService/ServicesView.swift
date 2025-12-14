@@ -21,6 +21,9 @@ enum AppCategory: Identifiable, Hashable {
     case xcode
     case linux
 
+    // Debug/Testing
+    case outputStreamTest
+
     var id: String {
         switch self {
         case .overview: return "overview"
@@ -33,6 +36,7 @@ enum AppCategory: Identifiable, Hashable {
         case .remote: return "remote"
         case .xcode: return "xcode"
         case .linux: return "linux"
+        case .outputStreamTest: return "outputStreamTest"
         }
     }
 
@@ -48,6 +52,7 @@ enum AppCategory: Identifiable, Hashable {
         case .remote: return "Remote"
         case .xcode: return "Xcode"
         case .linux: return "Linux"
+        case .outputStreamTest: return "Output Streams"
         }
     }
 
@@ -63,6 +68,7 @@ enum AppCategory: Identifiable, Hashable {
         case .remote: return "cloud.fill"
         case .xcode: return "hammer.fill"
         case .linux: return "server.rack"
+        case .outputStreamTest: return "text.viewfinder"
         }
     }
 
@@ -78,6 +84,7 @@ enum AppCategory: Identifiable, Hashable {
         case .remote: return .blue
         case .xcode: return .blue
         case .linux: return .orange
+        case .outputStreamTest: return .gray
         }
     }
 
@@ -87,6 +94,7 @@ enum AppCategory: Identifiable, Hashable {
         case .xcode: return "Fast iteration"
         case .linux: return "AWS-compatible"
         case .principle(let p): return p.subtitle
+        case .outputStreamTest: return "Test scoped output"
         default: return nil
         }
     }
@@ -106,6 +114,7 @@ enum AppCategory: Identifiable, Hashable {
         case "remote": return .remote
         case "xcode": return .xcode
         case "linux": return .linux
+        case "outputStreamTest": return .outputStreamTest
         default:
             // Check for principle IDs (format: "principle-{rawValue}")
             if id.hasPrefix("principle-") {
@@ -186,6 +195,12 @@ struct ServicesView: View {
                     NavigationLink(value: category) {
                         deploymentRow(category)
                     }
+                }
+            }
+
+            Section("Debug") {
+                NavigationLink(value: AppCategory.outputStreamTest) {
+                    categoryRow(.outputStreamTest)
                 }
             }
         }
@@ -304,6 +319,8 @@ struct ServicesView: View {
             xcodeDetailView
         case .linux:
             linuxDetailView
+        case .outputStreamTest:
+            TestOutputStreamView()
         }
     }
 

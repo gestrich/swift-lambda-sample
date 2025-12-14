@@ -28,6 +28,172 @@ private func isExit(_ output: StreamOutput, _ expected: Int32) -> Bool {
 @Suite("CLIOutputStream Tests")
 struct CLIOutputStreamTests {
 
+    // MARK: - Dual Stream Output Tests
+
+    @Test("CLIService execute sends to both global and client streams")
+    func testExecuteSendsToBothStreams() async throws {
+        let cliService = CLIService()
+
+        // Create client-owned stream
+        let clientStream = CLIOutputStream()
+
+        // Start subscribers that return collected output
+        let globalTask = Task { () -> [StreamOutput] in
+            var received: [StreamOutput] = []
+            for await item in await cliService.outputStream() {
+                received.append(item)
+                if case .exit = item { break }
+            }
+            return received
+        }
+
+        let clientTask = Task { () -> [StreamOutput] in
+            var received: [StreamOutput] = []
+            for await item in await clientStream.makeStream() {
+                received.append(item)
+                if case .exit = item { break }
+            }
+            return received
+        }
+
+        // Give subscribers time to register
+        try await Task.sleep(nanoseconds: 20_000_000) // 20ms
+
+        // Execute command with client stream
+        _ = try await cliService.execute(
+            command: "echo",
+            arguments: ["hello"],
+            printCommand: false,
+            output: clientStream
+        )
+
+        // Give streams time to receive all output
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
+
+        // Finish client stream
+        await clientStream.finishAll()
+
+        // Wait for tasks and get results
+        let globalOutput = await globalTask.value
+        let clientOutput = await clientTask.value
+
+        // Both streams should have received the command output
+        let globalHasEcho = globalOutput.contains { isStdout($0, "hello\n") }
+        let clientHasEcho = clientOutput.contains { isStdout($0, "hello\n") }
+
+        #expect(globalHasEcho, "Global stream should receive stdout")
+        #expect(clientHasEcho, "Client stream should receive stdout")
+    }
+
+    @Test("CLIService stream sends to both global and client streams")
+    func testStreamSendsToBothStreams() async throws {
+        let cliService = CLIService()
+
+        // Create client-owned stream
+        let clientStream = CLIOutputStream()
+
+        // Start subscribers that return collected output
+        let globalTask = Task { () -> [StreamOutput] in
+            var received: [StreamOutput] = []
+            for await item in await cliService.outputStream() {
+                received.append(item)
+                if case .exit = item { break }
+            }
+            return received
+        }
+
+        let clientTask = Task { () -> [StreamOutput] in
+            var received: [StreamOutput] = []
+            for await item in await clientStream.makeStream() {
+                received.append(item)
+                if case .exit = item { break }
+            }
+            return received
+        }
+
+        // Give subscribers time to register
+        try await Task.sleep(nanoseconds: 20_000_000) // 20ms
+
+        // Stream command with client stream
+        for await _ in await cliService.stream(
+            command: "echo",
+            arguments: ["test"],
+            printCommand: false,
+            output: clientStream
+        ) {
+            // Consume the per-command stream
+        }
+
+        // Give streams time to receive all output
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
+
+        // Finish client stream
+        await clientStream.finishAll()
+
+        // Wait for tasks and get results
+        let globalOutput = await globalTask.value
+        let clientOutput = await clientTask.value
+
+        // Both streams should have received output
+        let globalHasOutput = globalOutput.contains { isStdout($0, "test\n") }
+        let clientHasOutput = clientOutput.contains { isStdout($0, "test\n") }
+
+        #expect(globalHasOutput, "Global stream should receive stdout from stream()")
+        #expect(clientHasOutput, "Client stream should receive stdout from stream()")
+    }
+
+    @Test("Client stream isolation - only receives own operation output")
+    func testClientStreamIsolation() async throws {
+        let cliService = CLIService()
+
+        // Create a client stream for operation 2 only
+        let clientStream = CLIOutputStream()
+
+        let clientTask = Task { () -> [StreamOutput] in
+            var received: [StreamOutput] = []
+            for await item in await clientStream.makeStream() {
+                received.append(item)
+                if case .exit = item { break }
+            }
+            return received
+        }
+
+        // Give subscriber time to register
+        try await Task.sleep(nanoseconds: 20_000_000) // 20ms
+
+        // Operation 1: Execute WITHOUT client stream
+        _ = try await cliService.execute(
+            command: "echo",
+            arguments: ["operation-one"],
+            printCommand: false
+        )
+
+        // Operation 2: Execute WITH client stream
+        _ = try await cliService.execute(
+            command: "echo",
+            arguments: ["operation-two"],
+            printCommand: false,
+            output: clientStream
+        )
+
+        // Give time for output
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
+
+        // Finish client stream
+        await clientStream.finishAll()
+
+        let clientOutput = await clientTask.value
+
+        // Client stream should only have operation-two output
+        let hasOpOne = clientOutput.contains { isStdout($0, "operation-one\n") }
+        let hasOpTwo = clientOutput.contains { isStdout($0, "operation-two\n") }
+
+        #expect(!hasOpOne, "Client stream should NOT receive operation-one output")
+        #expect(hasOpTwo, "Client stream should receive operation-two output")
+    }
+
+    // MARK: - Original CLIOutputStream Tests
+
     @Test("Single subscriber receives output")
     func testSingleSubscriber() async {
         let output = CLIOutputStream()

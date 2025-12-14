@@ -129,7 +129,8 @@ public actor CLIService {
         environment: [String: String]? = nil,
         timeout: TimeInterval? = nil,
         printCommand: Bool = true,
-        inheritIO: Bool = false
+        inheritIO: Bool = false,
+        output: CLIOutputStream? = nil
     ) async throws -> ExecutionResult {
         // Resolve and prepare command - this handles errors and sends to global stream
         let prepared = await prepareCommand(
@@ -137,7 +138,8 @@ public actor CLIService {
             arguments: arguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            printCommand: printCommand
+            printCommand: printCommand,
+            output: output
         )
 
         switch prepared {
@@ -150,7 +152,8 @@ public actor CLIService {
                 timeout: timeout,
                 startTime: Date(),
                 inheritIO: inheritIO,
-                commandID: info.commandID
+                commandID: info.commandID,
+                output: output
             )
         case .failure(let error):
             throw error
@@ -198,13 +201,15 @@ public actor CLIService {
     ///   - workingDirectory: Working directory for the command
     ///   - environment: Custom environment variables
     ///   - printCommand: If true, prints the formatted command before execution
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: AsyncStream of output lines
     public func stream(
         command: String,
         arguments: [String] = [],
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        output: CLIOutputStream? = nil
     ) -> AsyncStream<StreamOutput> {
         AsyncStream { continuation in
             Task {
@@ -215,7 +220,8 @@ public actor CLIService {
                     workingDirectory: workingDirectory,
                     environment: environment,
                     printCommand: printCommand,
-                    continuation: continuation
+                    continuation: continuation,
+                    output: output
                 )
 
                 guard case .success(let info) = prepared else {
@@ -230,7 +236,8 @@ public actor CLIService {
                         workingDirectory: info.effectiveWorkingDirectory,
                         environment: info.processEnvironment,
                         commandID: info.commandID,
-                        continuation: continuation
+                        continuation: continuation,
+                        output: output
                     )
                 } catch {
                     // Error during process execution (not resolution)
@@ -238,6 +245,7 @@ public actor CLIService {
                     continuation.yield(errorOutput)
                     continuation.finish()
                     await self.globalOutput.send(errorOutput)
+                    await output?.send(errorOutput)
                 }
             }
         }
@@ -249,12 +257,14 @@ public actor CLIService {
     ///   - workingDirectory: Working directory for the command
     ///   - environment: Custom environment variables
     ///   - printCommand: If true, prints the formatted command before execution
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: AsyncStream of output lines
     public func stream<C: CLICommand>(
         _ command: C,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        output: CLIOutputStream? = nil
     ) -> AsyncStream<StreamOutput> {
         let commandLine = command.commandLine
         guard let programName = commandLine.first else {
@@ -270,7 +280,8 @@ public actor CLIService {
             arguments: arguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            printCommand: printCommand
+            printCommand: printCommand,
+            output: output
         )
     }
 
@@ -323,7 +334,8 @@ public actor CLIService {
         workingDirectory: String?,
         environment: [String: String]?,
         printCommand: Bool,
-        continuation: AsyncStream<StreamOutput>.Continuation? = nil
+        continuation: AsyncStream<StreamOutput>.Continuation? = nil,
+        output: CLIOutputStream? = nil
     ) async -> Result<PreparedCommand, Error> {
         let commandID = CommandID()
 
@@ -341,7 +353,8 @@ public actor CLIService {
             let errorOutput = StreamOutput.error(commandID: commandID, error: error)
 
             await globalOutput.send(commandOutput)
-            await globalOutput.send(errorOutput)
+            await output?.send(commandOutput)
+            await output?.send(errorOutput)
 
             continuation?.yield(commandOutput)
             continuation?.yield(errorOutput)
@@ -372,6 +385,7 @@ public actor CLIService {
         let commandOutput = StreamOutput.command(id: commandID, text: commandLine)
 
         await globalOutput.send(commandOutput)
+        await output?.send(commandOutput)
         continuation?.yield(commandOutput)
 
         if printCommand {
@@ -459,7 +473,8 @@ public actor CLIService {
         timeout: TimeInterval?,
         startTime: Date,
         inheritIO: Bool,
-        commandID: CommandID
+        commandID: CommandID,
+        output: CLIOutputStream? = nil
     ) async throws -> ExecutionResult {
         return try self.runProcess(
             command: command,
@@ -469,7 +484,8 @@ public actor CLIService {
             timeout: timeout,
             inheritIO: inheritIO,
             commandID: commandID,
-            commandContinuation: nil
+            commandContinuation: nil,
+            output: output
         )
     }
 
@@ -483,6 +499,7 @@ public actor CLIService {
     ///   - inheritIO: If true, inherit stdin/stdout/stderr (no capture)
     ///   - commandID: Unique ID for this command execution
     ///   - commandContinuation: Optional per-command stream continuation
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: ExecutionResult with accumulated stdout/stderr
     private func runProcess(
         command: String,
@@ -492,7 +509,8 @@ public actor CLIService {
         timeout: TimeInterval?,
         inheritIO: Bool,
         commandID: CommandID,
-        commandContinuation: AsyncStream<StreamOutput>.Continuation?
+        commandContinuation: AsyncStream<StreamOutput>.Continuation?,
+        output: CLIOutputStream? = nil
     ) throws -> ExecutionResult {
         let startTime = Date()
         let process = Process()
@@ -508,8 +526,9 @@ public actor CLIService {
         let stdoutAccumulator = OutputAccumulator()
         let stderrAccumulator = OutputAccumulator()
 
-        // Capture globalOutput for use in closures
-        let output = self.globalOutput
+        // Capture streams for use in closures
+        let globalOutputStream = self.globalOutput
+        let clientOutputStream = output
 
         let outputPipe: Pipe?
         let errorPipe: Pipe?
@@ -535,12 +554,21 @@ public actor CLIService {
                     stdoutAccumulator.append(text)
                     print(text, terminator: "")
 
+                    let streamOutput = StreamOutput.stdout(commandID: commandID, text: text)
+
                     // Yield to per-command stream (if provided)
-                    commandContinuation?.yield(.stdout(commandID: commandID, text: text))
+                    commandContinuation?.yield(streamOutput)
 
                     // Broadcast to global stream
                     Task {
-                        await output.send(.stdout(commandID: commandID, text: text))
+                        await globalOutputStream.send(streamOutput)
+                    }
+
+                    // Send to client's stream (if provided)
+                    if let clientOutput = clientOutputStream {
+                        Task {
+                            await clientOutput.send(streamOutput)
+                        }
                     }
                 }
             }
@@ -551,11 +579,20 @@ public actor CLIService {
                     stderrAccumulator.append(text)
                     print(text, terminator: "")
 
-                    commandContinuation?.yield(.stderr(commandID: commandID, text: text))
+                    let streamOutput = StreamOutput.stderr(commandID: commandID, text: text)
+
+                    commandContinuation?.yield(streamOutput)
 
                     // Broadcast to global stream
                     Task {
-                        await output.send(.stderr(commandID: commandID, text: text))
+                        await globalOutputStream.send(streamOutput)
+                    }
+
+                    // Send to client's stream (if provided)
+                    if let clientOutput = clientOutputStream {
+                        Task {
+                            await clientOutput.send(streamOutput)
+                        }
                     }
                 }
             }
@@ -589,18 +626,30 @@ public actor CLIService {
         if !stdout.isEmpty && !stdout.hasSuffix("\n") {
             let newline = "\n"
             print(newline, terminator: "")
-            commandContinuation?.yield(.stdout(commandID: commandID, text: newline))
+            let newlineOutput = StreamOutput.stdout(commandID: commandID, text: newline)
+            commandContinuation?.yield(newlineOutput)
             Task {
-                await output.send(.stdout(commandID: commandID, text: newline))
+                await globalOutputStream.send(newlineOutput)
+            }
+            if let clientOutput = clientOutputStream {
+                Task {
+                    await clientOutput.send(newlineOutput)
+                }
             }
         }
 
         // Yield exit to streams
-        commandContinuation?.yield(.exit(commandID: commandID, code: exitCode))
+        let exitOutput = StreamOutput.exit(commandID: commandID, code: exitCode)
+        commandContinuation?.yield(exitOutput)
         commandContinuation?.finish()
 
         Task {
-            await self.globalOutput.send(.exit(commandID: commandID, code: exitCode))
+            await self.globalOutput.send(exitOutput)
+        }
+        if let clientOutput = clientOutputStream {
+            Task {
+                await clientOutput.send(exitOutput)
+            }
         }
 
         // Check timeout
@@ -630,6 +679,7 @@ public actor CLIService {
     ///   - workingDirectory: Working directory for execution
     ///   - environment: Custom environment variables
     ///   - printCommand: Whether to print the command before execution
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: Tuple of (parsed output, execution result). Parse only attempted if command succeeds.
     /// - Throws: CLIServiceError if command not found or parsing fails
     public func executeWithResult<C: CLICommand, P: CLIOutputParser>(
@@ -637,14 +687,16 @@ public actor CLIService {
         parser: P,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        output: CLIOutputStream? = nil
     ) async throws -> (P.Output?, ExecutionResult) {
         let result = try await execute(
             command: C.Program.programName,
             arguments: command.commandArguments,
             workingDirectory: workingDirectory,
             environment: environment,
-            printCommand: printCommand
+            printCommand: printCommand,
+            output: output
         )
 
         if result.isSuccess {
@@ -663,13 +715,15 @@ public actor CLIService {
     ///   - environment: Custom environment variables
     ///   - printCommand: Whether to print the command before execution
     ///   - inheritIO: If true, inherits stdin/stdout/stderr from parent process (for interactive commands)
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: ExecutionResult containing exit code, stdout, stderr, and duration
     public func executeForResult<C: CLICommand>(
         _ command: C,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
         printCommand: Bool = true,
-        inheritIO: Bool = false
+        inheritIO: Bool = false,
+        output: CLIOutputStream? = nil
     ) async throws -> ExecutionResult {
         try await execute(
             command: C.Program.programName,
@@ -677,7 +731,8 @@ public actor CLIService {
             workingDirectory: workingDirectory,
             environment: environment,
             printCommand: printCommand,
-            inheritIO: inheritIO
+            inheritIO: inheritIO,
+            output: output
         )
     }
 
@@ -689,6 +744,7 @@ public actor CLIService {
     ///   - workingDirectory: Working directory for execution
     ///   - environment: Custom environment variables
     ///   - printCommand: Whether to print the command before execution
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: Parsed output of type `P.Output`
     /// - Throws: CLIServiceError if command fails or parsing fails
     public func execute<C: CLICommand, P: CLIOutputParser>(
@@ -696,14 +752,16 @@ public actor CLIService {
         parser: P,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        output: CLIOutputStream? = nil
     ) async throws -> P.Output {
         let (parsed, result) = try await executeWithResult(
             command,
             parser: parser,
             workingDirectory: workingDirectory,
             environment: environment,
-            printCommand: printCommand
+            printCommand: printCommand,
+            output: output
         )
 
         guard let parsed else {
@@ -724,19 +782,22 @@ public actor CLIService {
     ///   - workingDirectory: Working directory for execution
     ///   - environment: Custom environment variables
     ///   - printCommand: Whether to print the command before execution
+    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: Trimmed stdout string
     public func execute<C: CLICommand>(
         _ command: C,
         workingDirectory: String? = nil,
         environment: [String: String]? = nil,
-        printCommand: Bool = true
+        printCommand: Bool = true,
+        output: CLIOutputStream? = nil
     ) async throws -> String {
         try await execute(
             command,
             parser: StringParser(),
             workingDirectory: workingDirectory,
             environment: environment,
-            printCommand: printCommand
+            printCommand: printCommand,
+            output: output
         )
     }
 
@@ -748,7 +809,8 @@ public actor CLIService {
         workingDirectory: String?,
         environment: [String: String],
         commandID: CommandID,
-        continuation: AsyncStream<StreamOutput>.Continuation
+        continuation: AsyncStream<StreamOutput>.Continuation,
+        output: CLIOutputStream? = nil
     ) throws {
         // Use unified runProcess - it handles continuation and global broadcast
         _ = try runProcess(
@@ -759,7 +821,8 @@ public actor CLIService {
             timeout: nil,
             inheritIO: false,
             commandID: commandID,
-            commandContinuation: continuation
+            commandContinuation: continuation,
+            output: output
         )
     }
 }
