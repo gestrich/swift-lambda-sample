@@ -515,7 +515,7 @@ enum Dependency {
         case .cdk:
             return "https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html"
         case .githubCLI:
-            return "https://cli.github.com/manual/installation"
+            return "https://github.com/cli/cli#installation"
         }
     }
 }
