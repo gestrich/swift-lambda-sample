@@ -22,7 +22,7 @@ extension AWSCommand {
         )
 
         let remoteService = await MainActor.run {
-            RemoteService(
+            RemoteServiceModel(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )

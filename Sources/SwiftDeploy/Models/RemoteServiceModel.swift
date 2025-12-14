@@ -16,7 +16,7 @@ public struct DeployedState: Sendable {
 /// Start/stop lifecycle operations are no-ops since remote services are managed by AWS
 @MainActor
 @Observable
-public class RemoteService: LambdaService {
+public class RemoteServiceModel: LambdaService {
     private let cdkService: CDKService
     private let awsService: AWSCLIService
     public let cliService: CLIService

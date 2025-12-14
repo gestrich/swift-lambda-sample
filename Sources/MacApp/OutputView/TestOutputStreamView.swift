@@ -6,7 +6,7 @@ import SwiftUI
 /// Shows how clients can create, pass, and consume their own output streams
 /// to get isolated output from specific operations.
 struct TestOutputStreamView: View {
-    @Environment(AllServicesModel.self) var model
+    @Environment(AppModel.self) var model
 
     // Operation A: Client-owned stream
     @State private var operationAOutput: CLIOutputStream?
@@ -183,7 +183,7 @@ struct TestOutputStreamView: View {
 // MARK: - Preview
 
 #Preview {
-    let model = AllServicesModel()
+    let model = AppModel()
     return TestOutputStreamView()
         .environment(model)
         .frame(width: 600, height: 800)

@@ -43,7 +43,7 @@ extension AWSCommand {
 
         let projectRoot = FileManager.default.currentDirectoryPath
         let remoteService = await MainActor.run {
-            RemoteService(
+            RemoteServiceModel(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )

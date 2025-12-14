@@ -1,0 +1,240 @@
+# Mac App Model/Service Refactor Plan
+
+## Problem
+
+The current "Models" in `Sources/SwiftDeploy/Models/` mix two concerns:
+1. **App State** - Observable properties for UI binding (`@Observable`, Combine publishers)
+2. **Business Logic** - Operations like deploy, build, start/stop services
+
+This creates issues:
+- Models are in SwiftDeploy but are really MacApp concerns
+- CLI depends on Models when it should use stateless Services
+- CLI commands make multiple service calls (code smell - missing high-level service)
+
+## Goal
+
+- **Models** → Move to MacApp, hold only observable state, delegate to services
+- **Services** → Stay in SwiftDeploy, stateless, single high-level method per operation
+- **CLI** → Call one service method, print result
+
+---
+
+## 1. DependencyStatusServiceModel
+
+**Current Location:** `Sources/SwiftDeploy/Models/DependencyStatusServiceModel.swift`
+
+**Analysis:**
+- State: `homebrewStatus`, `nodejsStatus`, `dockerStatus`, `awsCLIStatus`, `cdkStatus`, `githubCLIStatus`
+- Logic: `checkCommand()` - runs CLI to check if dependency is installed
+
+**Refactor Plan:**
+
+### [ ] 1.1 Create DependencyCheckerService
+- Location: `Sources/SwiftDeploy/Services/DependencyCheckerService.swift`
+- Stateless service with method: `func checkDependency(_ name: String) async -> DependencyInstallStatus`
+- Returns result, doesn't store it
+
+### [ ] 1.2 Slim down DependencyStatusServiceModel → DependencyStatusModel
+- Rename to `DependencyStatusModel` (drop "Service")
+- Move to `Sources/MacApp/Models/DependencyStatusModel.swift`
+- Keep `@Observable` state properties
+- Inject `DependencyCheckerService`
+- `checkAll()` calls service, stores results in state
+
+### [ ] 1.3 Update MacApp references
+- Update `AppModel` to use new location
+- Update `SetupViews.swift` parameter type
+
+### [ ] 1.4 Verify build
+
+---
+
+## 2. RemoteServiceModel
+
+**Current Location:** `Sources/SwiftDeploy/Models/RemoteServiceModel.swift` (~670 lines)
+
+**Analysis:**
+- State: `cachedEndpoint`, `statusSubject`, `isLoadingStatusSubject`, `githubService?`, `cdkInfrastructureService?`, `lambdaBuildService?`
+- Logic: `deploy()`, `deployInit()`, `tearDown()`, `updateLambdaCode()`, `pollDeploymentStatus()`, `getStackOutputs()`, `testLambda()`, etc.
+
+**Existing Services Used:**
+- `CDKService` - CDK operations
+- `AWSCLIService` - AWS CLI wrapper
+- `GitHubService` - GitHub Actions
+- `CDKInfrastructureService` - Infrastructure status
+- `LambdaBuildService` - Local build & upload
+
+**Refactor Plan:**
+
+### [ ] 2.1 Create RemoteDeploymentService (high-level facade)
+- Location: `Sources/SwiftDeploy/Services/RemoteDeploymentService.swift`
+- Stateless facade that orchestrates sub-services
+- Methods:
+  - `func deploy(options: DeploymentOptions) async throws -> DeploymentResult`
+  - `func deployInit(options: DeploymentOptions, withPostgres: Bool, skipPush: Bool) async throws`
+  - `func tearDown(cdkDirectory: String) async throws`
+  - `func updateLambdaCode(skipPush: Bool) async throws`
+  - `func getStatus() async throws -> RemoteStatus`
+  - `func testEndpoints(apiUrl: String) async throws`
+
+### [ ] 2.2 Update CLI commands to use RemoteDeploymentService
+- `DeployCommand` → `remoteDeploymentService.deploy()`
+- `DeployInitCommand` → `remoteDeploymentService.deployInit()`
+- `TearDownCommand` → `remoteDeploymentService.tearDown()`
+- `UpdateLambdaCommand` → `remoteDeploymentService.updateLambdaCode()`
+- `StatusCommand` → `remoteDeploymentService.getStatus()`
+- Each CLI command: create service, call one method, print result
+
+### [ ] 2.3 Slim down RemoteServiceModel → RemoteModel
+- Rename to `RemoteModel` (drop "Service")
+- Move to `Sources/MacApp/Models/RemoteModel.swift`
+- Keep only:
+  - Observable state (`cachedEndpoint`, publishers, sub-service references for UI)
+  - `refreshStatus()` - updates state by calling service
+  - Computed properties for UI (`endpoint`, `isConfigured`, etc.)
+- Delegate all operations to `RemoteDeploymentService`
+
+### [ ] 2.4 Update MacApp references
+- Update `AppModel`
+- Update `RemoteServiceView`
+- Update `LambdaUpdateView`
+
+### [ ] 2.5 Verify build
+
+---
+
+## 3. XcodeLocalServiceModel
+
+**Current Location:** `Sources/SwiftDeploy/Models/XcodeLocalServiceModel.swift` (~800 lines)
+
+**Analysis:**
+- State: `statusSubject`, `isLoadingStatusSubject`, `isTransitioning`, `buildState`, `lambdaState`
+- Logic: `startAllServices()`, `stopAllServices()`, `build()`, `startLambda()`, `stopLambda()`, `startWithServices()`, `stopWithServices()`, `testLambda()`, etc.
+
+**Existing Services Used:**
+- `DockerService` - Docker operations
+- `PostgreSQLService` - PostgreSQL container
+- `MinIOService` - S3-compatible storage
+- `DynamoDBLocalService` - DynamoDB Local
+
+**Refactor Plan:**
+
+### [ ] 3.1 Create XcodeLocalDevelopmentService (high-level facade)
+- Location: `Sources/SwiftDeploy/Services/XcodeLocalDevelopmentService.swift`
+- Stateless facade for Xcode local development
+- Methods:
+  - `func build(clean: Bool) async throws`
+  - `func startLambda() async throws`
+  - `func stopLambda() async throws`
+  - `func startWithServices() async throws`
+  - `func stopWithServices() async throws`
+  - `func startAllServices() async throws`
+  - `func stopAllServices() async throws`
+  - `func getStatus() async throws -> DeploymentStatus`
+  - `func testEndpoints() async throws`
+
+### [ ] 3.2 Update CLI LocalMacCommand to use XcodeLocalDevelopmentService
+- Each subcommand: create service, call one method, print result
+- Remove direct Model instantiation
+
+### [ ] 3.3 Slim down XcodeLocalServiceModel → XcodeLocalModel
+- Rename to `XcodeLocalModel` (drop "Service")
+- Move to `Sources/MacApp/Models/XcodeLocalModel.swift`
+- Keep only:
+  - Observable state (`buildState`, `lambdaState`, publishers)
+  - `refreshStatus()` - updates state
+  - State transition flags (`isTransitioning`)
+- Delegate operations to `XcodeLocalDevelopmentService`
+
+### [ ] 3.4 Update MacApp references
+- Update `AppModel`
+- Update `LocalServicesModel` usage
+
+### [ ] 3.5 Verify build
+
+---
+
+## 4. LinuxLocalServiceModel
+
+**Current Location:** `Sources/SwiftDeploy/Models/LinuxLocalServiceModel.swift` (~800 lines)
+
+**Analysis:**
+- Nearly identical structure to XcodeLocalServiceModel
+- Different build process (Docker-based vs native)
+- Different Lambda execution (container vs process)
+
+**Refactor Plan:**
+
+### [ ] 4.1 Create LinuxLocalDevelopmentService (high-level facade)
+- Location: `Sources/SwiftDeploy/Services/LinuxLocalDevelopmentService.swift`
+- Same interface as XcodeLocalDevelopmentService
+- Additional methods:
+  - `func setupDockerNetwork() async throws`
+  - `func runInteractive() async throws`
+
+### [ ] 4.2 Update CLI LocalLinuxCommand to use LinuxLocalDevelopmentService
+- Each subcommand: create service, call one method, print result
+
+### [ ] 4.3 Slim down LinuxLocalServiceModel → LinuxLocalModel
+- Rename to `LinuxLocalModel` (drop "Service")
+- Move to `Sources/MacApp/Models/LinuxLocalModel.swift`
+- Same pattern as XcodeLocalModel
+
+### [ ] 4.4 Update MacApp references
+
+### [ ] 4.5 Verify build
+
+---
+
+## 5. Final Cleanup
+
+### [ ] 5.1 Remove empty Models folder from SwiftDeploy
+- After all models moved to MacApp
+
+### [ ] 5.2 Update LambdaService protocol
+- May need adjustment since Models no longer in SwiftDeploy
+- Consider if protocol should move to MacApp or be split
+
+### [ ] 5.3 Update LocalService protocol
+- Same consideration as LambdaService
+
+### [ ] 5.4 Final build verification
+- `swift build --target MacApp`
+- `swift build --target SwiftDeployCLI`
+
+### [ ] 5.5 Update architecture documentation
+- Update `docs/architecture/MacAppArchitecture.md` with final structure
+
+---
+
+## Summary: Before vs After
+
+### Before
+```
+SwiftDeploy/Models/
+├── RemoteServiceModel.swift      (state + logic mixed)
+├── XcodeLocalServiceModel.swift  (state + logic mixed)
+├── LinuxLocalServiceModel.swift  (state + logic mixed)
+└── DependencyStatusServiceModel.swift
+
+CLI → Model → sub-services
+```
+
+### After
+```
+SwiftDeploy/Services/
+├── RemoteDeploymentService.swift       (stateless facade)
+├── XcodeLocalDevelopmentService.swift  (stateless facade)
+├── LinuxLocalDevelopmentService.swift  (stateless facade)
+├── DependencyCheckerService.swift      (stateless)
+└── ... (existing services)
+
+MacApp/Models/
+├── RemoteModel.swift           (@Observable state only)
+├── XcodeLocalModel.swift       (@Observable state only)
+├── LinuxLocalModel.swift       (@Observable state only)
+└── DependencyStatusModel.swift (@Observable state only)
+
+CLI → Service (single call)
+MacApp View → Model → Service
+```

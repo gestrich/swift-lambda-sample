@@ -2,8 +2,8 @@ import CLIKit
 import Foundation
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
-/// Both XcodeLocalService and LinuxLocalService conform to this protocol.
-/// RemoteService does NOT conform - it only conforms to LambdaService.
+/// Both XcodeLocalServiceModel and LinuxLocalServiceModel conform to this protocol.
+/// RemoteServiceModel does NOT conform - it only conforms to LambdaService.
 @MainActor
 public protocol LocalService: LambdaService {
     // MARK: - Docker Services (PostgreSQL + MinIO/S3)

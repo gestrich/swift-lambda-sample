@@ -1,29 +1,13 @@
 import CLIKit
 import Foundation
 import Observation
+import SwiftDeploy
 
-/// Installation status for a dependency
-public enum DependencyInstallStatus: Equatable, Sendable {
-    case unknown
-    case checking
-    case installed(version: String?)
-    case notInstalled
-
-    public var isInstalled: Bool {
-        if case .installed = self { return true }
-        return false
-    }
-
-    public var isChecking: Bool {
-        if case .checking = self { return true }
-        return false
-    }
-}
-
-/// Service for checking dependency installation status
+/// Observable model for dependency installation status
+/// Holds UI state and delegates checking to DependencyCheckerService
 @MainActor
 @Observable
-public final class DependencyStatusService {
+public final class DependencyStatusModel {
     // MARK: - Status Properties
 
     public private(set) var homebrewStatus: DependencyInstallStatus = .unknown
@@ -36,11 +20,13 @@ public final class DependencyStatusService {
     // MARK: - Services
 
     public let cliService: CLIService
+    private let checkerService: DependencyCheckerService
 
     // MARK: - Init
 
     public init(cliService: CLIService) {
         self.cliService = cliService
+        self.checkerService = DependencyCheckerService(cliService: cliService)
     }
 
     // MARK: - Public API
@@ -60,61 +46,36 @@ public final class DependencyStatusService {
     /// Check Homebrew installation status
     public func checkHomebrew() async {
         homebrewStatus = .checking
-        homebrewStatus = await checkCommand("brew", versionArgs: ["--version"])
+        homebrewStatus = await checkerService.checkHomebrew()
     }
 
     /// Check Node.js installation status
     public func checkNodeJS() async {
         nodejsStatus = .checking
-        nodejsStatus = await checkCommand("node", versionArgs: ["--version"])
+        nodejsStatus = await checkerService.checkNodeJS()
     }
 
     /// Check Docker installation status
     public func checkDocker() async {
         dockerStatus = .checking
-        dockerStatus = await checkCommand("docker", versionArgs: ["--version"])
+        dockerStatus = await checkerService.checkDocker()
     }
 
     /// Check AWS CLI installation status
     public func checkAWSCLI() async {
         awsCLIStatus = .checking
-        awsCLIStatus = await checkCommand("aws", versionArgs: ["--version"])
+        awsCLIStatus = await checkerService.checkAWSCLI()
     }
 
     /// Check CDK installation status
     public func checkCDK() async {
         cdkStatus = .checking
-        cdkStatus = await checkCommand("cdk", versionArgs: ["--version"])
+        cdkStatus = await checkerService.checkCDK()
     }
 
     /// Check GitHub CLI installation status
     public func checkGitHubCLI() async {
         githubCLIStatus = .checking
-        githubCLIStatus = await checkCommand("gh", versionArgs: ["--version"])
-    }
-
-    // MARK: - Private Helpers
-
-    private func checkCommand(_ command: String, versionArgs: [String]) async -> DependencyInstallStatus {
-        do {
-            let result = try await cliService.execute(
-                command: command,
-                arguments: versionArgs,
-                printCommand: false
-            )
-
-            if result.isSuccess {
-                // Extract version from output (first line, trimmed)
-                let version = result.stdout
-                    .components(separatedBy: .newlines)
-                    .first?
-                    .trimmingCharacters(in: .whitespaces)
-                return .installed(version: version)
-            } else {
-                return .notInstalled
-            }
-        } catch {
-            return .notInstalled
-        }
+        githubCLIStatus = await checkerService.checkGitHubCLI()
     }
 }

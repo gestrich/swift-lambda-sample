@@ -6,7 +6,7 @@ import Foundation
 // MARK: - Protocol
 
 /// Protocol for Lambda services (local and remote)
-/// XcodeLocalService, LinuxLocalService, and RemoteService conform to this protocol,
+/// XcodeLocalServiceModel, LinuxLocalServiceModel, and RemoteServiceModel conform to this protocol,
 /// enabling polymorphic usage and consistent CLI/UI experiences.
 @MainActor
 public protocol LambdaService {

@@ -130,7 +130,7 @@ enum AppCategory: Identifiable, Hashable {
 
 /// Root view for the app with sidebar navigation
 struct ServicesView: View {
-    @Environment(AllServicesModel.self) var model
+    @Environment(AppModel.self) var model
     @State private var selectedCategory: AppCategory?
     @State private var showingSettings = false
     @AppStorage("selectedCategoryId") private var savedCategoryId: String = AppCategory.overview.id
@@ -239,10 +239,10 @@ struct ServicesView: View {
     private func dependencyStatusIndicator(for category: AppCategory) -> some View {
         let status: DependencyInstallStatus? = {
             switch category {
-            case .docker: return model.dependencyStatusService.dockerStatus
-            case .awsCLI: return model.dependencyStatusService.awsCLIStatus
-            case .cdk: return model.dependencyStatusService.cdkStatus
-            case .githubCLI: return model.dependencyStatusService.githubCLIStatus
+            case .docker: return model.dependencyStatusModel.dockerStatus
+            case .awsCLI: return model.dependencyStatusModel.awsCLIStatus
+            case .cdk: return model.dependencyStatusModel.cdkStatus
+            case .githubCLI: return model.dependencyStatusModel.githubCLIStatus
             default: return nil
             }
         }()
@@ -295,13 +295,13 @@ struct ServicesView: View {
         case .awsServices:
             AWSServicesView()
         case .docker:
-            DependencyView(dependency: .docker, statusService: model.dependencyStatusService)
+            DependencyView(dependency: .docker, statusModel: model.dependencyStatusModel)
         case .awsCLI:
-            DependencyView(dependency: .awsCLI, statusService: model.dependencyStatusService)
+            DependencyView(dependency: .awsCLI, statusModel: model.dependencyStatusModel)
         case .cdk:
-            DependencyView(dependency: .cdk, statusService: model.dependencyStatusService)
+            DependencyView(dependency: .cdk, statusModel: model.dependencyStatusModel)
         case .githubCLI:
-            DependencyView(dependency: .githubCLI, statusService: model.dependencyStatusService)
+            DependencyView(dependency: .githubCLI, statusModel: model.dependencyStatusModel)
         case .principle(let principle):
             switch principle {
             case .cicd:
@@ -487,7 +487,7 @@ struct ServicesView: View {
 }
 
 #Preview {
-    let model = AllServicesModel()
+    let model = AppModel()
     return ServicesView()
         .environment(model)
 }

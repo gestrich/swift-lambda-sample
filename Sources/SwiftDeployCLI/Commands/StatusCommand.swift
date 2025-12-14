@@ -27,7 +27,7 @@ extension AWSCommand {
         let projectRoot = FileManager.default.currentDirectoryPath
         let cliService = CLIService()
         let remoteService = await MainActor.run {
-            RemoteService(
+            RemoteServiceModel(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )

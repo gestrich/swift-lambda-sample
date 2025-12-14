@@ -601,13 +601,13 @@ enum Dependency {
 
 struct DependencyView: View {
     let dependency: Dependency
-    let statusService: DependencyStatusService
+    let statusModel: DependencyStatusModel
 
     @State private var showUninstallSheet = false
     @State private var selectedMethodType: InstallMethodType?
 
     private var cliService: CLIService {
-        statusService.cliService
+        statusModel.cliService
     }
 
     private var effectiveMethodType: InstallMethodType {
@@ -616,10 +616,10 @@ struct DependencyView: View {
 
     private var status: DependencyInstallStatus {
         switch dependency {
-        case .docker: return statusService.dockerStatus
-        case .awsCLI: return statusService.awsCLIStatus
-        case .cdk: return statusService.cdkStatus
-        case .githubCLI: return statusService.githubCLIStatus
+        case .docker: return statusModel.dockerStatus
+        case .awsCLI: return statusModel.awsCLIStatus
+        case .cdk: return statusModel.cdkStatus
+        case .githubCLI: return statusModel.githubCLIStatus
         }
     }
 
@@ -751,13 +751,13 @@ struct DependencyView: View {
     private func checkStatus() async {
         switch dependency {
         case .docker:
-            await statusService.checkDocker()
+            await statusModel.checkDocker()
         case .awsCLI:
-            await statusService.checkAWSCLI()
+            await statusModel.checkAWSCLI()
         case .cdk:
-            await statusService.checkCDK()
+            await statusModel.checkCDK()
         case .githubCLI:
-            await statusService.checkGitHubCLI()
+            await statusModel.checkGitHubCLI()
         }
     }
 
@@ -1011,10 +1011,10 @@ private struct UninstallMethodRow: View {
 }
 
 #Preview("Dependency") {
-    let model = AllServicesModel()
+    let model = AppModel()
     return DependencyView(
         dependency: .docker,
-        statusService: model.dependencyStatusService
+        statusModel: model.dependencyStatusModel
     )
     .frame(width: 600, height: 600)
 }

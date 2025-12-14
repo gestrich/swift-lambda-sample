@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(AllServicesModel.self) var model
+    @Environment(AppModel.self) var model
 
     var body: some View {
         ServicesView()
@@ -9,7 +9,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    let model = AllServicesModel()
+    let model = AppModel()
     return ContentView()
         .environment(model)
 }

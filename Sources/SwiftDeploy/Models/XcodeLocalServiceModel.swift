@@ -4,10 +4,10 @@ import Combine
 import Foundation
 import LocalStorageService
 
-/// Service for Linux container deployment workflow (AWS Lambda compatible)
-/// Uses Docker to build and run Lambda in a Linux container that matches AWS environment
+/// Service for native macOS Xcode development workflow (fast iteration)
+/// Uses native Swift toolchain for builds and direct process execution
 @MainActor
-public class LinuxLocalService: LocalService {
+public class XcodeLocalServiceModel: LocalService {
     private let dockerService: DockerService
     public let cliService: CLIService
     private let storageService: LocalStorageService
@@ -15,24 +15,20 @@ public class LinuxLocalService: LocalService {
     private let postgresService: PostgreSQLService
     private let minioService: MinIOService
     private let dynamodbService: DynamoDBLocalService
-    private let config: LinuxContainerConfig
+
+    // Lambda configuration
+    private let lambdaHostPort = 8080
+    private let lambdaProductName = "SwiftLambda"
+    private let lambdaProcessPattern = "swiftlamb"  // lsof truncates process names
 
     // Working directory
     private let workingDirectory: String
 
-    // MARK: - Build Artifact Paths
-
-    private var lambdaDir: String { "\(workingDirectory)/lambda" }
-    private var lambdaZipPath: String { "\(workingDirectory)/lambda.zip" }
-    private var bootstrapPath: String { "\(lambdaDir)/bootstrap" }
-    private var awsSamBuildDir: String { ".aws-sam/build-SwiftLambda" }
-
-    /// Paths to clean when deleting build artifacts (relative to workingDirectory)
-    private var buildArtifactPaths: [String] { ["lambda", "lambda.zip", awsSamBuildDir] }
-
     // MARK: - Combine Publishers
 
-    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
+    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(
+        .stopped
+    )
     private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
 
     /// Flag to prevent refreshStatus from overwriting transitional states (starting/stopping)
@@ -56,52 +52,51 @@ public class LinuxLocalService: LocalService {
 
     // MARK: - LambdaService Protocol
 
-    public static let persistenceKey = "localLinux"
+    public static let persistenceKey = "localXcode"
 
-    public static let displayName = "Local Linux (Container)"
+    public static let displayName = "Local Xcode (Native)"
 
-    public static let detailText = "Docker container build - matches AWS Lambda environment"
+    public static let detailText = "Native macOS build - fast iteration, best for development"
 
-    public var port: Int { config.hostPort }
+    public var port: Int { lambdaHostPort }
 
     public var endpoint: String {
-        "http://localhost:\(config.hostPort)/invoke"
+        "http://localhost:\(lambdaHostPort)/invoke"
     }
 
     public var endpointLabel: String { "Local Lambda Endpoint" }
 
     public var endpointHelpText: String {
-        "Make sure local Lambda container is running on port \(config.hostPort)"
+        "Make sure local Lambda is running on port \(lambdaHostPort)"
     }
 
     public var apiClient: APIClient {
-        APIClient(localPort: config.hostPort, serviceName: Self.displayName)
+        APIClient(localPort: lambdaHostPort, serviceName: Self.displayName)
     }
 
     public var isConfigured: Bool { true }
 
     public init(workingDirectory: String) {
-        self.workingDirectory = workingDirectory
         let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
         self.cliService = cliService
         self.dockerService = DockerService(cliService: cliService)
-        self.config = .default(workingDirectory: workingDirectory)
+        self.workingDirectory = workingDirectory
         self.storageService = LocalStorageService()
 
         self.postgresService = PostgreSQLService(
             dockerService: dockerService,
-            config: .linux,
+            config: .xcode,
             storageService: storageService
         )
         self.minioService = MinIOService(
             dockerService: dockerService,
-            networkName: config.networkName,
-            config: .linux,
+            networkName: "lambda-xcode",
+            config: .xcode,
             storageService: storageService
         )
         self.dynamodbService = DynamoDBLocalService(
             dockerService: dockerService,
-            config: .linux,
+            config: .xcode,
             storageService: storageService
         )
 
@@ -120,19 +115,19 @@ public class LinuxLocalService: LocalService {
         if !(try await minioService.isRunning()) {
             try await minioService.start()
         } else {
-            print("✓ MinIO (linux) already running")
+            print("✓ MinIO (xcode) already running")
         }
 
         if !(try await postgresService.isRunning()) {
             try await postgresService.start()
         } else {
-            print("✓ PostgreSQL (linux) already running")
+            print("✓ PostgreSQL (xcode) already running")
         }
 
         if !(try await dynamodbService.isRunning()) {
             try await dynamodbService.start()
         } else {
-            print("✓ DynamoDB Local (linux) already running")
+            print("✓ DynamoDB Local (xcode) already running")
         }
     }
 
@@ -183,22 +178,22 @@ public class LinuxLocalService: LocalService {
 
     /// Data directory for S3 (MinIO)
     public var s3DataDirectory: String {
-        storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+        storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
     }
 
     /// Data directory for PostgreSQL
     public var postgresDataDirectory: String {
-        storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+        storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
     }
 
     /// Data directory for DynamoDB Local
     public var dynamodbDataDirectory: String {
-        storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
     }
 
     // MARK: - LambdaService Protocol: Build
 
-    /// Build Lambda for Linux (AMD64) using Docker, updating buildState
+    /// Build Lambda for macOS (native Swift build), updating buildState
     /// - Parameters:
     ///   - clean: Whether to clean build artifacts first
     ///   - output: Optional client-owned stream to receive output (in addition to global stream)
@@ -211,9 +206,8 @@ public class LinuxLocalService: LocalService {
             buildState.appendOutput(cleanMsg)
             await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
-                let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
                 _ = try await cliService.execute(
-                    rmCmd,
+                    SwiftCLI.Package.Clean(),
                     workingDirectory: workingDirectory,
                     printCommand: false,
                     output: output
@@ -230,14 +224,14 @@ public class LinuxLocalService: LocalService {
             }
         }
 
-        let buildMsg = "🔨 Building Lambda for Linux (Docker)...\n"
+        let buildMsg = "🔨 Building Lambda for macOS (native)...\n"
         buildState.appendOutput(buildMsg)
         await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
-        // Stream the build output using typed command
-        let buildCmd = BuildScript.Build.lambda(target: "SwiftLambda")
+        // Stream the build output
+        let buildCommand = SwiftCLI.Build(product: lambdaProductName)
         let stream = await cliService.stream(
-            buildCmd,
+            buildCommand,
             workingDirectory: workingDirectory,
             printCommand: false,
             output: output
@@ -258,18 +252,51 @@ public class LinuxLocalService: LocalService {
         }
     }
 
-    /// Check if Lambda is already built (Linux artifacts)
+    /// Get the path to the built executable
+    private func getExecutablePath() async throws -> String {
+        // Get the bin path from Swift build
+        let showBinPathCommand = SwiftCLI.Build(product: lambdaProductName, showBinPath: true)
+        let result = try await cliService.executeForResult(
+            showBinPathCommand,
+            workingDirectory: workingDirectory,
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: showBinPathCommand.commandString,
+                exitCode: result.exitCode,
+                output: result.output
+            )
+        }
+
+        let binPath = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(binPath)/\(lambdaProductName)"
+    }
+
+    /// Check if Lambda is already built (native macOS build)
     public func isLambdaBuilt() -> Bool {
-        return FileManager.default.fileExists(atPath: lambdaDir) &&
-               FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: lambdaZipPath)
+        // Check synchronously using a known path pattern
+        // The actual architecture-specific path is determined at runtime
+        let debugDir = "\(workingDirectory)/.build"
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: debugDir) else {
+            return false
+        }
+
+        // Look for any architecture directory containing SwiftLambda
+        for item in contents {
+            let executablePath = "\(debugDir)/\(item)/debug/\(lambdaProductName)"
+            if FileManager.default.fileExists(atPath: executablePath) {
+                return true
+            }
+        }
+        return false
     }
 
     /// Delete build artifacts and reset build state
     public func deleteBuild() async throws {
-        let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
         _ = try await cliService.execute(
-            rmCmd,
+            SwiftCLI.Package.Clean(),
             workingDirectory: workingDirectory,
             printCommand: false
         )
@@ -278,58 +305,121 @@ public class LinuxLocalService: LocalService {
 
     // MARK: - LambdaService Protocol: Lifecycle
 
-    /// Start Lambda container in detached mode
+    /// Start Lambda locally (native process)
     /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
     public func startLambda(output: CLIOutputStream? = nil) async throws {
         lambdaState.startLambda()
 
-        let startMsg = "🚀 Starting Lambda container...\n"
+        let startMsg = "🚀 Starting Lambda locally (native)...\n"
         lambdaState.appendOutput(startMsg)
         await output?.send(.stdout(commandID: .init(), text: startMsg))
 
-        do {
-            try await startDetached(lambdaPath: nil, output: output)
-            let containerMsg = "   Container: \(config.containerName)\n"
-            let portMsg = "   Port: http://localhost:\(port)\n"
-            lambdaState.appendOutput(containerMsg)
-            lambdaState.appendOutput(portMsg)
-            await output?.send(.stdout(commandID: .init(), text: containerMsg))
-            await output?.send(.stdout(commandID: .init(), text: portMsg))
+        // Build Lambda if not already built
+        if !isLambdaBuilt() {
+            let buildMsg = "→ Building Lambda first...\n"
+            lambdaState.appendOutput(buildMsg)
+            await output?.send(.stdout(commandID: .init(), text: buildMsg))
+            try await build(output: output)
+        }
+
+        // Get the built executable path
+        let executablePath = try await getExecutablePath()
+
+        // Start Lambda in background with environment variables
+        let portMsg = "→ Starting Lambda on port \(lambdaHostPort)...\n"
+        lambdaState.appendOutput(portMsg)
+        await output?.send(.stdout(commandID: .init(), text: portMsg))
+
+        var env = getLambdaEnvironmentVariables()
+        env["LOCAL_LAMBDA_PORT"] = "\(lambdaHostPort)"
+
+        // Build environment variable string for shell
+        let envVars = env.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+
+        // Run in background using nohup
+        _ = try await cliService.execute(
+            Sh(command: "\(envVars) \(executablePath) > /tmp/lambda.log 2>&1 & echo $!"),
+            workingDirectory: workingDirectory,
+            printCommand: false,
+            output: output
+        )
+
+        // Wait a bit for Lambda to start
+        let waitMsg = "→ Waiting for Lambda to start...\n"
+        lambdaState.appendOutput(waitMsg)
+        await output?.send(.stdout(commandID: .init(), text: waitMsg))
+        try await Task.sleep(for: .seconds(3))
+
+        // Check if it's running
+        if await isPortInUse(lambdaHostPort) {
+            let successMsg = "   Test with: ./tools.sh local xcode test\n   Stop with: ./tools.sh local xcode stop\n"
+            lambdaState.appendOutput(successMsg)
+            await output?.send(.stdout(commandID: .init(), text: successMsg))
             lambdaState.markRunning()
             let doneMsg = "\n✅ Lambda is running\n"
             await output?.send(.stdout(commandID: .init(), text: doneMsg))
-        } catch {
-            lambdaState.markFailed(reason: error.localizedDescription)
-            let errorMsg = "\n❌ Lambda failed: \(error.localizedDescription)\n"
+        } else {
+            let failMsg = "Failed to start on port \(lambdaHostPort)"
+            lambdaState.markFailed(reason: failMsg)
+            let errorMsg = "\n❌ Lambda failed: \(failMsg)\n"
             await output?.send(.stderr(commandID: .init(), text: errorMsg))
-            throw error
+            throw DeployError.testFailed(message: "Lambda failed to start on port \(lambdaHostPort)")
         }
     }
 
-    /// Stop Lambda container
+    /// Stop locally running Lambda
     /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
     public func stopLambda(output: CLIOutputStream? = nil) async throws {
         lambdaState.beginStop()
 
-        let stopMsg = "🛑 Stopping Lambda container...\n"
+        let stopMsg = "🛑 Stopping Lambda...\n"
         lambdaState.appendOutput(stopMsg)
         await output?.send(.stdout(commandID: .init(), text: stopMsg))
 
-        do {
-            try await dockerService.stop(container: config.containerName)
+        // Find process on port
+        let pids = await getProcessIDsOnPort(lambdaHostPort)
+
+        if !pids.isEmpty {
+            let killMsg = "→ Killing process(es): \(pids.joined(separator: ", "))...\n"
+            lambdaState.appendOutput(killMsg)
+            await output?.send(.stdout(commandID: .init(), text: killMsg))
+
+            // Kill each process
+            for pid in pids {
+                let killResult = try await cliService.executeForResult(
+                    Kill(pid: pid),
+                    printCommand: false,
+                    output: output
+                )
+
+                if !killResult.isSuccess {
+                    let failMsg = "Failed to kill process \(pid)"
+                    lambdaState.markFailed(reason: failMsg)
+                    let errorMsg = "❌ \(failMsg)\n"
+                    await output?.send(.stderr(commandID: .init(), text: errorMsg))
+                    throw DeployError.commandFailed(
+                        command: Kill(pid: pid).commandString,
+                        exitCode: killResult.exitCode,
+                        output: killResult.output
+                    )
+                }
+            }
+
+            let stoppedMsg = "Stopped \(pids.count) process\(pids.count == 1 ? "" : "es")\n"
+            lambdaState.appendOutput(stoppedMsg)
+            await output?.send(.stdout(commandID: .init(), text: stoppedMsg))
             lambdaState.markStopped()
             let doneMsg = "\n✅ Lambda stopped\n"
             await output?.send(.stdout(commandID: .init(), text: doneMsg))
-        } catch {
-            // Container may already be stopped
-            let warnMsg = "⚠️  Container may already be stopped\n"
-            lambdaState.appendOutput(warnMsg)
-            await output?.send(.stdout(commandID: .init(), text: warnMsg))
+        } else {
+            let notFoundMsg = "⚠️  No Lambda process found on port \(lambdaHostPort)\n"
+            lambdaState.appendOutput(notFoundMsg)
+            await output?.send(.stdout(commandID: .init(), text: notFoundMsg))
             lambdaState.markStopped()
         }
     }
 
-    /// Start Lambda container with all services (complete flow)
+    /// Start Lambda with all services (complete flow)
     /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
@@ -337,43 +427,45 @@ public class LinuxLocalService: LocalService {
 
         statusSubject.send(.starting)
 
-        print("\n🚀 Setting up complete Lambda container environment...")
-
-        // 1. Stop any existing Lambda container
-        print("\n→ Checking for existing Lambda container...")
-        do {
-            try await stopLambda(output: output)
-        } catch {
-            print("  (No existing container to stop)")
-        }
-
-        // 2. Start services (PostgreSQL + MinIO)
-        print("\n→ Starting local services...")
+        // Start services first
+        print("\n📦 Starting local services...")
         try await startAllServices()
 
-        // 3. Setup network (will connect services if needed)
-        print("\n→ Setting up Docker network...")
-        try await setupDockerNetwork()
+        // Setup network and bucket for Xcode mode
+        try await setupNetworkAndBucket()
 
-        // 4. Ensure S3 bucket exists
-        print("\n→ Ensuring S3 bucket exists...")
-        try await minioService.createBucket(bucketName: nil)
-
-        // 5. Start Lambda container in detached mode
-        print("\n→ Starting Lambda container in background...")
+        // Then start Lambda
         try await startLambda(output: output)
-
-        print("\n✅ Lambda container started!")
-        print("   Container: \(config.containerName)")
-        print("   Port: http://localhost:\(port)")
-        print("")
-        print("To test: ./tools.sh local linux test")
-        print("To stop: ./tools.sh local linux stop-all")
 
         refreshStatus()
     }
 
-    /// Stop Lambda container and all services
+    /// Setup Docker network and S3 bucket for Xcode mode
+    private func setupNetworkAndBucket() async throws {
+        let networkName = "lambda-xcode"
+
+        // Create network if it doesn't exist
+        if !(try await dockerService.networkExists(name: networkName)) {
+            print("→ Creating Docker network: \(networkName)")
+            try await dockerService.createNetwork(name: networkName)
+        }
+
+        // Connect MinIO to network (needed for bucket creation via aws-cli container)
+        let minioContainer = minioService.minioContainerName
+        let isConnected = try await dockerService.isConnectedToNetwork(
+            container: minioContainer,
+            network: networkName
+        )
+        if !isConnected {
+            print("→ Connecting \(minioContainer) to \(networkName)")
+            try await dockerService.connectToNetwork(container: minioContainer, network: networkName)
+        }
+
+        // Create bucket if needed
+        try await minioService.createBucket(bucketName: nil)
+    }
+
+    /// Stop Lambda and all services (complete flow)
     /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
@@ -381,21 +473,12 @@ public class LinuxLocalService: LocalService {
 
         statusSubject.send(.stopping)
 
-        print("\n🛑 Stopping Lambda container and services...")
+        // Stop Lambda first
+        try await stopLambda(output: output)
 
-        // 1. Stop Lambda container
-        print("\n→ Stopping Lambda container...")
-        do {
-            try await stopLambda(output: output)
-        } catch {
-            print("  (No container to stop)")
-        }
-
-        // 2. Stop services
-        print("\n→ Stopping local services...")
+        // Then stop services
+        print("\n📦 Stopping local services...")
         try await stopAllServices()
-
-        print("\n✅ All services stopped")
 
         refreshStatus()
     }
@@ -440,23 +523,12 @@ public class LinuxLocalService: LocalService {
     public func waitForReady(maxAttempts: Int = 30) async throws {
         print("🔍 Verifying Lambda is running...")
 
-        // Check container is running
-        let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
-        guard isRunning else {
-            throw DeployError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
-        }
-
         // Wait for Lambda to be ready on the port
         var attempts = 0
         var ready = false
 
         while attempts < maxAttempts && !ready {
-            let portCheck = try await cliService.executeForResult(
-                Lsof(port: ":\(config.hostPort)"),
-                printCommand: false
-            )
-
-            if portCheck.isSuccess && !portCheck.stdout.isEmpty {
+            if await isPortInUse(lambdaHostPort) {
                 ready = true
                 break
             }
@@ -465,29 +537,20 @@ public class LinuxLocalService: LocalService {
             attempts += 1
 
             if attempts % 10 == 0 {
-                print("  → Still waiting for Lambda on port \(config.hostPort)... (\(attempts) seconds)")
+                print("  → Still waiting for Lambda on port \(lambdaHostPort)... (\(attempts) seconds)")
             }
         }
 
         if !ready {
-            // Show container logs for debugging
-            print("❌ Lambda failed to start. Checking container logs:")
-            let logsResult = try await cliService.execute(
-                command: "docker",
-                arguments: ["logs", config.containerName],
-                printCommand: false
-            )
-            print(logsResult.stdout)
-            print(logsResult.stderr)
-            throw DeployError.testFailed(message: "Lambda failed to be ready on port \(config.hostPort) after \(maxAttempts) seconds")
+            throw DeployError.testFailed(message: "Lambda failed to be ready on port \(lambdaHostPort) after \(maxAttempts) seconds")
         }
 
         print("  ✅ Lambda is running and ready")
     }
 
-    /// Test Lambda endpoints using Client library
+    /// Test local Lambda endpoints using Client library
     public func testLambda() async throws {
-        print("\n🧪 Testing Lambda container on port \(config.hostPort)...")
+        print("\n🧪 Testing local Lambda on port \(lambdaHostPort)...")
         print("")
 
         do {
@@ -497,15 +560,44 @@ public class LinuxLocalService: LocalService {
         }
 
         print("")
-        print("✅ All Lambda container tests passed!")
+        print("✅ All local Lambda tests passed!")
+    }
+
+    // MARK: - Configuration
+
+    /// Copy config file to home directory
+    /// - Parameter sourcePath: Optional path to the config file. If nil, uses "swiftLambdaDemo.json" in current directory
+    public func copyConfig(sourcePath: String? = nil) async throws {
+        print("\n📝 Copying runtime config file...")
+
+        let storageService = LocalStorageService()
+
+        // Ensure base directory exists
+        try storageService.ensureDirectoryExists(at: storageService.baseDataDirectory)
+
+        // Copy swiftLambdaDemo.json (runtime app config)
+        let appConfigSource = sourcePath ?? AppConfigFileKey.filename
+        let appConfigDest = storageService.filePath(for: AppConfigFileKey.self)
+
+        guard FileManager.default.fileExists(atPath: appConfigSource) else {
+            throw CLIServiceError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
+        }
+
+        if FileManager.default.fileExists(atPath: appConfigDest) {
+            try FileManager.default.removeItem(atPath: appConfigDest)
+        }
+        try FileManager.default.copyItem(atPath: appConfigSource, toPath: appConfigDest)
+        print("  ✓ Runtime config: \(appConfigDest)")
+
+        print("\n✅ Runtime config copied to \(storageService.baseDataDirectory)/")
     }
 
     // MARK: - LambdaService Protocol: Status
 
     /// Get the status of all services (Lambda, S3, PostgreSQL, DynamoDB)
     public func status() async throws -> DeploymentStatus {
-        // Check Lambda container
-        let lambdaRunning = try await isRunning()
+        // Check Lambda (native process on port)
+        let lambdaRunning = await isLambdaRunning()
 
         // Check S3 (MinIO)
         let s3Running = try await minioService.isRunning()
@@ -552,170 +644,81 @@ public class LinuxLocalService: LocalService {
         }
     }
 
-    // MARK: - Linux-Specific Methods (Not in Protocol)
+    /// Check if Lambda is running (native process on port, not Docker)
+    private func isLambdaRunning() async -> Bool {
+        let output = await getPortInfo(lambdaHostPort)
+        guard !output.isEmpty else { return false }
 
-    /// Setup Docker network for Lambda container
-    public func setupDockerNetwork() async throws {
-        // Create network if it doesn't exist
-        if !(try await dockerService.networkExists(name: config.networkName)) {
-            print("→ Creating Docker network: \(config.networkName)")
-            try await dockerService.createNetwork(name: config.networkName)
-        } else {
-            print("✓ Network \(config.networkName) already exists")
+        // Check if there's a native Lambda process (not Docker)
+        // Docker processes show as "com.docke" or "docker" in lsof output
+        let lines = output.components(separatedBy: "\n")
+        for line in lines {
+            let lowercased = line.lowercased()
+            // Look for Lambda process, exclude Docker
+            if lowercased.contains(lambdaProcessPattern) && !lowercased.contains("docker") {
+                return true
+            }
         }
-
-        // Connect PostgreSQL to network
-        try await connectContainerToNetwork(container: postgresService.connectionInfo.containerName)
-
-        // Connect MinIO to network
-        try await connectContainerToNetwork(container: minioService.minioContainerName)
-
-        // Connect DynamoDB Local to network
-        try await connectContainerToNetwork(container: dynamodbService.connectionInfo.containerName)
-    }
-
-    /// Print the Docker command to run Lambda interactively
-    public func printRunCommand() async throws {
-        // Check if lambda directory exists
-        guard FileManager.default.fileExists(atPath: lambdaDir) else {
-            print("❌ Error: lambda directory not found!")
-            print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
-        }
-
-        let env = getEnvironmentVariables()
-        let envFlags = env.map { "-e \($0.key)=\($0.value)" }.joined(separator: " \\\n    ")
-
-        print("""
-        docker run --rm -it \\
-            --platform linux/amd64 \\
-            --network \(config.networkName) \\
-            --name \(config.containerName) \\
-            -p \(config.hostPort):\(config.containerPort) \\
-            -v \(lambdaDir):/var/task \\
-            \(envFlags) \\
-            \(config.swiftImage) \\
-            bash -c 'cd /var/task && chmod +x bootstrap && echo "✅ Lambda ready! Run: ./bootstrap" && bash'
-
-        Inside the container, run: ./bootstrap
-        To exit: Type 'exit' or press Ctrl+D
-        """)
-    }
-
-    /// Run Lambda in interactive container (direct execution - may have TTY issues)
-    public func runInteractive() async throws {
-        // Check if lambda directory exists
-        guard FileManager.default.fileExists(atPath: lambdaDir) else {
-            print("❌ Error: lambda directory not found!")
-            print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
-        }
-
-        print("\n✅ Starting interactive container...")
-        print("(Type 'exit' to leave the container)\n")
-
-        // Run interactive container
-        var options = DockerService.RunOptions()
-        options.interactive = true
-        options.tty = true
-        options.remove = true
-        options.platform = "linux/amd64"
-        options.network = config.networkName
-        options.volumes = [(lambdaDir, "/var/task")]
-        options.ports = [(config.hostPort, config.containerPort)]
-        options.environment = getEnvironmentVariables()
-
-        try await dockerService.run(
-            image: config.swiftImage,
-            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"],
-            options: options
-        )
-    }
-
-    /// Check if container is running
-    public func isRunning() async throws -> Bool {
-        return try await dockerService.containerIsRunning(name: config.containerName)
-    }
-
-    /// Start Lambda container in detached mode (for automated testing)
-    /// - Parameters:
-    ///   - lambdaPath: Optional path to the lambda directory (defaults to standard location)
-    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
-    public func startDetached(lambdaPath: String? = nil, output: CLIOutputStream? = nil) async throws {
-        // Ensure Docker is running
-        try await dockerService.ensureDockerRunning()
-
-        // Determine lambda path
-        let effectiveLambdaDir = lambdaPath ?? lambdaDir
-
-        // Check if lambda directory exists
-        guard FileManager.default.fileExists(atPath: effectiveLambdaDir) else {
-            print("❌ Error: lambda directory not found at \(effectiveLambdaDir)!")
-            print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
-        }
-
-        // Run detached container
-        var options = DockerService.RunOptions()
-        options.detached = true
-        options.remove = true
-        options.name = config.containerName
-        options.platform = "linux/amd64"
-        options.network = config.networkName
-        options.ports = [(config.hostPort, config.containerPort)]
-        options.volumes = [(effectiveLambdaDir, "/var/task")]
-        options.environment = getEnvironmentVariables()
-
-        try await dockerService.run(
-            image: config.swiftImage,
-            command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
-            options: options,
-            output: output
-        )
+        return false
     }
 
     // MARK: - Private Helpers
 
-    /// Get environment variables for Lambda container (Docker network)
-    public func getEnvironmentVariables() -> [String: String] {
+    /// Check if any process is using the specified port
+    private func isPortInUse(_ port: Int) async -> Bool {
+        let output = await getPortInfo(port)
+        return !output.isEmpty
+    }
+
+    /// Get lsof output for processes using the specified port
+    private func getPortInfo(_ port: Int) async -> String {
+        do {
+            let result = try await cliService.executeForResult(
+                Lsof(port: ":\(port)"),
+                printCommand: false
+            )
+            guard result.isSuccess else { return "" }
+            return result.stdout
+        } catch {
+            return ""
+        }
+    }
+
+    /// Get PIDs of processes using the specified port (excluding current process)
+    private func getProcessIDsOnPort(_ port: Int) async -> [String] {
+        do {
+            let result = try await cliService.executeForResult(
+                Lsof(port: ":\(port)", pidOnly: true),
+                printCommand: false
+            )
+            guard result.isSuccess && !result.stdout.isEmpty else {
+                return []
+            }
+            let currentPID = String(ProcessInfo.processInfo.processIdentifier)
+            return result.stdout
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .split(separator: "\n")
+                .map(String.init)
+                .filter { !$0.isEmpty && $0 != currentPID }
+        } catch {
+            return []
+        }
+    }
+
+    /// Get standard Lambda environment variables for local testing (native macOS process)
+    private func getLambdaEnvironmentVariables() -> [String: String] {
         return createEnvironmentVariables(
             postgresService: postgresService,
             minioService: minioService,
             dynamodbService: dynamodbService,
-            context: .container  // Container connects via Docker network DNS
+            context: .xcode  // Native process connects via localhost
         )
-    }
-
-    /// Connect a container to the Lambda network
-    private func connectContainerToNetwork(container: String) async throws {
-        // Wait a moment for container to be fully started
-        try await Task.sleep(for: .seconds(1))
-
-        // Check if container is connected
-        let isConnected = try await dockerService.isConnectedToNetwork(
-            container: container,
-            network: config.networkName
-        )
-
-        if !isConnected {
-            // Check if container is running
-            let isRunning = try await dockerService.containerIsRunning(name: container)
-
-            if isRunning {
-                print("→ Connecting \(container) to \(config.networkName)")
-                try await dockerService.connectToNetwork(container: container, network: config.networkName)
-            } else {
-                print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local services start-\(container == postgresService.connectionInfo.containerName ? "database" : "s3")")
-            }
-        } else {
-            print("✓ \(container) already connected")
-        }
     }
 
     /// Create an API client configured for local Lambda testing
     @MainActor
     private func createLocalAPIClient() -> APIClient {
-        APIClient(localPort: config.hostPort, serviceName: Self.displayName)
+        APIClient(localPort: lambdaHostPort, serviceName: Self.displayName)
     }
 
     @MainActor
@@ -780,25 +783,9 @@ public class LinuxLocalService: LocalService {
     }
 }
 
-/// Configuration for Lambda container
-struct LinuxContainerConfig: Sendable {
-    let containerName: String
-    let swiftImage: String
-    let hostPort: Int
-    let containerPort: Int
-    let networkName: String
-    let workingDirectory: String
+// MARK: - Storage Keys
 
-    /// Create the default Linux container configuration
-    /// Uses port 8081 to avoid conflict with Xcode local service (port 8080)
-    static func `default`(workingDirectory: String) -> LinuxContainerConfig {
-        LinuxContainerConfig(
-            containerName: "lambda-linux-container",
-            swiftImage: "swift:6.2.0-amazonlinux2",
-            hostPort: 8081,
-            containerPort: 7000,
-            networkName: "lambda-linux",
-            workingDirectory: workingDirectory
-        )
-    }
+/// Storage key for app configuration file
+public struct AppConfigFileKey: StorageFileKey {
+    public static let filename = "swiftLambdaDemo.json"
 }

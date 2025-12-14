@@ -2,45 +2,20 @@ import Client
 import Foundation
 import SwiftDeploy
 
-/// Connection mode for the API - simple enum holding service references
-@MainActor
-enum ConnectionMode {
-    case remote(RemoteService)
-    case localXcode(XcodeLocalService)
-    case localLinux(LinuxLocalService)
-
-    /// Persistence key for saving/restoring mode selection
-    var persistenceKey: String {
-        switch self {
-        case .remote: return RemoteService.persistenceKey
-        case .localXcode: return XcodeLocalService.persistenceKey
-        case .localLinux: return LinuxLocalService.persistenceKey
-        }
-    }
-    
-    var service: LambdaService {
-        switch self {
-        case .localXcode(let service): return service
-        case .localLinux(let service): return service
-        case .remote(let service): return service
-        }
-    }
-}
-
 /// Top-level model that creates and holds all services.
 /// Manages mode selection and provides access to individual services.
 @MainActor
 @Observable
-class AllServicesModel {
+class AppModel {
     // MARK: - Services (Eager Initialization)
 
     /// All services are created at app startup. The active mode determines which is in use.
-    let remoteService: RemoteService
-    let xcodeLocalService: XcodeLocalService
-    let linuxLocalService: LinuxLocalService
+    let remoteService: RemoteServiceModel
+    let xcodeLocalService: XcodeLocalServiceModel
+    let linuxLocalService: LinuxLocalServiceModel
 
-    /// Service for checking dependency installation status
-    let dependencyStatusService: DependencyStatusService
+    /// Model for checking dependency installation status
+    let dependencyStatusModel: DependencyStatusModel
 
     /// Observable models for local services (used by LocalServiceView)
     let xcodeLocalModel: LocalServicesModel
@@ -75,15 +50,15 @@ class AllServicesModel {
         let projectDirectory = Self.resolveProjectDirectory()
 
         // Create all services eagerly at startup
-        let remote = RemoteService(workingDirectory: projectDirectory)
-        let xcode = XcodeLocalService(workingDirectory: projectDirectory)
-        let linux = LinuxLocalService(workingDirectory: projectDirectory)
+        let remote = RemoteServiceModel(workingDirectory: projectDirectory)
+        let xcode = XcodeLocalServiceModel(workingDirectory: projectDirectory)
+        let linux = LinuxLocalServiceModel(workingDirectory: projectDirectory)
 
         self.remoteService = remote
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
 
-        self.dependencyStatusService = DependencyStatusService(cliService: CLIService(defaultWorkingDirectory: projectDirectory))
+        self.dependencyStatusModel = DependencyStatusModel(cliService: CLIService(defaultWorkingDirectory: projectDirectory))
 
         // Create observable models for local services
         self.xcodeLocalModel = LocalServicesModel(service: xcode)
@@ -93,9 +68,9 @@ class AllServicesModel {
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? "remote"
         let initialMode: ConnectionMode
         switch savedKey {
-        case XcodeLocalService.persistenceKey:
+        case XcodeLocalServiceModel.persistenceKey:
             initialMode = .localXcode(xcode)
-        case LinuxLocalService.persistenceKey:
+        case LinuxLocalServiceModel.persistenceKey:
             initialMode = .localLinux(linux)
         default:
             initialMode = .remote(remote)
@@ -109,7 +84,7 @@ class AllServicesModel {
 
         // Check dependency installation status
         Task {
-            await self.dependencyStatusService.checkAll()
+            await self.dependencyStatusModel.checkAll()
         }
     }
 
@@ -182,5 +157,30 @@ class AllServicesModel {
 
     func save() {
         UserDefaults.standard.set(mode.persistenceKey, forKey: modeKey)
+    }
+}
+
+/// Connection mode for the API - simple enum holding service references
+@MainActor
+enum ConnectionMode {
+    case remote(RemoteServiceModel)
+    case localXcode(XcodeLocalServiceModel)
+    case localLinux(LinuxLocalServiceModel)
+
+    /// Persistence key for saving/restoring mode selection
+    var persistenceKey: String {
+        switch self {
+        case .remote: return RemoteServiceModel.persistenceKey
+        case .localXcode: return XcodeLocalServiceModel.persistenceKey
+        case .localLinux: return LinuxLocalServiceModel.persistenceKey
+        }
+    }
+    
+    var service: LambdaService {
+        switch self {
+        case .localXcode(let service): return service
+        case .localLinux(let service): return service
+        case .remote(let service): return service
+        }
     }
 }
