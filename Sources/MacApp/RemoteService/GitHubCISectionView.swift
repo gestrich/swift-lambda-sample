@@ -54,9 +54,6 @@ struct GitHubCISectionView: View {
     @State private var currentTime = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    // Persistent output stream owned by this view - accumulates across operations
-    @State private var operationOutput = CLIOutputStream()
-
     private var ciStatus: GitHubCIStatus {
         service.ciStatus
     }
@@ -443,12 +440,12 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        OperationOutputSection { stream in
             HStack(spacing: 12) {
                 // Push & Deploy button
                 Button {
                     Task {
-                        try? await service.pushAndDeploy(output: operationOutput)
+                        try? await service.pushAndDeploy(output: stream)
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -472,11 +469,6 @@ struct GitHubCISectionView: View {
                     .buttonStyle(.bordered)
                 }
             }
-
-            // CLI output (accumulates across operations)
-            StreamingTextView(
-                streamProvider: { await operationOutput.makeStream() }
-            )
         }
     }
 

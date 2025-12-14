@@ -648,3 +648,163 @@ All phases are now complete. The operation-scoped output streams feature is full
 2. Should the client always call `finishAll()`, or should the stream auto-finish somehow?
 3. How should errors be surfaced - via the stream, via thrown exceptions, or both?
 4. Should we provide a helper/wrapper to reduce boilerplate in views for the create-consume-finish pattern?
+
+---
+
+## CLI Output View Catalog
+
+This section catalogs all views in MacApp that display CLI output, their patterns, and when to use each.
+
+All CLI UI components are located in `Sources/MacApp/CLIUI/`.
+
+### Overview
+
+| View | Pattern | Stream Ownership | Location | Use Case |
+|------|---------|------------------|----------|----------|
+| StreamingTextView | Core component | Passed in | `CLIUI/` | Building block for all output |
+| OperationOutputSection | Persistent stream | Component (`@State`) | `CLIUI/` | Wrap action buttons with output |
+| CollapsibleOutputPanel | Global stream | Service (CLIService) | `CLIUI/` | All output from a service |
+| TestOutputStreamView | Per-operation stream | View (`@State`) | `OutputView/` | Testing concurrent operations |
+
+### Detailed Descriptions
+
+#### 1. StreamingTextView
+
+**Location**: `Sources/MacApp/CLIUI/StreamingTextView.swift`
+
+**Pattern**: Core building block - accepts various input types
+
+**Initializers**:
+```swift
+// Static lines (for state-based output)
+StreamingTextView(lines: [String])
+
+// Async stream directly
+StreamingTextView(stream: AsyncSequence)
+
+// Stream provider (for lazy stream creation)
+StreamingTextView(streamProvider: { await output.makeStream() })
+```
+
+**Features**:
+- Groups output by command with colored accent bars
+- Shows program name header with spinner for in-progress commands
+- Collapsible command output (5 lines default, expandable)
+- Auto-scroll to bottom
+- Clear button
+- Line count indicator
+
+**When to use**: This is the core component - use it directly when building custom output displays, or indirectly via higher-level components.
+
+---
+
+#### 2. OperationOutputSection
+
+**Location**: `Sources/MacApp/CLIUI/OperationOutputSection.swift`
+
+**Pattern**: Reusable component that owns a persistent stream and wraps action buttons
+
+```swift
+OperationOutputSection { stream in
+    Button("Deploy") {
+        Task { try? await service.deploy(output: stream) }
+    }
+    Button("Destroy") {
+        Task { try? await service.destroy(output: stream) }
+    }
+}
+```
+
+**Features**:
+- Component owns the `CLIOutputStream` (no `@State` needed in parent)
+- Stream passed to content builder for use in button actions
+- StreamingTextView automatically displayed below actions
+- Output accumulates across operations
+
+**Used by**:
+- `CDKInfrastructureSectionView` - wraps deploy/update/destroy buttons
+- `GitHubCISectionView` - wraps push & deploy button
+
+**When to use**: When you have action buttons that trigger operations with CLI output. Eliminates boilerplate of managing the stream yourself.
+
+---
+
+#### 3. CollapsibleOutputPanel
+
+**Location**: `Sources/MacApp/CLIUI/CollapsibleOutputPanel.swift`
+
+**Used by**:
+- `RemoteServiceView` (bottom of Remote deployment screen)
+- `LocalServiceView` (bottom of Xcode/Linux local screens)
+
+**Pattern**: Global stream from service's CLIService
+
+```swift
+CollapsibleOutputPanel(
+    streamProvider: { await service.cliService.outputStream() },
+    streamId: RemoteService.persistenceKey,
+    onCommand: { runCommand($0) }
+)
+```
+
+**Features**:
+- Pinned to bottom of view
+- Collapsible toggle bar
+- Command input field for running arbitrary commands
+- Shows ALL output from the service (global stream)
+
+**When to use**: When you want a persistent output panel that shows everything happening in a service, similar to Xcode's console.
+
+---
+
+#### 4. TestOutputStreamView
+
+**Location**: `Sources/MacApp/OutputView/TestOutputStreamView.swift`
+
+**Pattern**: Per-operation stream (new stream each time) - for testing/debugging
+
+```swift
+// Separate streams for concurrent operations
+@State private var operationAOutput: CLIOutputStream?
+@State private var operationBOutput: CLIOutputStream?
+
+private func runOperation(...) {
+    // 1. Create NEW stream for this operation
+    let newStream = CLIOutputStream()
+    stream.wrappedValue = newStream
+
+    Task {
+        defer {
+            // 4. Finish stream when done
+            Task { await newStream.finishAll() }
+        }
+        // 2-3. Pass to service, output flows to stream
+        try await testService.runMultiStepOperation(output: newStream)
+    }
+}
+
+// Only show if stream exists
+if let outputStream = stream.wrappedValue {
+    StreamingTextView(streamProvider: { await outputStream.makeStream() })
+}
+```
+
+**Features**:
+- Each operation gets a fresh stream
+- Stream finished after operation completes
+- Can run concurrent operations with isolated output
+- Also shows global stream for comparison
+
+**When to use**: For testing the output stream architecture or when you need strict isolation between operations.
+
+---
+
+### Choosing the Right Pattern
+
+| Scenario | Recommended Component |
+|----------|----------------------|
+| Action buttons with CLI output | `OperationOutputSection` |
+| Global console for all service activity | `CollapsibleOutputPanel` |
+| Static lines from state object | `StreamingTextView(lines:)` |
+| Custom streaming output | `StreamingTextView(streamProvider:)` |
+| Testing/debugging concurrent streams | `TestOutputStreamView` pattern |

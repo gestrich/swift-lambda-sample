@@ -64,9 +64,6 @@ struct CDKInfrastructureSectionView: View {
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    // Persistent output stream owned by this view - accumulates across operations
-    @State private var operationOutput = CLIOutputStream()
-
     private var status: CDKInfrastructureStatus {
         service.infrastructureStatus
     }
@@ -134,20 +131,6 @@ struct CDKInfrastructureSectionView: View {
             if status.status.isBusy {
                 currentTime = time
             }
-        }
-        .confirmationDialog(
-            "Destroy Infrastructure?",
-            isPresented: $showDestroyConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Destroy", role: .destructive) {
-                startOperation { stream in
-                    try await service.destroy(output: stream)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete all AWS resources including Lambda, API Gateway, S3 bucket, and database (if deployed). This action cannot be undone.")
         }
     }
 
@@ -482,29 +465,29 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        OperationOutputSection { stream in
             HStack(spacing: 12) {
                 // Deploy button with options menu
                 Menu {
                     Button {
-                        startOperation { stream in
-                            try await service.deploy(withPostgres: false, withNATGateway: false, output: stream)
+                        Task {
+                            try? await service.deploy(withPostgres: false, withNATGateway: false, output: stream)
                         }
                     } label: {
                         Label("Minimal (No Database)", systemImage: "leaf")
                     }
 
                     Button {
-                        startOperation { stream in
-                            try await service.deploy(withPostgres: true, withNATGateway: false, output: stream)
+                        Task {
+                            try? await service.deploy(withPostgres: true, withNATGateway: false, output: stream)
                         }
                     } label: {
                         Label("With PostgreSQL", systemImage: "cylinder")
                     }
 
                     Button {
-                        startOperation { stream in
-                            try await service.deploy(withPostgres: true, withNATGateway: true, output: stream)
+                        Task {
+                            try? await service.deploy(withPostgres: true, withNATGateway: true, output: stream)
                         }
                     } label: {
                         Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
@@ -514,8 +497,8 @@ struct CDKInfrastructureSectionView: View {
                         Divider()
 
                         Button {
-                            startOperation { stream in
-                                try await service.updateInfrastructure(output: stream)
+                            Task {
+                                try? await service.updateInfrastructure(output: stream)
                             }
                         } label: {
                             Label("Update (Keep Config)", systemImage: "arrow.triangle.2.circlepath")
@@ -546,18 +529,20 @@ struct CDKInfrastructureSectionView: View {
                     .tint(.red)
                 }
             }
-
-            // CLI output (accumulates across operations)
-            StreamingTextView(
-                streamProvider: { await operationOutput.makeStream() }
-            )
-        }
-    }
-
-    /// Start an operation using the view's persistent output stream
-    private func startOperation(_ operation: @escaping (CLIOutputStream) async throws -> Void) {
-        Task {
-            try? await operation(operationOutput)
+            .confirmationDialog(
+                "Destroy Infrastructure?",
+                isPresented: $showDestroyConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Destroy", role: .destructive) {
+                    Task {
+                        try? await service.destroy(output: stream)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete all AWS resources including Lambda, API Gateway, S3 bucket, and database (if deployed). This action cannot be undone.")
+            }
         }
     }
 

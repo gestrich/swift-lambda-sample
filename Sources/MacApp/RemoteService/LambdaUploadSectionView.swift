@@ -68,11 +68,6 @@ struct LocalLambdaUpdateView: View {
         return false
     }
 
-    /// Build output as a single string
-    private var buildOutput: String {
-        buildState.outputLines.joined(separator: "\n")
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Step 1: Build
@@ -82,7 +77,7 @@ struct LocalLambdaUpdateView: View {
             uploadSection
 
             // Build output (collapsible)
-            if !buildOutput.isEmpty {
+            if !buildState.outputLines.isEmpty {
                 buildOutputSection
             }
         }
@@ -273,16 +268,12 @@ struct LocalLambdaUpdateView: View {
         DisclosureGroup(
             isExpanded: $showingBuildOutput,
             content: {
-                ScrollView {
-                    Text(buildOutput)
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
+                StreamingTextView(
+                    lines: buildState.outputLines,
+                    isClearDisabled: isBuilding
+                ) {
+                    // Clear is handled by buildState, but we don't expose it here
                 }
-                .frame(maxHeight: 200)
-                .padding(8)
-                .background(Color.black.opacity(0.05))
-                .cornerRadius(4)
             },
             label: {
                 HStack(spacing: 4) {
