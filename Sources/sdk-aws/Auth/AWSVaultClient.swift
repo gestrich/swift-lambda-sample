@@ -1,8 +1,8 @@
 import sdk_cli
 import Foundation
 
-/// Service for wrapping AWS commands with aws-vault
-public struct AWSVaultService: Sendable {
+/// Client for wrapping AWS commands with aws-vault
+public struct AWSVaultClient: Sendable {
     private let profile: String
 
     public init(profile: String) {

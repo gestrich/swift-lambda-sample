@@ -66,7 +66,7 @@ public struct ProfileCredentialProvider: AWSCredentialProvider {
 /// Credential provider using aws-vault
 public struct VaultCredentialProvider: AWSCredentialProvider {
     public let profileName: String
-    private let vaultService: AWSVaultService
+    private let vaultClient: AWSVaultClient
 
     public var environment: [String: String] {
         // aws-vault injects credentials via environment, but we still need AWS_PROFILE
@@ -76,7 +76,7 @@ public struct VaultCredentialProvider: AWSCredentialProvider {
 
     public init(profile: String) {
         self.profileName = profile
-        self.vaultService = AWSVaultService(profile: profile)
+        self.vaultClient = AWSVaultClient(profile: profile)
     }
 
     public func wrapCommand(
@@ -84,8 +84,8 @@ public struct VaultCredentialProvider: AWSCredentialProvider {
         arguments: [String]
     ) -> (command: String, arguments: [String]) {
         // Remove any existing --profile flags (aws-vault handles auth)
-        let filteredArgs = AWSVaultService.removeProfileFlags(from: arguments)
-        return vaultService.wrapCommand(command: command, arguments: filteredArgs)
+        let filteredArgs = AWSVaultClient.removeProfileFlags(from: arguments)
+        return vaultClient.wrapCommand(command: command, arguments: filteredArgs)
     }
 
     public func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) {

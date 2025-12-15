@@ -6,12 +6,12 @@ import Foundation
 public actor AWSCLIService {
     private let cliService: CLIClient
     private let profile: String
-    private let vaultService: AWSVaultService?
+    private let vaultClient: AWSVaultClient?
 
     public init(awsConfig: AWSAuthConfiguration, cliService: CLIClient) {
         self.cliService = cliService
         self.profile = awsConfig.profileName
-        self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil
+        self.vaultClient = awsConfig.useAWSVault ? AWSVaultClient(profile: awsConfig.profileName) : nil
     }
 
     // MARK: - Command Execution
@@ -94,10 +94,10 @@ public actor AWSCLIService {
     private func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) where C.Program == Aws {
         let arguments = command.commandArguments
 
-        if let vaultService = vaultService {
+        if let vaultClient = vaultClient {
             // Remove --profile flags (aws-vault handles auth via environment)
-            let filteredArgs = AWSVaultService.removeProfileFlags(from: arguments)
-            return vaultService.wrapCommand(command: "aws", arguments: filteredArgs)
+            let filteredArgs = AWSVaultClient.removeProfileFlags(from: arguments)
+            return vaultClient.wrapCommand(command: "aws", arguments: filteredArgs)
         } else {
             // Traditional approach
             return ("aws", arguments)

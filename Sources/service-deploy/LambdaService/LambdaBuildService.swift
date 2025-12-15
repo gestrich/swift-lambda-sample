@@ -170,9 +170,9 @@ public class LambdaBuildService {
             let arguments: [String]
 
             if awsConfig.useAWSVault {
-                let vaultService = AWSVaultService(profile: awsConfig.profileName)
-                let filteredArgs = AWSVaultService.removeProfileFlags(from: command.commandArguments)
-                (execCommand, arguments) = vaultService.wrapCommand(command: "aws", arguments: filteredArgs)
+                let vaultClient = AWSVaultClient(profile: awsConfig.profileName)
+                let filteredArgs = AWSVaultClient.removeProfileFlags(from: command.commandArguments)
+                (execCommand, arguments) = vaultClient.wrapCommand(command: "aws", arguments: filteredArgs)
             } else {
                 execCommand = "aws"
                 arguments = command.commandArguments
