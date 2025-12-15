@@ -194,11 +194,12 @@ public actor RemoteDeploymentService {
 }
 ```
 
-### Phase 3: Update RemoteModel to Use RemoteDeploymentService
+### Phase 3: Update RemoteModel to Use RemoteDeploymentService ✅ COMPLETED
 
-- [ ] Update `RemoteModel.swift` to observe `RemoteDeploymentService.states()`
-- [ ] Remove direct sdk-aws observation
-- [ ] Keep thin model pattern (delegate to service)
+- [x] Update `RemoteModel.swift` to observe `RemoteDeploymentService.states()`
+- [x] Remove direct sdk-aws observation (via CDKInfrastructureQueryService)
+- [x] Keep thin model pattern (delegate to service)
+- [x] Update `CDKInfrastructureSectionView` to use `RemoteDeploymentService.State`
 
 **Goal**: Feature layer observes service layer, not SDK layer.
 
@@ -223,7 +224,14 @@ class RemoteModel {
 ```
 
 **Files Modified**:
-- `Sources/MacApp/Models/RemoteModel.swift`
+- `Sources/feature-mac/Models/RemoteModel.swift` - Use RemoteDeploymentService instead of CDKInfrastructureQueryService
+- `Sources/feature-mac/RemoteService/CDKInfrastructureSectionView.swift` - Use RemoteDeploymentService.State
+
+**Technical Notes**:
+- The state enum is identical between `CDKInfrastructureQueryService.State` and `RemoteDeploymentService.State`, making the migration straightforward
+- `RemoteModel` now delegates all CDK operations to `RemoteDeploymentService`
+- The thin model pattern is preserved - `RemoteModel` just bridges async streams to @Observable for SwiftUI
+- `CDKInfrastructureSectionView` continues to work unchanged since the State enums have identical structure
 
 ### Phase 4: Update CLI Commands
 
@@ -310,10 +318,11 @@ The app-specific `State` enum moves from `CDKInfrastructureQueryService` to `Rem
 | `service-deploy/CDKService/RemoteDeploymentService.swift` | **Create** | ✅ Done |
 | `service-deploy/RemoteDeploymentService/RemoteDeploymentOrchestrator.swift` | **Rename** (from RemoteDeploymentService.swift) | ✅ Done |
 | `feature-cli/Commands/*.swift` | **Update** (use RemoteDeploymentOrchestrator) | ✅ Done |
+| `feature-mac/Models/RemoteModel.swift` | **Update** (use RemoteDeploymentService) | ✅ Done |
+| `feature-mac/RemoteService/CDKInfrastructureSectionView.swift` | **Update** (use RemoteDeploymentService.State) | ✅ Done |
 | `service-deploy/CDKService/CDKInfrastructureQueryService.swift` | **Delete** | Pending |
 | `service-deploy/CDKService/CDKOutputParser.swift` | **Delete** | Pending |
 | `service-deploy/CDKService/Models/CloudFormationStackStatusValues.swift` | **Delete** | Pending |
 | `service-deploy/CDKService/SwiftLambdaInfrastructureService.swift` | Keep | - |
 | `service-deploy/CDKService/SwiftLambdaCDKService.swift` | Keep | - |
-| `feature-mac/Models/RemoteModel.swift` | Update | Pending |
 | `docs/architecture/MV_Model_Service_State.md` | Update reference | Pending |

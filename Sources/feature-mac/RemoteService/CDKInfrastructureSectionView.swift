@@ -62,7 +62,7 @@ struct CDKInfrastructureSectionView: View {
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    private var state: CDKInfrastructureQueryService.State {
+    private var state: RemoteDeploymentService.State {
         model.cdkState
     }
 

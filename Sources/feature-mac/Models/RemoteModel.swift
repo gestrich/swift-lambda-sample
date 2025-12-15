@@ -45,17 +45,17 @@ public class RemoteModel: LambdaService {
 
     // MARK: - CDK Infrastructure State
 
-    /// CDK Infrastructure state (observed from service)
-    public private(set) var cdkState: CDKInfrastructureQueryService.State = .unknown
+    /// CDK Infrastructure state (observed from RemoteDeploymentService)
+    public private(set) var cdkState: RemoteDeploymentService.State = .unknown
 
     /// CDK stack name
     public let cdkStackName = CDKStackConfiguration.defaultStackName
 
     /// Whether CDK infrastructure is configured
-    public var isCDKConfigured: Bool { cdkInfrastructureService != nil }
+    public var isCDKConfigured: Bool { remoteDeploymentService != nil }
 
-    /// CDK Infrastructure service (private - views use cdkState and action methods)
-    private var cdkInfrastructureService: CDKInfrastructureQueryService?
+    /// Remote deployment service (private - views use cdkState and action methods)
+    private var remoteDeploymentService: RemoteDeploymentService?
 
     // MARK: - LambdaService Protocol Properties
 
@@ -103,8 +103,8 @@ public class RemoteModel: LambdaService {
             self.githubCIModel = nil
         }
 
-        // Initialize CDK Infrastructure service (AWS config is already available)
-        self.cdkInfrastructureService = CDKInfrastructureQueryService(
+        // Initialize Remote Deployment service (AWS config is already available)
+        self.remoteDeploymentService = RemoteDeploymentService(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
@@ -127,7 +127,7 @@ public class RemoteModel: LambdaService {
         // Start observing CDK state, refresh it, and fetch endpoint
         Task {
             await self.startObservingCDKState()
-            await self.cdkInfrastructureService?.refresh()
+            await self.remoteDeploymentService?.refresh()
             try? await self.fetchEndpoint()
         }
     }
@@ -135,7 +135,7 @@ public class RemoteModel: LambdaService {
     // MARK: - CDK State Observation
 
     private func startObservingCDKState() async {
-        guard let service = cdkInfrastructureService else { return }
+        guard let service = remoteDeploymentService else { return }
         for await state in await service.states() {
             self.cdkState = state
         }
@@ -295,8 +295,8 @@ public class RemoteModel: LambdaService {
         isLoadingStatusSubject.send(true)
 
         // Start all refreshes in parallel using separate Tasks
-        if let cdk = cdkInfrastructureService {
-            Task { await cdk.refresh() }
+        if let service = remoteDeploymentService {
+            Task { await service.refresh() }
         }
         if let github = githubCIModel {
             Task { await github.refreshStatus() }
@@ -319,28 +319,28 @@ public class RemoteModel: LambdaService {
     /// Refresh CDK infrastructure state from AWS
     public func refreshCDKState() {
         Task {
-            await cdkInfrastructureService?.refresh()
+            await remoteDeploymentService?.refresh()
         }
     }
 
     /// Deploy CDK infrastructure with specified configuration
     public func deployCDK(withPostgres: Bool, withNATGateway: Bool, output: CLIOutputStream? = nil) {
         Task {
-            await cdkInfrastructureService?.deploy(withPostgres: withPostgres, withNATGateway: withNATGateway, output: output)
+            await remoteDeploymentService?.deploy(withPostgres: withPostgres, withNATGateway: withNATGateway, output: output)
         }
     }
 
     /// Update CDK infrastructure maintaining current configuration
     public func updateCDKInfrastructure(output: CLIOutputStream? = nil) {
         Task {
-            await cdkInfrastructureService?.updateInfrastructure(output: output)
+            await remoteDeploymentService?.updateInfrastructure(output: output)
         }
     }
 
     /// Destroy CDK infrastructure
     public func destroyCDK(output: CLIOutputStream? = nil) {
         Task {
-            await cdkInfrastructureService?.destroy(output: output)
+            await remoteDeploymentService?.destroy(output: output)
         }
     }
 
