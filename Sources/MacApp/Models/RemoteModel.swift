@@ -15,9 +15,8 @@ public class RemoteModel: LambdaService {
     public let cliService: CLIService
     private let projectRoot: String
 
-    private static let endpointKey = "remoteService.endpoint"
-
-    private var cachedEndpoint: String?
+    /// Endpoint fetched from CDK stack (not persisted)
+    private var fetchedEndpoint: String?
 
     // MARK: - Combine Publishers
 
@@ -43,6 +42,9 @@ public class RemoteModel: LambdaService {
     /// Lambda build service for local builds and uploads. Non-nil if AWS config is available.
     public private(set) var lambdaBuildService: LambdaBuildService?
 
+    /// CloudWatch logs model for viewing Lambda logs. Non-nil if AWS config is available.
+    public private(set) var cloudWatchLogsModel: CloudWatchLogsModel?
+
     // MARK: - LambdaService Protocol Properties
 
     public static let persistenceKey = "remote"
@@ -54,7 +56,7 @@ public class RemoteModel: LambdaService {
     public var port: Int { 443 }
 
     public var endpoint: String {
-        cachedEndpoint ?? "https://<not-configured>"
+        fetchedEndpoint ?? "https://<not-configured>"
     }
 
     public var endpointLabel: String { "API Gateway URL" }
@@ -79,9 +81,6 @@ public class RemoteModel: LambdaService {
         self.cliService = cliService
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
 
-        // Load persisted endpoint
-        self.cachedEndpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
-
         // Initialize GitHub CI model if config is available
         if let githubConfig = GitHubConfiguration.loadConfig() {
             self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliService: cliService)
@@ -103,6 +102,17 @@ public class RemoteModel: LambdaService {
             cliService: cliService,
             awsConfig: awsConfig
         )
+
+        // Initialize CloudWatch logs model (AWS config is already available)
+        self.cloudWatchLogsModel = CloudWatchLogsModel(
+            awsConfig: awsConfig,
+            cliService: cliService
+        )
+
+        // Fetch endpoint from CDK immediately on init
+        Task {
+            try? await self.fetchEndpoint()
+        }
     }
 
     /// Convenience initializer for workingDirectory-based initialization (matches local services)
@@ -112,14 +122,13 @@ public class RemoteModel: LambdaService {
         self.init(projectRoot: workingDirectory, awsConfig: awsConfig)
     }
 
-    /// Set the endpoint URL manually (persisted to UserDefaults)
+    /// Set the endpoint URL (fetched from CDK, not persisted)
     public func setEndpoint(_ url: String) {
-        cachedEndpoint = url
-        UserDefaults.standard.set(url, forKey: Self.endpointKey)
+        fetchedEndpoint = url
     }
 
     public var isConfigured: Bool {
-        cachedEndpoint != nil
+        fetchedEndpoint != nil
     }
 
     /// Fetch and cache endpoint from CDK stack

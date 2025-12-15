@@ -21,6 +21,11 @@ public final class CDKInfrastructureModel {
     /// Initialize with an injected query service (preferred for testability)
     public init(queryService: CDKInfrastructureQueryService) {
         self.queryService = queryService
+
+        // Fetch status from AWS immediately on init
+        Task {
+            await self.refreshStatus()
+        }
     }
 
     /// Convenience initializer that creates the query service internally

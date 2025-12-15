@@ -25,6 +25,11 @@ public final class GitHubCIModel {
     public init(repoPath: String, config: GitHubConfiguration, cliService: CLIService) {
         self.config = config
         self.actionsService = GitHubActionsService(repoPath: repoPath, config: config, cliService: cliService)
+
+        // Fetch status from GitHub immediately on init
+        Task {
+            await self.refreshStatus()
+        }
     }
 
     // MARK: - UI State Operations

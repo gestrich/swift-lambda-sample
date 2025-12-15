@@ -24,6 +24,11 @@ struct RemoteServiceView: View {
 
                     Divider()
 
+                    // MARK: - CloudWatch Logs Section
+                    cloudWatchLogsSection
+
+                    Divider()
+
                     // MARK: - Lambda Update Section
                     lambdaUpdateSection
                 }
@@ -85,6 +90,23 @@ struct RemoteServiceView: View {
                 endpoint: service.endpoint,
                 helpText: service.endpointHelpText
             )
+        }
+    }
+
+    // MARK: - CloudWatch Logs Section
+
+    @ViewBuilder
+    private var cloudWatchLogsSection: some View {
+        if let logsModel = service.cloudWatchLogsModel {
+            CloudWatchLogsSectionView(model: logsModel)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("CloudWatch Logs")
+                    .font(.headline)
+                Text("AWS configuration required")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 
