@@ -10,8 +10,8 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "SwiftLambda",
-            targets: ["SwiftLambda"]
+            name: "feature-lambda",
+            targets: ["feature-lambda"]
         )
     ],
     dependencies: [
@@ -61,7 +61,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "SwiftLambda",
+            name: "feature-lambda",
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),

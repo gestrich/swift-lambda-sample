@@ -49,6 +49,20 @@
                ReferencedContainer = "container:">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "feature-lambda"
+               BuildableName = "feature-lambda"
+               BlueprintName = "feature-lambda"
+               ReferencedContainer = "container:">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -104,9 +118,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "SwiftDeployCLI"
-            BuildableName = "SwiftDeployCLI"
-            BlueprintName = "SwiftDeployCLI"
+            BlueprintIdentifier = "feature-lambda"
+            BuildableName = "feature-lambda"
+            BlueprintName = "feature-lambda"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -130,9 +144,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "SwiftDeployCLI"
-            BuildableName = "SwiftDeployCLI"
-            BlueprintName = "SwiftDeployCLI"
+            BlueprintIdentifier = "feature-lambda"
+            BuildableName = "feature-lambda"
+            BlueprintName = "feature-lambda"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>

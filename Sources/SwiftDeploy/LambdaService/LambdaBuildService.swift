@@ -98,7 +98,7 @@ public class LambdaBuildService {
         await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         // Stream the build output using typed command
-        let buildCmd = BuildScript.Build.lambda(target: "SwiftLambda")
+        let buildCmd = BuildScript.Build.lambda(target: "feature-lambda")
         let stream = await cliService.stream(
             buildCmd,
             workingDirectory: workingDirectory,
