@@ -348,48 +348,52 @@ private func monitor() async {
 
 ## Reference Implementation
 
-See `CDKInfrastructureQueryService` and `RemoteModel` in this codebase for a complete implementation of this pattern.
+See `RemoteDeploymentService` and `RemoteModel` in this codebase for a complete implementation of this pattern.
+
+**File locations:**
+- Service: `Sources/service-deploy/CDKService/RemoteDeploymentService.swift`
+- Model: `Sources/feature-mac/Models/RemoteModel.swift`
 
 ---
 
-## CDKInfrastructureQueryService Compliance
+## RemoteDeploymentService Compliance
 
-### What's Compliant
+### What's Compliant (Service)
 
 | Pattern | Status | Location |
 |---------|--------|----------|
-| Actor-based service | ✅ | Line 6 |
-| State enum with associated values | ✅ | Lines 11-79 |
-| `states()` returning `AsyncStream<State>` | ✅ | Lines 113-123 |
-| `publish()` method | ✅ | Lines 129-134 |
-| Continuation cleanup with `onTermination` | ✅ | Lines 119-121 |
-| Concurrency guards (`isBusy`, `canDeploy`) | ✅ | Lines 140, 160, 193 |
-| Error states (`failed`, `credentialExpired`) | ✅ | Lines 18-19 |
-| State computed properties | ✅ | Lines 21-78 |
-| Query after operation completes | ✅ | Lines 176, 201 |
+| Actor-based service | ✅ | Line 19 |
+| State enum with associated values | ✅ | Lines 25-93 |
+| `states()` returning `AsyncStream<State>` | ✅ | Lines 158-172 |
+| `publish()` method | ✅ | Lines 178-183 |
+| Continuation cleanup with `onTermination` | ✅ | Lines 168-170 |
+| Concurrency guards (`isBusy`, `canDeploy`, `canDestroy`) | ✅ | Lines 35-60 |
+| Error states (`failed`, `credentialExpired`) | ✅ | Lines 32-33 |
+| State computed properties | ✅ | Lines 35-92 |
+| Query after operation completes | ✅ | Lines 225-226, 250-251 |
+| Auto-refresh on first observation | ✅ | Lines 159-161 |
 
 ### What's Compliant (RemoteModel)
 
 | Pattern | Status | Location |
 |---------|--------|----------|
-| `@MainActor @Observable` class | ✅ | Lines 11-13 |
-| Holds observed state (`cdkState`) | ✅ | Line 48 |
-| `for await` observation loop | ✅ | Lines 132-137 |
-| Action methods forwarding to service | ✅ | Lines 315-340 |
-| Service is private, state is public | ✅ | Lines 48, 57 |
+| `@MainActor @Observable` class | ✅ | Lines 12-14 |
+| Holds observed state (`cdkState`) | ✅ | Line 49 |
+| `for await` observation loop | ✅ | Lines 137-142 |
+| Action methods forwarding to service | ✅ | Lines 327-345 |
+| Service is private, state is public | ✅ | Lines 49, 58 |
+| Initial refresh triggered | ✅ | Line 130 |
 
-### Issues Addressed ✅
+### Design Decisions
 
-All issues have been fixed:
+1. **startTime extracted from CloudFormation events** (RemoteDeploymentService)
 
-1. **✅ startTime extracted from CloudFormation events** (CDKInfrastructureQueryService)
+   `queryCurrentState()` calls `getOperationStartTime()` to extract the actual start time from CloudFormation events when discovering in-progress operations (Lines 593-600).
 
-   `queryCurrentState()` now calls `getOperationStartTime()` to extract the actual start time from CloudFormation events when discovering in-progress operations.
+2. **Automatic refresh on first observation** (RemoteDeploymentService)
 
-2. **✅ Automatic refresh on first observation** (CDKInfrastructureQueryService)
+   `states()` auto-triggers `refresh()` if state is `.unknown`, making the service self-initializing (Lines 159-161).
 
-   `states()` now auto-triggers `refresh()` if state is `.unknown`, making the service self-initializing.
+3. **RemoteModel triggers initial CDK refresh** (RemoteModel)
 
-3. **✅ RemoteModel triggers initial CDK refresh** (RemoteModel)
-
-   `init` now calls `cdkInfrastructureService?.refresh()` after starting observation.
+   `init` calls `remoteDeploymentService?.refresh()` after starting observation (Line 130).
