@@ -347,122 +347,71 @@ MacApp View → Model → Service
 
 ---
 
-## 8. Future: Move Business Logic from CDKInfrastructureModel to Service
+## 8. Move Business Logic from CDKInfrastructureModel to Service ✅ COMPLETED
 
-**Status:** Proposed
+**Status:** Completed
 
-**Problem:**
+**Problem (solved):**
 
-`CDKInfrastructureModel` currently contains significant business/domain logic that should ideally live in the service layer:
+`CDKInfrastructureModel` previously contained significant business/domain logic that now lives in the service layer:
 
-- **Progress polling** (`pollProgressUntilCancelled`, `updateProgressOnce`)
-- **Operation monitoring** (`monitorExistingOperation`)
-- **Deployment orchestration** (`runDeployWithProgressPolling`)
-- **Credential error detection** (`isCredentialError`)
+- **Progress polling** - Moved to `CDKInfrastructureQueryService` via `AsyncThrowingStream`
+- **Operation monitoring** - Now via `monitorOperation()` stream
+- **Deployment orchestration** - Now via `deployWithProgress()` and `destroyWithProgress()` streams
+- **Credential error detection** - Moved to `CDKInfrastructureError.isCredentialError()`
 
-This violates the intended pattern where Models should:
-- Hold observable state for UI binding
-- Make simple API calls to services
-- Transform service responses into UI state
+**Key Constraint:** Services remain stateless. They **return** state via `AsyncThrowingStream`, not **hold** state.
 
-Instead, Models should NOT:
-- Contain polling loops
-- Orchestrate multi-step operations
-- Parse/interpret domain-specific data
-
-**Key Constraint:** Services must remain stateless. They should **return** state, not **hold** state.
-
-**Current Flow:**
+**Data Flow (implemented):**
 ```
-View → Model.deploy() → [polling logic in Model] → Service.deploy()
-                      → [progress tracking in Model]
-                      → [error handling in Model]
-```
-
-**Target Flow:**
-```
-View → Model.deploy() → Service.deployWithProgress() → AsyncStream<Progress>
+View → Model.deploy() → Service.deployWithProgress() → AsyncThrowingStream<Progress>
                       ↓
                 Model updates state from stream
 ```
 
-**Proposed Changes:**
+**Implemented Changes:**
 
-### [ ] 8.1 Service returns progress via AsyncStream (stateless)
-- Add `func deployWithProgress(...) -> AsyncStream<CDKDeploymentProgress>`
-- Add `func destroyWithProgress(...) -> AsyncStream<CDKDeploymentProgress>`
+### [x] 8.1 Service returns progress via AsyncThrowingStream (stateless)
+- Added `CDKDeploymentProgress` type to service (immutable snapshot)
+- Added `ResourceProgressSnapshot` and `ResourceStatusSnapshot` types
+- Added `func deployWithProgress(...) -> AsyncThrowingStream<CDKDeploymentProgress, Error>`
+- Added `func destroyWithProgress(...) -> AsyncThrowingStream<CDKDeploymentProgress, Error>`
+- Added `func monitorOperation(...) -> AsyncThrowingStream<CDKDeploymentProgress, Error>`
 - Service creates a fresh stream per call (no stored state)
 - Stream internally polls CloudFormation and yields progress snapshots
 - Each yield is a complete state snapshot (not a delta)
+- Methods are `nonisolated` for clean MainActor integration
 
-```swift
-// Service - stateless, returns state via stream
-public func deployWithProgress(...) -> AsyncStream<CDKDeploymentProgress> {
-    AsyncStream { continuation in
-        Task {
-            // Start CDK deploy
-            try await cdkService.deploy(...)
+### [x] 8.2 Simplified CDKInfrastructureModel
+- Removed polling logic entirely (`pollProgressUntilCancelled`, `updateProgressOnce`, `runDeployWithProgressPolling`)
+- Model subscribes to service's `AsyncThrowingStream`
+- Model maps stream values directly to `@Observable` state
+- Model is now a thin state container (from ~300 lines to ~200 lines)
+- `deploy()`, `updateInfrastructure()`, `destroy()` now use `for try await` loops
+- `refreshStatus()` now uses `getFullStatus()` for complete snapshot
 
-            // Poll and yield progress (no state stored in service)
-            while !Task.isCancelled {
-                let events = try await awsService.getStackEvents(...)
-                let progress = CDKDeploymentProgress(from: events) // Pure transformation
-                continuation.yield(progress)
-                try await Task.sleep(for: .seconds(2))
-            }
-        }
-    }
-}
-```
+### [x] 8.3 Service returns typed errors (stateless)
+- Added `CDKInfrastructureError` enum with cases:
+  - `.credentialExpired(message:)` - AWS credential issues
+  - `.stackNotFound(stackName:)` - Stack doesn't exist
+  - `.deploymentFailed(reason:)` - Deployment errors
+  - `.buildFailed(reason:)` - CDK build errors
+  - `.operationInProgress(operation:)` - Operation already running
+  - `.unknown(message:)` - Other errors
+- Moved `isCredentialError()` to service as static method on error type
+- Added `getFullStatus()` method returning `CDKInfrastructureStatusSnapshot`
+- Model catches typed errors and maps to UI states
 
-### [ ] 8.2 Simplify CDKInfrastructureModel
-- Remove polling logic entirely
-- Subscribe to service's AsyncStream
-- Map stream values directly to `@Observable` state
-- Model becomes a thin state container
+### [x] 8.4 Updated Views
+- Updated `CDKInfrastructureSectionView` to use `ResourceProgressSnapshot` and `ResourceStatusSnapshot`
+- Added `SwiftDeploy` import to view file
 
-```swift
-// Model - holds state, subscribes to service
-public func deploy(...) async throws {
-    infrastructureStatus.status = .deploying(operation: "Deploying")
-
-    for await progress in queryService.deployWithProgress(...) {
-        // Just assign returned state - no business logic
-        infrastructureStatus.deploymentProgress = progress
-    }
-
-    await refreshStatus()
-}
-```
-
-### [ ] 8.3 Service returns typed errors (stateless)
-- Service throws typed errors: `CDKError.credentialExpired`, `CDKError.stackNotFound`
-- Model catches and maps to UI states
-- Error classification logic lives in service, not model
-
-```swift
-// Service - classifies errors
-public func getStackStatus(...) async throws -> StackStatus {
-    do {
-        return try await awsService.getStackStatus(...)
-    } catch let error where isCredentialError(error) {
-        throw CDKError.credentialExpired(underlying: error)
-    }
-}
-
-// Model - maps errors to UI state
-do {
-    let status = try await queryService.getStackStatus(...)
-} catch CDKError.credentialExpired {
-    infrastructureStatus.status = .failed(reason: "credentials expired")
-}
-```
-
-**Benefits:**
+**Benefits Achieved:**
 - Services remain stateless and fully testable
 - Models are trivially simple (state assignment + subscriptions)
 - Clear data flow: Service returns state → Model stores state → View observes state
 - Consistent pattern across all Model/Service pairs
+- Reduced code in Model (~100 lines removed)
 
 ---
 

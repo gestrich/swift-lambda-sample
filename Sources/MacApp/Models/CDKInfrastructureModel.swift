@@ -42,73 +42,50 @@ public final class CDKInfrastructureModel {
         infrastructureStatus.status = .loading
 
         do {
-            let stackStatus = try await queryService.getStackStatus(stackName: infrastructureStatus.stackName)
+            let snapshot = try await queryService.getFullStatus(stackName: infrastructureStatus.stackName)
 
-            switch stackStatus {
-            case CloudFormationStackStatusValues.createComplete,
-                 CloudFormationStackStatusValues.updateComplete:
-                let config = try await queryService.queryConfiguration(stackName: infrastructureStatus.stackName)
-                let outputs = try await queryService.getStackOutputs(stackName: infrastructureStatus.stackName)
-
+            switch snapshot.state {
+            case .deployed:
                 infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration(
-                    hasDatabase: config.hasDatabase,
-                    hasNATGateway: config.hasNATGateway,
-                    hasVPC: config.hasVPC
+                    hasDatabase: snapshot.configuration.hasDatabase,
+                    hasNATGateway: snapshot.configuration.hasNATGateway,
+                    hasVPC: snapshot.configuration.hasVPC
                 )
-                infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs.from(outputs)
+                infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs(
+                    apiGatewayUrl: snapshot.outputs.apiGatewayUrl,
+                    lambdaFunctionName: snapshot.outputs.lambdaFunctionName,
+                    bucketName: snapshot.outputs.bucketName,
+                    allOutputs: snapshot.outputs.allOutputs
+                )
                 infrastructureStatus.status = .deployed
 
-            case CloudFormationStackStatusValues.createInProgress,
-                 CloudFormationStackStatusValues.updateInProgress,
-                 CloudFormationStackStatusValues.updateCompleteCleanupInProgress:
-                infrastructureStatus.status = .deploying(operation: "Updating")
+            case .deploying(let operation):
+                infrastructureStatus.status = .deploying(operation: operation)
                 Task {
                     await monitorExistingOperation()
                 }
 
-            case CloudFormationStackStatusValues.deleteInProgress:
+            case .destroying:
                 infrastructureStatus.status = .destroying
                 Task {
                     await monitorExistingOperation()
                 }
 
-            case CloudFormationStackStatusValues.createFailed,
-                 CloudFormationStackStatusValues.updateFailed,
-                 CloudFormationStackStatusValues.rollbackComplete,
-                 CloudFormationStackStatusValues.rollbackFailed,
-                 CloudFormationStackStatusValues.deleteFailed:
-                infrastructureStatus.status = .failed(reason: stackStatus)
+            case .failed(let reason):
+                infrastructureStatus.status = .failed(reason: reason)
 
-            default:
-                infrastructureStatus.status = .deployed
-            }
-        } catch {
-            let errorMessage = error.localizedDescription
-
-            if Self.isCredentialError(errorMessage) {
-                infrastructureStatus.status = .failed(reason: errorMessage)
-            } else {
+            case .notDeployed:
                 infrastructureStatus.status = .notDeployed
                 infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
                 infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
             }
+        } catch CDKInfrastructureError.credentialExpired(let message) {
+            infrastructureStatus.status = .failed(reason: message)
+        } catch {
+            infrastructureStatus.status = .notDeployed
+            infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
+            infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
         }
-    }
-
-    /// Check if an error message indicates AWS credential issues
-    private static func isCredentialError(_ error: String) -> Bool {
-        let credentialPatterns = [
-            "credentials missing",
-            "credential_process",
-            "Error getting temporary credentials",
-            "ExpiredToken",
-            "InvalidClientTokenId",
-            "AccessDenied",
-            "AuthFailure",
-            "security token included in the request is invalid",
-            "could not be found"
-        ]
-        return credentialPatterns.contains { error.localizedCaseInsensitiveContains($0) }
     }
 
     /// Deploy infrastructure with specified configuration
@@ -118,21 +95,28 @@ public final class CDKInfrastructureModel {
     ///   - output: Optional client-owned stream to receive output
     public func deploy(withPostgres: Bool, withNATGateway: Bool, output: CLIOutputStream? = nil) async throws {
         infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress.clear()
+        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
         infrastructureStatus.status = .deploying(operation: withPostgres ? "Deploying with Database" : "Deploying")
 
         do {
-            try await queryService.build(output: output)
+            let stream = queryService.deployWithProgress(
+                stackName: infrastructureStatus.stackName,
+                withPostgres: withPostgres,
+                withNATGateway: withNATGateway,
+                output: output
+            )
 
-            try await runDeployWithProgressPolling {
-                try await self.queryService.deploy(withPostgres: withPostgres, withNATGateway: withNATGateway, output: output)
+            for try await progress in stream {
+                infrastructureStatus.deploymentProgress = progress
             }
 
+            infrastructureStatus.deployStartTime = nil
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
             await refreshStatus(force: true)
         } catch {
             infrastructureStatus.status = .failed(reason: error.localizedDescription)
             infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress.clear()
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
             throw error
         }
     }
@@ -141,29 +125,31 @@ public final class CDKInfrastructureModel {
     /// - Parameter output: Optional client-owned stream to receive output
     public func updateInfrastructure(output: CLIOutputStream? = nil) async throws {
         infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress.clear()
+        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
         infrastructureStatus.status = .deploying(operation: "Updating")
 
-        // Capture current configuration before entering detached task
         let hasDatabase = infrastructureStatus.configuration.hasDatabase
         let hasNATGateway = infrastructureStatus.configuration.hasNATGateway
 
         do {
-            try await queryService.build(output: output)
+            let stream = queryService.deployWithProgress(
+                stackName: infrastructureStatus.stackName,
+                withPostgres: hasDatabase,
+                withNATGateway: hasNATGateway,
+                output: output
+            )
 
-            try await runDeployWithProgressPolling {
-                try await self.queryService.deploy(
-                    withPostgres: hasDatabase,
-                    withNATGateway: hasNATGateway,
-                    output: output
-                )
+            for try await progress in stream {
+                infrastructureStatus.deploymentProgress = progress
             }
 
+            infrastructureStatus.deployStartTime = nil
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
             await refreshStatus(force: true)
         } catch {
             infrastructureStatus.status = .failed(reason: error.localizedDescription)
             infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress.clear()
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
             throw error
         }
     }
@@ -173,134 +159,56 @@ public final class CDKInfrastructureModel {
     public func destroy(output: CLIOutputStream? = nil) async throws {
         infrastructureStatus.status = .destroying
         infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress.clear()
+        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
 
         do {
-            try await runDeployWithProgressPolling {
-                try await self.queryService.destroy(output: output)
+            let stream = queryService.destroyWithProgress(
+                stackName: infrastructureStatus.stackName,
+                output: output
+            )
+
+            for try await progress in stream {
+                infrastructureStatus.deploymentProgress = progress
             }
 
             infrastructureStatus.status = .notDeployed
             infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
             infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
+            infrastructureStatus.deployStartTime = nil
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
         } catch {
             infrastructureStatus.status = .failed(reason: error.localizedDescription)
             infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress.clear()
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
             throw error
         }
     }
 
-    // MARK: - Private Progress Polling
-
-    /// Run a CDK operation while polling for CloudFormation progress
-    private func runDeployWithProgressPolling(_ cdkOperation: @escaping @Sendable () async throws -> Void) async throws {
-        let stackName = infrastructureStatus.stackName
-        let startTime = infrastructureStatus.deployStartTime
-
-        let pollingTask = Task.detached { [queryService] in
-            await self.pollProgressUntilCancelled(
-                stackName: stackName,
-                startTime: startTime,
-                queryService: queryService
-            )
-        }
-
-        let cdkTask = Task.detached {
-            try await cdkOperation()
-        }
-
-        do {
-            try await cdkTask.value
-        } catch {
-            pollingTask.cancel()
-            throw error
-        }
-
-        pollingTask.cancel()
-
-        try? await updateProgressOnce()
-
-        infrastructureStatus.deployStartTime = nil
-        infrastructureStatus.deploymentProgress.clear()
-    }
-
-    /// Poll progress continuously until cancelled (runs off MainActor)
-    private nonisolated func pollProgressUntilCancelled(
-        stackName: String,
-        startTime: Date?,
-        queryService: CDKInfrastructureQueryService
-    ) async {
-        let pollInterval: Duration = .seconds(2)
-
-        while !Task.isCancelled {
-            do {
-                let events = try await queryService.getStackEvents(stackName: stackName)
-
-                await MainActor.run {
-                    self.infrastructureStatus.deploymentProgress.update(
-                        from: events,
-                        since: startTime
-                    )
-                }
-            } catch {
-                await MainActor.run {
-                    self.infrastructureStatus.deploymentProgress.pollCount += 1
-                }
-            }
-
-            do {
-                try await Task.sleep(for: pollInterval)
-            } catch {
-                break
-            }
-        }
-    }
-
-    /// Single progress update (runs on MainActor)
-    private func updateProgressOnce() async throws {
-        let events = try await queryService.getStackEvents(stackName: infrastructureStatus.stackName)
-        infrastructureStatus.deploymentProgress.update(
-            from: events,
-            since: infrastructureStatus.deployStartTime
-        )
-    }
+    // MARK: - Private
 
     /// Monitor an existing in-progress operation (detected on app startup)
     private func monitorExistingOperation() async {
         infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress.clear()
+        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
 
-        let stackName = infrastructureStatus.stackName
-        let pollInterval: Duration = .seconds(2)
+        do {
+            let stream = queryService.monitorOperation(stackName: infrastructureStatus.stackName)
 
-        while infrastructureStatus.status.isBusy {
-            do {
-                let events = try await queryService.getStackEvents(stackName: stackName)
-                infrastructureStatus.deploymentProgress.update(
-                    from: events,
-                    since: nil
-                )
+            for try await progress in stream {
+                infrastructureStatus.deploymentProgress = progress
 
-                if let status = try? await queryService.getStackStatus(stackName: stackName) {
-                    switch status {
-                    case CloudFormationStackStatusValues.createInProgress,
-                         CloudFormationStackStatusValues.updateInProgress,
-                         CloudFormationStackStatusValues.updateCompleteCleanupInProgress,
-                         CloudFormationStackStatusValues.deleteInProgress:
-                        break
-                    default:
-                        infrastructureStatus.deployStartTime = nil
-                        infrastructureStatus.deploymentProgress.clear()
-                        await refreshStatus(force: true)
-                        return
-                    }
+                if progress.isComplete {
+                    break
                 }
-            } catch {
-                infrastructureStatus.deploymentProgress.pollCount += 1
             }
 
-            try? await Task.sleep(for: pollInterval)
+            infrastructureStatus.deployStartTime = nil
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            await refreshStatus(force: true)
+        } catch {
+            infrastructureStatus.deployStartTime = nil
+            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            await refreshStatus(force: true)
         }
     }
 }
@@ -405,121 +313,12 @@ public struct CDKInfrastructureStatus: Equatable, Sendable {
     public var deployStartTime: Date?
 
     /// Deployment progress - aggregated resource states during deploy/destroy
-    public var deploymentProgress: DeploymentProgress = DeploymentProgress()
+    /// Uses the service's CDKDeploymentProgress type directly
+    public var deploymentProgress: CDKDeploymentProgress = CDKDeploymentProgress()
 
     public init() {}
 
-    /// Aggregated deployment progress for UI display
-    public struct DeploymentProgress: Equatable, Sendable {
-        public var resources: [ResourceProgress] = []
-        public var totalExpected: Int?
-
-        public var completedCount: Int {
-            resources.filter { $0.status.isComplete }.count
-        }
-
-        public var inProgressCount: Int {
-            resources.filter { $0.status.isInProgress }.count
-        }
-
-        public var hasFailures: Bool {
-            resources.contains { $0.status.isFailed }
-        }
-
-        public init() {}
-
-        public var pollCount: Int = 0
-
-        public var hasPolled: Bool { pollCount > 0 }
-
-        public var hasPolledEnough: Bool { pollCount >= 5 }
-
-        public mutating func update(from events: [CloudFormationStackEvent], since: Date?) {
-            pollCount += 1
-
-            let relevantEvents = events.filter { event in
-                guard let since = since else { return true }
-                return event.timestamp >= since
-            }
-
-            var latestByResource: [String: CloudFormationStackEvent] = [:]
-            for event in relevantEvents {
-                if event.resourceType == "AWS::CloudFormation::Stack" { continue }
-
-                if let existing = latestByResource[event.logicalResourceId] {
-                    if event.timestamp > existing.timestamp {
-                        latestByResource[event.logicalResourceId] = event
-                    }
-                } else {
-                    latestByResource[event.logicalResourceId] = event
-                }
-            }
-
-            resources = latestByResource.values
-                .sorted { $0.timestamp > $1.timestamp }
-                .map { ResourceProgress(from: $0) }
-        }
-
-        public mutating func clear() {
-            resources = []
-            totalExpected = nil
-            pollCount = 0
-        }
-    }
-
-    /// Progress for a single resource
-    public struct ResourceProgress: Equatable, Identifiable, Sendable {
-        public let resourceId: String
-        public let displayName: String
-        public let resourceType: String
-        public let status: ResourceStatus
-        public let statusReason: String?
-        public let timestamp: Date
-
-        public var id: String { resourceId }
-
-        public init(from event: CloudFormationStackEvent) {
-            self.resourceId = event.logicalResourceId
-            self.displayName = event.displayName
-            self.resourceType = event.displayType
-            self.status = ResourceStatus(from: event.resourceStatus)
-            self.statusReason = event.resourceStatusReason
-            self.timestamp = event.timestamp
-        }
-    }
-
-    /// Status of a resource during deployment
-    public enum ResourceStatus: Equatable, Sendable {
-        case pending
-        case inProgress
-        case complete
-        case failed(reason: String?)
-
-        public var isInProgress: Bool {
-            if case .inProgress = self { return true }
-            return false
-        }
-
-        public var isComplete: Bool {
-            if case .complete = self { return true }
-            return false
-        }
-
-        public var isFailed: Bool {
-            if case .failed = self { return true }
-            return false
-        }
-
-        public init(from status: String) {
-            if status.contains("COMPLETE") && !status.contains("CLEANUP") && !status.contains("ROLLBACK") {
-                self = .complete
-            } else if status.contains("IN_PROGRESS") {
-                self = .inProgress
-            } else if status.contains("FAILED") || status.contains("ROLLBACK") {
-                self = .failed(reason: nil)
-            } else {
-                self = .pending
-            }
-        }
-    }
+    /// Convenience computed properties for UI
+    public var hasPolled: Bool { deploymentProgress.pollCount > 0 }
+    public var hasPolledEnough: Bool { deploymentProgress.pollCount >= 5 }
 }

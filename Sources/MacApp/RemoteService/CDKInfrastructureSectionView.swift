@@ -1,4 +1,5 @@
 import CLIKit
+import SwiftDeploy
 import SwiftUI
 
 /// Placeholder when CDKInfrastructureModel is not available (config missing or loading)
@@ -415,7 +416,7 @@ struct CDKInfrastructureSectionView: View {
     }
 
     @ViewBuilder
-    private func resourceRow(_ resource: CDKInfrastructureStatus.ResourceProgress) -> some View {
+    private func resourceRow(_ resource: ResourceProgressSnapshot) -> some View {
         HStack(spacing: 6) {
             // Status icon
             resourceStatusIcon(resource.status)
@@ -439,7 +440,7 @@ struct CDKInfrastructureSectionView: View {
     }
 
     @ViewBuilder
-    private func resourceStatusIcon(_ status: CDKInfrastructureStatus.ResourceStatus) -> some View {
+    private func resourceStatusIcon(_ status: ResourceStatusSnapshot) -> some View {
         switch status {
         case .pending:
             Image(systemName: "circle")
