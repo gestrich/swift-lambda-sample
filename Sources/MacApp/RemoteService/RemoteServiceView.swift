@@ -1,6 +1,5 @@
 import AppKit
 import CLIKit
-import SwiftDeploy
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management
@@ -45,8 +44,8 @@ struct RemoteServiceView: View {
 
     @ViewBuilder
     private var cdkInfrastructureSection: some View {
-        if let cdkService = service.cdkInfrastructureService {
-            CDKInfrastructureSectionView(service: cdkService, onOpenSettings: onOpenSettings)
+        if let cdkModel = service.cdkInfrastructureModel {
+            CDKInfrastructureSectionView(model: cdkModel, onOpenSettings: onOpenSettings)
         } else {
             CDKInfrastructureLoadingView()
         }

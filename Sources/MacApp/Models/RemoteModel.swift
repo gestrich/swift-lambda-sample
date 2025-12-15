@@ -37,8 +37,8 @@ public class RemoteModel: LambdaService {
     /// GitHub service for CI operations. Non-nil if GitHub config is available.
     public private(set) var githubService: GitHubService?
 
-    /// CDK Infrastructure service for deployments. Non-nil if AWS config is available.
-    public private(set) var cdkInfrastructureService: CDKInfrastructureService?
+    /// CDK Infrastructure model for deployments. Non-nil if AWS config is available.
+    public private(set) var cdkInfrastructureModel: CDKInfrastructureModel?
 
     /// Lambda build service for local builds and uploads. Non-nil if AWS config is available.
     public private(set) var lambdaBuildService: LambdaBuildService?
@@ -89,8 +89,8 @@ public class RemoteModel: LambdaService {
             self.githubService = nil
         }
 
-        // Initialize CDK Infrastructure service (AWS config is already available)
-        self.cdkInfrastructureService = CDKInfrastructureService(
+        // Initialize CDK Infrastructure model (AWS config is already available)
+        self.cdkInfrastructureModel = CDKInfrastructureModel(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
@@ -260,7 +260,7 @@ public class RemoteModel: LambdaService {
         isLoadingStatusSubject.send(true)
 
         // Start all refreshes in parallel using separate Tasks
-        if let cdk = cdkInfrastructureService {
+        if let cdk = cdkInfrastructureModel {
             Task { await cdk.refreshStatus() }
         }
         if let github = githubService {

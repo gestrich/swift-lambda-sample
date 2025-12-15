@@ -217,6 +217,88 @@ This creates issues:
 
 ---
 
+## 6. CDKInfrastructureService ✅ COMPLETED
+
+**Current Location:** `Sources/MacApp/Models/CDKInfrastructureModel.swift` (slimmed down)
+**Service Location:** `Sources/SwiftDeploy/Services/CDKInfrastructureQueryService.swift`
+
+**Analysis:**
+- `@MainActor @Observable` class mixing state and logic
+- State: `infrastructureStatus` (CDKInfrastructureStatus)
+- Logic: `refreshStatus()`, `deploy()`, `destroy()`, `queryConfiguration()`, `monitorExistingOperation()`
+
+**Existing Services Used:**
+- `CDKService` - CDK CLI operations
+- `AWSCLIService` - AWS CLI wrapper (stack status, outputs)
+
+**Refactor Plan:**
+
+### [x] 6.1 Create CDKInfrastructureQueryService (stateless)
+- Location: `Sources/SwiftDeploy/Services/CDKInfrastructureQueryService.swift`
+- Stateless actor for querying CDK/CloudFormation state
+- Methods:
+  - `func getStackStatus(stackName:) async throws -> String`
+  - `func getStackOutputs(stackName:) async throws -> [String: String]`
+  - `func queryConfiguration(stackName:) async throws -> CDKInfrastructureConfiguration`
+  - `func getStackEvents(stackName:limit:) async throws -> [CloudFormationStackEvent]`
+  - `func build(output:) async throws`
+  - `func deploy(withPostgres:withNATGateway:output:) async throws`
+  - `func destroy(output:) async throws`
+
+### [x] 6.2 Create CDKInfrastructureModel (observable state)
+- Location: `Sources/MacApp/Models/CDKInfrastructureModel.swift`
+- `@Observable` class holding UI state
+- Keeps: `infrastructureStatus`, progress polling, monitoring
+- Delegates operations to `CDKInfrastructureQueryService`
+
+### [x] 6.3 Update MacApp references
+- Updated `RemoteModel` to use `CDKInfrastructureModel`
+- Updated `CDKInfrastructureSectionView` parameter from `service:` to `model:`
+- Updated `RemoteServiceView` to pass `cdkInfrastructureModel`
+
+### [x] 6.4 Verify build
+
+---
+
+## 7. GitHubService
+
+**Current Location:** `Sources/SwiftDeploy/Services/GitHubService.swift`
+
+**Analysis:**
+- `@MainActor @Observable` class mixing state and logic
+- State: `ciStatus` (GitHubCIStatus), `config` (GitHubConfiguration)
+- Logic: `refreshStatus()`, `pushAndDeploy()`, `triggerWorkflow()`, `monitorWorkflowRun()`
+
+**Existing Services Used:**
+- `GitHubCLIService` - GitHub CLI wrapper
+- `GitService` - Git operations
+
+**Refactor Plan:**
+
+### [ ] 7.1 Create GitHubActionsService (stateless)
+- Location: `Sources/SwiftDeploy/Services/GitHubActionsService.swift`
+- Stateless actor for GitHub Actions operations
+- Methods:
+  - `func getLatestWorkflowRun(branch: String) async throws -> WorkflowRun?`
+  - `func getGitStatus() async throws -> GitStatus`
+  - `func pushAndTriggerWorkflow() async throws -> String` (returns run ID)
+  - `func triggerWorkflow() async throws -> String`
+  - `func monitorWorkflowRun(runId: String) -> AsyncStream<WorkflowProgress>`
+  - `func getWorkflowRunDetail(runId: String) async throws -> WorkflowRunDetail`
+
+### [ ] 7.2 Create GitHubCIModel (observable state)
+- Location: `Sources/MacApp/Models/GitHubCIModel.swift`
+- `@Observable` class holding UI state
+- Keeps: `ciStatus`, `config`, status publishers
+- Delegates operations to `GitHubActionsService`
+
+### [ ] 7.3 Update MacApp references
+- Update any views using GitHubService
+
+### [ ] 7.4 Verify build
+
+---
+
 ## Summary: Before vs After
 
 ### Before
@@ -233,22 +315,143 @@ CLI → Model → sub-services
 ### After (Refactor Complete ✅)
 ```
 SwiftDeploy/Services/
-├── RemoteDeploymentService.swift       (stateless facade)
-├── XcodeLocalDevelopmentService.swift  (stateless facade)
-├── LinuxLocalDevelopmentService.swift  (stateless facade)
-├── DependencyCheckerService.swift      (stateless)
+├── RemoteDeploymentService.swift          (stateless facade)
+├── XcodeLocalDevelopmentService.swift     (stateless facade)
+├── LinuxLocalDevelopmentService.swift     (stateless facade)
+├── DependencyCheckerService.swift         (stateless)
+├── CDKInfrastructureQueryService.swift    (stateless)
 └── ... (existing services)
 
 SwiftDeploy/LambdaServices/
-├── LambdaService.swift                 (protocol + DeploymentStatus)
-└── LocalService.swift                  (protocol for local services)
+├── LambdaService.swift                    (protocol + DeploymentStatus)
+└── LocalService.swift                     (protocol for local services)
 
 MacApp/Models/
-├── RemoteModel.swift           (@Observable state only)
-├── XcodeLocalModel.swift       (@Observable state only)
-├── LinuxLocalModel.swift       (@Observable state only)
-└── DependencyStatusModel.swift (@Observable state only)
+├── RemoteModel.swift              (@Observable state only)
+├── XcodeLocalModel.swift          (@Observable state only)
+├── LinuxLocalModel.swift          (@Observable state only)
+├── DependencyStatusModel.swift    (@Observable state only)
+└── CDKInfrastructureModel.swift   (@Observable state only)
 
 CLI → Service (single call)
 MacApp View → Model → Service
 ```
+
+---
+
+## 8. Future: Move Business Logic from CDKInfrastructureModel to Service
+
+**Status:** Proposed
+
+**Problem:**
+
+`CDKInfrastructureModel` currently contains significant business/domain logic that should ideally live in the service layer:
+
+- **Progress polling** (`pollProgressUntilCancelled`, `updateProgressOnce`)
+- **Operation monitoring** (`monitorExistingOperation`)
+- **Deployment orchestration** (`runDeployWithProgressPolling`)
+- **Credential error detection** (`isCredentialError`)
+
+This violates the intended pattern where Models should:
+- Hold observable state for UI binding
+- Make simple API calls to services
+- Transform service responses into UI state
+
+Instead, Models should NOT:
+- Contain polling loops
+- Orchestrate multi-step operations
+- Parse/interpret domain-specific data
+
+**Key Constraint:** Services must remain stateless. They should **return** state, not **hold** state.
+
+**Current Flow:**
+```
+View → Model.deploy() → [polling logic in Model] → Service.deploy()
+                      → [progress tracking in Model]
+                      → [error handling in Model]
+```
+
+**Target Flow:**
+```
+View → Model.deploy() → Service.deployWithProgress() → AsyncStream<Progress>
+                      ↓
+                Model updates state from stream
+```
+
+**Proposed Changes:**
+
+### [ ] 8.1 Service returns progress via AsyncStream (stateless)
+- Add `func deployWithProgress(...) -> AsyncStream<CDKDeploymentProgress>`
+- Add `func destroyWithProgress(...) -> AsyncStream<CDKDeploymentProgress>`
+- Service creates a fresh stream per call (no stored state)
+- Stream internally polls CloudFormation and yields progress snapshots
+- Each yield is a complete state snapshot (not a delta)
+
+```swift
+// Service - stateless, returns state via stream
+public func deployWithProgress(...) -> AsyncStream<CDKDeploymentProgress> {
+    AsyncStream { continuation in
+        Task {
+            // Start CDK deploy
+            try await cdkService.deploy(...)
+
+            // Poll and yield progress (no state stored in service)
+            while !Task.isCancelled {
+                let events = try await awsService.getStackEvents(...)
+                let progress = CDKDeploymentProgress(from: events) // Pure transformation
+                continuation.yield(progress)
+                try await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+}
+```
+
+### [ ] 8.2 Simplify CDKInfrastructureModel
+- Remove polling logic entirely
+- Subscribe to service's AsyncStream
+- Map stream values directly to `@Observable` state
+- Model becomes a thin state container
+
+```swift
+// Model - holds state, subscribes to service
+public func deploy(...) async throws {
+    infrastructureStatus.status = .deploying(operation: "Deploying")
+
+    for await progress in queryService.deployWithProgress(...) {
+        // Just assign returned state - no business logic
+        infrastructureStatus.deploymentProgress = progress
+    }
+
+    await refreshStatus()
+}
+```
+
+### [ ] 8.3 Service returns typed errors (stateless)
+- Service throws typed errors: `CDKError.credentialExpired`, `CDKError.stackNotFound`
+- Model catches and maps to UI states
+- Error classification logic lives in service, not model
+
+```swift
+// Service - classifies errors
+public func getStackStatus(...) async throws -> StackStatus {
+    do {
+        return try await awsService.getStackStatus(...)
+    } catch let error where isCredentialError(error) {
+        throw CDKError.credentialExpired(underlying: error)
+    }
+}
+
+// Model - maps errors to UI state
+do {
+    let status = try await queryService.getStackStatus(...)
+} catch CDKError.credentialExpired {
+    infrastructureStatus.status = .failed(reason: "credentials expired")
+}
+```
+
+**Benefits:**
+- Services remain stateless and fully testable
+- Models are trivially simple (state assignment + subscriptions)
+- Clear data flow: Service returns state → Model stores state → View observes state
+- Consistent pattern across all Model/Service pairs

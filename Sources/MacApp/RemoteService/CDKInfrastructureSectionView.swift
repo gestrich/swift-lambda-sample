@@ -1,8 +1,7 @@
 import CLIKit
-import SwiftDeploy
 import SwiftUI
 
-/// Placeholder when CDKInfrastructureService is not available (config missing or loading)
+/// Placeholder when CDKInfrastructureModel is not available (config missing or loading)
 struct CDKInfrastructureLoadingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -43,7 +42,7 @@ struct CDKInfrastructureLoadingView: View {
 /// View for the CDK Infrastructure section in Remote mode
 /// Shows stack status, configuration, outputs, and deploy/destroy actions
 struct CDKInfrastructureSectionView: View {
-    @State var service: CDKInfrastructureService
+    @State var model: CDKInfrastructureModel
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
@@ -65,7 +64,7 @@ struct CDKInfrastructureSectionView: View {
     @State private var showErrorDetails = false
 
     private var status: CDKInfrastructureStatus {
-        service.infrastructureStatus
+        model.infrastructureStatus
     }
 
     var body: some View {
@@ -79,7 +78,7 @@ struct CDKInfrastructureSectionView: View {
 
                 // Refresh button
                 Button {
-                    Task { await service.refreshStatus() }
+                    Task { await model.refreshStatus() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -95,7 +94,7 @@ struct CDKInfrastructureSectionView: View {
                     errorMessage: reason,
                     onOpenSettings: onOpenSettings,
                     onRetry: {
-                        Task { await service.refreshStatus() }
+                        Task { await model.refreshStatus() }
                     }
                 )
             } else {
@@ -472,7 +471,7 @@ struct CDKInfrastructureSectionView: View {
                     Button {
                         showOutput()
                         Task {
-                            try? await service.deploy(withPostgres: false, withNATGateway: false, output: stream)
+                            try? await model.deploy(withPostgres: false, withNATGateway: false, output: stream)
                         }
                     } label: {
                         Label("Minimal (No Database)", systemImage: "leaf")
@@ -481,7 +480,7 @@ struct CDKInfrastructureSectionView: View {
                     Button {
                         showOutput()
                         Task {
-                            try? await service.deploy(withPostgres: true, withNATGateway: false, output: stream)
+                            try? await model.deploy(withPostgres: true, withNATGateway: false, output: stream)
                         }
                     } label: {
                         Label("With PostgreSQL", systemImage: "cylinder")
@@ -490,7 +489,7 @@ struct CDKInfrastructureSectionView: View {
                     Button {
                         showOutput()
                         Task {
-                            try? await service.deploy(withPostgres: true, withNATGateway: true, output: stream)
+                            try? await model.deploy(withPostgres: true, withNATGateway: true, output: stream)
                         }
                     } label: {
                         Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
@@ -502,7 +501,7 @@ struct CDKInfrastructureSectionView: View {
                         Button {
                             showOutput()
                             Task {
-                                try? await service.updateInfrastructure(output: stream)
+                                try? await model.updateInfrastructure(output: stream)
                             }
                         } label: {
                             Label("Update (Keep Config)", systemImage: "arrow.triangle.2.circlepath")
@@ -541,7 +540,7 @@ struct CDKInfrastructureSectionView: View {
                 Button("Destroy", role: .destructive) {
                     showOutput()
                     Task {
-                        try? await service.destroy(output: stream)
+                        try? await model.destroy(output: stream)
                     }
                 }
                 Button("Cancel", role: .cancel) {}
