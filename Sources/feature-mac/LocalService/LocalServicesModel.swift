@@ -2,7 +2,7 @@ import Client
 import CLIKit
 import Combine
 import Foundation
-import SwiftDeploy
+import service_deploy
 
 /// Model that wraps a LocalService, providing @Observable properties for SwiftUI.
 /// Subscribes to the underlying service's publishers and updates observable properties.

@@ -1,5 +1,5 @@
 import CLIKit
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// Enum for Lambda update method selection

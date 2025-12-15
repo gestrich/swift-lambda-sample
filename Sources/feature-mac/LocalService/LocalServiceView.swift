@@ -1,6 +1,6 @@
 import AppKit
 import CLIKit
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// View for Local Lambda service management (Xcode or Linux)

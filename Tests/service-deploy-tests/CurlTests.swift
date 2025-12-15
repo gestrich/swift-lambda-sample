@@ -1,5 +1,5 @@
 import CLIKit
-@testable import SwiftDeploy
+@testable import service_deploy
 import Testing
 
 @Suite("curl CLI Command Tests")

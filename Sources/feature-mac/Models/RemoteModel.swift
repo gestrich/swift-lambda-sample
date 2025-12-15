@@ -3,7 +3,7 @@ import Client
 import Combine
 import Foundation
 import Observation
-import SwiftDeploy
+import service_deploy
 
 /// Observable model for remote AWS Lambda service
 /// Holds UI state and delegates operations to services

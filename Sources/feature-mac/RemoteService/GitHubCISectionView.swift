@@ -1,4 +1,4 @@
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// Placeholder when GitHubCIModel is not available (config missing or loading)

@@ -1,6 +1,6 @@
 import Foundation
 import ArgumentParser
-import SwiftDeploy
+import service_deploy
 
 extension AWSCommand {
     struct UpdateLambdaCommand: AsyncParsableCommand {

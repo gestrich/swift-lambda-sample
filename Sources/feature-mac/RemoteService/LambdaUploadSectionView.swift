@@ -1,4 +1,4 @@
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// Placeholder when LambdaUploadService is not available (config missing)

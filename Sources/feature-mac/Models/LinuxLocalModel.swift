@@ -3,7 +3,7 @@ import Client
 import Combine
 import Foundation
 import LocalStorageService
-import SwiftDeploy
+import service_deploy
 
 /// Observable model for Linux container development workflow
 /// Holds UI state and delegates operations to LinuxLocalDevelopmentService

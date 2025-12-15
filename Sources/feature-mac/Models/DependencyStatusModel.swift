@@ -1,7 +1,7 @@
 import CLIKit
 import Foundation
 import Observation
-import SwiftDeploy
+import service_deploy
 
 /// Observable model for dependency installation status
 /// Holds UI state and delegates checking to DependencyCheckerService

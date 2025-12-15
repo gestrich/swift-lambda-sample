@@ -6,7 +6,7 @@
 //
 
 import ArgumentParser
-import SwiftDeploy
+import service_deploy
 
 extension AWSAuthConfiguration {
 

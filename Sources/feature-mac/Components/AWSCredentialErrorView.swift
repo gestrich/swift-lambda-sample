@@ -1,4 +1,4 @@
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// View that explains how to fix AWS credential errors based on configuration state

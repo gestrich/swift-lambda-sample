@@ -1,7 +1,7 @@
 import CLIKit
 import Foundation
 import Observation
-import SwiftDeploy
+import service_deploy
 
 /// Observable model for CDK Infrastructure state management
 /// Holds UI state and delegates operations to CDKInfrastructureQueryService

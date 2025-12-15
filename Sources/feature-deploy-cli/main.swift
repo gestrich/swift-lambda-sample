@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import SwiftDeploy
+import service_deploy
 
 @main
 struct FeatureDeployCLI: AsyncParsableCommand {

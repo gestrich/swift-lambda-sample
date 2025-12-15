@@ -1,4 +1,4 @@
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// Navigation category for the main sidebar

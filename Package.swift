@@ -46,14 +46,14 @@ let package = Package(
             name: "feature-deploy-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "SwiftDeploy"),
+                .target(name: "service-deploy"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
         ),
         .target(
-            name: "SwiftDeploy",
+            name: "service-deploy",
             dependencies: [
                 .target(name: "Client"),
                 .target(name: "LocalStorageService"),
@@ -73,7 +73,7 @@ let package = Package(
             name: "feature-mac",
             dependencies: [
                 .target(name: "Client"),
-                .target(name: "SwiftDeploy"),
+                .target(name: "service-deploy"),
                 .target(name: "CLIKit"),
             ],
             swiftSettings: [
@@ -96,9 +96,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "SwiftDeployTests",
+            name: "service-deploy-tests",
             dependencies: [
-                .target(name: "SwiftDeploy")
+                .target(name: "service-deploy")
             ]
         ),
         .testTarget(

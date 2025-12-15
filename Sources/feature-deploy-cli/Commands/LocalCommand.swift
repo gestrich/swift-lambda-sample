@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import SwiftDeploy
+import service_deploy
 
 // MARK: - Local Mac Command (Native macOS)
 

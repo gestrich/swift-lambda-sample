@@ -1,7 +1,7 @@
 import Client
 import CLIKit
 import Foundation
-import SwiftDeploy
+import service_deploy
 
 /// Top-level model that creates and holds all services.
 /// Manages mode selection and provides access to individual services.

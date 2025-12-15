@@ -1,4 +1,4 @@
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// Settings view for configuring AWS credentials and other app settings

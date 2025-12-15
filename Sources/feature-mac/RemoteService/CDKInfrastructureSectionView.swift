@@ -1,5 +1,5 @@
 import CLIKit
-import SwiftDeploy
+import service_deploy
 import SwiftUI
 
 /// Placeholder when CDKInfrastructureModel is not available (config missing or loading)

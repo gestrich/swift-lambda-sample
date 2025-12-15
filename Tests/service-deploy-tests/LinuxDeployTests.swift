@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-@testable import SwiftDeploy
+@testable import service_deploy
 
 @Suite("Linux Lambda Container Integration Tests")
 @MainActor
