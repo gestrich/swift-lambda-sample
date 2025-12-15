@@ -1,5 +1,5 @@
 import Foundation
-import LocalStorageService
+import sdk_storage
 
 /// Service for managing local MinIO S3 service via Docker
 public actor MinIOService {

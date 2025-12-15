@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import LocalStorageService
+import sdk_storage
 
 /// GitHub configuration for SwiftDeploy
 public struct GitHubConfiguration: Codable, Sendable {

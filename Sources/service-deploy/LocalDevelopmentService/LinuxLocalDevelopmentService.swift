@@ -1,7 +1,7 @@
 import CLIKit
 import Client
 import Foundation
-import LocalStorageService
+import sdk_storage
 
 /// Stateless service for Linux container development workflow (AWS Lambda compatible)
 /// Orchestrates Docker services, container builds, and Lambda container management

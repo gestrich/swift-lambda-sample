@@ -40,7 +40,7 @@ let package = Package(
             exclude: ["README.md"]
         ),
         .target(
-            name: "LocalStorageService"
+            name: "sdk-storage"
         ),
         .executableTarget(
             name: "feature-cli",
@@ -56,7 +56,7 @@ let package = Package(
             name: "service-deploy",
             dependencies: [
                 .target(name: "Client"),
-                .target(name: "LocalStorageService"),
+                .target(name: "sdk-storage"),
                 .target(name: "CLIKit"),
             ]
         ),
@@ -74,6 +74,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Client"),
                 .target(name: "service-deploy"),
+                .target(name: "sdk-storage"),
                 .target(name: "CLIKit"),
             ],
             swiftSettings: [

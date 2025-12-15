@@ -1,7 +1,7 @@
 import CLIKit
 import Client
 import Foundation
-import LocalStorageService
+import sdk_storage
 
 /// Stateless service for native macOS Xcode development workflow
 /// Orchestrates Docker services, native Swift builds, and Lambda process management

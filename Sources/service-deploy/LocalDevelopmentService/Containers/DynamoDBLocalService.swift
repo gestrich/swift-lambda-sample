@@ -1,5 +1,5 @@
 import Foundation
-import LocalStorageService
+import sdk_storage
 
 /// Service for managing local DynamoDB via Docker
 public actor DynamoDBLocalService {

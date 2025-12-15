@@ -2,7 +2,7 @@ import CLIKit
 import Client
 import Combine
 import Foundation
-import LocalStorageService
+import sdk_storage
 import service_deploy
 
 /// Observable model for Linux container development workflow
