@@ -313,11 +313,11 @@ After completing each phase:
 - [x] Find callers of `AWSCLIService.tailLogs` → use `CloudWatchLogsClient` (updated AWSTestingService)
 - [x] Remove `tailLogs` from `AWSCLIService`
 
-### Phase 7: Delete AWSCLIService
+### Phase 7: Delete AWSCLIService ✅
 
-- [ ] Verify no remaining callers of `AWSCLIService`
-- [ ] Delete `Sources/service-deploy/AWSService/AWSCLIService.swift`
-- [ ] Remove any orphaned imports
+- [x] Verify no remaining callers of `AWSCLIService`
+- [x] Delete `Sources/service-deploy/AWSService/AWSCLIService.swift`
+- [x] Remove any orphaned imports (none found)
 
 ---
 
