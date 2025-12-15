@@ -49,24 +49,34 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let orchestrator = RemoteDeploymentOrchestrator(
+            let service = RemoteDeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
             )
 
-            let options = DeploymentConfiguration(
-                skipPostgres: !withPostgres,
-                skipNATGateway: !withNatGateway,
-                awsProfile: awsConfig.profileName,
-                cdkDirectory: cdkDirectory
-            )
+            // Check existing state for warning
+            await service.refresh()
+            let currentState = await service.getCurrentState()
 
-            try await orchestrator.deployInit(
-                options: options,
+            if case .deployed(let config, _) = currentState {
+                print("\n⚠️  WARNING: Stack already exists!")
+                print("   Current configuration:")
+                print("     Database: \(config.hasDatabase ? "YES" : "NO")")
+                print("     NAT Gateway: \(config.hasNATGateway ? "YES" : "NO")")
+                print("\n   New configuration:")
+                print("     Database: \(withPostgres ? "YES" : "NO")")
+                print("     NAT Gateway: \(withNatGateway ? "YES" : "NO")")
+                print("\n   Updating existing stack...\n")
+            }
+
+            try await service.deployInit(
                 withPostgres: withPostgres,
+                withNATGateway: withNatGateway,
                 skipPush: skipPush
             )
+
+            print("\n🎉 Deployment completed successfully!")
         }
     }
 }

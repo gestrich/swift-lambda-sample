@@ -42,13 +42,30 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let orchestrator = RemoteDeploymentOrchestrator(
+            let service = RemoteDeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
             )
 
-            try await orchestrator.tearDown(cdkDirectory: cdkDirectory)
+            // Refresh to get current state (destroy only works if deployed)
+            await service.refresh()
+
+            let currentState = await service.getCurrentState()
+            guard case .deployed = currentState else {
+                if case .notDeployed = currentState {
+                    print("ℹ️  Stack is not deployed. Nothing to tear down.")
+                    return
+                }
+                throw DeployError.invalidConfiguration("Cannot tear down: stack is in state \(currentState)")
+            }
+
+            await service.destroy()
+
+            let finalState = await service.getCurrentState()
+            if case .failed(let reason) = finalState {
+                throw DeployError.deploymentFailed(reason: reason)
+            }
 
             print("\n🎉 Tear down completed successfully!")
         }

@@ -233,13 +233,51 @@ class RemoteModel {
 - The thin model pattern is preserved - `RemoteModel` just bridges async streams to @Observable for SwiftUI
 - `CDKInfrastructureSectionView` continues to work unchanged since the State enums have identical structure
 
-### Phase 4: Update CLI Commands
+### Phase 4: Update CLI Commands ✅ COMPLETED
 
-- [ ] Update CLI commands to use `RemoteDeploymentService`
-- [ ] CLI can call service directly (no model needed)
+- [x] Update CLI commands to use `RemoteDeploymentService`
+- [x] CLI can call service directly (no model needed)
+- [x] Add convenience initializer to `RemoteDeploymentService` for CLI use (creates its own CLIClient)
+- [x] Add `getComprehensiveStatus()` method for StatusCommand
+- [x] Add `updateLambdaCode()` method for UpdateLambdaCommand
+- [x] Add `deployInit()` method for DeployInitCommand with safety checks
+
+**Goal**: CLI commands use `RemoteDeploymentService` directly, consolidating all deployment logic.
 
 **Files Modified**:
-- `Sources/SwiftDeployCLI/Commands/AWS/*.swift`
+- `Sources/feature-cli/Commands/DeployCommand.swift` - Use RemoteDeploymentService
+- `Sources/feature-cli/Commands/DeployInitCommand.swift` - Use RemoteDeploymentService
+- `Sources/feature-cli/Commands/StatusCommand.swift` - Use RemoteDeploymentService
+- `Sources/feature-cli/Commands/TearDownCommand.swift` - Use RemoteDeploymentService
+- `Sources/feature-cli/Commands/UpdateLambdaCommand.swift` - Use RemoteDeploymentService
+- `Sources/service-deploy/CDKService/RemoteDeploymentService.swift` - Added CLI-focused methods
+
+**Technical Notes**:
+- Removed `sdk_cli` import from CLI commands to avoid macro conflicts with ArgumentParser (`@Flag`/`@Option` collision)
+- Added convenience initializer to `RemoteDeploymentService` that creates its own `CLIClient`
+- Added `ComprehensiveStatus` struct and `getComprehensiveStatus()` for full git/GitHub/stack status
+- Added `updateLambdaCode(skipPush:)` for GitHub Actions integration
+- Added `deployInit(withPostgres:withNATGateway:skipPush:)` with safety checks for database deletion
+- `RemoteDeploymentOrchestrator` is now legacy - CLI commands use `RemoteDeploymentService` directly
+
+**API Additions to RemoteDeploymentService**:
+```swift
+// Convenience initializer (creates own CLIClient)
+public init(
+    projectRoot: String,
+    awsConfig: AWSAuthConfiguration,
+    cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
+    stackName: String = CDKStackConfiguration.defaultStackName
+)
+
+// CLI-focused methods
+public func deployInit(withPostgres: Bool, withNATGateway: Bool, skipPush: Bool) async throws
+public func updateLambdaCode(skipPush: Bool) async throws
+public func getComprehensiveStatus() async throws -> ComprehensiveStatus
+public func getCurrentState() -> State
+public func getAPIGatewayURL() -> String?
+public func testEndpoints() async throws
+```
 
 ### Phase 5: Delete Redundant Code
 
@@ -317,7 +355,7 @@ The app-specific `State` enum moves from `CDKInfrastructureQueryService` to `Rem
 | `sdk-aws/CDK/CDKOutputParser.swift` | **Create** (parsing utilities) | ✅ Done |
 | `service-deploy/CDKService/RemoteDeploymentService.swift` | **Create** | ✅ Done |
 | `service-deploy/RemoteDeploymentService/RemoteDeploymentOrchestrator.swift` | **Rename** (from RemoteDeploymentService.swift) | ✅ Done |
-| `feature-cli/Commands/*.swift` | **Update** (use RemoteDeploymentOrchestrator) | ✅ Done |
+| `feature-cli/Commands/*.swift` | **Update** (use RemoteDeploymentService) | ✅ Done |
 | `feature-mac/Models/RemoteModel.swift` | **Update** (use RemoteDeploymentService) | ✅ Done |
 | `feature-mac/RemoteService/CDKInfrastructureSectionView.swift` | **Update** (use RemoteDeploymentService.State) | ✅ Done |
 | `service-deploy/CDKService/CDKInfrastructureQueryService.swift` | **Delete** | Pending |

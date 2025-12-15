@@ -1,5 +1,6 @@
 import sdk_cli
 import sdk_aws
+import sdk_client
 import Foundation
 
 /// Stateful service for remote AWS deployments.
@@ -14,6 +15,7 @@ import Foundation
 /// - Generic CloudFormation queries (via CloudFormationClient from sdk-aws)
 /// - App-specific CDK operations (via SwiftLambdaCDKService)
 /// - App-specific infrastructure detection (via SwiftLambdaInfrastructureService)
+/// - Git/GitHub operations for Lambda code deployment
 public actor RemoteDeploymentService {
 
     // MARK: - State Definition
@@ -95,6 +97,8 @@ public actor RemoteDeploymentService {
     private var state: State = .unknown
     private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
     private let stackName: String
+    private let projectRoot: String
+    private let cliClient: CLIClient
 
     // MARK: - Dependencies (stateless)
 
@@ -103,6 +107,7 @@ public actor RemoteDeploymentService {
 
     // MARK: - Initialization
 
+    /// Full initializer with explicit CLIClient (for injection/testing)
     public init(
         projectRoot: String,
         awsConfig: AWSAuthConfiguration,
@@ -111,6 +116,8 @@ public actor RemoteDeploymentService {
         cliClient: CLIClient
     ) {
         self.stackName = stackName
+        self.projectRoot = projectRoot
+        self.cliClient = cliClient
 
         self.cdkService = SwiftLambdaCDKService(
             projectRoot: projectRoot,
@@ -124,6 +131,23 @@ public actor RemoteDeploymentService {
             awsConfig: awsConfig,
             cliClient: cliClient,
             stackName: stackName
+        )
+    }
+
+    /// Convenience initializer that creates its own CLIClient
+    public init(
+        projectRoot: String,
+        awsConfig: AWSAuthConfiguration,
+        cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
+        stackName: String = CDKStackConfiguration.defaultStackName
+    ) {
+        let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
+        self.init(
+            projectRoot: projectRoot,
+            awsConfig: awsConfig,
+            cdkDirectory: cdkDirectory,
+            stackName: stackName,
+            cliClient: cliClient
         )
     }
 
@@ -228,6 +252,319 @@ public actor RemoteDeploymentService {
         } catch {
             publish(.failed(reason: error.localizedDescription))
         }
+    }
+
+    // MARK: - Initial Deployment (with safety checks)
+
+    /// Initial deployment with explicit configuration.
+    /// Includes safety checks to prevent accidental database deletion.
+    public func deployInit(
+        withPostgres: Bool,
+        withNATGateway: Bool,
+        skipPush: Bool = false,
+        output: CLIOutputStream? = nil
+    ) async throws {
+        guard state.canDeploy else {
+            throw DeployError.invalidConfiguration("Cannot deploy while another operation is in progress")
+        }
+
+        // Check existing state for safety
+        let existingConfig = try? await queryConfiguration()
+
+        if let existing = existingConfig, existing.hasDatabase && !withPostgres {
+            throw DeployError.invalidConfiguration(
+                "Cannot remove database with deploy-init. Use 'tear-down' first if you want to remove the database."
+            )
+        }
+
+        // Deploy infrastructure
+        await deploy(withPostgres: withPostgres, withNATGateway: withNATGateway, output: output)
+
+        // Check if deploy failed
+        if case .failed(let reason) = state {
+            throw DeployError.deploymentFailed(reason: reason)
+        }
+
+        // Update Lambda code via GitHub Actions
+        try await updateLambdaCode(skipPush: skipPush)
+
+        // Initialize database if needed
+        if withPostgres {
+            try await initializeDatabase()
+        }
+
+        // Verify deployment
+        try await verifyDeployment(withPostgres: withPostgres)
+    }
+
+    // MARK: - Lambda Code Updates (via GitHub Actions)
+
+    /// Update Lambda code via GitHub Actions
+    public func updateLambdaCode(skipPush: Bool = false) async throws {
+        guard let config = GitHubConfiguration.loadConfig() else {
+            throw DeployError.configurationMissing(
+                file: GitHubConfiguration.configPath,
+                hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
+            )
+        }
+
+        let gitService = GitService(repoPath: projectRoot, cliClient: cliClient)
+        let actionsService = GitHubActionsService(repoPath: projectRoot, config: config, cliClient: cliClient)
+
+        if !skipPush {
+            let hasCommitsToPush = try await gitService.hasCommitsToPush()
+
+            if hasCommitsToPush {
+                let beforeRunId = try await actionsService.getLatestRunId()
+                try await gitService.push()
+
+                try await actionsService.waitForNewWorkflowCompletion(
+                    afterRunId: beforeRunId,
+                    timeoutMinutes: 10
+                )
+            } else {
+                print("\n✅ No commits to push")
+                print("🔄 Triggering workflow to redeploy current code...\n")
+                try await actionsService.triggerWorkflowAndWait(
+                    workflowName: "Dev Deploy",
+                    timeoutMinutes: 10
+                )
+            }
+        } else {
+            print("\n⏭️  Skipping git push (--skip-push enabled)")
+            print("🔄 Triggering workflow...\n")
+            try await actionsService.triggerWorkflowAndWait(
+                workflowName: "Dev Deploy",
+                timeoutMinutes: 10
+            )
+        }
+    }
+
+    // MARK: - Status Operations (for CLI)
+
+    /// Comprehensive status snapshot for CLI display
+    public struct ComprehensiveStatus: Sendable {
+        public let deploymentState: State
+        public let gitStatus: GitStatusInfo
+        public let githubStatus: GitHubStatusInfo?
+        public let stackOutputs: [String: String]
+
+        public struct GitStatusInfo: Sendable {
+            public let hasUncommittedChanges: Bool
+            public let hasCommitsToPush: Bool
+            public let currentBranch: String
+        }
+
+        public struct GitHubStatusInfo: Sendable {
+            public let repository: String
+            public let branch: String
+            public let latestRunStatus: String
+            public let conclusion: String?
+        }
+    }
+
+    /// Get comprehensive status including git, GitHub, and deployment state
+    public func getComprehensiveStatus() async throws -> ComprehensiveStatus {
+        // Refresh deployment state if unknown
+        if state == .unknown {
+            await refresh()
+        }
+
+        let gitService = GitService(repoPath: projectRoot, cliClient: cliClient)
+
+        // Get git status
+        let hasUncommitted = try await gitService.hasUncommittedChanges()
+        let hasCommitsToPush = try await gitService.hasCommitsToPush()
+        let currentBranch = try await gitService.getCurrentBranch()
+
+        let gitStatus = ComprehensiveStatus.GitStatusInfo(
+            hasUncommittedChanges: hasUncommitted,
+            hasCommitsToPush: hasCommitsToPush,
+            currentBranch: currentBranch
+        )
+
+        // Get GitHub status if configured
+        var githubStatus: ComprehensiveStatus.GitHubStatusInfo? = nil
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            let actionsService = GitHubActionsService(repoPath: projectRoot, config: githubConfig, cliClient: cliClient)
+            do {
+                let (status, conclusion) = try await actionsService.getLatestRunStatus()
+                githubStatus = ComprehensiveStatus.GitHubStatusInfo(
+                    repository: githubConfig.repository,
+                    branch: githubConfig.branch,
+                    latestRunStatus: status,
+                    conclusion: conclusion
+                )
+            } catch {
+                // GitHub status unavailable
+            }
+        }
+
+        // Get stack outputs
+        let stackOutputs: [String: String]
+        do {
+            stackOutputs = try await getStackOutputs()
+        } catch {
+            stackOutputs = [:]
+        }
+
+        return ComprehensiveStatus(
+            deploymentState: state,
+            gitStatus: gitStatus,
+            githubStatus: githubStatus,
+            stackOutputs: stackOutputs
+        )
+    }
+
+    // MARK: - Public Accessors
+
+    /// Get current state synchronously (does not trigger refresh)
+    public func getCurrentState() -> State {
+        state
+    }
+
+    /// Get API Gateway URL from current state
+    public func getAPIGatewayURL() -> String? {
+        state.outputs.apiGatewayUrl
+    }
+
+    /// Get raw stack outputs
+    public func getRawStackOutputs() async throws -> [String: String] {
+        try await getStackOutputs()
+    }
+
+    // MARK: - Testing Operations
+
+    /// Test remote Lambda endpoints
+    public func testEndpoints() async throws {
+        guard let apiUrl = state.outputs.apiGatewayUrl else {
+            throw DeployError.testFailed(message: "Remote endpoint not configured. Deploy first.")
+        }
+
+        print("\n🧪 Testing remote Lambda at \(apiUrl)...")
+        print("")
+
+        let client = await APIClient(baseURL: apiUrl, serviceName: "Remote (API Gateway)")
+
+        print("→ Testing file upload...")
+        let testContent = "Hello from remote test!"
+        guard let testData = testContent.data(using: .utf8) else {
+            throw DeployError.testFailed(message: "Failed to create test data")
+        }
+
+        let uploadResponse = try await client.uploadFile(fileName: "test-remote.txt", data: testData)
+        if uploadResponse.contains("File uploaded: test-remote.txt") {
+            print("  ✅ File upload test passed")
+        } else {
+            print("  ❌ File upload test failed: \(uploadResponse)")
+            throw DeployError.testFailed(message: "File upload endpoint test failed")
+        }
+
+        print("")
+
+        print("→ Testing list files...")
+        let fileList = try await client.listFiles()
+        if fileList.contains("test-remote.txt") {
+            print("  ✅ List files test passed (found \(fileList.count) files)")
+        } else {
+            print("  ❌ List files test failed: \(fileList)")
+            throw DeployError.testFailed(message: "List files endpoint test failed")
+        }
+
+        print("")
+        print("✅ All remote Lambda tests passed!")
+    }
+
+    // MARK: - Private: Database Initialization
+
+    private func initializeDatabase() async throws {
+        guard let apiUrl = state.outputs.apiGatewayUrl else {
+            throw DeployError.deploymentFailed(reason: "Could not find ApiGatewayUrl in stack outputs")
+        }
+
+        print("\n🗄️  Initializing database...")
+        print("  → POST \(apiUrl)api/database")
+
+        let curlCommand = Curl.Request.post(url: "\(apiUrl)api/database", silent: true)
+        let result = try await cliClient.executeForResult(curlCommand, printCommand: false)
+
+        guard result.isSuccess else {
+            throw CLIClientError.executionFailed(
+                command: curlCommand.commandString,
+                exitCode: result.exitCode,
+                output: result.output
+            )
+        }
+
+        let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("  Response: \(response)")
+
+        if !response.contains("Database Initialized") {
+            throw DeployError.deploymentFailed(reason: "Unexpected database init response: \(response)")
+        }
+
+        print("  ✓ Database initialized successfully")
+    }
+
+    private func verifyDeployment(withPostgres: Bool) async throws {
+        guard let apiUrl = state.outputs.apiGatewayUrl else {
+            throw DeployError.deploymentFailed(reason: "Could not find ApiGatewayUrl in stack outputs")
+        }
+
+        print("\n🧪 Verifying deployment...")
+        print("  Testing health endpoint...")
+        print("  → GET \(apiUrl)api/health")
+
+        let healthCommand = Curl.Request.get(url: "\(apiUrl)api/health", silent: true)
+        let testResult = try await cliClient.executeForResult(healthCommand, printCommand: false)
+
+        guard testResult.isSuccess else {
+            throw CLIClientError.executionFailed(
+                command: healthCommand.commandString,
+                exitCode: testResult.exitCode,
+                output: testResult.output
+            )
+        }
+
+        let response = testResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("  Response: \(response)")
+
+        if !response.contains("healthy") {
+            throw DeployError.deploymentFailed(reason: "Unexpected API response: \(response)")
+        }
+
+        print("  ✓ API Gateway working")
+        print("  ✓ Lambda function executing")
+        print("  ✓ Health check passed")
+
+        if withPostgres {
+            print("\n  Testing database endpoints...")
+            print("  → GET \(apiUrl)api/users")
+
+            let usersCommand = Curl.Request.get(url: "\(apiUrl)api/users", silent: true)
+            let usersResult = try await cliClient.executeForResult(usersCommand, printCommand: false)
+
+            guard usersResult.isSuccess else {
+                throw CLIClientError.executionFailed(
+                    command: usersCommand.commandString,
+                    exitCode: usersResult.exitCode,
+                    output: usersResult.output
+                )
+            }
+
+            let usersResponse = usersResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("  Response: \(usersResponse)")
+
+            if let data = usersResponse.data(using: .utf8),
+               let _ = try? JSONSerialization.jsonObject(with: data) {
+                print("  ✓ Database connection working")
+                print("  ✓ User endpoint responding")
+            } else {
+                throw DeployError.deploymentFailed(reason: "Invalid JSON response from users endpoint: \(usersResponse)")
+            }
+        }
+
+        print("\n✅ Deployment verification passed!")
     }
 
     // MARK: - Query Operations (Internal)

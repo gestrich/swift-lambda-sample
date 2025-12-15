@@ -25,12 +25,12 @@ extension AWSCommand {
             print("📊 Checking status...\n")
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let orchestrator = RemoteDeploymentOrchestrator(
+            let service = RemoteDeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )
 
-            let status = try await orchestrator.getStatus()
+            let status = try await service.getComprehensiveStatus()
 
             // Git status
             print("📝 Git Status:")
