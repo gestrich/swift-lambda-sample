@@ -3,10 +3,10 @@ import Foundation
 
 /// Service for interacting with GitHub CLI (gh)
 public actor GitHubCLIService {
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let repository: String
 
-    public init(repository: String, cliService: CLIService) {
+    public init(repository: String, cliService: CLIClient) {
         self.cliService = cliService
         self.repository = repository
     }

@@ -19,12 +19,12 @@ public final class DependencyStatusModel {
 
     // MARK: - Services
 
-    public let cliService: CLIService
+    public let cliService: CLIClient
     private let checkerService: DependencyCheckerService
 
     // MARK: - Init
 
-    public init(cliService: CLIService) {
+    public init(cliService: CLIClient) {
         self.cliService = cliService
         self.checkerService = DependencyCheckerService(cliService: cliService)
     }

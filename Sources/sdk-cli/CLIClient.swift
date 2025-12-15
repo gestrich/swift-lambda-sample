@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 
 /// A service for executing command-line operations with async/await support
-public actor CLIService {
+public actor CLIClient {
     /// Global output stream - broadcasts all CLI output to any subscriber.
     private let globalOutput = CLIOutputStream()
 

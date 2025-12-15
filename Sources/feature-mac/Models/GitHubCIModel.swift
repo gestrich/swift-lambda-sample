@@ -22,7 +22,7 @@ public final class GitHubCIModel {
 
     // MARK: - Init
 
-    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIService) {
+    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIClient) {
         self.config = config
         self.actionsService = GitHubActionsService(repoPath: repoPath, config: config, cliService: cliService)
 

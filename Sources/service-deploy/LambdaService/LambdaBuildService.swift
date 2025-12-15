@@ -14,7 +14,7 @@ import Foundation
 @Observable
 public class LambdaBuildService {
     private let workingDirectory: String
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private var awsConfig: AWSAuthConfiguration?
 
     /// Build state for tracking progress
@@ -35,28 +35,28 @@ public class LambdaBuildService {
 
     private let functionName = "swift-lambda-sample"
 
-    public init(workingDirectory: String, cliService: CLIService, awsConfig: AWSAuthConfiguration? = nil) {
+    public init(workingDirectory: String, cliService: CLIClient, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
         self.cliService = cliService
         self.awsConfig = awsConfig
     }
 
-    /// Convenience initializer that creates its own CLIService
+    /// Convenience initializer that creates its own CLIClient
     public init(workingDirectory: String, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
-        self.cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        self.cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.awsConfig = awsConfig
     }
 
-    /// Convenience initializer that creates its own CLIService
+    /// Convenience initializer that creates its own CLIClient
     public convenience init(workingDirectory: String) {
-        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.init(workingDirectory: workingDirectory, cliService: cliService)
     }
 
     /// Convenience initializer with AWS config for upload capability
     public convenience init(workingDirectory: String, awsConfig: AWSAuthConfiguration) {
-        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.init(workingDirectory: workingDirectory, cliService: cliService, awsConfig: awsConfig)
     }
 

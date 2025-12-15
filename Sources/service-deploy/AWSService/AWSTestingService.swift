@@ -6,18 +6,18 @@ import Foundation
 /// Service for testing deployed AWS Lambda and infrastructure
 public actor AWSTestingService {
     private let awsService: AWSCLIService
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let stackName = "SwiftLambdaSampleStack"
     private let lambdaName = "swift-lambda-sample"
 
-    public init(awsConfig: AWSAuthConfiguration, cliService: CLIService) {
+    public init(awsConfig: AWSAuthConfiguration, cliService: CLIClient) {
         self.cliService = cliService
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
     }
 
-    /// Convenience initializer that creates its own CLIService
+    /// Convenience initializer that creates its own CLIClient
     public init(awsConfig: AWSAuthConfiguration) {
-        let cliService = CLIService()
+        let cliService = CLIClient()
         self.cliService = cliService
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
     }

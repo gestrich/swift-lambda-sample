@@ -7,7 +7,7 @@ import service_storage
 /// Orchestrates Docker services, container builds, and Lambda container management
 public actor LinuxLocalDevelopmentService {
     private let dockerService: DockerService
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLLocalService
@@ -31,7 +31,7 @@ public actor LinuxLocalDevelopmentService {
     // MARK: - Initialization
 
     public init(workingDirectory: String) {
-        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.cliService = cliService
         self.dockerService = DockerService(cliService: cliService)
         self.workingDirectory = workingDirectory

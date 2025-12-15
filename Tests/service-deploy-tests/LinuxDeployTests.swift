@@ -14,7 +14,7 @@ import Testing
 struct LinuxContainerIntegrationTests {
 
     let linuxService: LinuxLocalService
-    let cliService: CLIService
+    let cliService: CLIClient
     let projectRoot: URL
 
     init() {
@@ -27,7 +27,7 @@ struct LinuxContainerIntegrationTests {
             .deletingLastPathComponent()  // Remove Tests
 
         self.projectRoot = root
-        self.cliService = CLIService()
+        self.cliService = CLIClient()
         self.linuxService = LinuxLocalService(workingDirectory: root.path)
     }
 

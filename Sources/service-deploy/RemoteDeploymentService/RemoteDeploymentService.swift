@@ -9,7 +9,7 @@ import Foundation
 public actor RemoteDeploymentService {
     private let cdkService: SwiftLambdaCDKService
     private let infrastructureService: SwiftLambdaInfrastructureService
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let projectRoot: String
 
     // MARK: - Initialization
@@ -21,7 +21,7 @@ public actor RemoteDeploymentService {
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
         self.projectRoot = projectRoot
-        let cliService = CLIService(defaultWorkingDirectory: projectRoot)
+        let cliService = CLIClient(defaultWorkingDirectory: projectRoot)
         self.cliService = cliService
 
         self.cdkService = SwiftLambdaCDKService(

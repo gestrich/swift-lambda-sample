@@ -6,7 +6,7 @@ Rename all `*Service` types in the `sdk-*` packages to `*Client`.
 
 ### sdk-cli
 
-- [ ] `CLIService` → `CLIClient` (Sources/sdk-cli/CLIService.swift)
+- [x] `CLIService` → `CLIClient` (Sources/sdk-cli/CLIClient.swift)
 - [ ] `CLIServiceError` → `CLIClientError` (Sources/sdk-cli/CLIServiceError.swift)
 
 ### sdk-aws

@@ -3,9 +3,9 @@ import Foundation
 
 /// Service for interacting with Docker
 public actor DockerService {
-    private let cliService: CLIService
+    private let cliService: CLIClient
 
-    public init(cliService: CLIService) {
+    public init(cliService: CLIClient) {
         self.cliService = cliService
     }
 

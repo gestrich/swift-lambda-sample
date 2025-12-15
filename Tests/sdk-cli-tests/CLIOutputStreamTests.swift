@@ -30,9 +30,9 @@ struct CLIOutputStreamTests {
 
     // MARK: - Dual Stream Output Tests
 
-    @Test("CLIService execute sends to both global and client streams")
+    @Test("CLIClient execute sends to both global and client streams")
     func testExecuteSendsToBothStreams() async throws {
-        let cliService = CLIService()
+        let cliService = CLIClient()
 
         // Create client-owned stream
         let clientStream = CLIOutputStream()
@@ -85,9 +85,9 @@ struct CLIOutputStreamTests {
         #expect(clientHasEcho, "Client stream should receive stdout")
     }
 
-    @Test("CLIService stream sends to both global and client streams")
+    @Test("CLIClient stream sends to both global and client streams")
     func testStreamSendsToBothStreams() async throws {
-        let cliService = CLIService()
+        let cliService = CLIClient()
 
         // Create client-owned stream
         let clientStream = CLIOutputStream()
@@ -144,7 +144,7 @@ struct CLIOutputStreamTests {
 
     @Test("Client stream isolation - only receives own operation output")
     func testClientStreamIsolation() async throws {
-        let cliService = CLIService()
+        let cliService = CLIClient()
 
         // Create a client stream for operation 2 only
         let clientStream = CLIOutputStream()

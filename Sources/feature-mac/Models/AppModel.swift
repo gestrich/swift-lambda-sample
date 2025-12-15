@@ -59,7 +59,7 @@ class AppModel {
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
 
-        self.dependencyStatusModel = DependencyStatusModel(cliService: CLIService(defaultWorkingDirectory: projectDirectory))
+        self.dependencyStatusModel = DependencyStatusModel(cliService: CLIClient(defaultWorkingDirectory: projectDirectory))
 
         // Create observable models for local services
         self.xcodeLocalModel = LocalServicesModel(service: xcode)

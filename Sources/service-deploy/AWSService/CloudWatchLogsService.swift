@@ -20,7 +20,7 @@ public actor LambdaLogsService {
     ///   - lambdaFunctionName: Lambda function name (default: "swift-lambda-sample")
     public init(
         awsConfig: AWSAuthConfiguration,
-        cliService: CLIService,
+        cliService: CLIClient,
         lambdaFunctionName: String = "swift-lambda-sample"
     ) {
         let logGroup = "/aws/lambda/\(lambdaFunctionName)"

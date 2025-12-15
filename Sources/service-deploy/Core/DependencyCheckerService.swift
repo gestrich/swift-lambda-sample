@@ -3,9 +3,9 @@ import Foundation
 
 /// Stateless service for checking dependency installation status
 public actor DependencyCheckerService {
-    private let cliService: CLIService
+    private let cliService: CLIClient
 
-    public init(cliService: CLIService) {
+    public init(cliService: CLIClient) {
         self.cliService = cliService
     }
 

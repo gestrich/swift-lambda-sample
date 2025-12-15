@@ -13,7 +13,7 @@ import service_deploy
 @Observable
 public class RemoteModel: LambdaService {
     private let awsService: AWSCLIService
-    public let cliService: CLIService
+    public let cliService: CLIClient
     private let projectRoot: String
 
     /// Endpoint fetched from CDK stack (not persisted)
@@ -89,7 +89,7 @@ public class RemoteModel: LambdaService {
         cdkDirectory: String = "cdk"
     ) {
         self.projectRoot = projectRoot
-        let cliService = CLIService(defaultWorkingDirectory: projectRoot)
+        let cliService = CLIClient(defaultWorkingDirectory: projectRoot)
         self.cliService = cliService
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
 

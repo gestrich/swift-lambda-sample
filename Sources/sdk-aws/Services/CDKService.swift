@@ -6,14 +6,14 @@ import Foundation
 /// App-specific configuration (like skipPostgres, skipNATGateway) should be
 /// passed via the context parameter in DeployOptions.
 public actor CDKService {
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let cdkDirectory: String
     private let credentialProvider: AWSCredentialProvider
 
     public init(
         cdkDirectory: String,
         credentialProvider: AWSCredentialProvider,
-        cliService: CLIService
+        cliService: CLIClient
     ) {
         self.cliService = cliService
         self.cdkDirectory = cdkDirectory

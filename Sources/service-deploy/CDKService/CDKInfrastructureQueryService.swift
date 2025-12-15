@@ -102,7 +102,7 @@ public actor CDKInfrastructureQueryService {
         awsConfig: AWSAuthConfiguration,
         cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
         stackName: String = CDKStackConfiguration.defaultStackName,
-        cliService: CLIService
+        cliService: CLIClient
     ) {
         self.stackName = stackName
 

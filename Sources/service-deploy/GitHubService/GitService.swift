@@ -3,10 +3,10 @@ import Foundation
 
 /// Service for Git operations
 public actor GitService {
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let repoPath: String
 
-    public init(repoPath: String, cliService: CLIService) {
+    public init(repoPath: String, cliService: CLIClient) {
         self.cliService = cliService
         self.repoPath = repoPath
     }

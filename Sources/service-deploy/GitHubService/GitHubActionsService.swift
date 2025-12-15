@@ -6,12 +6,12 @@ import Foundation
 public actor GitHubActionsService {
     private let ghCLIService: GitHubCLIService
     private let gitService: GitService
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let config: GitHubConfiguration
 
     // MARK: - Init
 
-    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIService) {
+    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIClient) {
         self.config = config
         self.cliService = cliService
         self.ghCLIService = GitHubCLIService(repository: config.repository, cliService: cliService)

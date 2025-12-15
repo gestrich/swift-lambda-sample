@@ -29,7 +29,7 @@ public enum CloudWatchLogsProgress: Sendable {
 /// This is a generic service - the log group must be provided by the caller.
 public actor CloudWatchLogsService {
     private let credentialProvider: AWSCredentialProvider
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let logGroup: String
 
     /// Currently running stream task (for cancellation)
@@ -43,7 +43,7 @@ public actor CloudWatchLogsService {
     public init(
         logGroup: String,
         credentialProvider: AWSCredentialProvider,
-        cliService: CLIService
+        cliService: CLIClient
     ) {
         self.logGroup = logGroup
         self.credentialProvider = credentialProvider

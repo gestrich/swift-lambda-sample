@@ -61,7 +61,7 @@ public final class CloudWatchLogsModel {
 
     public init(
         awsConfig: AWSAuthConfiguration,
-        cliService: CLIService,
+        cliService: CLIClient,
         lambdaFunctionName: String = "swift-lambda-sample"
     ) {
         self.logsService = LambdaLogsService(

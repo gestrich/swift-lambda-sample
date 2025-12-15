@@ -7,7 +7,7 @@ import service_storage
 /// Orchestrates Docker services, native Swift builds, and Lambda process management
 public actor XcodeLocalDevelopmentService {
     private let dockerService: DockerService
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLLocalService
@@ -25,7 +25,7 @@ public actor XcodeLocalDevelopmentService {
     // MARK: - Initialization
 
     public init(workingDirectory: String) {
-        let cliService = CLIService(defaultWorkingDirectory: workingDirectory)
+        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.cliService = cliService
         self.dockerService = DockerService(cliService: cliService)
         self.workingDirectory = workingDirectory

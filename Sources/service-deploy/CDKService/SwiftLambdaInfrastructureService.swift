@@ -20,7 +20,7 @@ public actor SwiftLambdaInfrastructureService {
     /// Convenience initializer using AWSAuthConfiguration
     public init(
         awsConfig: AWSAuthConfiguration,
-        cliService: CLIService,
+        cliService: CLIClient,
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
         self.cloudFormation = CloudFormationService(

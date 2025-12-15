@@ -6,7 +6,7 @@ A Swift framework for building type-safe command-line tool wrappers using macros
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        CLIService                           │
+│                        CLIClient                            │
 │  - Executes commands                                        │
 │  - Returns ExecutionResult or typed Output                  │
 └─────────────────────────────────────────────────────────────┘
@@ -63,7 +63,7 @@ The building blocks of commands:
 | `CLIPrefixOption` | Joined prefix + value | `-9`, `-TERM` |
 | `CLIPositional` | Positional argument | `feature-branch` |
 
-### CLIService
+### CLIClient
 
 Executes commands and returns results. Each consumer should create their own instance to ensure output streams are isolated.
 
@@ -169,7 +169,7 @@ This differs from `@Option` which produces separate arguments:
 ### Basic Execution
 
 ```swift
-let service = CLIService()
+let service = CLIClient()
 
 // Run a command, get raw result
 let result = try await service.execute(
@@ -218,7 +218,7 @@ CLIKit/
 ├── CLIProgram.swift          # CLIProgram protocol
 ├── CLICommand.swift          # CLICommand protocol
 ├── CLIArgument.swift         # CLIFlag, CLIOption, CLIPositional
-├── CLIService.swift          # Command execution service
+├── CLIClient.swift           # Command execution client
 ├── CLIServiceError.swift     # Error types
 ├── CLIOutputParser.swift     # Parser protocol + built-ins
 ├── ExecutionResult.swift     # Execution result types

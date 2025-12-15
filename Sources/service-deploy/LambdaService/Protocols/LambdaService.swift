@@ -40,8 +40,8 @@ public protocol LambdaService {
     // MARK: - CLI Service
 
     /// The CLI service instance for this service.
-    /// Each service has its own dedicated CLIService to isolate output streams.
-    var cliService: CLIService { get }
+    /// Each service has its own dedicated CLIClient to isolate output streams.
+    var cliService: CLIClient { get }
 
     // MARK: - Testing
 

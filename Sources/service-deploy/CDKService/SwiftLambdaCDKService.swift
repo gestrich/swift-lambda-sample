@@ -11,7 +11,7 @@ public actor SwiftLambdaCDKService {
     public init(
         cdkDirectory: String,
         credentialProvider: AWSCredentialProvider,
-        cliService: CLIService,
+        cliService: CLIClient,
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
         self.cdkService = sdk_aws.CDKService(
@@ -28,7 +28,7 @@ public actor SwiftLambdaCDKService {
         awsConfig: AWSAuthConfiguration,
         cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
         stackName: String = CDKStackConfiguration.defaultStackName,
-        cliService: CLIService
+        cliService: CLIClient
     ) {
         let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
         self.cdkService = sdk_aws.CDKService(

@@ -3,7 +3,7 @@ import Foundation
 /// A reusable parser that transforms raw CLI output into typed results
 ///
 /// Use this protocol to create reusable parsers that can be shared across
-/// multiple commands or used as overrides via `CLIService.execute(_:parser:)`.
+/// multiple commands or used as overrides via `CLIClient.execute(_:parser:)`.
 public protocol CLIOutputParser<Output>: Sendable {
     associatedtype Output: Sendable
 

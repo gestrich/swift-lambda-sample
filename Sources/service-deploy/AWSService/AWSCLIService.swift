@@ -4,11 +4,11 @@ import Foundation
 
 /// Service for interacting with AWS CLI
 public actor AWSCLIService {
-    private let cliService: CLIService
+    private let cliService: CLIClient
     private let profile: String
     private let vaultService: AWSVaultService?
 
-    public init(awsConfig: AWSAuthConfiguration, cliService: CLIService) {
+    public init(awsConfig: AWSAuthConfiguration, cliService: CLIClient) {
         self.cliService = cliService
         self.profile = awsConfig.profileName
         self.vaultService = awsConfig.useAWSVault ? AWSVaultService(profile: awsConfig.profileName) : nil
