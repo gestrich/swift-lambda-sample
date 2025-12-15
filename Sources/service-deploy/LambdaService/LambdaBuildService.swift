@@ -14,7 +14,7 @@ import Foundation
 @Observable
 public class LambdaBuildService {
     private let workingDirectory: String
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private var awsConfig: AWSAuthConfiguration?
 
     /// Build state for tracking progress
@@ -35,29 +35,29 @@ public class LambdaBuildService {
 
     private let functionName = "swift-lambda-sample"
 
-    public init(workingDirectory: String, cliService: CLIClient, awsConfig: AWSAuthConfiguration? = nil) {
+    public init(workingDirectory: String, cliClient: CLIClient, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
-        self.cliService = cliService
+        self.cliClient = cliClient
         self.awsConfig = awsConfig
     }
 
     /// Convenience initializer that creates its own CLIClient
     public init(workingDirectory: String, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
-        self.cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
+        self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.awsConfig = awsConfig
     }
 
     /// Convenience initializer that creates its own CLIClient
     public convenience init(workingDirectory: String) {
-        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.init(workingDirectory: workingDirectory, cliService: cliService)
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        self.init(workingDirectory: workingDirectory, cliClient: cliClient)
     }
 
     /// Convenience initializer with AWS config for upload capability
     public convenience init(workingDirectory: String, awsConfig: AWSAuthConfiguration) {
-        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.init(workingDirectory: workingDirectory, cliService: cliService, awsConfig: awsConfig)
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        self.init(workingDirectory: workingDirectory, cliClient: cliClient, awsConfig: awsConfig)
     }
 
     // MARK: - Build Operations
@@ -76,7 +76,7 @@ public class LambdaBuildService {
             await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
                 let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
-                _ = try await cliService.execute(
+                _ = try await cliClient.execute(
                     rmCmd,
                     workingDirectory: workingDirectory,
                     printCommand: false,
@@ -100,7 +100,7 @@ public class LambdaBuildService {
 
         // Stream the build output using typed command
         let buildCmd = BuildScript.Build.lambda(target: "feature-lambda")
-        let stream = await cliService.stream(
+        let stream = await cliClient.stream(
             buildCmd,
             workingDirectory: workingDirectory,
             printCommand: false,
@@ -132,7 +132,7 @@ public class LambdaBuildService {
     /// Delete build artifacts and reset build state
     public func deleteBuild() async throws {
         let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             rmCmd,
             workingDirectory: workingDirectory,
             printCommand: false
@@ -178,7 +178,7 @@ public class LambdaBuildService {
                 arguments = command.commandArguments
             }
 
-            let result = try await cliService.execute(
+            let result = try await cliClient.execute(
                 command: execCommand,
                 arguments: arguments,
                 workingDirectory: workingDirectory,

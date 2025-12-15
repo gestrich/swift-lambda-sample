@@ -32,7 +32,7 @@ struct CLIOutputStreamTests {
 
     @Test("CLIClient execute sends to both global and client streams")
     func testExecuteSendsToBothStreams() async throws {
-        let cliService = CLIClient()
+        let cliClient = CLIClient()
 
         // Create client-owned stream
         let clientStream = CLIOutputStream()
@@ -40,7 +40,7 @@ struct CLIOutputStreamTests {
         // Start subscribers that return collected output
         let globalTask = Task { () -> [StreamOutput] in
             var received: [StreamOutput] = []
-            for await item in await cliService.outputStream() {
+            for await item in await cliClient.outputStream() {
                 received.append(item)
                 if case .exit = item { break }
             }
@@ -60,7 +60,7 @@ struct CLIOutputStreamTests {
         try await Task.sleep(nanoseconds: 20_000_000) // 20ms
 
         // Execute command with client stream
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             command: "echo",
             arguments: ["hello"],
             printCommand: false,
@@ -87,7 +87,7 @@ struct CLIOutputStreamTests {
 
     @Test("CLIClient stream sends to both global and client streams")
     func testStreamSendsToBothStreams() async throws {
-        let cliService = CLIClient()
+        let cliClient = CLIClient()
 
         // Create client-owned stream
         let clientStream = CLIOutputStream()
@@ -95,7 +95,7 @@ struct CLIOutputStreamTests {
         // Start subscribers that return collected output
         let globalTask = Task { () -> [StreamOutput] in
             var received: [StreamOutput] = []
-            for await item in await cliService.outputStream() {
+            for await item in await cliClient.outputStream() {
                 received.append(item)
                 if case .exit = item { break }
             }
@@ -115,7 +115,7 @@ struct CLIOutputStreamTests {
         try await Task.sleep(nanoseconds: 20_000_000) // 20ms
 
         // Stream command with client stream
-        for await _ in await cliService.stream(
+        for await _ in await cliClient.stream(
             command: "echo",
             arguments: ["test"],
             printCommand: false,
@@ -144,7 +144,7 @@ struct CLIOutputStreamTests {
 
     @Test("Client stream isolation - only receives own operation output")
     func testClientStreamIsolation() async throws {
-        let cliService = CLIClient()
+        let cliClient = CLIClient()
 
         // Create a client stream for operation 2 only
         let clientStream = CLIOutputStream()
@@ -162,14 +162,14 @@ struct CLIOutputStreamTests {
         try await Task.sleep(nanoseconds: 20_000_000) // 20ms
 
         // Operation 1: Execute WITHOUT client stream
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             command: "echo",
             arguments: ["operation-one"],
             printCommand: false
         )
 
         // Operation 2: Execute WITH client stream
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             command: "echo",
             arguments: ["operation-two"],
             printCommand: false,

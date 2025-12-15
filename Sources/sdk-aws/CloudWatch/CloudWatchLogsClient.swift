@@ -29,7 +29,7 @@ public enum CloudWatchLogsProgress: Sendable {
 /// This is a generic client - the log group must be provided by the caller.
 public actor CloudWatchLogsClient {
     private let credentialProvider: AWSCredentialProvider
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let logGroup: String
 
     /// Currently running stream task (for cancellation)
@@ -39,15 +39,15 @@ public actor CloudWatchLogsClient {
     /// - Parameters:
     ///   - logGroup: CloudWatch log group name (e.g., "/aws/lambda/my-function")
     ///   - credentialProvider: AWS credential provider for authentication
-    ///   - cliService: CLI service for executing commands
+    ///   - cliClient: CLI service for executing commands
     public init(
         logGroup: String,
         credentialProvider: AWSCredentialProvider,
-        cliService: CLIClient
+        cliClient: CLIClient
     ) {
         self.logGroup = logGroup
         self.credentialProvider = credentialProvider
-        self.cliService = cliService
+        self.cliClient = cliClient
     }
 
     /// Whether logs are currently being streamed
@@ -93,7 +93,7 @@ public actor CloudWatchLogsClient {
     ) async throws -> [CloudWatchLogEntry] {
         let (execCommand, arguments) = buildCommandLine(since: since, follow: false)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: credentialProvider.environment.merging([

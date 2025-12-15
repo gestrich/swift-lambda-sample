@@ -9,7 +9,7 @@ import Foundation
 public actor RemoteDeploymentService {
     private let cdkService: SwiftLambdaCDKService
     private let infrastructureService: SwiftLambdaInfrastructureService
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let projectRoot: String
 
     // MARK: - Initialization
@@ -21,20 +21,20 @@ public actor RemoteDeploymentService {
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
         self.projectRoot = projectRoot
-        let cliService = CLIClient(defaultWorkingDirectory: projectRoot)
-        self.cliService = cliService
+        let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
+        self.cliClient = cliClient
 
         self.cdkService = SwiftLambdaCDKService(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
             stackName: stackName,
-            cliService: cliService
+            cliClient: cliClient
         )
 
         self.infrastructureService = SwiftLambdaInfrastructureService(
             awsConfig: awsConfig,
-            cliService: cliService,
+            cliClient: cliClient,
             stackName: stackName
         )
     }
@@ -174,8 +174,8 @@ public actor RemoteDeploymentService {
             )
         }
 
-        let gitService = GitService(repoPath: projectRoot, cliService: cliService)
-        let actionsService = GitHubActionsService(repoPath: projectRoot, config: config, cliService: cliService)
+        let gitService = GitService(repoPath: projectRoot, cliClient: cliClient)
+        let actionsService = GitHubActionsService(repoPath: projectRoot, config: config, cliClient: cliClient)
 
         if !skipPush {
             let hasCommitsToPush = try await gitService.hasCommitsToPush()
@@ -210,7 +210,7 @@ public actor RemoteDeploymentService {
 
     /// Get comprehensive status of remote deployment
     public func getStatus() async throws -> RemoteStatus {
-        let gitService = GitService(repoPath: projectRoot, cliService: cliService)
+        let gitService = GitService(repoPath: projectRoot, cliClient: cliClient)
 
         // Get git status
         let hasUncommitted = try await gitService.hasUncommittedChanges()
@@ -226,7 +226,7 @@ public actor RemoteDeploymentService {
         // Get GitHub status if configured
         var githubStatus: RemoteStatus.GitHubStatus? = nil
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            let actionsService = GitHubActionsService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            let actionsService = GitHubActionsService(repoPath: projectRoot, config: githubConfig, cliClient: cliClient)
             do {
                 let (status, conclusion) = try await actionsService.getLatestRunStatus()
                 githubStatus = RemoteStatus.GitHubStatus(
@@ -334,7 +334,7 @@ public actor RemoteDeploymentService {
         while attempts < maxAttempts && !ready {
             do {
                 let curlCommand = Curl.Request.checkStatus(url: "\(apiUrl)api/health")
-                let result = try await cliService.executeForResult(curlCommand, printCommand: false)
+                let result = try await cliClient.executeForResult(curlCommand, printCommand: false)
 
                 if result.isSuccess && (result.stdout == "200" || result.stdout == "404") {
                     ready = true
@@ -448,7 +448,7 @@ public actor RemoteDeploymentService {
         print("  → POST \(apiUrl)api/database")
 
         let curlCommand = Curl.Request.post(url: "\(apiUrl)api/database", silent: true)
-        let result = try await cliService.executeForResult(curlCommand, printCommand: false)
+        let result = try await cliClient.executeForResult(curlCommand, printCommand: false)
 
         guard result.isSuccess else {
             throw CLIClientError.executionFailed(
@@ -477,7 +477,7 @@ public actor RemoteDeploymentService {
         print("  → GET \(apiUrl)api/health")
 
         let healthCommand = Curl.Request.get(url: "\(apiUrl)api/health", silent: true)
-        let testResult = try await cliService.executeForResult(healthCommand, printCommand: false)
+        let testResult = try await cliClient.executeForResult(healthCommand, printCommand: false)
 
         guard testResult.isSuccess else {
             throw CLIClientError.executionFailed(
@@ -503,7 +503,7 @@ public actor RemoteDeploymentService {
             print("  → GET \(apiUrl)api/users")
 
             let usersCommand = Curl.Request.get(url: "\(apiUrl)api/users", silent: true)
-            let usersResult = try await cliService.executeForResult(usersCommand, printCommand: false)
+            let usersResult = try await cliClient.executeForResult(usersCommand, printCommand: false)
 
             guard usersResult.isSuccess else {
                 throw CLIClientError.executionFailed(

@@ -75,7 +75,7 @@ class LocalServicesModel: LocalService {
 
     public var isConfigured: Bool { service.isConfigured }
 
-    public var cliService: CLIClient { service.cliService }
+    public var cliClient: CLIClient { service.cliClient }
 
     public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
         statusSubject.eraseToAnyPublisher()

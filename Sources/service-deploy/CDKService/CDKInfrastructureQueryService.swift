@@ -102,7 +102,7 @@ public actor CDKInfrastructureQueryService {
         awsConfig: AWSAuthConfiguration,
         cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
         stackName: String = CDKStackConfiguration.defaultStackName,
-        cliService: CLIClient
+        cliClient: CLIClient
     ) {
         self.stackName = stackName
 
@@ -111,12 +111,12 @@ public actor CDKInfrastructureQueryService {
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
             stackName: stackName,
-            cliService: cliService
+            cliClient: cliClient
         )
 
         self.infrastructureService = SwiftLambdaInfrastructureService(
             awsConfig: awsConfig,
-            cliService: cliService,
+            cliClient: cliClient,
             stackName: stackName
         )
     }

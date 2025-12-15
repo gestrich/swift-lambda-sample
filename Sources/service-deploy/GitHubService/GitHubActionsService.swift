@@ -6,16 +6,16 @@ import Foundation
 public actor GitHubActionsService {
     private let ghCLIService: GitHubCLIService
     private let gitService: GitService
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let config: GitHubConfiguration
 
     // MARK: - Init
 
-    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIClient) {
+    public init(repoPath: String, config: GitHubConfiguration, cliClient: CLIClient) {
         self.config = config
-        self.cliService = cliService
-        self.ghCLIService = GitHubCLIService(repository: config.repository, cliService: cliService)
-        self.gitService = GitService(repoPath: repoPath, cliService: cliService)
+        self.cliClient = cliClient
+        self.ghCLIService = GitHubCLIService(repository: config.repository, cliClient: cliClient)
+        self.gitService = GitService(repoPath: repoPath, cliClient: cliClient)
     }
 
     // MARK: - Configuration
@@ -272,7 +272,7 @@ public actor GitHubActionsService {
     public func openWorkflowLogs(runId: String) async throws {
         let url = getWorkflowLogsURL(runId: runId)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: "open",
             arguments: [url],
             printCommand: false

@@ -7,7 +7,7 @@ import service_storage
 /// Orchestrates Docker services, native Swift builds, and Lambda process management
 public actor XcodeLocalDevelopmentService {
     private let dockerService: DockerService
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLLocalService
@@ -25,9 +25,9 @@ public actor XcodeLocalDevelopmentService {
     // MARK: - Initialization
 
     public init(workingDirectory: String) {
-        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.cliService = cliService
-        self.dockerService = DockerService(cliService: cliService)
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        self.cliClient = cliClient
+        self.dockerService = DockerService(cliClient: cliClient)
         self.workingDirectory = workingDirectory
         self.storageService = LocalStorageService()
 
@@ -146,7 +146,7 @@ public actor XcodeLocalDevelopmentService {
             let cleanMsg = "🧹 Cleaning previous build artifacts...\n"
             await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
-                _ = try await cliService.execute(
+                _ = try await cliClient.execute(
                     SwiftCLI.Package.Clean(),
                     workingDirectory: workingDirectory,
                     printCommand: false,
@@ -165,7 +165,7 @@ public actor XcodeLocalDevelopmentService {
         await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         let buildCommand = SwiftCLI.Build(product: lambdaProductName)
-        let stream = await cliService.stream(
+        let stream = await cliClient.stream(
             buildCommand,
             workingDirectory: workingDirectory,
             printCommand: false,
@@ -190,7 +190,7 @@ public actor XcodeLocalDevelopmentService {
     /// Get the path to the built executable
     public func getExecutablePath() async throws -> String {
         let showBinPathCommand = SwiftCLI.Build(product: lambdaProductName, showBinPath: true)
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             showBinPathCommand,
             workingDirectory: workingDirectory,
             printCommand: false
@@ -226,7 +226,7 @@ public actor XcodeLocalDevelopmentService {
 
     /// Delete build artifacts
     public func deleteBuild() async throws {
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             SwiftCLI.Package.Clean(),
             workingDirectory: workingDirectory,
             printCommand: false
@@ -257,7 +257,7 @@ public actor XcodeLocalDevelopmentService {
 
         let envVars = env.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
 
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             Sh(command: "\(envVars) \(executablePath) > /tmp/lambda.log 2>&1 & echo $!"),
             workingDirectory: workingDirectory,
             printCommand: false,
@@ -293,7 +293,7 @@ public actor XcodeLocalDevelopmentService {
             await output?.send(.stdout(commandID: .init(), text: killMsg))
 
             for pid in pids {
-                let killResult = try await cliService.executeForResult(
+                let killResult = try await cliClient.executeForResult(
                     Kill(pid: pid),
                     printCommand: false,
                     output: output
@@ -474,7 +474,7 @@ public actor XcodeLocalDevelopmentService {
 
     private func getPortInfo(_ port: Int) async -> String {
         do {
-            let result = try await cliService.executeForResult(
+            let result = try await cliClient.executeForResult(
                 Lsof(port: ":\(port)"),
                 printCommand: false
             )
@@ -487,7 +487,7 @@ public actor XcodeLocalDevelopmentService {
 
     private func getProcessIDsOnPort(_ port: Int) async -> [String] {
         do {
-            let result = try await cliService.executeForResult(
+            let result = try await cliClient.executeForResult(
                 Lsof(port: ":\(port)", pidOnly: true),
                 printCommand: false
             )

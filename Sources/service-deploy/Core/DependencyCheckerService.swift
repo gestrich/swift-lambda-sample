@@ -3,10 +3,10 @@ import Foundation
 
 /// Stateless service for checking dependency installation status
 public actor DependencyCheckerService {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
 
-    public init(cliService: CLIClient) {
-        self.cliService = cliService
+    public init(cliClient: CLIClient) {
+        self.cliClient = cliClient
     }
 
     // MARK: - Public API
@@ -18,7 +18,7 @@ public actor DependencyCheckerService {
     /// - Returns: Installation status with version if installed
     public func checkDependency(_ command: String, versionArgs: [String] = ["--version"]) async -> DependencyInstallStatus {
         do {
-            let result = try await cliService.execute(
+            let result = try await cliClient.execute(
                 command: command,
                 arguments: versionArgs,
                 printCommand: false

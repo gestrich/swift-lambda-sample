@@ -22,9 +22,9 @@ public final class GitHubCIModel {
 
     // MARK: - Init
 
-    public init(repoPath: String, config: GitHubConfiguration, cliService: CLIClient) {
+    public init(repoPath: String, config: GitHubConfiguration, cliClient: CLIClient) {
         self.config = config
-        self.actionsService = GitHubActionsService(repoPath: repoPath, config: config, cliService: cliService)
+        self.actionsService = GitHubActionsService(repoPath: repoPath, config: config, cliClient: cliClient)
 
         // Fetch status from GitHub immediately on init
         Task {

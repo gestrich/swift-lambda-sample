@@ -289,8 +289,8 @@ private struct LogEntryRow: View {
 
 #Preview {
     let awsConfig = AWSAuthConfiguration(profileName: "default", useAWSVault: false)
-    let cliService = CLIClient()
-    let model = CloudWatchLogsModel(awsConfig: awsConfig, cliService: cliService)
+    let cliClient = CLIClient()
+    let model = CloudWatchLogsModel(awsConfig: awsConfig, cliClient: cliClient)
 
     return CloudWatchLogsSectionView(model: model)
         .padding()

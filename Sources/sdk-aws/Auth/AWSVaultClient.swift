@@ -28,10 +28,10 @@ public struct AWSVaultClient: Sendable {
     // MARK: - Installation Check
 
     /// Check if aws-vault is installed
-    /// - Parameter cliService: The CLI service to use for checking
+    /// - Parameter cliClient: The CLI service to use for checking
     /// - Throws: CLIError if aws-vault is not found
-    public static func checkInstallation(using cliService: CLIClient) async throws {
-        let result = try? await cliService.executeForResult(
+    public static func checkInstallation(using cliClient: CLIClient) async throws {
+        let result = try? await cliClient.executeForResult(
             Which(command: "aws-vault"),
             printCommand: false
         )

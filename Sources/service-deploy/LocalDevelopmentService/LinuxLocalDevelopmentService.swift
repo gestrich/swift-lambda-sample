@@ -7,7 +7,7 @@ import service_storage
 /// Orchestrates Docker services, container builds, and Lambda container management
 public actor LinuxLocalDevelopmentService {
     private let dockerService: DockerService
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let storageService: LocalStorageService
 
     private let postgresService: PostgreSQLLocalService
@@ -31,9 +31,9 @@ public actor LinuxLocalDevelopmentService {
     // MARK: - Initialization
 
     public init(workingDirectory: String) {
-        let cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.cliService = cliService
-        self.dockerService = DockerService(cliService: cliService)
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        self.cliClient = cliClient
+        self.dockerService = DockerService(cliClient: cliClient)
         self.workingDirectory = workingDirectory
         self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
@@ -161,7 +161,7 @@ public actor LinuxLocalDevelopmentService {
             await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
                 let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
-                _ = try await cliService.execute(
+                _ = try await cliClient.execute(
                     rmCmd,
                     workingDirectory: workingDirectory,
                     printCommand: false,
@@ -180,7 +180,7 @@ public actor LinuxLocalDevelopmentService {
         await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         let buildCmd = BuildScript.Build.lambda(target: "feature-lambda")
-        let stream = await cliService.stream(
+        let stream = await cliClient.stream(
             buildCmd,
             workingDirectory: workingDirectory,
             printCommand: false,
@@ -212,7 +212,7 @@ public actor LinuxLocalDevelopmentService {
     /// Delete build artifacts
     public func deleteBuild() async throws {
         let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
-        _ = try await cliService.execute(
+        _ = try await cliClient.execute(
             rmCmd,
             workingDirectory: workingDirectory,
             printCommand: false
@@ -318,7 +318,7 @@ public actor LinuxLocalDevelopmentService {
         var ready = false
 
         while attempts < maxAttempts && !ready {
-            let portCheck = try await cliService.executeForResult(
+            let portCheck = try await cliClient.executeForResult(
                 Lsof(port: ":\(config.hostPort)"),
                 printCommand: false
             )
@@ -338,7 +338,7 @@ public actor LinuxLocalDevelopmentService {
 
         if !ready {
             print("❌ Lambda failed to start. Checking container logs:")
-            let logsResult = try await cliService.execute(
+            let logsResult = try await cliClient.execute(
                 command: "docker",
                 arguments: ["logs", config.containerName],
                 printCommand: false

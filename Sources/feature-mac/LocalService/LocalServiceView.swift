@@ -37,7 +37,7 @@ struct LocalServiceView: View {
 
             // Collapsible output panel pinned to bottom
             CollapsibleOutputPanel(
-                streamProvider: { await service.cliService.outputStream() },
+                streamProvider: { await service.cliClient.outputStream() },
                 streamId: type(of: service).persistenceKey,
                 onCommand: { runCommand($0) }
             )
@@ -239,7 +239,7 @@ struct LocalServiceView: View {
         let arguments = Array(parts.dropFirst())
 
         Task {
-            _ = try? await service.cliService.execute(
+            _ = try? await service.cliClient.execute(
                 command: command,
                 arguments: arguments
             )

@@ -3,10 +3,10 @@ import Foundation
 
 /// Service for interacting with Docker
 public actor DockerService {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
 
-    public init(cliService: CLIClient) {
-        self.cliService = cliService
+    public init(cliClient: CLIClient) {
+        self.cliClient = cliClient
     }
 
     // MARK: - Docker Daemon
@@ -14,7 +14,7 @@ public actor DockerService {
     /// Check if Docker daemon is running
     public func isDockerRunning() async -> Bool {
         do {
-            let result = try await cliService.executeForResult(Docker.Info(), printCommand: false)
+            let result = try await cliClient.executeForResult(Docker.Info(), printCommand: false)
             return result.isSuccess
         } catch {
             return false
@@ -26,7 +26,7 @@ public actor DockerService {
         print("🐳 Starting Docker Desktop...")
 
         // Open Docker Desktop app
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Open(application: "Docker"),
             printCommand: false
         )
@@ -127,7 +127,7 @@ public actor DockerService {
             command: command
         )
 
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             dockerRun,
             inheritIO: options.interactive && options.tty,
             output: output
@@ -144,7 +144,7 @@ public actor DockerService {
 
     /// Start an existing stopped container
     public func start(container: String) async throws {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Start(container: container),
             printCommand: false
         )
@@ -160,7 +160,7 @@ public actor DockerService {
 
     /// Stop a container
     public func stop(container: String) async throws {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Stop(container: container),
             printCommand: false
         )
@@ -176,7 +176,7 @@ public actor DockerService {
 
     /// Remove a container
     public func remove(container: String) async throws {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Rm(container: container),
             printCommand: false
         )
@@ -192,7 +192,7 @@ public actor DockerService {
 
     /// Check if a container exists
     public func containerExists(name: String) async throws -> Bool {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Ps(all: true, filter: ["name=^\(name)$"], format: "{{.Names}}"),
             printCommand: false
         )
@@ -206,7 +206,7 @@ public actor DockerService {
 
     /// Check if a container is running
     public func containerIsRunning(name: String) async throws -> Bool {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Ps(filter: ["name=^\(name)$"], format: "{{.Names}}"),
             printCommand: false
         )
@@ -266,7 +266,7 @@ public actor DockerService {
             fullCommand = dockerCommand
         }
 
-        let result = try await cliService.executeForResult(Sh(command: fullCommand), output: output)
+        let result = try await cliClient.executeForResult(Sh(command: fullCommand), output: output)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -281,7 +281,7 @@ public actor DockerService {
 
     /// Create a network
     public func createNetwork(name: String) async throws {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Network.Create(name: name)
         )
 
@@ -296,7 +296,7 @@ public actor DockerService {
 
     /// Check if a network exists
     public func networkExists(name: String) async throws -> Bool {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Network.Inspect(name: name),
             printCommand: false
         )
@@ -306,7 +306,7 @@ public actor DockerService {
 
     /// Connect a container to a network
     public func connectToNetwork(container: String, network: String) async throws {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Network.Connect(network: network, container: container)
         )
 
@@ -321,7 +321,7 @@ public actor DockerService {
 
     /// Check if a container is connected to a network
     public func isConnectedToNetwork(container: String, network: String) async throws -> Bool {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Docker.Network.Inspect(name: network, format: "{{range .Containers}}{{.Name}}\n{{end}}"),
             printCommand: false
         )
@@ -338,11 +338,11 @@ public actor DockerService {
 
     /// Get user ID
     public func getCurrentUserId() async throws -> Int {
-        try await cliService.execute(Id(userId: true), parser: IdParser(), printCommand: false)
+        try await cliClient.execute(Id(userId: true), parser: IdParser(), printCommand: false)
     }
 
     /// Get group ID
     public func getCurrentGroupId() async throws -> Int {
-        try await cliService.execute(Id(groupId: true), parser: IdParser(), printCommand: false)
+        try await cliClient.execute(Id(groupId: true), parser: IdParser(), printCommand: false)
     }
 }

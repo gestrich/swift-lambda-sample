@@ -18,7 +18,7 @@ Rename all `*Service` types in the `sdk-*` packages to `*Client`.
 
 ## Variable/Parameter Renames
 
-- [ ] `cliService` → `cliClient` (throughout codebase)
+- [x] `cliService` → `cliClient` (throughout codebase)
 - [x] `vaultService` → `vaultClient` (in AWSCredentialProvider.swift, AWSCLIService.swift, LambdaBuildService.swift)
 
 ## Files Outside sdk-* That Reference These Types

@@ -6,16 +6,16 @@ import Foundation
 /// App-specific configuration (like skipPostgres, skipNATGateway) should be
 /// passed via the context parameter in DeployOptions.
 public actor CDKClient {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let cdkDirectory: String
     private let credentialProvider: AWSCredentialProvider
 
     public init(
         cdkDirectory: String,
         credentialProvider: AWSCredentialProvider,
-        cliService: CLIClient
+        cliClient: CLIClient
     ) {
-        self.cliService = cliService
+        self.cliClient = cliClient
         self.cdkDirectory = cdkDirectory
         self.credentialProvider = credentialProvider
     }
@@ -45,7 +45,7 @@ public actor CDKClient {
         let command = Npm.Run(script: "build")
         let (execCommand, arguments) = buildNpmCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -105,7 +105,7 @@ public actor CDKClient {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -148,7 +148,7 @@ public actor CDKClient {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -171,7 +171,7 @@ public actor CDKClient {
         let command = Cdk.Diff(profile: credentialProvider.profileName)
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -195,7 +195,7 @@ public actor CDKClient {
         let command = Cdk.Synth(profile: credentialProvider.profileName)
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -220,7 +220,7 @@ public actor CDKClient {
         let command = Cdk.List(profile: credentialProvider.profileName)
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -250,7 +250,7 @@ public actor CDKClient {
         let command = Npm.Install()
         let (execCommand, arguments) = buildNpmCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,
@@ -271,7 +271,7 @@ public actor CDKClient {
         let command = Cdk.Bootstrap(profile: credentialProvider.profileName)
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             workingDirectory: cdkDirectory,

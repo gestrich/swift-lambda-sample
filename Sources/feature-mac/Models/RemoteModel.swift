@@ -13,7 +13,7 @@ import service_deploy
 @Observable
 public class RemoteModel: LambdaService {
     private let awsService: AWSCLIService
-    public let cliService: CLIClient
+    public let cliClient: CLIClient
     private let projectRoot: String
 
     /// Endpoint fetched from CDK stack (not persisted)
@@ -89,13 +89,13 @@ public class RemoteModel: LambdaService {
         cdkDirectory: String = "cdk"
     ) {
         self.projectRoot = projectRoot
-        let cliService = CLIClient(defaultWorkingDirectory: projectRoot)
-        self.cliService = cliService
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
+        let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
+        self.cliClient = cliClient
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
 
         // Initialize GitHub CI model if config is available
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliClient: cliClient)
         } else {
             self.githubCIModel = nil
         }
@@ -105,20 +105,20 @@ public class RemoteModel: LambdaService {
             projectRoot: projectRoot,
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
-            cliService: cliService
+            cliClient: cliClient
         )
 
         // Initialize Lambda Build service (AWS config is already available)
         self.lambdaBuildService = LambdaBuildService(
             workingDirectory: projectRoot,
-            cliService: cliService,
+            cliClient: cliClient,
             awsConfig: awsConfig
         )
 
         // Initialize CloudWatch logs model (AWS config is already available)
         self.cloudWatchLogsModel = CloudWatchLogsModel(
             awsConfig: awsConfig,
-            cliService: cliService
+            cliClient: cliClient
         )
 
         // Start observing CDK state, refresh it, and fetch endpoint
@@ -168,7 +168,7 @@ public class RemoteModel: LambdaService {
         // Only reload GitHub CI model if it doesn't exist yet or config changed
         if let githubConfig = GitHubConfiguration.loadConfig() {
             if githubCIModel == nil {
-                self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+                self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliClient: cliClient)
             }
         } else {
             self.githubCIModel = nil
@@ -233,7 +233,7 @@ public class RemoteModel: LambdaService {
         while attempts < maxAttempts && !ready {
             do {
                 let curlCommand = Curl.Request.checkStatus(url: "\(apiUrl)api/health")
-                let result = try await cliService.executeForResult(curlCommand, printCommand: false)
+                let result = try await cliClient.executeForResult(curlCommand, printCommand: false)
 
                 if result.isSuccess && (result.stdout == "200" || result.stdout == "404") {
                     ready = true

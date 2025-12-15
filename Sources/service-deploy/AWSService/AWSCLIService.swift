@@ -4,12 +4,12 @@ import Foundation
 
 /// Service for interacting with AWS CLI
 public actor AWSCLIService {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let profile: String
     private let vaultClient: AWSVaultClient?
 
-    public init(awsConfig: AWSAuthConfiguration, cliService: CLIClient) {
-        self.cliService = cliService
+    public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
+        self.cliClient = cliClient
         self.profile = awsConfig.profileName
         self.vaultClient = awsConfig.useAWSVault ? AWSVaultClient(profile: awsConfig.profileName) : nil
     }
@@ -29,7 +29,7 @@ public actor AWSCLIService {
     ) async throws -> P.Output where C.Program == Aws {
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
@@ -71,7 +71,7 @@ public actor AWSCLIService {
     ) async throws where C.Program == Aws {
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
@@ -116,7 +116,7 @@ public actor AWSCLIService {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
@@ -249,7 +249,7 @@ public actor AWSCLIService {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],
@@ -350,7 +350,7 @@ public actor AWSCLIService {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: ["AWS_PROFILE": profile],

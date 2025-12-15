@@ -3,11 +3,11 @@ import Foundation
 
 /// Service for interacting with GitHub CLI (gh)
 public actor GitHubCLIService {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let repository: String
 
-    public init(repository: String, cliService: CLIClient) {
-        self.cliService = cliService
+    public init(repository: String, cliClient: CLIClient) {
+        self.cliClient = cliClient
         self.repository = repository
     }
 
@@ -27,7 +27,7 @@ public actor GitHubCLIService {
             json: "databaseId,status,conclusion,createdAt,headBranch,event,displayTitle"
         )
 
-        let result = try await cliService.executeForResult(command, printCommand: false)
+        let result = try await cliClient.executeForResult(command, printCommand: false)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -54,7 +54,7 @@ public actor GitHubCLIService {
     public func watchWorkflowRun(runId: String? = nil, output: CLIOutputStream? = nil) async throws {
         let command = Gh.Run.Watch(runId: runId, repo: repository)
 
-        let result = try await cliService.executeForResult(command, output: output)
+        let result = try await cliClient.executeForResult(command, output: output)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -69,14 +69,14 @@ public actor GitHubCLIService {
     /// Returns an AsyncStream that yields progress updates until the run completes
     public func watchWorkflowRunStreaming(runId: String? = nil, output: CLIOutputStream? = nil) async -> AsyncStream<StreamOutput> {
         let command = Gh.Run.Watch(runId: runId, repo: repository)
-        return await cliService.stream(command, output: output)
+        return await cliClient.stream(command, output: output)
     }
 
     /// Get detailed run information with jobs and steps
     public func getRunDetail(runId: String) async throws -> GitHubRunDetail {
         let command = Gh.Run.View.withJobsAndSteps(runId: runId, repo: repository)
 
-        return try await cliService.execute(
+        return try await cliClient.execute(
             command,
             parser: GitHubRunDetailParser(),
             workingDirectory: nil,
@@ -88,7 +88,7 @@ public actor GitHubCLIService {
     public func viewWorkflowRun(runId: String, showLog: Bool = false) async throws -> String {
         let command = Gh.Run.View(runId: runId, repo: repository, log: showLog)
 
-        let result = try await cliService.executeForResult(command, printCommand: false)
+        let result = try await cliClient.executeForResult(command, printCommand: false)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -109,7 +109,7 @@ public actor GitHubCLIService {
     ) async throws {
         let command = Gh.Workflow.Run(workflow: workflow, repo: repository, ref: branch)
 
-        let result = try await cliService.executeForResult(command, output: output)
+        let result = try await cliClient.executeForResult(command, output: output)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -137,7 +137,7 @@ public actor GitHubCLIService {
             head: head
         )
 
-        let result = try await cliService.executeForResult(command)
+        let result = try await cliClient.executeForResult(command)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -159,7 +159,7 @@ public actor GitHubCLIService {
             limit: "10"
         )
 
-        let result = try await cliService.executeForResult(command, printCommand: false)
+        let result = try await cliClient.executeForResult(command, printCommand: false)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -179,7 +179,7 @@ public actor GitHubCLIService {
     public func createIssue(title: String, body: String) async throws -> String {
         let command = Gh.Issue.Create(repo: repository, title: title, body: body)
 
-        let result = try await cliService.executeForResult(command)
+        let result = try await cliClient.executeForResult(command)
 
         guard result.isSuccess else {
             throw DeployError.commandFailed(
@@ -197,7 +197,7 @@ public actor GitHubCLIService {
     /// Check if gh CLI is installed and authenticated
     public func checkAuthentication() async throws -> Bool {
         let command = Gh.Auth.Status()
-        let result = try await cliService.executeForResult(command, printCommand: false)
+        let result = try await cliClient.executeForResult(command, printCommand: false)
         return result.isSuccess
     }
 }

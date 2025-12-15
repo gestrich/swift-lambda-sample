@@ -16,11 +16,11 @@ public actor LambdaLogsService {
     /// Initialize with app-specific configuration
     /// - Parameters:
     ///   - awsConfig: AWS authentication configuration
-    ///   - cliService: CLI service for executing commands
+    ///   - cliClient: CLI service for executing commands
     ///   - lambdaFunctionName: Lambda function name (default: "swift-lambda-sample")
     public init(
         awsConfig: AWSAuthConfiguration,
-        cliService: CLIClient,
+        cliClient: CLIClient,
         lambdaFunctionName: String = "swift-lambda-sample"
     ) {
         let logGroup = "/aws/lambda/\(lambdaFunctionName)"
@@ -28,7 +28,7 @@ public actor LambdaLogsService {
         self.genericClient = sdk_aws.CloudWatchLogsClient(
             logGroup: logGroup,
             credentialProvider: credentialProvider,
-            cliService: cliService
+            cliClient: cliClient
         )
     }
 

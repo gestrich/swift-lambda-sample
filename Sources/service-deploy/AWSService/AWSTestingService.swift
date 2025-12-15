@@ -6,20 +6,20 @@ import Foundation
 /// Service for testing deployed AWS Lambda and infrastructure
 public actor AWSTestingService {
     private let awsService: AWSCLIService
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let stackName = "SwiftLambdaSampleStack"
     private let lambdaName = "swift-lambda-sample"
 
-    public init(awsConfig: AWSAuthConfiguration, cliService: CLIClient) {
-        self.cliService = cliService
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
+    public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
+        self.cliClient = cliClient
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
     }
 
     /// Convenience initializer that creates its own CLIClient
     public init(awsConfig: AWSAuthConfiguration) {
-        let cliService = CLIClient()
-        self.cliService = cliService
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
+        let cliClient = CLIClient()
+        self.cliClient = cliClient
+        self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
     }
 
     /// Create an API client configured with the deployed API Gateway URL
@@ -107,7 +107,7 @@ public actor AWSTestingService {
         print("")
 
         let curlCommand = Curl.Request.postJSON(url: endpoint, data: uploadJsonString, verbose: true)
-        _ = try await cliService.execute(curlCommand)
+        _ = try await cliClient.execute(curlCommand)
     }
 
     /// Verify S3 file was created and show content

@@ -11,7 +11,7 @@ import service_deploy
 @MainActor
 public class LinuxLocalModel: LocalService {
     private let developmentService: LinuxLocalDevelopmentService
-    public let cliService: CLIClient
+    public let cliClient: CLIClient
     private let storageService: LocalStorageService
 
     // Lambda configuration (for endpoint display)
@@ -72,7 +72,7 @@ public class LinuxLocalModel: LocalService {
 
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
-        self.cliService = CLIClient(defaultWorkingDirectory: workingDirectory)
+        self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.developmentService = LinuxLocalDevelopmentService(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
 

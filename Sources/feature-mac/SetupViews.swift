@@ -606,8 +606,8 @@ struct DependencyView: View {
     @State private var showUninstallSheet = false
     @State private var selectedMethodType: InstallMethodType?
 
-    private var cliService: CLIClient {
-        statusModel.cliService
+    private var cliClient: CLIClient {
+        statusModel.cliClient
     }
 
     private var effectiveMethodType: InstallMethodType {

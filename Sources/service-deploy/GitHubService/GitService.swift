@@ -3,17 +3,17 @@ import Foundation
 
 /// Service for Git operations
 public actor GitService {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let repoPath: String
 
-    public init(repoPath: String, cliService: CLIClient) {
-        self.cliService = cliService
+    public init(repoPath: String, cliClient: CLIClient) {
+        self.cliClient = cliClient
         self.repoPath = repoPath
     }
 
     /// Check if there are uncommitted changes
     public func hasUncommittedChanges() async throws -> Bool {
-        let status: GitStatusResult = try await cliService.execute(
+        let status: GitStatusResult = try await cliClient.execute(
             Git.Status(porcelain: true),
             parser: GitStatusParser(),
             workingDirectory: repoPath,
@@ -24,7 +24,7 @@ public actor GitService {
 
     /// Check if there are commits to push
     public func hasCommitsToPush() async throws -> Bool {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Git.RevList(count: true, range: "@{u}..HEAD"),
             workingDirectory: repoPath,
             printCommand: false
@@ -41,7 +41,7 @@ public actor GitService {
 
     /// Get current branch name
     public func getCurrentBranch() async throws -> String {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Git.Branch(showCurrent: true),
             workingDirectory: repoPath,
             printCommand: false
@@ -59,7 +59,7 @@ public actor GitService {
     public func push(output: CLIOutputStream? = nil) async throws {
         print("\n📤 Pushing commits to remote...")
 
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Git.Push(),
             workingDirectory: repoPath,
             output: output
@@ -74,7 +74,7 @@ public actor GitService {
 
     /// Get repository owner and name from remote URL
     public func getRepoInfo() async throws -> (owner: String, name: String) {
-        let result = try await cliService.executeForResult(
+        let result = try await cliClient.executeForResult(
             Git.Config(get: true, key: "remote.origin.url"),
             workingDirectory: repoPath,
             printCommand: false

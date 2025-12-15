@@ -15,7 +15,7 @@ import Testing
 struct LinuxContainerIntegrationTests {
 
     let linuxService: LinuxLocalDevelopmentService
-    let cliService: CLIClient
+    let cliClient: CLIClient
     let projectRoot: URL
 
     init() {
@@ -28,7 +28,7 @@ struct LinuxContainerIntegrationTests {
             .deletingLastPathComponent()  // Remove Tests
 
         self.projectRoot = root
-        self.cliService = CLIClient()
+        self.cliClient = CLIClient()
         self.linuxService = LinuxLocalDevelopmentService(workingDirectory: root.path)
     }
 
@@ -209,7 +209,7 @@ struct LinuxContainerIntegrationTests {
             try? FileManager.default.removeItem(atPath: tempFile)
         }
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: "curl",
             arguments: [
                 "-s",

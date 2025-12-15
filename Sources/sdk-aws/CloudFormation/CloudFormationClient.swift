@@ -4,14 +4,14 @@ import Foundation
 /// Generic service for interacting with AWS CloudFormation via CLI
 /// This service provides CloudFormation operations without app-specific logic.
 public actor CloudFormationClient {
-    private let cliService: CLIClient
+    private let cliClient: CLIClient
     private let credentialProvider: AWSCredentialProvider
 
     public init(
         credentialProvider: AWSCredentialProvider,
-        cliService: CLIClient
+        cliClient: CLIClient
     ) {
-        self.cliService = cliService
+        self.cliClient = cliClient
         self.credentialProvider = credentialProvider
     }
 
@@ -25,7 +25,7 @@ public actor CloudFormationClient {
     ) async throws -> P.Output where C.Program == Aws {
         let (execCommand, arguments) = credentialProvider.buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: credentialProvider.environment,
@@ -65,7 +65,7 @@ public actor CloudFormationClient {
 
         let (execCommand, arguments) = credentialProvider.buildCommandLine(command)
 
-        let result = try await cliService.execute(
+        let result = try await cliClient.execute(
             command: execCommand,
             arguments: arguments,
             environment: credentialProvider.environment,
