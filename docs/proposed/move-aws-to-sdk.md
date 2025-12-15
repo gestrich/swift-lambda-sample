@@ -413,11 +413,13 @@ This ensures incremental progress is preserved and any issues can be easily bise
 - [x] Create `sdk-aws/Services/CDKService.swift` (generic version)
 - [x] Move `CloudWatchLogsService.swift` → `sdk-aws/CloudWatch/` (remove default Lambda name)
 
-### Phase 5: Create Generic State Machine
+### Phase 5: Create Generic State Machine ✅
 
-- [ ] Create `sdk-aws/State/DeploymentState.swift`
-- [ ] Create `sdk-aws/State/DeploymentMonitor.swift`
-- [ ] Extract generic state machine from `CDKInfrastructureQueryService`
+- [x] Create `sdk-aws/State/DeploymentState.swift`
+- [x] Create `sdk-aws/State/DeploymentProgress.swift`
+- [x] Create `sdk-aws/State/DeploymentMonitor.swift`
+- [x] Extract generic state machine from `CDKInfrastructureQueryService`
+- [x] Update service-deploy to use typealiases for generic types
 
 ### Phase 6: Refactor service-deploy
 
