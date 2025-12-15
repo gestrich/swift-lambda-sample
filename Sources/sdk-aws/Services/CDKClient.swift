@@ -1,11 +1,11 @@
 import sdk_cli
 import Foundation
 
-/// Generic service for interacting with AWS CDK CLI
-/// This service provides CDK operations without app-specific logic.
+/// Generic client for interacting with AWS CDK CLI
+/// This client provides CDK operations without app-specific logic.
 /// App-specific configuration (like skipPostgres, skipNATGateway) should be
 /// passed via the context parameter in DeployOptions.
-public actor CDKService {
+public actor CDKClient {
     private let cliService: CLIClient
     private let cdkDirectory: String
     private let credentialProvider: AWSCredentialProvider

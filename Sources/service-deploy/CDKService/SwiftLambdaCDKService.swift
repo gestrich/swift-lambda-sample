@@ -3,9 +3,9 @@ import sdk_aws
 import Foundation
 
 /// App-specific CDK service for Swift Lambda Sample project.
-/// Wraps the generic CDKService from sdk-aws with app-specific configuration.
+/// Wraps the generic CDKClient from sdk-aws with app-specific configuration.
 public actor SwiftLambdaCDKService {
-    private let cdkService: sdk_aws.CDKService
+    private let cdkService: sdk_aws.CDKClient
     private let stackName: String
 
     public init(
@@ -14,7 +14,7 @@ public actor SwiftLambdaCDKService {
         cliService: CLIClient,
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
-        self.cdkService = sdk_aws.CDKService(
+        self.cdkService = sdk_aws.CDKClient(
             cdkDirectory: cdkDirectory,
             credentialProvider: credentialProvider,
             cliService: cliService
@@ -31,7 +31,7 @@ public actor SwiftLambdaCDKService {
         cliService: CLIClient
     ) {
         let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
-        self.cdkService = sdk_aws.CDKService(
+        self.cdkService = sdk_aws.CDKClient(
             cdkDirectory: fullCdkPath,
             credentialProvider: awsConfig.makeCredentialProvider(),
             cliService: cliService
@@ -68,7 +68,7 @@ public actor SwiftLambdaCDKService {
         }
 
         /// Convert to generic CDK deploy options with context
-        internal func toCDKOptions() -> sdk_aws.CDKService.DeployOptions {
+        internal func toCDKOptions() -> sdk_aws.CDKClient.DeployOptions {
             var context: [String: String] = [:]
 
             // CDK uses skipPostgres/skipNATGateway flags (inverted logic)
@@ -79,7 +79,7 @@ public actor SwiftLambdaCDKService {
                 context["skipNATGateway"] = "true"
             }
 
-            return sdk_aws.CDKService.DeployOptions(
+            return sdk_aws.CDKClient.DeployOptions(
                 stackName: nil,  // Deploy default stack
                 context: context,
                 requireApproval: requireApproval,
@@ -110,7 +110,7 @@ public actor SwiftLambdaCDKService {
     ///   - force: If true, skip confirmation prompts
     ///   - output: Optional client-owned stream to receive output
     public func destroy(force: Bool = false, output: CLIOutputStream? = nil) async throws {
-        let options = sdk_aws.CDKService.DestroyOptions(stackName: nil, force: force)
+        let options = sdk_aws.CDKClient.DestroyOptions(stackName: nil, force: force)
         try await cdkService.destroy(options: options, output: output)
     }
 
