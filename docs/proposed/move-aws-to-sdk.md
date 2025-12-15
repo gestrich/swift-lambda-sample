@@ -421,12 +421,14 @@ This ensures incremental progress is preserved and any issues can be easily bise
 - [x] Extract generic state machine from `CDKInfrastructureQueryService`
 - [x] Update service-deploy to use typealiases for generic types
 
-### Phase 6: Refactor service-deploy
+### Phase 6: Refactor service-deploy ✅
 
-- [ ] Create `SwiftLambdaCDKService.swift` (app-specific wrapper)
-- [ ] Create `SwiftLambdaInfrastructureService.swift` (app-specific detection)
-- [ ] Update `RemoteDeploymentService` to use new services
-- [ ] Keep `CDKStackOutputs.swift` and `AWSTestingService.swift` as-is
+- [x] Create `SwiftLambdaCDKService.swift` (app-specific wrapper)
+- [x] Create `SwiftLambdaInfrastructureService.swift` (app-specific detection)
+- [x] Update `CDKInfrastructureQueryService` to use new services
+- [x] Update `RemoteDeploymentService` to use new services
+- [x] Delete old `CDKService.swift` (replaced by SwiftLambdaCDKService)
+- [x] Keep `CDKStackOutputs.swift` and `AWSTestingService.swift` as-is
 
 ### Phase 7: Update Imports
 
