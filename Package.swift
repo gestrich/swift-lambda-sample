@@ -64,6 +64,7 @@ let package = Package(
                 .target(name: "sdk-client"),
                 .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
+                .target(name: "sdk-aws"),
             ]
         ),
         .executableTarget(

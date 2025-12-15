@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_aws
 import Foundation
 
 /// Stateful service for CDK Infrastructure queries and operations

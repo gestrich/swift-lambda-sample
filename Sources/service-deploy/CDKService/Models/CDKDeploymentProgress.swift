@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_aws
 import Foundation
 
 /// Progress snapshot during deployment/destroy operations

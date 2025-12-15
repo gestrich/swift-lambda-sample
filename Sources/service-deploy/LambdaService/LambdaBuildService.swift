@@ -6,6 +6,7 @@
 //
 
 import sdk_cli
+import sdk_aws
 import Foundation
 
 /// Service for building and uploading Lambda for Linux (AMD64) using Docker

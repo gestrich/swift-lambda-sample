@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_aws
 import Foundation
 
 /// Service for interacting with AWS CLI
