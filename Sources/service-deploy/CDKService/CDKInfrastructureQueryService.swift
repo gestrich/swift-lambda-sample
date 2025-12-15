@@ -110,8 +110,14 @@ public actor CDKInfrastructureQueryService {
     // MARK: - State Observation
 
     /// Stream of state changes. Immediately yields current state upon subscription.
+    /// If state is `.unknown`, automatically triggers a refresh.
     public func states() -> AsyncStream<State> {
-        AsyncStream { continuation in
+        // Auto-refresh on first observation if state is unknown
+        if state == .unknown {
+            Task { await refresh() }
+        }
+
+        return AsyncStream { continuation in
             let id = UUID()
             self.continuations[id] = continuation
             continuation.yield(self.state)
@@ -236,6 +242,19 @@ public actor CDKInfrastructureQueryService {
         try await awsService.getStackEvents(name: stackName, limit: limit)
     }
 
+    /// Get the start time of the current operation from CloudFormation events
+    /// Returns the earliest IN_PROGRESS timestamp for the stack resource itself
+    private func getOperationStartTime() async -> Date? {
+        guard let events = try? await getStackEvents() else { return nil }
+
+        // Find the earliest IN_PROGRESS event for the stack itself (not individual resources)
+        // The stack's own status change marks the operation start
+        return events
+            .filter { $0.logicalResourceId == stackName && $0.resourceStatus.contains("IN_PROGRESS") }
+            .map { $0.timestamp }
+            .min()
+    }
+
     // MARK: - CDK Operations (Internal)
 
     private func build(output: CLIOutputStream? = nil) async throws {
@@ -275,10 +294,12 @@ public actor CDKInfrastructureQueryService {
             case CloudFormationStackStatusValues.createInProgress,
                  CloudFormationStackStatusValues.updateInProgress,
                  CloudFormationStackStatusValues.updateCompleteCleanupInProgress:
-                return .deploying(operation: "Updating", progress: CDKDeploymentProgress(), startTime: Date())
+                let startTime = await getOperationStartTime() ?? Date()
+                return .deploying(operation: "Updating", progress: CDKDeploymentProgress(), startTime: startTime)
 
             case CloudFormationStackStatusValues.deleteInProgress:
-                return .destroying(progress: CDKDeploymentProgress(), startTime: Date())
+                let startTime = await getOperationStartTime() ?? Date()
+                return .destroying(progress: CDKDeploymentProgress(), startTime: startTime)
 
             case CloudFormationStackStatusValues.createFailed,
                  CloudFormationStackStatusValues.updateFailed,

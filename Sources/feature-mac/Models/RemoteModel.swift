@@ -120,9 +120,10 @@ public class RemoteModel: LambdaService {
             cliService: cliService
         )
 
-        // Start observing CDK state and fetch endpoint
+        // Start observing CDK state, refresh it, and fetch endpoint
         Task {
             await self.startObservingCDKState()
+            await self.cdkInfrastructureService?.refresh()
             try? await self.fetchEndpoint()
         }
     }

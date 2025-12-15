@@ -378,64 +378,18 @@ See `CDKInfrastructureQueryService` and `RemoteModel` in this codebase for a com
 | Action methods forwarding to service | ✅ | Lines 315-340 |
 | Service is private, state is public | ✅ | Lines 48, 57 |
 
-### Issues to Address
+### Issues Addressed ✅
 
-1. **startTime uses `Date()` instead of source** (CDKInfrastructureQueryService lines 278, 281)
+All issues have been fixed:
 
-   When `queryCurrentState()` discovers an in-progress operation, it creates `startTime: Date()` instead of extracting from CloudFormation events. The actual operation may have started before the app launched.
+1. **✅ startTime extracted from CloudFormation events** (CDKInfrastructureQueryService)
 
-2. **No automatic refresh on startup** (CDKInfrastructureQueryService)
+   `queryCurrentState()` now calls `getOperationStartTime()` to extract the actual start time from CloudFormation events when discovering in-progress operations.
 
-   Service initializes with `.unknown` state but doesn't auto-refresh. Callers must explicitly call `refresh()`.
+2. **✅ Automatic refresh on first observation** (CDKInfrastructureQueryService)
 
-3. **RemoteModel doesn't trigger initial CDK refresh** (RemoteModel line 124-127)
+   `states()` now auto-triggers `refresh()` if state is `.unknown`, making the service self-initializing.
 
-   `init` starts observing and fetches endpoint, but doesn't call `cdkInfrastructureService.refresh()`. The CDK state remains `.unknown` until user triggers refresh.
+3. **✅ RemoteModel triggers initial CDK refresh** (RemoteModel)
 
-### Refactor Plan
-
-#### 1. Extract startTime from CloudFormation events
-
-Update `queryCurrentState()` to get actual start time from events:
-
-```swift
-case CloudFormationStackStatusValues.createInProgress,
-     CloudFormationStackStatusValues.updateInProgress:
-    let events = try await getStackEvents()
-    let startTime = events
-        .filter { $0.resourceStatus?.contains("IN_PROGRESS") == true }
-        .map { $0.timestamp }
-        .min() ?? Date()
-    return .deploying(operation: "Updating", progress: CDKDeploymentProgress(), startTime: startTime)
-```
-
-#### 2. Add automatic refresh on first observation
-
-Option A: Refresh in `states()` if state is `.unknown`:
-
-```swift
-public func states() -> AsyncStream<State> {
-    if state == .unknown {
-        Task { await refresh() }
-    }
-    // ... existing continuation logic
-}
-```
-
-Option B: Refresh in `init` (requires making init async or spawning Task).
-
-#### 3. Trigger CDK refresh in RemoteModel init
-
-```swift
-Task {
-    await self.startObservingCDKState()
-    await self.cdkInfrastructureService?.refresh()  // Add this
-    try? await self.fetchEndpoint()
-}
-```
-
-### Priority
-
-1. **Issue 3** (Low effort, high impact) - Users see actual state on app launch
-2. **Issue 2** (Medium effort) - Service becomes self-initializing
-3. **Issue 1** (Medium effort) - Accurate timing for discovered operations
+   `init` now calls `cdkInfrastructureService?.refresh()` after starting observation.
