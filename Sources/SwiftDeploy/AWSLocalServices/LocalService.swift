@@ -5,7 +5,7 @@ import Foundation
 /// Both XcodeLocalModel and LinuxLocalModel conform to this protocol.
 /// RemoteModel does NOT conform - it only conforms to LambdaService.
 @MainActor
-public protocol LocalService: LambdaService {
+public protocol LocalService: AnyObject, LambdaService {
     // MARK: - Docker Services (PostgreSQL + MinIO/S3)
 
     /// Start all services (PostgreSQL + MinIO)
@@ -46,8 +46,8 @@ public protocol LocalService: LambdaService {
 
     // MARK: - Build
 
-    /// Observable build state for UI
-    var buildState: BuildState { get }
+    /// Build state for UI tracking
+    var buildState: BuildState { get set }
 
     /// Build Lambda for the target platform, updating buildState
     /// - Parameters:
@@ -67,8 +67,8 @@ public protocol LocalService: LambdaService {
 
     // MARK: - Lambda Lifecycle
 
-    /// Observable Lambda state for UI (streaming lifecycle output)
-    var lambdaState: LambdaState { get }
+    /// Lambda state for UI tracking
+    var lambdaState: LambdaState { get set }
 
     /// Start Lambda process/container only
     /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)

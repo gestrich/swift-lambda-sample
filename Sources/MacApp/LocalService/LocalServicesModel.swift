@@ -147,7 +147,10 @@ class LocalServicesModel: LocalService {
 
     // MARK: - Build
 
-    public var buildState: BuildState { service.buildState }
+    public var buildState: BuildState {
+        get { service.buildState }
+        set { service.buildState = newValue }
+    }
 
     public func build(clean: Bool, output: CLIOutputStream?) async throws {
         try await service.build(clean: clean, output: output)
@@ -163,7 +166,10 @@ class LocalServicesModel: LocalService {
 
     // MARK: - Lambda Lifecycle
 
-    public var lambdaState: LambdaState { service.lambdaState }
+    public var lambdaState: LambdaState {
+        get { service.lambdaState }
+        set { service.lambdaState = newValue }
+    }
 
     public func startLambda(output: CLIOutputStream?) async throws {
         try await service.startLambda(output: output)

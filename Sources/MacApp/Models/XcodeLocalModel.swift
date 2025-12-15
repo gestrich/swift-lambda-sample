@@ -38,11 +38,11 @@ public class XcodeLocalModel: LocalService {
 
     // MARK: - Build State
 
-    public let buildState = BuildState()
+    public var buildState = BuildState()
 
     // MARK: - Lambda State
 
-    public let lambdaState = LambdaState()
+    public var lambdaState = LambdaState()
 
     // MARK: - LambdaService Protocol
 

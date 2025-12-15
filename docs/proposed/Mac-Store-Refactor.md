@@ -470,3 +470,71 @@ View → Model.refreshStatus() → Service.getFullStatus() → GitHubCISnapshot
 - Service returns ready-to-display data
 - Consistent with CDKInfrastructureModel refactor pattern
 - GitHubCIModel reduced from ~120 lines to ~95 lines
+
+---
+
+## 10. Convert BuildState and LambdaState to Structs ✅ COMPLETED
+
+**Status:** Completed
+
+**Problem (solved):**
+
+`BuildState` and `LambdaState` were `@MainActor @Observable` classes that held mutable state. This was unnecessary complexity - they're just data containers that should be owned and mutated by the models.
+
+**Before:**
+```swift
+// @Observable class with methods
+@MainActor
+@Observable
+public class BuildState {
+    public private(set) var outputLines: [String] = []
+    public private(set) var status: BuildStatus = .notBuilt
+
+    public func startBuild() { ... }
+    public func markSuccess() { ... }
+}
+```
+
+**After:**
+```swift
+// Simple struct with mutating methods
+public struct BuildState: Equatable, Sendable {
+    public var outputLines: [String] = []
+    public var status: BuildStatus = .notBuilt
+
+    public mutating func startBuild() { ... }
+    public mutating func markSuccess() { ... }
+}
+```
+
+**Implemented Changes:**
+
+### [x] 10.1 Convert BuildState to struct
+- Changed from `@MainActor @Observable class` to `struct`
+- All methods now `mutating`
+- Added `Equatable, Sendable` conformance
+- Removed `private(set)` - fields are now directly mutable
+
+### [x] 10.2 Convert LambdaState to struct
+- Same changes as BuildState
+- Methods like `startLambda()`, `markRunning()`, `clear()` now `mutating`
+
+### [x] 10.3 Update models to use `var` instead of `let`
+- `XcodeLocalModel`: `public var buildState`, `public var lambdaState`
+- `LinuxLocalModel`: same changes
+- `LambdaBuildService`: `public var buildState`
+
+### [x] 10.4 Update LocalService protocol
+- Changed `var buildState: BuildState { get }` to `{ get set }`
+- Changed `var lambdaState: LambdaState { get }` to `{ get set }`
+- Added `AnyObject` constraint (class-only protocol) for mutation in extensions
+
+### [x] 10.5 Update LocalServicesModel wrapper
+- Changed computed properties to get/set that delegate to underlying service
+
+**Benefits Achieved:**
+- Simpler data model (structs vs classes)
+- Models own their state directly
+- No `@Observable` overhead for simple data containers
+- `Sendable` conformance for actor isolation
+- Clearer ownership semantics

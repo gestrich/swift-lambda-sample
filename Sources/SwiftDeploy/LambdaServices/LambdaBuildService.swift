@@ -17,7 +17,7 @@ public class LambdaBuildService {
     private var awsConfig: AWSAuthConfiguration?
 
     /// Build state for tracking progress
-    public let buildState = BuildState()
+    public var buildState = BuildState()
 
     /// Upload status (separate from build status)
     public private(set) var uploadStatus: LambdaUploadStatus = .idle

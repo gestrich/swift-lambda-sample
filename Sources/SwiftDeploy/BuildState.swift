@@ -99,33 +99,35 @@ public enum BuildStatus: Equatable, Sendable {
 
 // MARK: - Build State
 
-/// Encapsulates all build-related state
-@MainActor
-@Observable
-public class BuildState {
+/// Simple data container for build-related state
+/// Models own and mutate this struct directly
+public struct BuildState: Equatable, Sendable {
     /// Build output lines
-    public private(set) var outputLines: [String] = []
+    public var outputLines: [String] = []
 
     /// Current build status
-    public private(set) var status: BuildStatus = .notBuilt
+    public var status: BuildStatus = .notBuilt
 
-    public init() {}
+    public init(outputLines: [String] = [], status: BuildStatus = .notBuilt) {
+        self.outputLines = outputLines
+        self.status = status
+    }
 
     /// Start a new build - clears output and sets status to building
-    public func startBuild() {
+    public mutating func startBuild() {
         outputLines = []
         status = .building
     }
 
     /// Clear all build output and reset to notBuilt
-    public func clear() {
+    public mutating func clear() {
         outputLines = []
         status = .notBuilt
     }
 
     /// Update status based on whether a build artifact exists
     /// - Parameter exists: Whether a build artifact exists on disk
-    public func updateFromDisk(buildExists: Bool) {
+    public mutating func updateFromDisk(buildExists: Bool) {
         // Only update if not currently building
         guard !status.isBuilding else { return }
 
@@ -142,19 +144,19 @@ public class BuildState {
     }
 
     /// Mark build as successful
-    public func markSuccess() {
+    public mutating func markSuccess() {
         appendOutput("\n✅ Build completed successfully\n")
         status = .success
     }
 
     /// Mark build as failed
-    public func markFailed(exitCode: Int32) {
+    public mutating func markFailed(exitCode: Int32) {
         appendOutput("\n❌ Build failed with exit code \(exitCode)\n")
         status = .failed(exitCode)
     }
 
     /// Append text to build output, splitting by newlines
-    public func appendOutput(_ text: String) {
+    public mutating func appendOutput(_ text: String) {
         // Split text into lines, preserving empty lines
         let newLines = text.components(separatedBy: "\n")
 
@@ -174,7 +176,7 @@ public class BuildState {
     }
 
     /// Process a stream output event
-    public func processStreamOutput(_ output: StreamOutput) -> Int32? {
+    public mutating func processStreamOutput(_ output: StreamOutput) -> Int32? {
         switch output {
         case .command(_, let text):
             appendOutput(text)
@@ -196,60 +198,62 @@ public class BuildState {
 
 // MARK: - Lambda State
 
-/// Encapsulates all Lambda lifecycle state with streaming output
-@MainActor
-@Observable
-public class LambdaState {
+/// Simple data container for Lambda lifecycle state
+/// Models own and mutate this struct directly
+public struct LambdaState: Equatable, Sendable {
     /// Lambda output lines
-    public private(set) var outputLines: [String] = []
+    public var outputLines: [String] = []
 
     /// Current Lambda status
-    public private(set) var status: LambdaStatus = .stopped
+    public var status: LambdaStatus = .stopped
 
-    public init() {}
+    public init(outputLines: [String] = [], status: LambdaStatus = .stopped) {
+        self.outputLines = outputLines
+        self.status = status
+    }
 
     /// Start Lambda - clears output and sets status to starting
-    public func startLambda() {
+    public mutating func startLambda() {
         outputLines = []
         status = .starting
     }
 
     /// Begin stopping Lambda
-    public func beginStop() {
+    public mutating func beginStop() {
         status = .stopping
     }
 
     /// Set status to running (for remote services that are always running when deployed)
-    public func setRunning() {
+    public mutating func setRunning() {
         status = .running
     }
 
     /// Clear all output and reset to stopped
-    public func clear() {
+    public mutating func clear() {
         outputLines = []
         status = .stopped
     }
 
     /// Mark Lambda as running
-    public func markRunning() {
+    public mutating func markRunning() {
         appendOutput("\n✅ Lambda is running\n")
         status = .running
     }
 
     /// Mark Lambda as stopped
-    public func markStopped() {
+    public mutating func markStopped() {
         appendOutput("\n✅ Lambda stopped\n")
         status = .stopped
     }
 
     /// Mark Lambda as failed
-    public func markFailed(reason: String) {
+    public mutating func markFailed(reason: String) {
         appendOutput("\n❌ Lambda failed: \(reason)\n")
         status = .failed(reason)
     }
 
     /// Append text to Lambda output, splitting by newlines
-    public func appendOutput(_ text: String) {
+    public mutating func appendOutput(_ text: String) {
         // Split text into lines, preserving empty lines
         let newLines = text.components(separatedBy: "\n")
 
@@ -269,7 +273,7 @@ public class LambdaState {
     }
 
     /// Process a stream output event
-    public func processStreamOutput(_ output: StreamOutput) -> Int32? {
+    public mutating func processStreamOutput(_ output: StreamOutput) -> Int32? {
         switch output {
         case .command(_, let text):
             appendOutput(text)
