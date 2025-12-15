@@ -39,7 +39,7 @@ struct OperationOutputSection<Actions: View>: View {
             // Always render StreamingTextView so it subscribes immediately,
             // but hide it visually until expanded
             StreamingTextView(
-                streamProvider: { await output.makeStream() }
+                streamProvider: { [output] in await output.makeStream() }
             )
             .frame(height: isExpanded ? nil : 0)
             .clipped()
