@@ -3,11 +3,12 @@ import sdk_aws
 import sdk_client
 import Foundation
 
-/// Stateless service for remote AWS Lambda deployment and management
-/// Orchestrates CDKService, AWSCLIService, GitService, and GitHubActionsService
+/// Stateless service for remote AWS Lambda deployment and management.
+/// Orchestrates SwiftLambdaCDKService, SwiftLambdaInfrastructureService,
+/// GitService, and GitHubActionsService.
 public actor RemoteDeploymentService {
-    private let cdkService: CDKService
-    private let awsService: AWSCLIService
+    private let cdkService: SwiftLambdaCDKService
+    private let infrastructureService: SwiftLambdaInfrastructureService
     private let cliService: CLIService
     private let projectRoot: String
 
@@ -16,17 +17,26 @@ public actor RemoteDeploymentService {
     public init(
         projectRoot: String,
         awsConfig: AWSAuthConfiguration,
-        cdkDirectory: String = "cdk"
+        cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) {
         self.projectRoot = projectRoot
         let cliService = CLIService(defaultWorkingDirectory: projectRoot)
         self.cliService = cliService
-        self.cdkService = CDKService(
-            cdkDirectory: "\(projectRoot)/\(cdkDirectory)",
+
+        self.cdkService = SwiftLambdaCDKService(
+            projectRoot: projectRoot,
             awsConfig: awsConfig,
+            cdkDirectory: cdkDirectory,
+            stackName: stackName,
             cliService: cliService
         )
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
+
+        self.infrastructureService = SwiftLambdaInfrastructureService(
+            awsConfig: awsConfig,
+            cliService: cliService,
+            stackName: stackName
+        )
     }
 
     // MARK: - Deployment Operations
@@ -40,7 +50,8 @@ public actor RemoteDeploymentService {
         let deployedState = try await queryDeployedState()
 
         // Determine what to deploy based on current state
-        let finalOptions: DeploymentConfiguration
+        let withPostgres: Bool
+        let withNATGateway: Bool
 
         if let state = deployedState {
             print("\n📊 Detected existing stack configuration:")
@@ -48,27 +59,24 @@ public actor RemoteDeploymentService {
             print("   NAT Gateway: \(state.hasNATGateway ? "YES" : "NO")")
             print("   → Maintaining current configuration\n")
 
-            finalOptions = DeploymentConfiguration(
-                skipPostgres: !state.hasDatabase,
-                skipNATGateway: !state.hasNATGateway,
-                awsProfile: options.awsProfile,
-                cdkDirectory: options.cdkDirectory
-            )
+            withPostgres = state.hasDatabase
+            withNATGateway = state.hasNATGateway
         } else {
             print("\n⚠️  No existing stack detected")
             print("   → Using minimal configuration (no database, no NAT)")
             print("   → Use 'deploy-init' to set initial configuration\n")
 
-            finalOptions = options
+            withPostgres = !options.skipPostgres
+            withNATGateway = !options.skipNATGateway
         }
 
         // Build TypeScript first
         try await cdkService.build()
 
         // Deploy with resolved options
-        let cdkOptions = CDKService.DeployOptions(
-            skipPostgres: finalOptions.skipPostgres,
-            skipNATGateway: finalOptions.skipNATGateway,
+        let cdkOptions = SwiftLambdaCDKService.DeployOptions(
+            withPostgres: withPostgres,
+            withNATGateway: withNATGateway,
             requireApproval: false
         )
 
@@ -95,7 +103,7 @@ public actor RemoteDeploymentService {
         options: DeploymentConfiguration,
         withPostgres: Bool,
         skipPush: Bool = false,
-        stackName: String = "SwiftLambdaSampleStack"
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) async throws {
         let existingState = try await queryDeployedState(stackName: stackName)
 
@@ -144,7 +152,7 @@ public actor RemoteDeploymentService {
     }
 
     /// Tear down CDK stack
-    public func tearDown(cdkDirectory: String = "cdk") async throws {
+    public func tearDown(cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory) async throws {
         let cdkPath = "\(projectRoot)/\(cdkDirectory)"
 
         var isDirectory: ObjCBool = false
@@ -249,24 +257,22 @@ public actor RemoteDeploymentService {
 
     /// Get stack outputs from CloudFormation
     public func getStackOutputs(
-        stackName: String = "SwiftLambdaSampleStack"
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) async throws -> [String: String] {
-        return try await awsService.getStackOutputs(name: stackName)
+        return try await infrastructureService.getRawStackOutputs()
     }
 
     /// Get API Gateway URL from deployed stack
     public func getAPIGatewayURL(
-        stackName: String = "SwiftLambdaSampleStack"
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) async throws -> String? {
-        let outputs = try await getStackOutputs(stackName: stackName)
-        return outputs["ApiGatewayUrl"]
+        try await infrastructureService.getAPIGatewayURL()
     }
 
     /// Check if stack exists
-    public func checkStackExists(stackName: String = "SwiftLambdaSampleStack") async -> Bool {
+    public func checkStackExists(stackName: String = CDKStackConfiguration.defaultStackName) async -> Bool {
         do {
-            let outputs = try await awsService.getStackOutputs(name: stackName)
-            return !outputs.isEmpty
+            return try await infrastructureService.stackExists()
         } catch {
             return false
         }
@@ -356,30 +362,20 @@ public actor RemoteDeploymentService {
     // MARK: - Private Helpers
 
     private func queryDeployedState(
-        stackName: String = "SwiftLambdaSampleStack"
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) async throws -> DeployedState? {
-        do {
-            let resources = try await awsService.describeStackResources(name: stackName)
-
-            return DeployedState(
-                hasDatabase: resources.contains {
-                    $0.logicalResourceId.contains("Database") &&
-                    $0.resourceType.contains("RDS")
-                },
-                hasNATGateway: resources.contains {
-                    $0.resourceType == "AWS::EC2::NatGateway"
-                },
-                hasVPC: resources.contains {
-                    $0.resourceType == "AWS::EC2::VPC"
-                }
-            )
-        } catch {
+        guard let config = try await infrastructureService.detectConfiguration() else {
             return nil
         }
+        return DeployedState(
+            hasDatabase: config.hasDatabase,
+            hasNATGateway: config.hasNATGateway,
+            hasVPC: config.hasVPC
+        )
     }
 
     private func pollDeploymentStatus(
-        stackName: String = "SwiftLambdaSampleStack"
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) async throws {
         print("\n⏳ Polling deployment status...")
 
@@ -388,7 +384,7 @@ public actor RemoteDeploymentService {
         let pollInterval: UInt64 = 5_000_000_000
 
         while attempts < maxAttempts {
-            let status = try await awsService.getStackStatus(name: stackName)
+            let status = try await infrastructureService.getStackStatus()
             print("  Stack status: \(status)")
 
             switch status {
@@ -415,15 +411,15 @@ public actor RemoteDeploymentService {
 
     private func deployInfrastructure(
         options: DeploymentConfiguration,
-        stackName: String = "SwiftLambdaSampleStack"
+        stackName: String = CDKStackConfiguration.defaultStackName
     ) async throws -> [String: String] {
         // Build TypeScript first
         try await cdkService.build()
 
         // Deploy with options
-        let cdkOptions = CDKService.DeployOptions(
-            skipPostgres: options.skipPostgres,
-            skipNATGateway: options.skipNATGateway,
+        let cdkOptions = SwiftLambdaCDKService.DeployOptions(
+            withPostgres: !options.skipPostgres,
+            withNATGateway: !options.skipNATGateway,
             requireApproval: false
         )
 

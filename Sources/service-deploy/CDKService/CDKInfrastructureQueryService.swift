@@ -2,8 +2,13 @@ import sdk_cli
 import sdk_aws
 import Foundation
 
-/// Stateful service for CDK Infrastructure queries and operations
-/// Owns the infrastructure state and exposes it via AsyncStream for observers
+/// Stateful service for CDK Infrastructure queries and operations.
+/// Owns the infrastructure state and exposes it via AsyncStream for observers.
+///
+/// This service combines:
+/// - Generic deployment monitoring from sdk-aws (DeploymentMonitor)
+/// - App-specific CDK operations (SwiftLambdaCDKService)
+/// - App-specific infrastructure detection (SwiftLambdaInfrastructureService)
 public actor CDKInfrastructureQueryService {
 
     // MARK: - State Definition
@@ -87,8 +92,8 @@ public actor CDKInfrastructureQueryService {
 
     // MARK: - Services
 
-    private let cdkService: CDKService
-    private let awsService: AWSCLIService
+    private let cdkService: SwiftLambdaCDKService
+    private let infrastructureService: SwiftLambdaInfrastructureService
 
     // MARK: - Initialization
 
@@ -100,12 +105,20 @@ public actor CDKInfrastructureQueryService {
         cliService: CLIService
     ) {
         self.stackName = stackName
-        self.cdkService = CDKService(
-            cdkDirectory: "\(projectRoot)/\(cdkDirectory)",
+
+        self.cdkService = SwiftLambdaCDKService(
+            projectRoot: projectRoot,
             awsConfig: awsConfig,
+            cdkDirectory: cdkDirectory,
+            stackName: stackName,
             cliService: cliService
         )
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliService: cliService)
+
+        self.infrastructureService = SwiftLambdaInfrastructureService(
+            awsConfig: awsConfig,
+            cliService: cliService,
+            stackName: stackName
+        )
     }
 
     // MARK: - State Observation
@@ -171,7 +184,7 @@ public actor CDKInfrastructureQueryService {
         publish(.deploying(operation: operationName, progress: CDKDeploymentProgress(), startTime: startTime))
 
         do {
-            try await build(output: output)
+            try await cdkService.build(output: output)
 
             await executeDeployWithProgress(
                 withPostgres: withPostgres,
@@ -215,32 +228,22 @@ public actor CDKInfrastructureQueryService {
     // MARK: - Query Operations (Internal)
 
     private func getStackStatus() async throws -> String {
-        try await awsService.getStackStatus(name: stackName)
+        try await infrastructureService.getStackStatus()
     }
 
     private func getStackOutputs() async throws -> [String: String] {
-        try await awsService.getStackOutputs(name: stackName)
+        try await infrastructureService.getRawStackOutputs()
     }
 
     private func queryConfiguration() async throws -> CDKInfrastructureConfiguration {
-        let resources = try await awsService.describeStackResources(name: stackName)
-
-        return CDKInfrastructureConfiguration(
-            hasDatabase: resources.contains {
-                $0.logicalResourceId.contains("Database") &&
-                $0.resourceType.contains("RDS")
-            },
-            hasNATGateway: resources.contains {
-                $0.resourceType == "AWS::EC2::NatGateway"
-            },
-            hasVPC: resources.contains {
-                $0.resourceType == "AWS::EC2::VPC"
-            }
-        )
+        guard let config = try await infrastructureService.detectConfiguration() else {
+            return CDKInfrastructureConfiguration()
+        }
+        return config
     }
 
     private func getStackEvents(limit: Int = 50) async throws -> [CloudFormationStackEvent] {
-        try await awsService.getStackEvents(name: stackName, limit: limit)
+        try await infrastructureService.getStackEvents(limit: limit)
     }
 
     /// Get the start time of the current operation from CloudFormation events
@@ -258,18 +261,14 @@ public actor CDKInfrastructureQueryService {
 
     // MARK: - CDK Operations (Internal)
 
-    private func build(output: CLIOutputStream? = nil) async throws {
-        try await cdkService.build(output: output)
-    }
-
     private func executeDeploy(
         withPostgres: Bool,
         withNATGateway: Bool,
         output: CLIOutputStream? = nil
     ) async throws {
-        let options = CDKService.DeployOptions(
-            skipPostgres: !withPostgres,
-            skipNATGateway: !withNATGateway,
+        let options = SwiftLambdaCDKService.DeployOptions(
+            withPostgres: withPostgres,
+            withNATGateway: withNATGateway,
             requireApproval: false
         )
         try await cdkService.deploy(options: options, output: output)
