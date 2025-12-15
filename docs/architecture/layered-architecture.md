@@ -207,28 +207,3 @@ Each layer has its own test target:
 - `sdk-*-tests` — Unit tests (minimal mocking)
 
 Services are easily testable because SDKs can be injected as protocols.
-
----
-
-## Migration Plan
-
-> **Process**: After each rename, verify the target builds (`swift build --target <name>`) then commit. Do not run tests until all renames are complete.
-
-### Target Renames
-
-- [x] `SwiftLambda` → `feature-lambda`
-- [x] `MacApp` → `feature-mac`
-- [x] `SwiftDeployCLI` → `feature-deploy-cli`
-- [x] `SwiftDeploy` → `service-deploy`
-- [x] `feature-deploy-cli` → `feature-cli`
-- [x] `SwiftServerApp` → merged into `feature-lambda`
-- [x] `CLIKit` → `sdk-cli`
-- [x] `CLIMacros` → `sdk-cli-macros`
-- [x] `Client` → `sdk-client`
-
-[x] `sdk-storage` → `service-storage`
-
-[ ] Update any docs with info
-
-[ ] Update overview tab in mac app to describe new targets
-
