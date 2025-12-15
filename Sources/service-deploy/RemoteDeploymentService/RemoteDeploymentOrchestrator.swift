@@ -8,7 +8,7 @@ import Foundation
 /// GitService, and GitHubActionsService.
 ///
 /// This is a CLI-focused orchestrator for one-off deployment operations.
-/// For UI state observation, use `CDKInfrastructureQueryService` which provides
+/// For UI state observation, use `RemoteDeploymentService` which provides
 /// an `AsyncStream<State>` for reactive updates.
 public actor RemoteDeploymentOrchestrator {
     private let cdkService: SwiftLambdaCDKService

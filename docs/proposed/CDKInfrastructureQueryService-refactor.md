@@ -279,17 +279,26 @@ public func getAPIGatewayURL() -> String?
 public func testEndpoints() async throws
 ```
 
-### Phase 5: Delete Redundant Code
+### Phase 5: Delete Redundant Code ✅ COMPLETED
 
-- [ ] Delete `CDKInfrastructureQueryService.swift`
-- [ ] Delete `CDKOutputParser.swift` from service-deploy (use sdk-aws version)
-- [ ] Delete `CloudFormationStackStatusValues.swift` typealias
-- [ ] Verify build succeeds
+- [x] Delete `CDKInfrastructureQueryService.swift`
+- [x] Delete `CDKOutputParser.swift` from service-deploy (use sdk-aws version)
+- [x] Delete `CloudFormationStackStatusValues.swift` typealias
+- [x] Verify build succeeds
 
-**Files to Delete**:
+**Files Deleted**:
 - `Sources/service-deploy/CDKService/CDKInfrastructureQueryService.swift`
 - `Sources/service-deploy/CDKService/CDKOutputParser.swift`
 - `Sources/service-deploy/CDKService/Models/CloudFormationStackStatusValues.swift`
+
+**Files Modified**:
+- `Sources/service-deploy/RemoteDeploymentService/RemoteDeploymentOrchestrator.swift` - Updated comment to reference `RemoteDeploymentService` instead of `CDKInfrastructureQueryService`
+
+**Technical Notes**:
+- The service-deploy `CDKOutputParser.swift` was a duplicate of the sdk-aws version and was not being used
+- `CloudFormationStackStatusValues` was a typealias only used within `CDKInfrastructureQueryService`
+- Build verified successful after deletion
+- CLI commands continue to work correctly with `RemoteDeploymentService`
 
 ### Phase 6: Update Architecture Documentation
 
@@ -358,9 +367,9 @@ The app-specific `State` enum moves from `CDKInfrastructureQueryService` to `Rem
 | `feature-cli/Commands/*.swift` | **Update** (use RemoteDeploymentService) | ✅ Done |
 | `feature-mac/Models/RemoteModel.swift` | **Update** (use RemoteDeploymentService) | ✅ Done |
 | `feature-mac/RemoteService/CDKInfrastructureSectionView.swift` | **Update** (use RemoteDeploymentService.State) | ✅ Done |
-| `service-deploy/CDKService/CDKInfrastructureQueryService.swift` | **Delete** | Pending |
-| `service-deploy/CDKService/CDKOutputParser.swift` | **Delete** | Pending |
-| `service-deploy/CDKService/Models/CloudFormationStackStatusValues.swift` | **Delete** | Pending |
+| `service-deploy/CDKService/CDKInfrastructureQueryService.swift` | **Delete** | ✅ Done |
+| `service-deploy/CDKService/CDKOutputParser.swift` | **Delete** | ✅ Done |
+| `service-deploy/CDKService/Models/CloudFormationStackStatusValues.swift` | **Delete** | ✅ Done |
 | `service-deploy/CDKService/SwiftLambdaInfrastructureService.swift` | Keep | - |
 | `service-deploy/CDKService/SwiftLambdaCDKService.swift` | Keep | - |
 | `docs/architecture/MV_Model_Service_State.md` | Update reference | Pending |
