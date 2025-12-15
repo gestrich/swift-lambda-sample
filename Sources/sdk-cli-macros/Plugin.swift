@@ -2,7 +2,7 @@ import SwiftCompilerPlugin
 import SwiftSyntaxMacros
 
 @main
-struct CLIMacrosPlugin: CompilerPlugin {
+struct SdkCliMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         CLICommandMacro.self,
         CLIProgramMacro.self,

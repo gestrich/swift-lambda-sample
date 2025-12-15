@@ -26,7 +26,7 @@ let package = Package(
     targets: [
         // MARK: - CLI Macros
         .macro(
-            name: "CLIMacros",
+            name: "sdk-cli-macros",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
@@ -35,7 +35,7 @@ let package = Package(
         .target(
             name: "sdk-cli",
             dependencies: [
-                .target(name: "CLIMacros"),
+                .target(name: "sdk-cli-macros"),
             ],
             exclude: ["README.md"]
         ),
@@ -112,7 +112,7 @@ let package = Package(
             name: "sdk-cli-tests",
             dependencies: [
                 .target(name: "sdk-cli"),
-                .target(name: "CLIMacros"),
+                .target(name: "sdk-cli-macros"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         )
