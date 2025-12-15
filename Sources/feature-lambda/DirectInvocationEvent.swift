@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftServerApp
+import service_server
 
 /// Represents a direct Lambda invocation event
 ///

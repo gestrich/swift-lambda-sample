@@ -10,7 +10,7 @@ import AWSLambdaRuntime
 import Client
 import Foundation
 import HTTPTypes
-import SwiftServerApp
+import service_server
 
 struct APIGWHandler {
 

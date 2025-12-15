@@ -8,7 +8,7 @@
 import AWSLambdaEvents
 import AWSLambdaRuntime
 import Foundation
-import SwiftServerApp
+import service_server
 
 /// Dynamic Lambda handler that routes events to specialized handlers based on event type
 ///

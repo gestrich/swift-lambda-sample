@@ -7,7 +7,7 @@
 
 import AWSLambdaEvents
 import Foundation
-import SwiftServerApp
+import service_server
 
 /// Union type that can represent multiple Lambda event sources
 ///

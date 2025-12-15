@@ -7,7 +7,7 @@
 
 import FluentKit
 import NIO
-@testable import SwiftServerApp
+@testable import service_server
 import XCTest
 
 final class SwiftServerAppTests: XCTestCase {

@@ -221,7 +221,8 @@ Services are easily testable because SDKs can be injected as protocols.
 - [x] `MacApp` → `feature-mac`
 - [x] `SwiftDeployCLI` → `feature-deploy-cli`
 - [x] `SwiftDeploy` → `service-deploy`
-- [ ] `SwiftServerApp` → `service-server`
+- [ ] `feature-deploy-cli` → `feature-cli`
+- [x] `SwiftServerApp` → `service-server`
 - [ ] `LocalStorageService` → `sdk-storage`
 - [ ] `CLIKit` → `sdk-cli`
 - [ ] `CLIMacros` → `sdk-cli-macros`

@@ -65,7 +65,7 @@ let package = Package(
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
-                .target(name: "SwiftServerApp"),
+                .target(name: "service-server"),
                 .target(name: "Client")
             ]
         ),
@@ -85,7 +85,7 @@ let package = Package(
             dependencies: []
         ),
         .target(
-            name: "SwiftServerApp",
+            name: "service-server",
             dependencies: [
                 .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
@@ -102,9 +102,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "SwiftServerAppTests",
+            name: "service-server-tests",
             dependencies: [
-                .target(name: "SwiftServerApp")
+                .target(name: "service-server")
             ]
         ),
         .testTarget(

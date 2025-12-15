@@ -9,7 +9,7 @@
 
 import AWSLambdaRuntime
 import Foundation
-import SwiftServerApp
+import service_server
 
 /// Handles direct CreateUser invocations
 ///

@@ -11,7 +11,7 @@ import NIOPosix
 import SotoS3
 import SotoSecretsManager
 import SotoDynamoDB
-import SwiftServerApp
+import service_server
 
 /*
  Manages the lifecycle and configuration of your services.

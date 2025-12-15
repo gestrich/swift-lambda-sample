@@ -1,4 +1,4 @@
-# SwiftDeploy Folder Organization Proposal
+    # SwiftDeploy Folder Organization Proposal
 
 This document proposes a service-based reorganization of the SwiftDeploy sources, where each top-level folder could eventually become its own Swift module.
 
