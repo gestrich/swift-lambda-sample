@@ -17,7 +17,7 @@ The project uses a three-layer architecture where dependencies flow downward:
                          ▼
 ┌─────────────────────────────────────────────────────────┐
 │                     SERVICES                            │
-│   service-deploy  ·  service-server  ·  service-*       │
+│   service-deploy  ·  service-storage  ·  service-*      │
 │                                                         │
 │   Business logic, stateless operations                  │
 └────────────────────────┬────────────────────────────────┘
@@ -25,7 +25,7 @@ The project uses a three-layer architecture where dependencies flow downward:
                          ▼
 ┌─────────────────────────────────────────────────────────┐
 │                       SDKs                              │
-│      sdk-cli  ·  sdk-client  ·  sdk-*                   │
+│      sdk-cdk  ·  sdk-git  ·  sdk-*                      │
 │                                                         │
 │   Reusable, app-agnostic utilities                      │
 └─────────────────────────────────────────────────────────┘

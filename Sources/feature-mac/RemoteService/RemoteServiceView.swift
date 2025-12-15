@@ -49,8 +49,11 @@ struct RemoteServiceView: View {
 
     @ViewBuilder
     private var cdkInfrastructureSection: some View {
-        if let cdkModel = service.cdkInfrastructureModel {
-            CDKInfrastructureSectionView(model: cdkModel, onOpenSettings: onOpenSettings)
+        if service.isCDKConfigured {
+            CDKInfrastructureSectionView(
+                model: service,
+                onOpenSettings: onOpenSettings
+            )
         } else {
             CDKInfrastructureLoadingView()
         }

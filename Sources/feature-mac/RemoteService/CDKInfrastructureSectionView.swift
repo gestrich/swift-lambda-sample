@@ -2,7 +2,7 @@ import sdk_cli
 import service_deploy
 import SwiftUI
 
-/// Placeholder when CDKInfrastructureModel is not available (config missing or loading)
+/// Placeholder when CDK infrastructure is not configured
 struct CDKInfrastructureLoadingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -43,7 +43,7 @@ struct CDKInfrastructureLoadingView: View {
 /// View for the CDK Infrastructure section in Remote mode
 /// Shows stack status, configuration, outputs, and deploy/destroy actions
 struct CDKInfrastructureSectionView: View {
-    @State var model: CDKInfrastructureModel
+    @Bindable var model: RemoteModel
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
@@ -58,14 +58,11 @@ struct CDKInfrastructureSectionView: View {
     // Confirmation dialog for destroy
     @State private var showDestroyConfirmation = false
 
-    // Deploy options popover
-    @State private var showDeployOptions = false
-
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    private var status: CDKInfrastructureStatus {
-        model.infrastructureStatus
+    private var state: CDKInfrastructureQueryService.State {
+        model.cdkState
     }
 
     var body: some View {
@@ -79,23 +76,31 @@ struct CDKInfrastructureSectionView: View {
 
                 // Refresh button
                 Button {
-                    Task { await model.refreshStatus() }
+                    model.refreshCDKState()
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .disabled(status.status.isBusy)
+                .disabled(state.isBusy)
                 .help("Refresh status")
             }
 
             // Credential error banner (shown when AWS credentials are invalid)
-            if case .failed(let reason) = status.status,
-               AWSCredentialErrorBanner.isCredentialError(reason) {
+            if case .credentialExpired(let message) = state {
+                AWSCredentialErrorBanner(
+                    errorMessage: message,
+                    onOpenSettings: onOpenSettings,
+                    onRetry: {
+                        model.refreshCDKState()
+                    }
+                )
+            } else if case .failed(let reason) = state,
+                      AWSCredentialErrorBanner.isCredentialError(reason) {
                 AWSCredentialErrorBanner(
                     errorMessage: reason,
                     onOpenSettings: onOpenSettings,
                     onRetry: {
-                        Task { await model.refreshStatus() }
+                        model.refreshCDKState()
                     }
                 )
             } else {
@@ -105,12 +110,12 @@ struct CDKInfrastructureSectionView: View {
                     statusRow
 
                     // Configuration display (when deployed)
-                    if case .deployed = status.status {
+                    if case .deployed = state {
                         configurationRow
                     }
 
                     // Progress during deploy/destroy
-                    if status.status.isBusy {
+                    if state.isBusy {
                         progressRow
                     }
 
@@ -118,7 +123,7 @@ struct CDKInfrastructureSectionView: View {
                     actionButtons
 
                     // Stack outputs (collapsible, when deployed)
-                    if case .deployed = status.status, !status.outputs.allOutputs.isEmpty {
+                    if case .deployed = state, !state.outputs.allOutputs.isEmpty {
                         outputsSection
                     }
                 }
@@ -128,7 +133,7 @@ struct CDKInfrastructureSectionView: View {
             }
         }
         .onReceive(timer) { time in
-            if status.status.isBusy {
+            if state.isBusy {
                 currentTime = time
             }
         }
@@ -137,7 +142,7 @@ struct CDKInfrastructureSectionView: View {
     // MARK: - Elapsed Time
 
     private var elapsedTimeString: String? {
-        guard let startTime = status.deployStartTime else { return nil }
+        guard let startTime = state.operationStartTime else { return nil }
 
         let elapsed = currentTime.timeIntervalSince(startTime)
         let minutes = Int(elapsed) / 60
@@ -161,7 +166,7 @@ struct CDKInfrastructureSectionView: View {
             Spacer()
 
             // Stack name
-            Text(status.stackName)
+            Text(model.cdkStackName)
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -177,7 +182,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var statusIcon: some View {
-        switch status.status {
+        switch state {
         case .unknown:
             Image(systemName: "questionmark.circle")
                 .foregroundColor(.secondary)
@@ -196,7 +201,7 @@ struct CDKInfrastructureSectionView: View {
         case .destroying:
             ProgressView()
                 .scaleEffect(0.7)
-        case .failed:
+        case .failed, .credentialExpired:
             Image(systemName: "xmark.circle.fill")
                 .foregroundColor(.red)
         }
@@ -204,7 +209,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var statusText: some View {
-        switch status.status {
+        switch state {
         case .unknown:
             Text("Unknown")
                 .font(.subheadline)
@@ -222,7 +227,7 @@ struct CDKInfrastructureSectionView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(.green)
-        case .deploying(let operation):
+        case .deploying(let operation, _, _):
             HStack(spacing: 6) {
                 Text(operation)
                     .font(.subheadline)
@@ -247,43 +252,50 @@ struct CDKInfrastructureSectionView: View {
                 }
             }
         case .failed(let reason):
-            VStack(alignment: .leading, spacing: 4) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showErrorDetails.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("Failed")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.red)
-                        Image(systemName: showErrorDetails ? "chevron.down" : "chevron.right")
-                            .font(.caption2)
-                            .foregroundColor(.red)
-                    }
-                }
-                .buttonStyle(.plain)
+            failedStatusView(reason: reason)
+        case .credentialExpired(let message):
+            failedStatusView(reason: message)
+        }
+    }
 
-                if showErrorDetails {
-                    ScrollView {
-                        Text(reason)
-                            .font(.caption)
-                            .fontDesign(.monospaced)
-                            .foregroundColor(.secondary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxHeight: 150)
-                    .padding(8)
-                    .background(Color.black.opacity(0.3))
-                    .cornerRadius(4)
-                } else {
+    @ViewBuilder
+    private func failedStatusView(reason: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showErrorDetails.toggle()
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Failed")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.red)
+                    Image(systemName: showErrorDetails ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showErrorDetails {
+                ScrollView {
                     Text(reason)
                         .font(.caption)
+                        .fontDesign(.monospaced)
                         .foregroundColor(.secondary)
-                        .lineLimit(2)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxHeight: 150)
+                .padding(8)
+                .background(Color.black.opacity(0.3))
+                .cornerRadius(4)
+            } else {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
             }
         }
     }
@@ -295,22 +307,22 @@ struct CDKInfrastructureSectionView: View {
         HStack(spacing: 16) {
             // Database
             HStack(spacing: 4) {
-                Image(systemName: status.configuration.hasDatabase ? "checkmark.circle.fill" : "xmark.circle")
+                Image(systemName: state.configuration.hasDatabase ? "checkmark.circle.fill" : "xmark.circle")
                     .font(.caption)
-                    .foregroundColor(status.configuration.hasDatabase ? .green : .secondary)
+                    .foregroundColor(state.configuration.hasDatabase ? .green : .secondary)
                 Text("Database")
                     .font(.caption)
-                    .foregroundColor(status.configuration.hasDatabase ? .primary : .secondary)
+                    .foregroundColor(state.configuration.hasDatabase ? .primary : .secondary)
             }
 
             // NAT Gateway
             HStack(spacing: 4) {
-                Image(systemName: status.configuration.hasNATGateway ? "checkmark.circle.fill" : "xmark.circle")
+                Image(systemName: state.configuration.hasNATGateway ? "checkmark.circle.fill" : "xmark.circle")
                     .font(.caption)
-                    .foregroundColor(status.configuration.hasNATGateway ? .green : .secondary)
+                    .foregroundColor(state.configuration.hasNATGateway ? .green : .secondary)
                 Text("NAT Gateway")
                     .font(.caption)
-                    .foregroundColor(status.configuration.hasNATGateway ? .primary : .secondary)
+                    .foregroundColor(state.configuration.hasNATGateway ? .primary : .secondary)
             }
         }
     }
@@ -323,7 +335,7 @@ struct CDKInfrastructureSectionView: View {
             Divider()
 
             // Progress summary
-            let progress = status.deploymentProgress
+            let progress = state.progress
             if !progress.resources.isEmpty {
                 HStack(spacing: 4) {
                     // "X of Y complete"
@@ -354,7 +366,7 @@ struct CDKInfrastructureSectionView: View {
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.5)
-                    if case .deploying = status.status {
+                    if case .deploying = state {
                         Text("Waiting for CloudFormation to start...")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -369,7 +381,7 @@ struct CDKInfrastructureSectionView: View {
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.5)
-                    if case .deploying = status.status {
+                    if case .deploying = state {
                         Text("Preparing CloudFormation changeset...")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -381,11 +393,11 @@ struct CDKInfrastructureSectionView: View {
                 }
             } else {
                 // Still waiting for first poll
-                if case .deploying(let operation) = status.status {
+                if case .deploying(let operation, _, _) = state {
                     Text("\(operation)...")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                } else if case .destroying = status.status {
+                } else if case .destroying = state {
                     Text("Removing AWS resources...")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -398,7 +410,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var resourceProgressList: some View {
-        let progress = status.deploymentProgress
+        let progress = state.progress
         let inProgress = progress.resources.filter { $0.status.isInProgress }
         let completed = progress.resources.filter { $0.status.isComplete }.prefix(3)
         let failed = progress.resources.filter { $0.status.isFailed }
@@ -477,39 +489,31 @@ struct CDKInfrastructureSectionView: View {
                 Menu {
                     Button {
                         showOutput()
-                        Task {
-                            try? await model.deploy(withPostgres: false, withNATGateway: false, output: stream)
-                        }
+                        model.deployCDK(withPostgres: false, withNATGateway: false, output: stream)
                     } label: {
                         Label("Minimal (No Database)", systemImage: "leaf")
                     }
 
                     Button {
                         showOutput()
-                        Task {
-                            try? await model.deploy(withPostgres: true, withNATGateway: false, output: stream)
-                        }
+                        model.deployCDK(withPostgres: true, withNATGateway: false, output: stream)
                     } label: {
                         Label("With PostgreSQL", systemImage: "cylinder")
                     }
 
                     Button {
                         showOutput()
-                        Task {
-                            try? await model.deploy(withPostgres: true, withNATGateway: true, output: stream)
-                        }
+                        model.deployCDK(withPostgres: true, withNATGateway: true, output: stream)
                     } label: {
                         Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
                     }
 
-                    if case .deployed = status.status {
+                    if case .deployed = state {
                         Divider()
 
                         Button {
                             showOutput()
-                            Task {
-                                try? await model.updateInfrastructure(output: stream)
-                            }
+                            model.updateCDKInfrastructure(output: stream)
                         } label: {
                             Label("Update (Keep Config)", systemImage: "arrow.triangle.2.circlepath")
                         }
@@ -523,10 +527,10 @@ struct CDKInfrastructureSectionView: View {
                     }
                 }
                 .menuStyle(.borderedButton)
-                .disabled(!status.status.canDeploy)
+                .disabled(!state.canDeploy)
 
                 // Destroy button
-                if status.status.canDestroy {
+                if state.canDestroy {
                     Button {
                         showDestroyConfirmation = true
                     } label: {
@@ -546,9 +550,7 @@ struct CDKInfrastructureSectionView: View {
             ) {
                 Button("Destroy", role: .destructive) {
                     showOutput()
-                    Task {
-                        try? await model.destroy(output: stream)
-                    }
+                    model.destroyCDK(output: stream)
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -558,12 +560,12 @@ struct CDKInfrastructureSectionView: View {
     }
 
     private var deployButtonLabel: String {
-        switch status.status {
+        switch state {
         case .notDeployed:
             return "Deploy"
         case .deployed:
             return "Update"
-        case .failed:
+        case .failed, .credentialExpired:
             return "Retry"
         default:
             return "Deploy"
@@ -599,12 +601,12 @@ struct CDKInfrastructureSectionView: View {
             if showOutputs {
                 VStack(alignment: .leading, spacing: 6) {
                     // API URL (highlighted)
-                    if let apiUrl = status.outputs.apiGatewayUrl {
+                    if let apiUrl = state.outputs.apiGatewayUrl {
                         outputRow(key: "API URL", value: apiUrl, copyable: true)
                     }
 
                     // Other outputs
-                    ForEach(status.outputs.allOutputs.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                    ForEach(state.outputs.allOutputs.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
                         if key != "ApiGatewayUrl" {
                             outputRow(key: key, value: value, copyable: true)
                         }

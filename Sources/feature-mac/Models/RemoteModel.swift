@@ -36,14 +36,25 @@ public class RemoteModel: LambdaService {
     /// GitHub CI model for CI operations. Non-nil if GitHub config is available.
     public private(set) var githubCIModel: GitHubCIModel?
 
-    /// CDK Infrastructure model for deployments. Non-nil if AWS config is available.
-    public private(set) var cdkInfrastructureModel: CDKInfrastructureModel?
-
     /// Lambda build service for local builds and uploads. Non-nil if AWS config is available.
     public private(set) var lambdaBuildService: LambdaBuildService?
 
     /// CloudWatch logs model for viewing Lambda logs. Non-nil if AWS config is available.
     public private(set) var cloudWatchLogsModel: CloudWatchLogsModel?
+
+    // MARK: - CDK Infrastructure State
+
+    /// CDK Infrastructure state (observed from service)
+    public private(set) var cdkState: CDKInfrastructureQueryService.State = .unknown
+
+    /// CDK stack name
+    public let cdkStackName = CDKStackConfiguration.defaultStackName
+
+    /// Whether CDK infrastructure is configured
+    public var isCDKConfigured: Bool { cdkInfrastructureService != nil }
+
+    /// CDK Infrastructure service (private - views use cdkState and action methods)
+    private var cdkInfrastructureService: CDKInfrastructureQueryService?
 
     // MARK: - LambdaService Protocol Properties
 
@@ -88,8 +99,8 @@ public class RemoteModel: LambdaService {
             self.githubCIModel = nil
         }
 
-        // Initialize CDK Infrastructure model (AWS config is already available)
-        self.cdkInfrastructureModel = CDKInfrastructureModel(
+        // Initialize CDK Infrastructure service (AWS config is already available)
+        self.cdkInfrastructureService = CDKInfrastructureQueryService(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
@@ -109,9 +120,19 @@ public class RemoteModel: LambdaService {
             cliService: cliService
         )
 
-        // Fetch endpoint from CDK immediately on init
+        // Start observing CDK state and fetch endpoint
         Task {
+            await self.startObservingCDKState()
             try? await self.fetchEndpoint()
+        }
+    }
+
+    // MARK: - CDK State Observation
+
+    private func startObservingCDKState() async {
+        guard let service = cdkInfrastructureService else { return }
+        for await state in await service.states() {
+            self.cdkState = state
         }
     }
 
@@ -269,8 +290,8 @@ public class RemoteModel: LambdaService {
         isLoadingStatusSubject.send(true)
 
         // Start all refreshes in parallel using separate Tasks
-        if let cdk = cdkInfrastructureModel {
-            Task { await cdk.refreshStatus() }
+        if let cdk = cdkInfrastructureService {
+            Task { await cdk.refresh() }
         }
         if let github = githubCIModel {
             Task { await github.refreshStatus() }
@@ -285,6 +306,36 @@ public class RemoteModel: LambdaService {
                 statusSubject.send(.stopped)
             }
             isLoadingStatusSubject.send(false)
+        }
+    }
+
+    // MARK: - CDK Infrastructure Actions
+
+    /// Refresh CDK infrastructure state from AWS
+    public func refreshCDKState() {
+        Task {
+            await cdkInfrastructureService?.refresh()
+        }
+    }
+
+    /// Deploy CDK infrastructure with specified configuration
+    public func deployCDK(withPostgres: Bool, withNATGateway: Bool, output: CLIOutputStream? = nil) {
+        Task {
+            await cdkInfrastructureService?.deploy(withPostgres: withPostgres, withNATGateway: withNATGateway, output: output)
+        }
+    }
+
+    /// Update CDK infrastructure maintaining current configuration
+    public func updateCDKInfrastructure(output: CLIOutputStream? = nil) {
+        Task {
+            await cdkInfrastructureService?.updateInfrastructure(output: output)
+        }
+    }
+
+    /// Destroy CDK infrastructure
+    public func destroyCDK(output: CLIOutputStream? = nil) {
+        Task {
+            await cdkInfrastructureService?.destroy(output: output)
         }
     }
 
