@@ -3,7 +3,7 @@ import Foundation
 
 /// Generic service for interacting with AWS CloudFormation via CLI
 /// This service provides CloudFormation operations without app-specific logic.
-public actor CloudFormationService {
+public actor CloudFormationClient {
     private let cliService: CLIClient
     private let credentialProvider: AWSCredentialProvider
 

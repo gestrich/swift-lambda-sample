@@ -3,14 +3,14 @@ import sdk_aws
 import Foundation
 
 /// App-specific service for detecting Swift Lambda infrastructure configuration.
-/// Uses the generic CloudFormationService from sdk-aws for queries, but contains
+/// Uses the generic CloudFormationClient from sdk-aws for queries, but contains
 /// app-specific logic for detecting Database, NAT Gateway, and VPC resources.
 public actor SwiftLambdaInfrastructureService {
-    private let cloudFormation: CloudFormationService
+    private let cloudFormation: CloudFormationClient
     private let stackName: String
 
     public init(
-        cloudFormation: CloudFormationService,
+        cloudFormation: CloudFormationClient,
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
         self.cloudFormation = cloudFormation
@@ -23,7 +23,7 @@ public actor SwiftLambdaInfrastructureService {
         cliService: CLIClient,
         stackName: String = CDKStackConfiguration.defaultStackName
     ) {
-        self.cloudFormation = CloudFormationService(
+        self.cloudFormation = CloudFormationClient(
             credentialProvider: awsConfig.makeCredentialProvider(),
             cliService: cliService
         )

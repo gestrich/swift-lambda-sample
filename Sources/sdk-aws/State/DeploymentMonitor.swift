@@ -14,13 +14,13 @@ public actor DeploymentMonitor {
 
     // MARK: - Services
 
-    private let cloudFormation: CloudFormationService
+    private let cloudFormation: CloudFormationClient
 
     // MARK: - Initialization
 
     public init(
         stackName: String,
-        cloudFormation: CloudFormationService
+        cloudFormation: CloudFormationClient
     ) {
         self.stackName = stackName
         self.cloudFormation = cloudFormation

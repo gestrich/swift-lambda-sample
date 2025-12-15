@@ -12,7 +12,7 @@ Rename all `*Service` types in the `sdk-*` packages to `*Client`.
 ### sdk-aws
 
 - [x] `AWSVaultService` → `AWSVaultClient` (Sources/sdk-aws/Auth/AWSVaultClient.swift)
-- [ ] `CloudFormationService` → `CloudFormationClient` (Sources/sdk-aws/CloudFormation/CloudFormationService.swift)
+- [x] `CloudFormationService` → `CloudFormationClient` (Sources/sdk-aws/CloudFormation/CloudFormationClient.swift)
 - [ ] `CDKService` → `CDKClient` (Sources/sdk-aws/Services/CDKService.swift)
 - [ ] `CloudWatchLogsService` → `CloudWatchLogsClient` (Sources/sdk-aws/CloudWatch/CloudWatchLogsService.swift)
 
