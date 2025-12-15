@@ -3,7 +3,7 @@ import Foundation
 import SwiftDeploy
 
 @main
-struct SwiftDeployCLI: AsyncParsableCommand {
+struct FeatureDeployCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swift-deploy",
         abstract: "CLI tool for managing Swift Lambda deployments",

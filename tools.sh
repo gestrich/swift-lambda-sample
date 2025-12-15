@@ -6,12 +6,12 @@ set -o pipefail
 set -o nounset
 
 # ============================================================================
-# tools.sh - Thin wrapper for SwiftDeployCLI
+# tools.sh - Thin wrapper for feature-deploy-cli
 # ============================================================================
 #
 # This script is a simple delegator that passes all arguments directly to
-# the SwiftDeployCLI tool. It provides a shorter command prefix for
-# convenience: ./tools.sh instead of swift run SwiftDeployCLI
+# the feature-deploy-cli tool. It provides a shorter command prefix for
+# convenience: ./tools.sh instead of swift run feature-deploy-cli
 #
 # Usage:
 #   ./tools.sh [command] [args...]
@@ -28,5 +28,5 @@ set -o nounset
 #   ./tools.sh local --help
 # ============================================================================
 
-# Pass all arguments directly to SwiftDeployCLI
-swift run SwiftDeployCLI "$@"
+# Pass all arguments directly to feature-deploy-cli
+swift run feature-deploy-cli "$@"
