@@ -6,14 +6,15 @@
 //
 
 import Foundation
-import Testing
+import sdk_cli
 @testable import service_deploy
+import Testing
 
 @Suite("Linux Lambda Container Integration Tests")
 @MainActor
 struct LinuxContainerIntegrationTests {
 
-    let linuxService: LinuxLocalService
+    let linuxService: LinuxLocalDevelopmentService
     let cliService: CLIClient
     let projectRoot: URL
 
@@ -28,7 +29,7 @@ struct LinuxContainerIntegrationTests {
 
         self.projectRoot = root
         self.cliService = CLIClient()
-        self.linuxService = LinuxLocalService(workingDirectory: root.path)
+        self.linuxService = LinuxLocalDevelopmentService(workingDirectory: root.path)
     }
 
     @Test("Full Linux container workflow: build, start services, run in container, test endpoints, cleanup")
@@ -63,7 +64,7 @@ struct LinuxContainerIntegrationTests {
 
         // Step 3: Build Lambda (skip if already built)
         print("🔨 Step 3: Checking Lambda build...")
-        let isBuilt = linuxService.isLambdaBuilt()
+        let isBuilt = await linuxService.isLambdaBuilt()
         if isBuilt {
             print("  ✅ Lambda already built, skipping build step")
         } else {
@@ -78,9 +79,7 @@ struct LinuxContainerIntegrationTests {
 
         // Step 4: Start Lambda in container (background mode) using protocol method
         print("🚀 Step 4: Starting Lambda in Linux container...")
-        try await linuxService.startDetached(
-            lambdaPath: "\(projectRoot.path)/lambda"
-        )
+        try await linuxService.startLambda()
 
         // Give Lambda time to start
         try await Task.sleep(for: .seconds(5))
@@ -132,7 +131,7 @@ struct LinuxContainerIntegrationTests {
 
 
     private func testS3Endpoint() async throws {
-        let port = linuxService.port
+        let port = await linuxService.port
         let endpoint = "http://localhost:\(port)/invoke"
 
         let payload = """
@@ -167,7 +166,7 @@ struct LinuxContainerIntegrationTests {
     }
 
     private func testPostgresEndpoint() async throws {
-        let port = linuxService.port
+        let port = await linuxService.port
         let endpoint = "http://localhost:\(port)/invoke"
 
         let payload = """
@@ -222,6 +221,6 @@ struct LinuxContainerIntegrationTests {
             printCommand: false
         )
 
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.stdout.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
     }
 }
