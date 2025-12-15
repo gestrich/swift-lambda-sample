@@ -1,8 +1,7 @@
-import CLIKit
 import SwiftDeploy
 import SwiftUI
 
-/// Placeholder when GitHubService is not available (config missing or loading)
+/// Placeholder when GitHubCIModel is not available (config missing or loading)
 struct GitHubCILoadingView: View {
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
@@ -48,14 +47,14 @@ struct GitHubCILoadingView: View {
 /// View for the GitHub CI section in Remote mode
 /// Shows workflow status, job/step progress during deployment, and action buttons
 struct GitHubCISectionView: View {
-    @State var service: GitHubService
+    @State var model: GitHubCIModel
 
     // Timer for updating elapsed time display
     @State private var currentTime = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var ciStatus: GitHubCIStatus {
-        service.ciStatus
+        model.ciStatus
     }
 
     var body: some View {
@@ -69,7 +68,7 @@ struct GitHubCISectionView: View {
 
                 // Refresh button
                 Button {
-                    Task { await service.refreshStatus() }
+                    Task { await model.refreshStatus() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -305,7 +304,7 @@ struct GitHubCISectionView: View {
             HStack(spacing: 4) {
                 Image(systemName: "link")
                     .font(.caption)
-                Text(service.config.repository)
+                Text(model.config.repository)
                     .font(.caption)
                     .textSelection(.enabled)
             }
@@ -446,7 +445,7 @@ struct GitHubCISectionView: View {
                 Button {
                     showOutput()
                     Task {
-                        try? await service.pushAndDeploy(output: stream)
+                        try? await model.pushAndDeploy(output: stream)
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -460,7 +459,7 @@ struct GitHubCISectionView: View {
                 // View Logs button
                 if let runId = ciStatus.status.runId {
                     Button {
-                        Task { try? await service.viewWorkflowLogs(runId: runId) }
+                        Task { try? await model.viewWorkflowLogs(runId: runId) }
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "doc.text")

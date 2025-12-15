@@ -3,7 +3,7 @@ import Client
 import Foundation
 
 /// Stateless service for remote AWS Lambda deployment and management
-/// Orchestrates CDKService, AWSCLIService, GitService, and GitHubService
+/// Orchestrates CDKService, AWSCLIService, GitService, and GitHubActionsService
 public actor RemoteDeploymentService {
     private let cdkService: CDKService
     private let awsService: AWSCLIService
@@ -166,35 +166,32 @@ public actor RemoteDeploymentService {
         }
 
         let gitService = GitService(repoPath: projectRoot, cliService: cliService)
-        let githubService = await GitHubService(repoPath: projectRoot, config: config, cliService: cliService)
+        let actionsService = GitHubActionsService(repoPath: projectRoot, config: config, cliService: cliService)
 
         if !skipPush {
             let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
             if hasCommitsToPush {
-                let beforeRunId = try await githubService.getLatestRunId(branch: config.branch)
+                let beforeRunId = try await actionsService.getLatestRunId()
                 try await gitService.push()
 
-                try await githubService.waitForNewWorkflowCompletion(
-                    branch: config.branch,
+                try await actionsService.waitForNewWorkflowCompletion(
                     afterRunId: beforeRunId,
                     timeoutMinutes: 10
                 )
             } else {
                 print("\n✅ No commits to push")
                 print("🔄 Triggering workflow to redeploy current code...\n")
-                try await githubService.triggerWorkflowAndWait(
+                try await actionsService.triggerWorkflowAndWait(
                     workflowName: "Dev Deploy",
-                    branch: config.branch,
                     timeoutMinutes: 10
                 )
             }
         } else {
             print("\n⏭️  Skipping git push (--skip-push enabled)")
             print("🔄 Triggering workflow...\n")
-            try await githubService.triggerWorkflowAndWait(
+            try await actionsService.triggerWorkflowAndWait(
                 workflowName: "Dev Deploy",
-                branch: config.branch,
                 timeoutMinutes: 10
             )
         }
@@ -220,9 +217,9 @@ public actor RemoteDeploymentService {
         // Get GitHub status if configured
         var githubStatus: RemoteStatus.GitHubStatus? = nil
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            let githubService = await GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            let actionsService = GitHubActionsService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
             do {
-                let (status, conclusion) = try await githubService.getLatestRunStatus(branch: githubConfig.branch)
+                let (status, conclusion) = try await actionsService.getLatestRunStatus()
                 githubStatus = RemoteStatus.GitHubStatus(
                     repository: githubConfig.repository,
                     branch: githubConfig.branch,

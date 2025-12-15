@@ -65,8 +65,8 @@ struct LambdaUpdateView: View {
 
     @ViewBuilder
     private var githubContent: some View {
-        if let ghService = service.githubService {
-            GitHubCISectionView(service: ghService)
+        if let ghModel = service.githubCIModel {
+            GitHubCISectionView(model: ghModel)
                 .transition(.opacity)
         } else {
             GitHubCILoadingView(onOpenSettings: onOpenSettings)

@@ -32,10 +32,10 @@ public class RemoteModel: LambdaService {
         isLoadingStatusSubject.eraseToAnyPublisher()
     }
 
-    // MARK: - Sub-Services for UI
+    // MARK: - Sub-Models for UI
 
-    /// GitHub service for CI operations. Non-nil if GitHub config is available.
-    public private(set) var githubService: GitHubService?
+    /// GitHub CI model for CI operations. Non-nil if GitHub config is available.
+    public private(set) var githubCIModel: GitHubCIModel?
 
     /// CDK Infrastructure model for deployments. Non-nil if AWS config is available.
     public private(set) var cdkInfrastructureModel: CDKInfrastructureModel?
@@ -82,11 +82,11 @@ public class RemoteModel: LambdaService {
         // Load persisted endpoint
         self.cachedEndpoint = UserDefaults.standard.string(forKey: Self.endpointKey)
 
-        // Initialize GitHub service if config is available
+        // Initialize GitHub CI model if config is available
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliService: cliService)
         } else {
-            self.githubService = nil
+            self.githubCIModel = nil
         }
 
         // Initialize CDK Infrastructure model (AWS config is already available)
@@ -131,15 +131,15 @@ public class RemoteModel: LambdaService {
     }
 
     /// Reload configuration from disk (e.g., after settings are changed)
-    /// Only recreates sub-services if configuration has changed or they don't exist yet
+    /// Only recreates sub-models if configuration has changed or they don't exist yet
     public func reloadConfiguration() {
-        // Only reload GitHub service if it doesn't exist yet or config changed
+        // Only reload GitHub CI model if it doesn't exist yet or config changed
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            if githubService == nil {
-                self.githubService = GitHubService(repoPath: projectRoot, config: githubConfig, cliService: cliService)
+            if githubCIModel == nil {
+                self.githubCIModel = GitHubCIModel(repoPath: projectRoot, config: githubConfig, cliService: cliService)
             }
         } else {
-            self.githubService = nil
+            self.githubCIModel = nil
         }
     }
 
@@ -263,7 +263,7 @@ public class RemoteModel: LambdaService {
         if let cdk = cdkInfrastructureModel {
             Task { await cdk.refreshStatus() }
         }
-        if let github = githubService {
+        if let github = githubCIModel {
             Task { await github.refreshStatus() }
         }
         Task {

@@ -260,9 +260,10 @@ This creates issues:
 
 ---
 
-## 7. GitHubService
+## 7. GitHubService ✅ COMPLETED
 
-**Current Location:** `Sources/SwiftDeploy/Services/GitHubService.swift`
+**Current Location:** `Sources/MacApp/Models/GitHubCIModel.swift` (slimmed down)
+**Service Location:** `Sources/SwiftDeploy/Services/GitHubActionsService.swift`
 
 **Analysis:**
 - `@MainActor @Observable` class mixing state and logic
@@ -275,27 +276,32 @@ This creates issues:
 
 **Refactor Plan:**
 
-### [ ] 7.1 Create GitHubActionsService (stateless)
+### [x] 7.1 Create GitHubActionsService (stateless)
 - Location: `Sources/SwiftDeploy/Services/GitHubActionsService.swift`
 - Stateless actor for GitHub Actions operations
 - Methods:
-  - `func getLatestWorkflowRun(branch: String) async throws -> WorkflowRun?`
+  - `func getLatestWorkflowRun() async throws -> WorkflowRun?`
   - `func getGitStatus() async throws -> GitStatus`
   - `func pushAndTriggerWorkflow() async throws -> String` (returns run ID)
   - `func triggerWorkflow() async throws -> String`
   - `func monitorWorkflowRun(runId: String) -> AsyncStream<WorkflowProgress>`
-  - `func getWorkflowRunDetail(runId: String) async throws -> WorkflowRunDetail`
+  - `func getRunDetail(runId: String) async throws -> GitHubRunDetail`
 
-### [ ] 7.2 Create GitHubCIModel (observable state)
+### [x] 7.2 Create GitHubCIModel (observable state)
 - Location: `Sources/MacApp/Models/GitHubCIModel.swift`
 - `@Observable` class holding UI state
-- Keeps: `ciStatus`, `config`, status publishers
+- Keeps: `ciStatus`, `config`
 - Delegates operations to `GitHubActionsService`
 
-### [ ] 7.3 Update MacApp references
-- Update any views using GitHubService
+### [x] 7.3 Update MacApp references
+- Updated `RemoteModel` to use `GitHubCIModel` instead of `GitHubService`
+- Updated `LambdaUpdateView` to use `githubCIModel`
+- Updated `GitHubCISectionView` parameter from `service:` to `model:`
+- Updated `RemoteDeploymentService` to use `GitHubActionsService`
 
-### [ ] 7.4 Verify build
+### [x] 7.4 Verify build
+- Deleted old `GitHubService.swift` (all functionality moved)
+- `swift build` passes successfully
 
 ---
 
@@ -320,6 +326,7 @@ SwiftDeploy/Services/
 ├── LinuxLocalDevelopmentService.swift     (stateless facade)
 ├── DependencyCheckerService.swift         (stateless)
 ├── CDKInfrastructureQueryService.swift    (stateless)
+├── GitHubActionsService.swift             (stateless)
 └── ... (existing services)
 
 SwiftDeploy/LambdaServices/
@@ -331,7 +338,8 @@ MacApp/Models/
 ├── XcodeLocalModel.swift          (@Observable state only)
 ├── LinuxLocalModel.swift          (@Observable state only)
 ├── DependencyStatusModel.swift    (@Observable state only)
-└── CDKInfrastructureModel.swift   (@Observable state only)
+├── CDKInfrastructureModel.swift   (@Observable state only)
+└── GitHubCIModel.swift            (@Observable state only)
 
 CLI → Service (single call)
 MacApp View → Model → Service
@@ -455,3 +463,116 @@ do {
 - Models are trivially simple (state assignment + subscriptions)
 - Clear data flow: Service returns state → Model stores state → View observes state
 - Consistent pattern across all Model/Service pairs
+
+---
+
+## 9. Future: Simplify GitHubCIModel Business Logic
+
+**Status:** Proposed
+
+**Problem:**
+
+`GitHubCIModel` still contains some business/domain logic that could be moved to `GitHubActionsService`:
+
+- **Status transformation** (`refreshStatus()` - determining if a run is in progress and what to display)
+- **Date parsing** (`parseGitHubDate` - converting ISO8601 strings to Date)
+- **Auto-monitoring detection** (checking if latest run is incomplete and starting monitor)
+
+While GitHubCIModel is cleaner than CDKInfrastructureModel (monitoring is already via AsyncStream), there's room for further simplification.
+
+**Current Flow:**
+```
+View → Model.refreshStatus() → [Service.getGitStatus() + Service.getLatestWorkflowRun()]
+                             → [Model decides if run is in progress]
+                             → [Model transforms WorkflowRun → WorkflowRunInfo]
+                             → [Model starts monitoring if needed]
+```
+
+**Target Flow:**
+```
+View → Model.refreshStatus() → Service.getFullStatus() → GitHubCISnapshot
+                             ↓
+                Model assigns snapshot to state
+                             ↓
+                If snapshot.inProgressRunId != nil → subscribe to monitor stream
+```
+
+**Proposed Changes:**
+
+### [ ] 9.1 Service returns complete status snapshot
+- Add `func getFullStatus() async throws -> GitHubCISnapshot`
+- Service handles all queries and transformations
+- Returns a complete, ready-to-display snapshot
+
+```swift
+// Service - returns complete snapshot
+public struct GitHubCISnapshot: Sendable {
+    public let gitStatus: GitStatus
+    public let latestRun: WorkflowRunInfo?
+    public let inProgressRunId: String?  // Non-nil if monitoring needed
+}
+
+public func getFullStatus() async throws -> GitHubCISnapshot {
+    let gitStatus = try await getGitStatus()
+    let latestRun = try await getLatestWorkflowRun()
+
+    let runInfo = latestRun.map { run in
+        WorkflowRunInfo(
+            id: run.id,
+            status: run.status,
+            conclusion: run.conclusion,
+            title: run.displayTitle,
+            createdAt: parseGitHubDate(run.createdAt)  // Date parsing in service
+        )
+    }
+
+    let inProgressId = latestRun?.isCompleted == false ? latestRun?.id : nil
+
+    return GitHubCISnapshot(
+        gitStatus: gitStatus,
+        latestRun: runInfo,
+        inProgressRunId: inProgressId
+    )
+}
+```
+
+### [ ] 9.2 Simplify GitHubCIModel.refreshStatus()
+- Remove transformation logic
+- Remove date parsing helper
+- Just assign snapshot values to state
+
+```swift
+// Model - trivially simple
+public func refreshStatus() async {
+    guard !ciStatus.status.isDeploying else { return }
+    ciStatus.status = .loading
+
+    do {
+        let snapshot = try await actionsService.getFullStatus()
+
+        ciStatus.hasUnpushedCommits = snapshot.gitStatus.hasUnpushedCommits
+        ciStatus.hasUncommittedChanges = snapshot.gitStatus.hasUncommittedChanges
+        ciStatus.currentBranch = snapshot.gitStatus.currentBranch
+
+        if let inProgressId = snapshot.inProgressRunId {
+            ciStatus.status = .deploying(runId: inProgressId)
+            Task { await monitorWorkflowRun(runId: inProgressId) }
+        } else {
+            ciStatus.status = .idle(lastRun: snapshot.latestRun)
+        }
+    } catch {
+        ciStatus.status = .idle(lastRun: nil)
+    }
+}
+```
+
+### [ ] 9.3 Move WorkflowRunInfo to SwiftDeploy
+- Currently defined in MacApp's GitHubCIModel
+- Move to SwiftDeploy so service can return it
+- Keeps UI types in service layer for reuse
+
+**Benefits:**
+- Model has zero transformation logic
+- Date parsing consolidated in service
+- Service returns ready-to-display data
+- Consistent with CDKInfrastructureModel refactor pattern
