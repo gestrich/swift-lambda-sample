@@ -308,10 +308,10 @@ After completing each phase:
 - [x] Find callers of `AWSCLIService.getStackEvents` → use `CloudFormationClient` (no external callers found)
 - [x] Remove duplicate methods from `AWSCLIService`
 
-### Phase 6: Remove Duplicate CloudWatch Methods
+### Phase 6: Remove Duplicate CloudWatch Methods ✅
 
-- [ ] Find callers of `AWSCLIService.tailLogs` → use `CloudWatchLogsClient`
-- [ ] Remove `tailLogs` from `AWSCLIService`
+- [x] Find callers of `AWSCLIService.tailLogs` → use `CloudWatchLogsClient` (updated AWSTestingService)
+- [x] Remove `tailLogs` from `AWSCLIService`
 
 ### Phase 7: Delete AWSCLIService
 

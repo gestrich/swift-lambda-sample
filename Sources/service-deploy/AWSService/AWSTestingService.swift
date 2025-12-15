@@ -5,8 +5,8 @@ import Foundation
 
 /// Service for testing deployed AWS Lambda and infrastructure
 public actor AWSTestingService {
-    private let awsService: AWSCLIService
     private let cloudFormationClient: CloudFormationClient
+    private let cloudWatchLogsClient: CloudWatchLogsClient
     private let s3Client: S3Client
     private let cliClient: CLIClient
     private let stackName = "SwiftLambdaSampleStack"
@@ -14,24 +14,34 @@ public actor AWSTestingService {
 
     public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
         self.cliClient = cliClient
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        let credentialProvider = awsConfig.makeCredentialProvider()
         self.cloudFormationClient = CloudFormationClient(
-            credentialProvider: awsConfig.makeCredentialProvider(),
+            credentialProvider: credentialProvider,
             cliClient: cliClient
         )
-        self.s3Client = S3Client(credentialProvider: awsConfig.makeCredentialProvider(), cliClient: cliClient)
+        self.cloudWatchLogsClient = CloudWatchLogsClient(
+            logGroup: "/aws/lambda/swift-lambda-sample",
+            credentialProvider: credentialProvider,
+            cliClient: cliClient
+        )
+        self.s3Client = S3Client(credentialProvider: credentialProvider, cliClient: cliClient)
     }
 
     /// Convenience initializer that creates its own CLIClient
     public init(awsConfig: AWSAuthConfiguration) {
         let cliClient = CLIClient()
         self.cliClient = cliClient
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        let credentialProvider = awsConfig.makeCredentialProvider()
         self.cloudFormationClient = CloudFormationClient(
-            credentialProvider: awsConfig.makeCredentialProvider(),
+            credentialProvider: credentialProvider,
             cliClient: cliClient
         )
-        self.s3Client = S3Client(credentialProvider: awsConfig.makeCredentialProvider(), cliClient: cliClient)
+        self.cloudWatchLogsClient = CloudWatchLogsClient(
+            logGroup: "/aws/lambda/swift-lambda-sample",
+            credentialProvider: credentialProvider,
+            cliClient: cliClient
+        )
+        self.s3Client = S3Client(credentialProvider: credentialProvider, cliClient: cliClient)
     }
 
     /// Create an API client configured with the deployed API Gateway URL
@@ -236,11 +246,7 @@ public actor AWSTestingService {
     public func checkLogs(since: String = "5m") async throws {
         print("\n📋 Lambda execution logs (last \(since)):")
 
-        try await awsService.tailLogs(
-            logGroup: "/aws/lambda/\(lambdaName)",
-            since: since,
-            format: "short"
-        )
+        _ = try await cloudWatchLogsClient.fetchRecentLogs(since: since)
     }
 
     // MARK: - Comprehensive Testing

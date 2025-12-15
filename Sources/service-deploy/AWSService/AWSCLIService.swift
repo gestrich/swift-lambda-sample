@@ -158,33 +158,6 @@ public actor AWSCLIService {
         return json
     }
 
-    // MARK: - CloudWatch Logs
-
-    /// Tail CloudWatch logs
-    /// - Parameters:
-    ///   - logGroup: CloudWatch log group name
-    ///   - since: Time period to fetch logs from (default: "5m")
-    ///   - format: Output format (default: "short")
-    ///   - follow: Whether to follow logs in real-time
-    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
-    public func tailLogs(
-        logGroup: String,
-        since: String = "5m",
-        format: String = "short",
-        follow: Bool = false,
-        output: CLIOutputStream? = nil
-    ) async throws {
-        let command = Aws.Logs.Tail(
-            logGroup: logGroup,
-            since: since,
-            format: format,
-            follow: follow,
-            profile: profile
-        )
-
-        try await executeForSideEffect(command, output: output)
-    }
-
     // MARK: - S3
 
     /// List objects in an S3 bucket
