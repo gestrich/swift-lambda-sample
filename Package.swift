@@ -70,7 +70,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "MacApp",
+            name: "feature-mac",
             dependencies: [
                 .target(name: "Client"),
                 .target(name: "SwiftDeploy"),

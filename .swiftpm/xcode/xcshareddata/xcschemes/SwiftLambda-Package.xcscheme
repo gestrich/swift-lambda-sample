@@ -63,6 +63,20 @@
                ReferencedContainer = "container:">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "feature-mac"
+               BuildableName = "feature-mac"
+               BlueprintName = "feature-mac"
+               ReferencedContainer = "container:">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -118,9 +132,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "feature-lambda"
-            BuildableName = "feature-lambda"
-            BlueprintName = "feature-lambda"
+            BlueprintIdentifier = "feature-mac"
+            BuildableName = "feature-mac"
+            BlueprintName = "feature-mac"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -144,9 +158,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "feature-lambda"
-            BuildableName = "feature-lambda"
-            BlueprintName = "feature-lambda"
+            BlueprintIdentifier = "feature-mac"
+            BuildableName = "feature-mac"
+            BlueprintName = "feature-mac"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -218,7 +218,7 @@ Services are easily testable because SDKs can be injected as protocols.
 ### Target Renames
 
 - [x] `SwiftLambda` → `feature-lambda`
-- [ ] `MacApp` → `feature-mac`
+- [x] `MacApp` → `feature-mac`
 - [ ] `SwiftDeployCLI` → `feature-deploy-cli`
 - [ ] `SwiftDeploy` → `service-deploy`
 - [ ] `SwiftServerApp` → `service-server`
