@@ -53,8 +53,6 @@ public actor CDKService {
             try await install(output: output)
         }
 
-        print("\n🔨 Building CDK TypeScript...")
-
         let command = Npm.Run(script: "build")
         let (execCommand, arguments) = buildNpmCommandLine(command)
 
@@ -97,7 +95,6 @@ public actor CDKService {
     ///   - options: Deployment options (skipPostgres, skipNATGateway, requireApproval)
     ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func deploy(options: DeployOptions = DeployOptions(), output: CLIOutputStream? = nil) async throws {
-        print("\n🚀 Deploying CDK stack...")
 
         // Build context array
         var context: [String] = []
@@ -138,7 +135,6 @@ public actor CDKService {
     ///   - force: If true, skip confirmation prompts
     ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func destroy(force: Bool = false, output: CLIOutputStream? = nil) async throws {
-        print("\n🗑️  Destroying CDK stack...")
 
         let command = Cdk.Destroy(
             profile: awsProfile,
@@ -243,7 +239,6 @@ public actor CDKService {
     /// Install CDK dependencies
     /// - Parameter output: Optional client-owned stream to receive output (in addition to global stream)
     public func install(output: CLIOutputStream? = nil) async throws {
-        print("\n📦 Installing CDK dependencies...")
 
         let command = Npm.Install()
         let (execCommand, arguments) = buildNpmCommandLine(command)
@@ -266,7 +261,6 @@ public actor CDKService {
 
     /// Bootstrap CDK (one-time setup for AWS account)
     public func bootstrap() async throws {
-        print("\n🔧 Bootstrapping CDK...")
 
         let command = Cdk.Bootstrap(profile: awsProfile)
         let (execCommand, arguments) = buildCommandLine(command)

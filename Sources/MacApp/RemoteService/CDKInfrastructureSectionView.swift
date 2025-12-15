@@ -365,13 +365,19 @@ struct CDKInfrastructureSectionView: View {
                     }
                 }
             } else if progress.hasPolled {
-                // Still early - CDK is preparing the deployment
+                // Still early - CDK is preparing the operation
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.5)
-                    Text("Preparing CloudFormation changeset...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if case .deploying = status.status {
+                        Text("Preparing CloudFormation changeset...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Preparing to delete resources...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             } else {
                 // Still waiting for first poll

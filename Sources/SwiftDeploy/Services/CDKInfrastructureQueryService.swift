@@ -12,7 +12,7 @@ public actor CDKInfrastructureQueryService {
     public init(
         projectRoot: String,
         awsConfig: AWSAuthConfiguration,
-        cdkDirectory: String = "cdk",
+        cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
         cliService: CLIService
     ) {
         self.cdkService = CDKService(
@@ -105,10 +105,9 @@ public actor CDKInfrastructureQueryService {
     /// Get complete infrastructure status
     /// - Parameter stackName: Name of the stack
     /// - Returns: Complete status with state, configuration, and outputs
-    /// - Throws: CDKInfrastructureError for credential issues
+    /// - Throws: CDKInfrastructureError for credential issues or unexpected errors
     public func getFullStatus(stackName: String) async throws -> CDKInfrastructureStatus {
-        var result = CDKInfrastructureStatus()
-        result.stackName = stackName
+        var result = CDKInfrastructureStatus(stackName: stackName)
 
         do {
             let stackStatus = try await getStackStatus(stackName: stackName)
@@ -143,8 +142,10 @@ public actor CDKInfrastructureQueryService {
 
             if CDKInfrastructureError.isCredentialError(errorMessage) {
                 throw CDKInfrastructureError.credentialExpired(message: errorMessage)
-            } else {
+            } else if CDKInfrastructureError.isStackNotFoundError(errorMessage) {
                 result.status = .notDeployed
+            } else {
+                throw CDKInfrastructureError.unknown(message: errorMessage)
             }
         }
 
@@ -154,11 +155,12 @@ public actor CDKInfrastructureQueryService {
     // MARK: - Progress Streaming Operations
 
     /// Deploy CDK stack with progress streaming
+    /// Progress is extracted by parsing CDK CLI output in real-time
     /// - Parameters:
-    ///   - stackName: Name of the stack to monitor
+    ///   - stackName: Name of the stack to monitor (unused, kept for API compatibility)
     ///   - withPostgres: Include PostgreSQL database
     ///   - withNATGateway: Include NAT Gateway
-    ///   - output: Optional stream to receive CDK output
+    ///   - output: Stream to receive CDK output (required for progress parsing)
     /// - Returns: AsyncStream yielding progress snapshots until deployment completes
     public nonisolated func deployWithProgress(
         stackName: String,
@@ -168,8 +170,7 @@ public actor CDKInfrastructureQueryService {
     ) -> AsyncThrowingStream<CDKDeploymentProgress, Error> {
         AsyncThrowingStream { continuation in
             Task {
-                let startTime = Date()
-
+                // Build first (no progress parsing needed)
                 do {
                     try await self.build(output: output)
                 } catch {
@@ -177,61 +178,22 @@ public actor CDKInfrastructureQueryService {
                     return
                 }
 
-                let deployTask = Task {
+                // Deploy with progress parsing
+                await self.executeWithOutputParsing(
+                    output: output,
+                    continuation: continuation
+                ) {
                     try await self.deploy(withPostgres: withPostgres, withNATGateway: withNATGateway, output: output)
-                }
-
-                let pollingTask = Task {
-                    var pollCount = 0
-                    while !Task.isCancelled {
-                        pollCount += 1
-
-                        do {
-                            let events = try await self.getStackEvents(stackName: stackName)
-                            let progress = CDKDeploymentProgress.from(
-                                events: events,
-                                since: startTime,
-                                pollCount: pollCount
-                            )
-                            continuation.yield(progress)
-                        } catch {
-                            let progress = CDKDeploymentProgress(pollCount: pollCount)
-                            continuation.yield(progress)
-                        }
-
-                        do {
-                            try await Task.sleep(for: .seconds(2))
-                        } catch {
-                            break
-                        }
-                    }
-                }
-
-                do {
-                    try await deployTask.value
-                    pollingTask.cancel()
-
-                    let finalEvents = try await self.getStackEvents(stackName: stackName)
-                    let finalProgress = CDKDeploymentProgress.from(
-                        events: finalEvents,
-                        since: startTime,
-                        pollCount: 0,
-                        isComplete: true
-                    )
-                    continuation.yield(finalProgress)
-                    continuation.finish()
-                } catch {
-                    pollingTask.cancel()
-                    continuation.finish(throwing: CDKInfrastructureError.deploymentFailed(reason: error.localizedDescription))
                 }
             }
         }
     }
 
     /// Destroy CDK stack with progress streaming
+    /// Progress is extracted by parsing CDK CLI output in real-time
     /// - Parameters:
-    ///   - stackName: Name of the stack to monitor
-    ///   - output: Optional stream to receive CDK output
+    ///   - stackName: Name of the stack to monitor (unused, kept for API compatibility)
+    ///   - output: Stream to receive CDK output (required for progress parsing)
     /// - Returns: AsyncStream yielding progress snapshots until destroy completes
     public nonisolated func destroyWithProgress(
         stackName: String,
@@ -239,54 +201,18 @@ public actor CDKInfrastructureQueryService {
     ) -> AsyncThrowingStream<CDKDeploymentProgress, Error> {
         AsyncThrowingStream { continuation in
             Task {
-                let startTime = Date()
-
-                let destroyTask = Task {
+                await self.executeWithOutputParsing(
+                    output: output,
+                    continuation: continuation
+                ) {
                     try await self.destroy(output: output)
-                }
-
-                let pollingTask = Task {
-                    var pollCount = 0
-                    while !Task.isCancelled {
-                        pollCount += 1
-
-                        do {
-                            let events = try await self.getStackEvents(stackName: stackName)
-                            let progress = CDKDeploymentProgress.from(
-                                events: events,
-                                since: startTime,
-                                pollCount: pollCount
-                            )
-                            continuation.yield(progress)
-                        } catch {
-                            let progress = CDKDeploymentProgress(pollCount: pollCount)
-                            continuation.yield(progress)
-                        }
-
-                        do {
-                            try await Task.sleep(for: .seconds(2))
-                        } catch {
-                            break
-                        }
-                    }
-                }
-
-                do {
-                    try await destroyTask.value
-                    pollingTask.cancel()
-
-                    let finalProgress = CDKDeploymentProgress(pollCount: 0, isComplete: true)
-                    continuation.yield(finalProgress)
-                    continuation.finish()
-                } catch {
-                    pollingTask.cancel()
-                    continuation.finish(throwing: CDKInfrastructureError.deploymentFailed(reason: error.localizedDescription))
                 }
             }
         }
     }
 
     /// Monitor an existing in-progress operation
+    /// Note: This still uses polling since we don't have access to CDK output stream
     /// - Parameter stackName: Name of the stack to monitor
     /// - Returns: AsyncStream yielding progress snapshots until operation completes
     public nonisolated func monitorOperation(stackName: String) -> AsyncThrowingStream<CDKDeploymentProgress, Error> {
@@ -335,320 +261,65 @@ public actor CDKInfrastructureQueryService {
             }
         }
     }
-}
 
-// MARK: - Data Types
+    // MARK: - Private Helpers
 
-/// Detected infrastructure configuration from CloudFormation
-public struct CDKInfrastructureConfiguration: Equatable, Sendable {
-    public let hasDatabase: Bool
-    public let hasNATGateway: Bool
-    public let hasVPC: Bool
+    /// Execute an operation while parsing CDK output for progress updates
+    /// - Parameters:
+    ///   - output: The output stream to parse (if nil, only yields completion)
+    ///   - continuation: Stream continuation to yield progress updates
+    ///   - operation: The async operation to execute
+    private func executeWithOutputParsing(
+        output: CLIOutputStream?,
+        continuation: AsyncThrowingStream<CDKDeploymentProgress, Error>.Continuation,
+        operation: @escaping @Sendable () async throws -> Void
+    ) async {
+        let parser = CDKOutputParser()
+        let accumulator = CDKProgressAccumulator()
 
-    public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
-        self.hasDatabase = hasDatabase
-        self.hasNATGateway = hasNATGateway
-        self.hasVPC = hasVPC
-    }
-}
+        // Start parsing task if we have an output stream
+        let parsingTask: Task<Void, Never>?
+        if let output = output {
+            parsingTask = Task {
+                let stream = await output.makeStream()
+                for await item in stream {
+                    guard !Task.isCancelled else { break }
 
-/// Parsed stack output values
-public struct CDKStackOutputs: Equatable, Sendable {
-    public let apiGatewayUrl: String?
-    public let lambdaFunctionName: String?
-    public let bucketName: String?
-    public let allOutputs: [String: String]
+                    // Extract text from stdout
+                    let text: String
+                    switch item {
+                    case .stdout(_, let t), .stderr(_, let t):
+                        text = t
+                    default:
+                        continue
+                    }
 
-    public init(
-        apiGatewayUrl: String? = nil,
-        lambdaFunctionName: String? = nil,
-        bucketName: String? = nil,
-        allOutputs: [String: String] = [:]
-    ) {
-        self.apiGatewayUrl = apiGatewayUrl
-        self.lambdaFunctionName = lambdaFunctionName
-        self.bucketName = bucketName
-        self.allOutputs = allOutputs
-    }
-
-    public static func from(_ outputs: [String: String]) -> CDKStackOutputs {
-        CDKStackOutputs(
-            apiGatewayUrl: outputs["ApiGatewayUrl"],
-            lambdaFunctionName: outputs["LambdaFunctionName"],
-            bucketName: outputs["BucketName"],
-            allOutputs: outputs
-        )
-    }
-}
-
-/// CloudFormation stack status values
-/// See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html
-public enum CloudFormationStackStatusValues {
-    // Successful states
-    public static let createComplete = "CREATE_COMPLETE"
-    public static let updateComplete = "UPDATE_COMPLETE"
-
-    // In-progress states
-    public static let createInProgress = "CREATE_IN_PROGRESS"
-    public static let updateInProgress = "UPDATE_IN_PROGRESS"
-    public static let updateCompleteCleanupInProgress = "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS"
-    public static let deleteInProgress = "DELETE_IN_PROGRESS"
-
-    // Failed states
-    public static let createFailed = "CREATE_FAILED"
-    public static let updateFailed = "UPDATE_FAILED"
-    public static let rollbackComplete = "ROLLBACK_COMPLETE"
-    public static let rollbackFailed = "ROLLBACK_FAILED"
-    public static let deleteFailed = "DELETE_FAILED"
-
-    /// Check if status indicates the stack is successfully deployed
-    public static func isDeployed(_ status: String) -> Bool {
-        status == createComplete || status == updateComplete
-    }
-
-    /// Check if status indicates an in-progress operation
-    public static func isInProgress(_ status: String) -> Bool {
-        switch status {
-        case createInProgress, updateInProgress, updateCompleteCleanupInProgress, deleteInProgress:
-            return true
-        default:
-            return false
-        }
-    }
-
-    /// Check if status indicates a failed state
-    public static func isFailed(_ status: String) -> Bool {
-        switch status {
-        case createFailed, updateFailed, rollbackComplete, rollbackFailed, deleteFailed:
-            return true
-        default:
-            return false
-        }
-    }
-
-    /// Check if status indicates a delete operation in progress
-    public static func isDeleting(_ status: String) -> Bool {
-        status == deleteInProgress
-    }
-}
-
-/// Typed errors for CDK Infrastructure operations
-public enum CDKInfrastructureError: Error, Equatable, Sendable {
-    case credentialExpired(message: String)
-    case stackNotFound(stackName: String)
-    case deploymentFailed(reason: String)
-    case buildFailed(reason: String)
-    case operationInProgress(operation: String)
-    case unknown(message: String)
-
-    public var localizedDescription: String {
-        switch self {
-        case .credentialExpired(let message):
-            return "AWS credentials expired: \(message)"
-        case .stackNotFound(let stackName):
-            return "Stack not found: \(stackName)"
-        case .deploymentFailed(let reason):
-            return "Deployment failed: \(reason)"
-        case .buildFailed(let reason):
-            return "Build failed: \(reason)"
-        case .operationInProgress(let operation):
-            return "Operation in progress: \(operation)"
-        case .unknown(let message):
-            return message
-        }
-    }
-
-    /// Check if an error message indicates AWS credential issues
-    public static func isCredentialError(_ error: String) -> Bool {
-        let credentialPatterns = [
-            "credentials missing",
-            "credential_process",
-            "Error getting temporary credentials",
-            "ExpiredToken",
-            "InvalidClientTokenId",
-            "AccessDenied",
-            "AuthFailure",
-            "security token included in the request is invalid",
-            "could not be found"
-        ]
-        return credentialPatterns.contains { error.localizedCaseInsensitiveContains($0) }
-    }
-}
-
-/// Progress snapshot during deployment/destroy operations
-public struct CDKDeploymentProgress: Sendable, Equatable {
-    public let resources: [ResourceProgressSnapshot]
-    public let pollCount: Int
-    public let isComplete: Bool
-
-    public var completedCount: Int {
-        resources.filter { $0.status.isComplete }.count
-    }
-
-    public var inProgressCount: Int {
-        resources.filter { $0.status.isInProgress }.count
-    }
-
-    public var hasFailures: Bool {
-        resources.contains { $0.status.isFailed }
-    }
-
-    public var hasPolled: Bool { pollCount > 0 }
-    public var hasPolledEnough: Bool { pollCount >= 5 }
-
-    public init(resources: [ResourceProgressSnapshot] = [], pollCount: Int = 0, isComplete: Bool = false) {
-        self.resources = resources
-        self.pollCount = pollCount
-        self.isComplete = isComplete
-    }
-
-    /// Create progress snapshot from CloudFormation events
-    public static func from(events: [CloudFormationStackEvent], since: Date?, pollCount: Int, isComplete: Bool = false) -> CDKDeploymentProgress {
-        let relevantEvents = events.filter { event in
-            guard let since = since else { return true }
-            return event.timestamp >= since
-        }
-
-        var latestByResource: [String: CloudFormationStackEvent] = [:]
-        for event in relevantEvents {
-            if event.resourceType == "AWS::CloudFormation::Stack" { continue }
-
-            if let existing = latestByResource[event.logicalResourceId] {
-                if event.timestamp > existing.timestamp {
-                    latestByResource[event.logicalResourceId] = event
+                    // Parse each line
+                    for line in text.components(separatedBy: .newlines) {
+                        if let event = parser.parse(line) {
+                            accumulator.update(with: event)
+                            let progress = accumulator.snapshot().toDeploymentProgress()
+                            continuation.yield(progress)
+                        }
+                    }
                 }
-            } else {
-                latestByResource[event.logicalResourceId] = event
             }
-        }
-
-        let resources = latestByResource.values
-            .sorted { $0.timestamp > $1.timestamp }
-            .map { ResourceProgressSnapshot(from: $0) }
-
-        return CDKDeploymentProgress(resources: resources, pollCount: pollCount, isComplete: isComplete)
-    }
-}
-
-/// Progress snapshot for a single resource
-public struct ResourceProgressSnapshot: Sendable, Equatable, Identifiable {
-    public let resourceId: String
-    public let displayName: String
-    public let resourceType: String
-    public let status: ResourceStatusSnapshot
-    public let statusReason: String?
-    public let timestamp: Date
-
-    public var id: String { resourceId }
-
-    public init(from event: CloudFormationStackEvent) {
-        self.resourceId = event.logicalResourceId
-        self.displayName = event.displayName
-        self.resourceType = event.displayType
-        self.status = ResourceStatusSnapshot(from: event.resourceStatus)
-        self.statusReason = event.resourceStatusReason
-        self.timestamp = event.timestamp
-    }
-}
-
-/// Status of a resource during deployment
-public enum ResourceStatusSnapshot: Sendable, Equatable {
-    case pending
-    case inProgress
-    case complete
-    case failed(reason: String?)
-
-    public var isInProgress: Bool {
-        if case .inProgress = self { return true }
-        return false
-    }
-
-    public var isComplete: Bool {
-        if case .complete = self { return true }
-        return false
-    }
-
-    public var isFailed: Bool {
-        if case .failed = self { return true }
-        return false
-    }
-
-    public init(from status: String) {
-        if status.contains("COMPLETE") && !status.contains("CLEANUP") && !status.contains("ROLLBACK") {
-            self = .complete
-        } else if status.contains("IN_PROGRESS") {
-            self = .inProgress
-        } else if status.contains("FAILED") || status.contains("ROLLBACK") {
-            self = .failed(reason: nil)
         } else {
-            self = .pending
+            parsingTask = nil
+        }
+
+        // Execute the operation
+        do {
+            try await operation()
+
+            // Cancel parsing and yield final progress
+            parsingTask?.cancel()
+            let finalProgress = accumulator.snapshot().toDeploymentProgress(isComplete: true)
+            continuation.yield(finalProgress)
+            continuation.finish()
+        } catch {
+            parsingTask?.cancel()
+            continuation.finish(throwing: CDKInfrastructureError.deploymentFailed(reason: error.localizedDescription))
         }
     }
-}
-
-// MARK: - CDK Infrastructure Status (Observable State Container)
-
-/// Mutable state container for CDK Infrastructure tracking
-/// Used by models to hold observable UI state
-public struct CDKInfrastructureStatus: Equatable, Sendable {
-    /// Current stack status
-    public enum StackStatus: Equatable, Sendable {
-        case unknown
-        case loading
-        case notDeployed
-        case deployed
-        case deploying(operation: String)
-        case destroying
-        case failed(reason: String)
-
-        public var isDeploying: Bool {
-            if case .deploying = self { return true }
-            return false
-        }
-
-        public var isDestroying: Bool {
-            if case .destroying = self { return true }
-            return false
-        }
-
-        public var isBusy: Bool {
-            switch self {
-            case .loading, .deploying, .destroying:
-                return true
-            default:
-                return false
-            }
-        }
-
-        public var canDeploy: Bool {
-            switch self {
-            case .loading, .deploying, .destroying:
-                return false
-            default:
-                return true
-            }
-        }
-
-        public var canDestroy: Bool {
-            switch self {
-            case .deployed:
-                return true
-            default:
-                return false
-            }
-        }
-    }
-
-    public var status: StackStatus = .unknown
-    public var configuration: CDKInfrastructureConfiguration = CDKInfrastructureConfiguration()
-    public var outputs: CDKStackOutputs = CDKStackOutputs()
-    public var stackName: String = "SwiftLambdaSampleStack"
-    public var deployStartTime: Date?
-    public var deploymentProgress: CDKDeploymentProgress = CDKDeploymentProgress()
-
-    public init() {}
-
-    /// Convenience computed properties for UI
-    public var hasPolled: Bool { deploymentProgress.pollCount > 0 }
-    public var hasPolledEnough: Bool { deploymentProgress.pollCount >= 5 }
 }

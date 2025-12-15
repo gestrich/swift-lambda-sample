@@ -18,18 +18,25 @@ public final class CDKInfrastructureModel {
 
     // MARK: - Init
 
-    public init(
+    /// Initialize with an injected query service (preferred for testability)
+    public init(queryService: CDKInfrastructureQueryService) {
+        self.queryService = queryService
+    }
+
+    /// Convenience initializer that creates the query service internally
+    public convenience init(
         projectRoot: String,
         awsConfig: AWSAuthConfiguration,
-        cdkDirectory: String = "cdk",
+        cdkDirectory: String = CDKStackConfiguration.defaultCDKDirectory,
         cliService: CLIService
     ) {
-        self.queryService = CDKInfrastructureQueryService(
+        let queryService = CDKInfrastructureQueryService(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
             cdkDirectory: cdkDirectory,
             cliService: cliService
         )
+        self.init(queryService: queryService)
     }
 
     // MARK: - UI State Operations
@@ -51,9 +58,7 @@ public final class CDKInfrastructureModel {
         } catch CDKInfrastructureError.credentialExpired(let message) {
             infrastructureStatus.status = .failed(reason: message)
         } catch {
-            // Service returns .notDeployed for non-existent stacks, so this shouldn't be reached
-            // unless there's an unexpected error
-            infrastructureStatus.status = .notDeployed
+            infrastructureStatus.status = .failed(reason: error.localizedDescription)
         }
     }
 
