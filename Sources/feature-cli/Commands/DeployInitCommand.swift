@@ -49,7 +49,7 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let deploymentService = RemoteDeploymentService(
+            let orchestrator = RemoteDeploymentOrchestrator(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
@@ -62,7 +62,7 @@ extension AWSCommand {
                 cdkDirectory: cdkDirectory
             )
 
-            try await deploymentService.deployInit(
+            try await orchestrator.deployInit(
                 options: options,
                 withPostgres: withPostgres,
                 skipPush: skipPush

@@ -42,13 +42,13 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let deploymentService = RemoteDeploymentService(
+            let orchestrator = RemoteDeploymentOrchestrator(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
             )
 
-            try await deploymentService.tearDown(cdkDirectory: cdkDirectory)
+            try await orchestrator.tearDown(cdkDirectory: cdkDirectory)
 
             print("\n🎉 Tear down completed successfully!")
         }

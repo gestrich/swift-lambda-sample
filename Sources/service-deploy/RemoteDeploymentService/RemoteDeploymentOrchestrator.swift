@@ -3,10 +3,14 @@ import sdk_aws
 import sdk_client
 import Foundation
 
-/// Stateless service for remote AWS Lambda deployment and management.
+/// Stateless orchestrator for remote AWS Lambda deployment and management.
 /// Orchestrates SwiftLambdaCDKService, SwiftLambdaInfrastructureService,
 /// GitService, and GitHubActionsService.
-public actor RemoteDeploymentService {
+///
+/// This is a CLI-focused orchestrator for one-off deployment operations.
+/// For UI state observation, use `CDKInfrastructureQueryService` which provides
+/// an `AsyncStream<State>` for reactive updates.
+public actor RemoteDeploymentOrchestrator {
     private let cdkService: SwiftLambdaCDKService
     private let infrastructureService: SwiftLambdaInfrastructureService
     private let cliClient: CLIClient

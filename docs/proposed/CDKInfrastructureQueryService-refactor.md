@@ -116,20 +116,42 @@ Only these elements are truly specific to this application:
 - `CDKInfrastructureQueryService` already had its own complete state machine implementation
 - The parsing utilities (`CDKOutputParser`, `CDKProgressAccumulator`) were moved to a new file in `sdk-aws/CDK/` since they are stateless and reusable
 
-### Phase 2: Create Clean RemoteDeploymentService in service-deploy
+### Phase 2: Create Clean RemoteDeploymentService in service-deploy ✅ COMPLETED
 
-- [ ] Create `RemoteDeploymentService.swift` in service-deploy
-- [ ] Implement state ownership with `AsyncStream<State>` pattern
-- [ ] Use `CloudFormationClient` for CF queries
-- [ ] Use `SwiftLambdaCDKService` for deploy/destroy
-- [ ] Use `SwiftLambdaInfrastructureService` for config detection
-- [ ] Implement `deploy(withPostgres:withNATGateway:)`, `destroy()`, `refresh()`
-- [ ] Include progress tracking with `CDKOutputParser`
+- [x] Create `RemoteDeploymentService.swift` in service-deploy/CDKService
+- [x] Implement state ownership with `AsyncStream<State>` pattern
+- [x] Use `CloudFormationClient` for CF queries (via SwiftLambdaInfrastructureService)
+- [x] Use `SwiftLambdaCDKService` for deploy/destroy
+- [x] Use `SwiftLambdaInfrastructureService` for config detection
+- [x] Implement `deploy(withPostgres:withNATGateway:)`, `destroy()`, `refresh()`
+- [x] Include progress tracking with `CDKOutputParser` from sdk-aws
+- [x] Rename existing stateless `RemoteDeploymentService` to `RemoteDeploymentOrchestrator`
+- [x] Update CLI commands to use `RemoteDeploymentOrchestrator`
 
 **Goal**: Single stateful service following MV_Model_Service_State.md pattern.
 
-**New file**: `Sources/service-deploy/CDKService/RemoteDeploymentService.swift`
+**Files Created**:
+- `Sources/service-deploy/CDKService/RemoteDeploymentService.swift` - New stateful service with AsyncStream<State> pattern
 
+**Files Renamed**:
+- `Sources/service-deploy/RemoteDeploymentService/RemoteDeploymentService.swift` → `RemoteDeploymentOrchestrator.swift`
+
+**Files Modified**:
+- `Sources/feature-cli/Commands/DeployCommand.swift` - Use RemoteDeploymentOrchestrator
+- `Sources/feature-cli/Commands/DeployInitCommand.swift` - Use RemoteDeploymentOrchestrator
+- `Sources/feature-cli/Commands/StatusCommand.swift` - Use RemoteDeploymentOrchestrator
+- `Sources/feature-cli/Commands/TearDownCommand.swift` - Use RemoteDeploymentOrchestrator
+- `Sources/feature-cli/Commands/UpdateLambdaCommand.swift` - Use RemoteDeploymentOrchestrator
+
+**Technical Notes**:
+- The existing `RemoteDeploymentService` was a stateless orchestrator used by CLI commands
+- Renamed it to `RemoteDeploymentOrchestrator` to avoid naming conflict and clarify its role
+- New `RemoteDeploymentService` follows the MV pattern with `AsyncStream<State>`
+- Uses `StackStatus` directly from sdk-aws instead of the typealias
+- CLI commands continue to work with the orchestrator for simple request/response operations
+- Mac app can now use the new stateful `RemoteDeploymentService` for UI state observation
+
+**API Summary**:
 ```swift
 /// Stateful service for remote AWS deployments.
 /// Owns deployment state and exposes via AsyncStream per MV architecture.
@@ -150,7 +172,6 @@ public actor RemoteDeploymentService {
 
     // MARK: - Dependencies (stateless)
 
-    private let cloudFormation: CloudFormationClient
     private let cdkService: SwiftLambdaCDKService
     private let infrastructureService: SwiftLambdaInfrastructureService
 
@@ -286,12 +307,13 @@ The app-specific `State` enum moves from `CDKInfrastructureQueryService` to `Rem
 | `sdk-aws/CloudFormation/CloudFormationClient.swift` | Keep (stateless) | ✅ Done |
 | `sdk-aws/CDK/CDKClient.swift` | Keep (stateless) | ✅ Done |
 | `sdk-aws/CDK/CDKOutputParser.swift` | **Create** (parsing utilities) | ✅ Done |
-| `service-deploy/CDKService/RemoteDeploymentService.swift` | **Create** | Pending |
+| `service-deploy/CDKService/RemoteDeploymentService.swift` | **Create** | ✅ Done |
+| `service-deploy/RemoteDeploymentService/RemoteDeploymentOrchestrator.swift` | **Rename** (from RemoteDeploymentService.swift) | ✅ Done |
+| `feature-cli/Commands/*.swift` | **Update** (use RemoteDeploymentOrchestrator) | ✅ Done |
 | `service-deploy/CDKService/CDKInfrastructureQueryService.swift` | **Delete** | Pending |
 | `service-deploy/CDKService/CDKOutputParser.swift` | **Delete** | Pending |
 | `service-deploy/CDKService/Models/CloudFormationStackStatusValues.swift` | **Delete** | Pending |
 | `service-deploy/CDKService/SwiftLambdaInfrastructureService.swift` | Keep | - |
 | `service-deploy/CDKService/SwiftLambdaCDKService.swift` | Keep | - |
-| `MacApp/Models/RemoteModel.swift` | Update | Pending |
-| `SwiftDeployCLI/Commands/AWS/*.swift` | Update | Pending |
+| `feature-mac/Models/RemoteModel.swift` | Update | Pending |
 | `docs/architecture/MV_Model_Service_State.md` | Update reference | Pending |
