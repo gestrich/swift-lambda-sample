@@ -42,8 +42,11 @@ public actor GitHubCLIService {
     }
 
     /// Get the latest workflow run
-    public func getLatestWorkflowRun(branch: String? = nil) async throws -> GitHubWorkflowRun? {
-        let runs = try await listWorkflowRuns(branch: branch, limit: 1)
+    /// - Parameters:
+    ///   - branch: Branch to filter by (optional)
+    ///   - workflow: Workflow name or filename to filter by (optional, e.g., "deploy_dev.yml")
+    public func getLatestWorkflowRun(branch: String? = nil, workflow: String? = nil) async throws -> GitHubWorkflowRun? {
+        let runs = try await listWorkflowRuns(branch: branch, limit: 1, workflow: workflow)
         return runs.first
     }
 

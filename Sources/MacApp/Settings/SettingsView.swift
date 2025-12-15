@@ -12,6 +12,7 @@ struct SettingsView: View {
     // GitHub settings
     @State private var githubRepository: String = ""
     @State private var githubBranch: String = ""
+    @State private var githubWorkflow: String = ""
     @State private var showingGitHubHelp: Bool = false
 
     @State private var saveError: String?
@@ -32,6 +33,7 @@ struct SettingsView: View {
         if let config = GitHubConfiguration.loadConfig() {
             _githubRepository = State(initialValue: config.repository)
             _githubBranch = State(initialValue: config.branch)
+            _githubWorkflow = State(initialValue: config.workflowName ?? "")
         }
     }
 
@@ -182,6 +184,19 @@ struct SettingsView: View {
                     TextField("e.g., dev, main", text: $githubBranch)
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: githubBranch) { hasChanges = true }
+                }
+
+                // Workflow
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Workflow")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    TextField("e.g., deploy_dev.yml (optional)", text: $githubWorkflow)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: githubWorkflow) { hasChanges = true }
+                    Text("Filters CI status to only show this workflow")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
 
                 // Help hint
@@ -374,10 +389,12 @@ struct SettingsView: View {
             // Save GitHub config if both fields are provided
             let trimmedRepo = githubRepository.trimmingCharacters(in: .whitespaces)
             let trimmedBranch = githubBranch.trimmingCharacters(in: .whitespaces)
+            let trimmedWorkflow = githubWorkflow.trimmingCharacters(in: .whitespaces)
             if !trimmedRepo.isEmpty && !trimmedBranch.isEmpty {
                 let githubConfig = GitHubConfiguration(
                     repository: trimmedRepo,
-                    branch: trimmedBranch
+                    branch: trimmedBranch,
+                    workflowName: trimmedWorkflow.isEmpty ? nil : trimmedWorkflow
                 )
                 try githubConfig.save()
             }

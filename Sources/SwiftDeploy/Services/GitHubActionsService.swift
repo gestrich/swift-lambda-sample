@@ -81,14 +81,14 @@ public actor GitHubActionsService {
 
     // MARK: - Workflow Run Queries
 
-    /// Get the latest workflow run for the configured branch
+    /// Get the latest workflow run for the configured branch and workflow
     public func getLatestWorkflowRun() async throws -> GitHubWorkflowRun? {
-        return try await ghCLIService.getLatestWorkflowRun(branch: config.branch)
+        return try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)
     }
 
     /// Get the latest workflow run ID (or nil if none exist)
     public func getLatestRunId() async throws -> Int? {
-        guard let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch) else {
+        guard let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName) else {
             return nil
         }
         return Int(run.id)
@@ -101,7 +101,7 @@ public actor GitHubActionsService {
 
     /// Get the latest workflow run status
     public func getLatestRunStatus() async throws -> (status: String, conclusion: String?) {
-        guard let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch) else {
+        guard let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName) else {
             throw CLIServiceError.invalidOutput(reason: "No workflow runs found")
         }
         return (run.status, run.conclusion)
@@ -115,7 +115,7 @@ public actor GitHubActionsService {
         let hasCommitsToPush = try await gitService.hasCommitsToPush()
 
         if hasCommitsToPush {
-            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
+            let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)?.id
             try await gitService.push(output: output)
 
             guard let newRunId = try await waitForNewRun(afterRunId: beforeRunId) else {
@@ -129,9 +129,11 @@ public actor GitHubActionsService {
 
     /// Trigger a workflow manually and return the run ID
     public func triggerWorkflow(output: CLIOutputStream? = nil) async throws -> String {
-        let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch)?.id
+        let beforeRunId = try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)?.id
 
-        try await ghCLIService.triggerWorkflow(workflow: "Dev Deploy", branch: config.branch, output: output)
+        // Use configured workflow name or default to "Dev Deploy"
+        let workflowToTrigger = config.workflowName ?? "Dev Deploy"
+        try await ghCLIService.triggerWorkflow(workflow: workflowToTrigger, branch: config.branch, output: output)
 
         try await Task.sleep(for: .seconds(2))
 
@@ -171,7 +173,7 @@ public actor GitHubActionsService {
         var trackedRunId: Int?
 
         while attempts < maxAttempts {
-            let runs = try await ghCLIService.listWorkflowRuns(branch: config.branch, limit: 1)
+            let runs = try await ghCLIService.listWorkflowRuns(branch: config.branch, limit: 1, workflow: config.workflowName)
 
             guard let latestRun = runs.first else {
                 print("  No workflow runs found yet, waiting...")
@@ -298,7 +300,7 @@ public actor GitHubActionsService {
         maxAttempts: Int = 30
     ) async throws -> String? {
         for attempt in 0..<maxAttempts {
-            if let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch) {
+            if let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName) {
                 if let afterId = afterRunId {
                     if let newIdInt = Int(run.id), let afterIdInt = Int(afterId), newIdInt > afterIdInt {
                         return run.id

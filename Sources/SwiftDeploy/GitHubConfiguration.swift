@@ -16,11 +16,16 @@ public struct GitHubConfiguration: Codable, Sendable {
     /// Branch to monitor for CI/CD (e.g., "dev", "main")
     public let branch: String
 
+    /// Workflow name or filename to monitor (e.g., "deploy_dev.yml" or "Dev Deploy")
+    /// If nil, monitors the latest run from any workflow
+    public let workflowName: String?
+
     private static let storageService = LocalStorageService()
 
-    public init(repository: String, branch: String) {
+    public init(repository: String, branch: String, workflowName: String? = nil) {
         self.repository = repository
         self.branch = branch
+        self.workflowName = workflowName
     }
 
     // MARK: - Configuration File
