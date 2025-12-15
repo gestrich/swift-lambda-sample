@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import sdk_storage
+import service_storage
 
 /// AWS authentication configuration for SwiftDeploy CLI
 public struct AWSAuthConfiguration: Codable, Sendable {

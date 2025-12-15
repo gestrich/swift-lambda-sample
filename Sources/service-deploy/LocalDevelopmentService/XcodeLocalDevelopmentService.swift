@@ -1,7 +1,7 @@
 import sdk_cli
 import sdk_client
 import Foundation
-import sdk_storage
+import service_storage
 
 /// Stateless service for native macOS Xcode development workflow
 /// Orchestrates Docker services, native Swift builds, and Lambda process management

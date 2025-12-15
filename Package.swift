@@ -40,7 +40,7 @@ let package = Package(
             exclude: ["README.md"]
         ),
         .target(
-            name: "sdk-storage"
+            name: "service-storage"
         ),
         .executableTarget(
             name: "feature-cli",
@@ -56,7 +56,7 @@ let package = Package(
             name: "service-deploy",
             dependencies: [
                 .target(name: "sdk-client"),
-                .target(name: "sdk-storage"),
+                .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
             ]
         ),
@@ -74,7 +74,7 @@ let package = Package(
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy"),
-                .target(name: "sdk-storage"),
+                .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
             ],
             swiftSettings: [

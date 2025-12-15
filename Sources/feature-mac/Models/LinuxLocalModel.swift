@@ -2,7 +2,7 @@ import sdk_cli
 import sdk_client
 import Combine
 import Foundation
-import sdk_storage
+import service_storage
 import service_deploy
 
 /// Observable model for Linux container development workflow

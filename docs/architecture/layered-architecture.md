@@ -25,7 +25,7 @@ The project uses a three-layer architecture where dependencies flow downward:
                          ▼
 ┌─────────────────────────────────────────────────────────┐
 │                       SDKs                              │
-│      sdk-cli  ·  sdk-storage  ·  sdk-*                  │
+│      sdk-cli  ·  sdk-client  ·  sdk-*                   │
 │                                                         │
 │   Reusable, app-agnostic utilities                      │
 └─────────────────────────────────────────────────────────┘
@@ -111,7 +111,7 @@ public actor RemoteDeploymentService {
 
 SDKs are reusable utilities that are not specific to this application. They could be extracted into separate open-source packages.
 
-**Naming**: `sdk-cli`, `sdk-storage`, `sdk-docker`
+**Naming**: `sdk-cli`, `sdk-client`, `sdk-docker`
 
 **Characteristics**:
 - Library targets
@@ -147,7 +147,7 @@ public struct ProcessResult {
 ```
 feature-mac ──→ service-deploy ──→ service-aws ──→ sdk-cli
      │              │                   │
-     │              │                   └──→ sdk-storage
+     │              │                   └──→ service-storage
      │              │
      │              └──→ sdk-cli
      │
@@ -163,7 +163,7 @@ feature-mac ──→ service-deploy ──→ service-aws ──→ sdk-cli
 | `SwiftDeployCLI`    | `feature-cli`           | Feature |
 | `SwiftDeploy`       | `service-deploy`        | Service |
 | `SwiftServerApp`    | `service-server`        | Service |
-| `LocalStorageService` | `sdk-storage`         | SDK     |
+| `LocalStorageService` | `service-storage`     | Service |
 | `CLIKit`            | `sdk-cli`               | SDK     |
 | `CLIMacros`         | `sdk-cli-macros`        | SDK     |
 | `Client`            | `sdk-client`            | SDK     |
@@ -227,7 +227,7 @@ Services are easily testable because SDKs can be injected as protocols.
 - [x] `CLIMacros` → `sdk-cli-macros`
 - [x] `Client` → `sdk-client`
 
-[ ] `sdk-storage` → `feature-storage`
+[x] `sdk-storage` → `service-storage`
 
 [ ] Update any docs with info
 
