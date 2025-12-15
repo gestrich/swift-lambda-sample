@@ -430,8 +430,8 @@ This ensures incremental progress is preserved and any issues can be easily bise
 - [x] Delete old `CDKService.swift` (replaced by SwiftLambdaCDKService)
 - [x] Keep `CDKStackOutputs.swift` and `AWSTestingService.swift` as-is
 
-### Phase 7: Update Imports
+### Phase 7: Update Imports ✅
 
-- [ ] Update `service-deploy` to import `sdk-aws`
-- [ ] Update `feature-cli` imports if needed
-- [ ] Update `feature-mac` imports if needed
+- [x] Update `service-deploy` to import `sdk-aws`
+- [x] Update `feature-cli` imports if needed
+- [x] Update `feature-mac` imports if needed
