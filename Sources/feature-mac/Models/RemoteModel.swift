@@ -12,7 +12,7 @@ import service_deploy
 @MainActor
 @Observable
 public class RemoteModel: LambdaService {
-    private let awsService: AWSCLIService
+    private let cloudFormationClient: CloudFormationClient
     public let cliClient: CLIClient
     private let projectRoot: String
 
@@ -91,7 +91,10 @@ public class RemoteModel: LambdaService {
         self.projectRoot = projectRoot
         let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
         self.cliClient = cliClient
-        self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        self.cloudFormationClient = CloudFormationClient(
+            credentialProvider: awsConfig.makeCredentialProvider(),
+            cliClient: cliClient
+        )
 
         // Initialize GitHub CI model if config is available
         if let githubConfig = GitHubConfiguration.loadConfig() {
@@ -156,7 +159,7 @@ public class RemoteModel: LambdaService {
 
     /// Fetch and cache endpoint from CDK stack
     public func fetchEndpoint() async throws {
-        let outputs = try await awsService.getStackOutputs(name: "SwiftLambdaSampleStack")
+        let outputs = try await cloudFormationClient.getStackOutputs(name: "SwiftLambdaSampleStack")
         if let apiUrl = outputs["ApiGatewayUrl"] {
             setEndpoint(apiUrl)
         }
@@ -345,7 +348,7 @@ public class RemoteModel: LambdaService {
 
     private func checkStackExists() async -> Bool {
         do {
-            let outputs = try await awsService.getStackOutputs(name: "SwiftLambdaSampleStack")
+            let outputs = try await cloudFormationClient.getStackOutputs(name: "SwiftLambdaSampleStack")
             return !outputs.isEmpty
         } catch {
             return false

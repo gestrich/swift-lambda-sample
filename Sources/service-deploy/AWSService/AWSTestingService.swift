@@ -6,6 +6,7 @@ import Foundation
 /// Service for testing deployed AWS Lambda and infrastructure
 public actor AWSTestingService {
     private let awsService: AWSCLIService
+    private let cloudFormationClient: CloudFormationClient
     private let s3Client: S3Client
     private let cliClient: CLIClient
     private let stackName = "SwiftLambdaSampleStack"
@@ -14,6 +15,10 @@ public actor AWSTestingService {
     public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
         self.cliClient = cliClient
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        self.cloudFormationClient = CloudFormationClient(
+            credentialProvider: awsConfig.makeCredentialProvider(),
+            cliClient: cliClient
+        )
         self.s3Client = S3Client(credentialProvider: awsConfig.makeCredentialProvider(), cliClient: cliClient)
     }
 
@@ -22,6 +27,10 @@ public actor AWSTestingService {
         let cliClient = CLIClient()
         self.cliClient = cliClient
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        self.cloudFormationClient = CloudFormationClient(
+            credentialProvider: awsConfig.makeCredentialProvider(),
+            cliClient: cliClient
+        )
         self.s3Client = S3Client(credentialProvider: awsConfig.makeCredentialProvider(), cliClient: cliClient)
     }
 
@@ -37,7 +46,7 @@ public actor AWSTestingService {
 
     /// Get API Gateway URL from CloudFormation stack outputs
     public func getApiGatewayUrl() async throws -> String {
-        return try await awsService.getStackOutput(stackName: stackName, outputKey: "ApiGatewayUrl")
+        return try await cloudFormationClient.getStackOutput(stackName: stackName, outputKey: "ApiGatewayUrl")
     }
 
     // MARK: - S3 Testing
@@ -118,7 +127,7 @@ public actor AWSTestingService {
         print("\n🔍 Verifying S3 file creation...")
 
         // Get bucket name from stack outputs
-        let bucketName = try await awsService.getStackOutput(stackName: stackName, outputKey: "BucketName")
+        let bucketName = try await cloudFormationClient.getStackOutput(stackName: stackName, outputKey: "BucketName")
 
         print("Bucket: \(bucketName)")
         print("")

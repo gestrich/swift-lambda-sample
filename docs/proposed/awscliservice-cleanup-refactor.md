@@ -298,15 +298,15 @@ After completing each phase:
 - [x] Find all callers of `AWSCLIService.getSecretValue` → use `SecretsManagerClient` (no external callers found)
 - [x] Find all callers of `AWSCLIService.listSecrets` → use `SecretsManagerClient` (no external callers found)
 
-### Phase 5: Remove Duplicate CloudFormation Methods
+### Phase 5: Remove Duplicate CloudFormation Methods ✅
 
-- [ ] Find callers of `AWSCLIService.describeStack` → use `CloudFormationClient`
-- [ ] Find callers of `AWSCLIService.getStackStatus` → use `CloudFormationClient`
-- [ ] Find callers of `AWSCLIService.getStackOutputs` → use `CloudFormationClient`
-- [ ] Find callers of `AWSCLIService.getStackOutput` → use `CloudFormationClient`
-- [ ] Find callers of `AWSCLIService.describeStackResources` → use `CloudFormationClient`
-- [ ] Find callers of `AWSCLIService.getStackEvents` → use `CloudFormationClient`
-- [ ] Remove duplicate methods from `AWSCLIService`
+- [x] Find callers of `AWSCLIService.describeStack` → use `CloudFormationClient` (no external callers found)
+- [x] Find callers of `AWSCLIService.getStackStatus` → use `CloudFormationClient` (no external callers found)
+- [x] Find callers of `AWSCLIService.getStackOutputs` → use `CloudFormationClient` (updated RemoteModel)
+- [x] Find callers of `AWSCLIService.getStackOutput` → use `CloudFormationClient` (updated AWSTestingService)
+- [x] Find callers of `AWSCLIService.describeStackResources` → use `CloudFormationClient` (no external callers found)
+- [x] Find callers of `AWSCLIService.getStackEvents` → use `CloudFormationClient` (no external callers found)
+- [x] Remove duplicate methods from `AWSCLIService`
 
 ### Phase 6: Remove Duplicate CloudWatch Methods
 
