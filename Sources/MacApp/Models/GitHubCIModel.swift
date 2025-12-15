@@ -37,30 +37,17 @@ public final class GitHubCIModel {
         ciStatus.status = .loading
 
         do {
-            let gitStatus = try await actionsService.getGitStatus()
+            let snapshot = try await actionsService.getFullStatus()
 
-            ciStatus.hasUnpushedCommits = gitStatus.hasUnpushedCommits
-            ciStatus.hasUncommittedChanges = gitStatus.hasUncommittedChanges
-            ciStatus.currentBranch = gitStatus.currentBranch
+            ciStatus.hasUnpushedCommits = snapshot.gitStatus.hasUnpushedCommits
+            ciStatus.hasUncommittedChanges = snapshot.gitStatus.hasUncommittedChanges
+            ciStatus.currentBranch = snapshot.gitStatus.currentBranch
 
-            if let latestRun = try await actionsService.getLatestWorkflowRun() {
-                if !latestRun.isCompleted {
-                    ciStatus.status = .deploying(runId: latestRun.id)
-                    Task {
-                        await self.monitorWorkflowRun(runId: latestRun.id)
-                    }
-                } else {
-                    let runInfo = GitHubCIStatus.WorkflowRunInfo(
-                        id: latestRun.id,
-                        status: latestRun.status,
-                        conclusion: latestRun.conclusion,
-                        title: latestRun.displayTitle,
-                        createdAt: parseGitHubDate(latestRun.createdAt)
-                    )
-                    ciStatus.status = .idle(lastRun: runInfo)
-                }
+            if let inProgressId = snapshot.inProgressRunId {
+                ciStatus.status = .deploying(runId: inProgressId)
+                Task { await monitorWorkflowRun(runId: inProgressId) }
             } else {
-                ciStatus.status = .idle(lastRun: nil)
+                ciStatus.status = .idle(lastRun: snapshot.latestRun)
             }
         } catch {
             print("Failed to refresh GitHub CI status: \(error)")
@@ -107,16 +94,6 @@ public final class GitHubCIModel {
             }
         }
     }
-
-    private func parseGitHubDate(_ dateString: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: dateString) {
-            return date
-        }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: dateString)
-    }
 }
 
 /// State for GitHub CI workflow tracking
@@ -152,36 +129,6 @@ public struct GitHubCIStatus: Equatable {
             default:
                 return nil
             }
-        }
-    }
-
-    /// Information about a workflow run (summary)
-    public struct WorkflowRunInfo: Equatable {
-        public let id: String
-        public let status: String
-        public let conclusion: String?
-        public let title: String
-        public let createdAt: Date?
-
-        public var isSuccess: Bool {
-            conclusion == "success"
-        }
-
-        public var isFailed: Bool {
-            guard let conclusion else { return false }
-            return ["failure", "cancelled", "timed_out"].contains(conclusion)
-        }
-
-        public var isInProgress: Bool {
-            status == "in_progress" || status == "queued" || status == "pending"
-        }
-
-        /// Relative time string (e.g., "2 min ago")
-        public var relativeTime: String {
-            guard let createdAt else { return "" }
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            return formatter.localizedString(for: createdAt, relativeTo: Date())
         }
     }
 

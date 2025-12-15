@@ -271,7 +271,7 @@ struct GitHubCISectionView: View {
         }
     }
 
-    private func statusLabel(for run: GitHubCIStatus.WorkflowRunInfo) -> String {
+    private func statusLabel(for run: WorkflowRunInfo) -> String {
         if run.isInProgress {
             return "In Progress"
         } else if run.isSuccess {
@@ -283,7 +283,7 @@ struct GitHubCISectionView: View {
         }
     }
 
-    private func statusColor(for run: GitHubCIStatus.WorkflowRunInfo) -> Color {
+    private func statusColor(for run: WorkflowRunInfo) -> Color {
         if run.isInProgress {
             return .blue
         } else if run.isSuccess {

@@ -43,6 +43,42 @@ public actor GitHubActionsService {
         )
     }
 
+    /// Get complete GitHub CI status snapshot (git status + latest workflow run)
+    /// Returns ready-to-display data with all transformations applied
+    public func getFullStatus() async throws -> GitHubCISnapshot {
+        let gitStatus = try await getGitStatus()
+        let latestRun = try await getLatestWorkflowRun()
+
+        let runInfo = latestRun.map { run in
+            WorkflowRunInfo(
+                id: run.id,
+                status: run.status,
+                conclusion: run.conclusion,
+                title: run.displayTitle,
+                createdAt: Self.parseGitHubDate(run.createdAt)
+            )
+        }
+
+        let inProgressId = latestRun?.isCompleted == false ? latestRun?.id : nil
+
+        return GitHubCISnapshot(
+            gitStatus: gitStatus,
+            latestRun: runInfo,
+            inProgressRunId: inProgressId
+        )
+    }
+
+    /// Parse GitHub date string to Date
+    private static func parseGitHubDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString)
+    }
+
     // MARK: - Workflow Run Queries
 
     /// Get the latest workflow run for the configured branch
@@ -301,4 +337,55 @@ public enum WorkflowProgress: Sendable {
     case inProgress(detail: GitHubRunDetail)
     case success(runId: String)
     case failed(reason: String)
+}
+
+/// Complete snapshot of GitHub CI status (returned by getFullStatus)
+public struct GitHubCISnapshot: Sendable, Equatable {
+    public let gitStatus: GitStatus
+    public let latestRun: WorkflowRunInfo?
+    public let inProgressRunId: String?
+
+    public init(gitStatus: GitStatus, latestRun: WorkflowRunInfo?, inProgressRunId: String?) {
+        self.gitStatus = gitStatus
+        self.latestRun = latestRun
+        self.inProgressRunId = inProgressRunId
+    }
+}
+
+/// Information about a workflow run (UI-ready summary)
+public struct WorkflowRunInfo: Sendable, Equatable {
+    public let id: String
+    public let status: String
+    public let conclusion: String?
+    public let title: String
+    public let createdAt: Date?
+
+    public init(id: String, status: String, conclusion: String?, title: String, createdAt: Date?) {
+        self.id = id
+        self.status = status
+        self.conclusion = conclusion
+        self.title = title
+        self.createdAt = createdAt
+    }
+
+    public var isSuccess: Bool {
+        conclusion == "success"
+    }
+
+    public var isFailed: Bool {
+        guard let conclusion else { return false }
+        return ["failure", "cancelled", "timed_out"].contains(conclusion)
+    }
+
+    public var isInProgress: Bool {
+        status == "in_progress" || status == "queued" || status == "pending"
+    }
+
+    /// Relative time string (e.g., "2 min ago")
+    public var relativeTime: String {
+        guard let createdAt else { return "" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: createdAt, relativeTo: Date())
+    }
 }
