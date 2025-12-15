@@ -366,6 +366,8 @@ Before starting implementation, review the architecture documentation in `docs/a
 
 ### Instructions
 
+**Important: Do one phase at a time.** Complete the phase, verify the build passes, commit, then stop. Do not continue to the next phase until explicitly asked.
+
 After completing each phase:
 
 1. **Build all targets** to ensure nothing is broken:
@@ -379,6 +381,8 @@ After completing each phase:
    git add -A
    git commit -m "Phase N: <description>"
    ```
+
+3. **Stop and report completion.** Do not proceed to the next phase automatically.
 
 This ensures incremental progress is preserved and any issues can be easily bisected.
 
