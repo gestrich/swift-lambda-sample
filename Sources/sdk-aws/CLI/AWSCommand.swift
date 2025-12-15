@@ -199,13 +199,13 @@ public struct CloudFormationStackParser: CLIOutputParser {
 
     public func parse(_ output: String) throws -> CloudFormationStack {
         guard let data = output.data(using: .utf8) else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to convert CloudFormation output to data")
+            throw CLIClientError.invalidOutput(reason: "Failed to convert CloudFormation output to data")
         }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let stacks = json?["Stacks"] as? [[String: Any]],
               let stack = stacks.first else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse CloudFormation stack")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse CloudFormation stack")
         }
 
         let status = stack["StackStatus"] as? String ?? ""
@@ -232,12 +232,12 @@ public struct CloudFormationStackResourcesParser: CLIOutputParser {
 
     public func parse(_ output: String) throws -> [CloudFormationStackResource] {
         guard let data = output.data(using: .utf8) else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to convert CloudFormation output to data")
+            throw CLIClientError.invalidOutput(reason: "Failed to convert CloudFormation output to data")
         }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let resources = json?["StackResources"] as? [[String: Any]] else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse CloudFormation stack resources")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse CloudFormation stack resources")
         }
 
         return resources.compactMap { resource in

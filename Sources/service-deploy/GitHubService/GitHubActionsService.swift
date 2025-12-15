@@ -102,7 +102,7 @@ public actor GitHubActionsService {
     /// Get the latest workflow run status
     public func getLatestRunStatus() async throws -> (status: String, conclusion: String?) {
         guard let run = try await ghCLIService.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName) else {
-            throw CLIServiceError.invalidOutput(reason: "No workflow runs found")
+            throw CLIClientError.invalidOutput(reason: "No workflow runs found")
         }
         return (run.status, run.conclusion)
     }
@@ -183,7 +183,7 @@ public actor GitHubActionsService {
             }
 
             guard let id = Int(latestRun.id) else {
-                throw CLIServiceError.invalidOutput(reason: "Could not parse workflow run ID")
+                throw CLIClientError.invalidOutput(reason: "Could not parse workflow run ID")
             }
 
             if let afterId = afterRunId, id <= afterId {
@@ -213,7 +213,7 @@ public actor GitHubActionsService {
             try await Task.sleep(nanoseconds: pollInterval)
         }
 
-        throw CLIServiceError.timeout(command: "GitHub Actions workflow", duration: Double(timeoutMinutes * 60))
+        throw CLIClientError.timeout(command: "GitHub Actions workflow", duration: Double(timeoutMinutes * 60))
     }
 
     // MARK: - Monitoring

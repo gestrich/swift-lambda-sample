@@ -135,7 +135,7 @@ public actor AWSCLIService {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let stacks = json["Stacks"] as? [[String: Any]],
               let stack = stacks.first else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse CloudFormation stack")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse CloudFormation stack")
         }
 
         return stack
@@ -184,7 +184,7 @@ public actor AWSCLIService {
         let value = try await execute(command)
 
         guard !value.isEmpty else {
-            throw CLIServiceError.invalidOutput(reason: "Output key '\(outputKey)' not found in stack '\(stackName)'")
+            throw CLIClientError.invalidOutput(reason: "Output key '\(outputKey)' not found in stack '\(stackName)'")
         }
 
         return value
@@ -266,7 +266,7 @@ public actor AWSCLIService {
 
         guard let data = result.stdout.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse Lambda function")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse Lambda function")
         }
 
         return json
@@ -368,7 +368,7 @@ public actor AWSCLIService {
         guard let data = result.stdout.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let secrets = json["SecretList"] as? [[String: Any]] else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse secrets list")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse secrets list")
         }
 
         return secrets

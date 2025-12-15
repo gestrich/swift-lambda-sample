@@ -157,7 +157,7 @@ public actor RemoteDeploymentService {
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: cdkPath, isDirectory: &isDirectory), isDirectory.boolValue else {
-            throw CLIServiceError.invalidWorkingDirectory("CDK directory not found at: \(cdkPath)")
+            throw CLIClientError.invalidWorkingDirectory("CDK directory not found at: \(cdkPath)")
         }
 
         try await cdkService.destroy(force: true)
@@ -406,7 +406,7 @@ public actor RemoteDeploymentService {
             try await Task.sleep(nanoseconds: pollInterval)
         }
 
-        throw CLIServiceError.timeout(command: "CloudFormation stack deployment", duration: Double(maxAttempts * 5))
+        throw CLIClientError.timeout(command: "CloudFormation stack deployment", duration: Double(maxAttempts * 5))
     }
 
     private func deployInfrastructure(
@@ -442,7 +442,7 @@ public actor RemoteDeploymentService {
         let outputs = try await getStackOutputs(stackName: stackName)
 
         guard let apiUrl = outputs["ApiGatewayUrl"] else {
-            throw CLIServiceError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+            throw CLIClientError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
         print("  → POST \(apiUrl)api/database")
@@ -451,7 +451,7 @@ public actor RemoteDeploymentService {
         let result = try await cliService.executeForResult(curlCommand, printCommand: false)
 
         guard result.isSuccess else {
-            throw CLIServiceError.executionFailed(
+            throw CLIClientError.executionFailed(
                 command: curlCommand.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -470,7 +470,7 @@ public actor RemoteDeploymentService {
         let outputs = try await getStackOutputs(stackName: stackName)
 
         guard let apiUrl = outputs["ApiGatewayUrl"] else {
-            throw CLIServiceError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
+            throw CLIClientError.invalidOutput(reason: "Could not find ApiGatewayUrl in stack outputs")
         }
 
         print("  Testing health endpoint...")
@@ -480,7 +480,7 @@ public actor RemoteDeploymentService {
         let testResult = try await cliService.executeForResult(healthCommand, printCommand: false)
 
         guard testResult.isSuccess else {
-            throw CLIServiceError.executionFailed(
+            throw CLIClientError.executionFailed(
                 command: healthCommand.commandString,
                 exitCode: testResult.exitCode,
                 output: testResult.output
@@ -506,7 +506,7 @@ public actor RemoteDeploymentService {
             let usersResult = try await cliService.executeForResult(usersCommand, printCommand: false)
 
             guard usersResult.isSuccess else {
-                throw CLIServiceError.executionFailed(
+                throw CLIClientError.executionFailed(
                     command: usersCommand.commandString,
                     exitCode: usersResult.exitCode,
                     output: usersResult.output

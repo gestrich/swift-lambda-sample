@@ -246,14 +246,14 @@ public struct GitHubWorkflowRunsParser: CLIOutputParser {
 
     public func parse(_ output: String) throws -> [GitHubWorkflowRun] {
         guard let data = output.data(using: .utf8) else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to convert GitHub workflow runs output to data")
+            throw CLIClientError.invalidOutput(reason: "Failed to convert GitHub workflow runs output to data")
         }
 
         let decoder = JSONDecoder()
         do {
             return try decoder.decode([GitHubWorkflowRun].self, from: data)
         } catch {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse GitHub workflow runs: \(error)")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse GitHub workflow runs: \(error)")
         }
     }
 }
@@ -264,14 +264,14 @@ public struct GitHubPullRequestsParser: CLIOutputParser {
 
     public func parse(_ output: String) throws -> [GitHubPullRequest] {
         guard let data = output.data(using: .utf8) else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to convert GitHub pull requests output to data")
+            throw CLIClientError.invalidOutput(reason: "Failed to convert GitHub pull requests output to data")
         }
 
         let decoder = JSONDecoder()
         do {
             return try decoder.decode([GitHubPullRequest].self, from: data)
         } catch {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse GitHub pull requests: \(error)")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse GitHub pull requests: \(error)")
         }
     }
 }
@@ -488,14 +488,14 @@ public struct GitHubRunDetailParser: CLIOutputParser {
 
     public func parse(_ output: String) throws -> GitHubRunDetail {
         guard let data = output.data(using: .utf8) else {
-            throw CLIServiceError.invalidOutput(reason: "Failed to convert GitHub run detail output to data")
+            throw CLIClientError.invalidOutput(reason: "Failed to convert GitHub run detail output to data")
         }
 
         let decoder = JSONDecoder()
         do {
             return try decoder.decode(GitHubRunDetail.self, from: data)
         } catch {
-            throw CLIServiceError.invalidOutput(reason: "Failed to parse GitHub run detail: \(error)")
+            throw CLIClientError.invalidOutput(reason: "Failed to parse GitHub run detail: \(error)")
         }
     }
 }

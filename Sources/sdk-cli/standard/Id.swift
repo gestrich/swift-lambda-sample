@@ -19,7 +19,7 @@ public struct IdParser: CLIOutputParser {
     public func parse(_ output: String) throws -> Int {
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let id = Int(trimmed) else {
-            throw CLIServiceError.invalidOutput(reason: "Expected integer, got: \(trimmed)")
+            throw CLIClientError.invalidOutput(reason: "Expected integer, got: \(trimmed)")
         }
         return id
     }

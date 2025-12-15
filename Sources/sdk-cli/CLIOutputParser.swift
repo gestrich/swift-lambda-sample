@@ -10,7 +10,7 @@ public protocol CLIOutputParser<Output>: Sendable {
     /// Parse raw stdout into typed output
     /// - Parameter output: Raw stdout string
     /// - Returns: Parsed output
-    /// - Throws: CLIServiceError.invalidOutput if parsing fails
+    /// - Throws: CLIClientError.invalidOutput if parsing fails
     func parse(_ output: String) throws -> Output
 }
 
@@ -44,12 +44,12 @@ public struct JSONOutputParser<T: Decodable & Sendable>: CLIOutputParser {
 
     public func parse(_ output: String) throws -> T {
         guard let data = output.data(using: .utf8) else {
-            throw CLIServiceError.invalidOutput(reason: "Output is not valid UTF-8")
+            throw CLIClientError.invalidOutput(reason: "Output is not valid UTF-8")
         }
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw CLIServiceError.invalidOutput(reason: "JSON decode failed: \(error.localizedDescription)")
+            throw CLIClientError.invalidOutput(reason: "JSON decode failed: \(error.localizedDescription)")
         }
     }
 }

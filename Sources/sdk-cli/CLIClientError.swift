@@ -1,7 +1,7 @@
 import Foundation
 
-/// Errors that can occur during CLI service operations
-public enum CLIServiceError: Error, LocalizedError, Sendable {
+/// Errors that can occur during CLI client operations
+public enum CLIClientError: Error, LocalizedError, Sendable {
     /// Command executable not found
     case commandNotFound(String)
 

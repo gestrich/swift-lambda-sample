@@ -482,7 +482,7 @@ struct CloudFormationStackParserTests {
         }
         """
         let parser = CloudFormationStackParser()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             try parser.parse(json)
         }
     }
@@ -548,7 +548,7 @@ struct CloudFormationStackResourcesParserTests {
         }
         """
         let parser = CloudFormationStackResourcesParser()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             try parser.parse(json)
         }
     }

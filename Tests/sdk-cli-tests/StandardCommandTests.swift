@@ -50,7 +50,7 @@ struct IdCommandTests {
     @Test("IdParser throws on invalid input")
     func testIdParserInvalid() {
         let parser = IdParser()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             try parser.parse("not-a-number")
         }
     }
@@ -152,7 +152,7 @@ struct LsofCommandTests {
     @Test("LsofPidParser throws on invalid input")
     func testLsofPidParserInvalid() {
         let parser = LsofPidParser()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             try parser.parse("not-a-pid")
         }
     }

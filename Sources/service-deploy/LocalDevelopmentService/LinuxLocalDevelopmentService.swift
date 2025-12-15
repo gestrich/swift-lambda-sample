@@ -409,7 +409,7 @@ public actor LinuxLocalDevelopmentService {
         guard FileManager.default.fileExists(atPath: lambdaDir) else {
             print("❌ Error: lambda directory not found!")
             print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
+            throw CLIClientError.invalidWorkingDirectory("lambda directory not found")
         }
 
         let env = getEnvironmentVariables()
@@ -436,7 +436,7 @@ public actor LinuxLocalDevelopmentService {
         guard FileManager.default.fileExists(atPath: lambdaDir) else {
             print("❌ Error: lambda directory not found!")
             print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
+            throw CLIClientError.invalidWorkingDirectory("lambda directory not found")
         }
 
         print("\n✅ Starting interactive container...")
@@ -471,7 +471,7 @@ public actor LinuxLocalDevelopmentService {
         let appConfigDest = storageService.filePath(for: AppConfigFileKey.self)
 
         guard FileManager.default.fileExists(atPath: appConfigSource) else {
-            throw CLIServiceError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
+            throw CLIClientError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
         }
 
         if FileManager.default.fileExists(atPath: appConfigDest) {
@@ -494,7 +494,7 @@ public actor LinuxLocalDevelopmentService {
         guard FileManager.default.fileExists(atPath: effectiveLambdaDir) else {
             print("❌ Error: lambda directory not found at \(effectiveLambdaDir)!")
             print("Build the Lambda first with: ./tools.sh local linux build")
-            throw CLIServiceError.invalidWorkingDirectory("lambda directory not found")
+            throw CLIClientError.invalidWorkingDirectory("lambda directory not found")
         }
 
         var options = DockerService.RunOptions()

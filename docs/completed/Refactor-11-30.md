@@ -337,7 +337,7 @@ public actor CLIService {
 
         // Check timeout
         if let timeout, duration >= timeout && exitCode != 0 {
-            throw CLIServiceError.timeout(
+            throw CLIClientError.timeout(
                 command: "\(command) \(arguments.joined(separator: " "))",
                 duration: timeout
             )

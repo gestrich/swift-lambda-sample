@@ -219,7 +219,7 @@ CLIKit/
 ├── CLICommand.swift          # CLICommand protocol
 ├── CLIArgument.swift         # CLIFlag, CLIOption, CLIPositional
 ├── CLIClient.swift           # Command execution client
-├── CLIServiceError.swift     # Error types
+├── CLIClientError.swift      # Error types
 ├── CLIOutputParser.swift     # Parser protocol + built-ins
 ├── ExecutionResult.swift     # Execution result types
 ├── StringUtils.swift         # Kebab-case conversion

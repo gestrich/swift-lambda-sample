@@ -25,7 +25,7 @@ public struct LsofPidParser: CLIOutputParser {
             .map { line in
                 let trimmedLine = line.trimmingCharacters(in: .whitespaces)
                 guard let pid = Int(trimmedLine) else {
-                    throw CLIServiceError.invalidOutput(reason: "Expected integer PID, got: \(line)")
+                    throw CLIClientError.invalidOutput(reason: "Expected integer PID, got: \(line)")
                 }
                 return pid
             }

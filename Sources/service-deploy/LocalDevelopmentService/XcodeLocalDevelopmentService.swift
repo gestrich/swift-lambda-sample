@@ -421,7 +421,7 @@ public actor XcodeLocalDevelopmentService {
         let appConfigDest = storageService.filePath(for: AppConfigFileKey.self)
 
         guard FileManager.default.fileExists(atPath: appConfigSource) else {
-            throw CLIServiceError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
+            throw CLIClientError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
         }
 
         if FileManager.default.fileExists(atPath: appConfigDest) {

@@ -100,7 +100,7 @@ public struct GitRevListCountParser: CLIOutputParser {
     public func parse(_ output: String) throws -> Int {
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let count = Int(trimmed) else {
-            throw CLIServiceError.invalidOutput(
+            throw CLIClientError.invalidOutput(
                 reason: "Expected integer from git rev-list --count, got '\(trimmed)'"
             )
         }
@@ -119,7 +119,7 @@ public struct GitLogParser: CLIOutputParser {
         return try lines.map { line in
             let parts = line.components(separatedBy: "|")
             guard parts.count >= 5 else {
-                throw CLIServiceError.invalidOutput(
+                throw CLIClientError.invalidOutput(
                     reason: "Expected 5 fields in git log output, got \(parts.count)"
                 )
             }

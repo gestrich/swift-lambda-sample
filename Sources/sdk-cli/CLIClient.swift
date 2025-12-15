@@ -171,7 +171,7 @@ public actor CLIClient {
     ) async throws -> String {
         let components = command.components(separatedBy: " ")
         guard !components.isEmpty else {
-            throw CLIServiceError.invalidCommand("Empty command")
+            throw CLIClientError.invalidCommand("Empty command")
         }
 
         let executable = components[0]
@@ -184,7 +184,7 @@ public actor CLIClient {
         )
 
         if result.exitCode != 0 {
-            throw CLIServiceError.executionFailed(
+            throw CLIClientError.executionFailed(
                 command: command,
                 exitCode: result.exitCode,
                 output: result.output
@@ -270,7 +270,7 @@ public actor CLIClient {
         guard let programName = commandLine.first else {
             let errorID = CommandID()
             return AsyncStream { (continuation: AsyncStream<StreamOutput>.Continuation) in
-                continuation.yield(.error(commandID: errorID, error: CLIServiceError.invalidCommand("Empty command line")))
+                continuation.yield(.error(commandID: errorID, error: CLIClientError.invalidCommand("Empty command line")))
                 continuation.finish()
             }
         }
@@ -404,7 +404,7 @@ public actor CLIClient {
         // If it's already an absolute path, use it
         if command.starts(with: "/") {
             guard FileManager.default.fileExists(atPath: command) else {
-                throw CLIServiceError.commandNotFound(command)
+                throw CLIClientError.commandNotFound(command)
             }
             return command
         }
@@ -415,7 +415,7 @@ public actor CLIClient {
             let resolvedPath = (baseDir as NSString).appendingPathComponent(command)
             let standardizedPath = (resolvedPath as NSString).standardizingPath
             guard FileManager.default.fileExists(atPath: standardizedPath) else {
-                throw CLIServiceError.commandNotFound(command)
+                throw CLIClientError.commandNotFound(command)
             }
             return standardizedPath
         }
@@ -462,7 +462,7 @@ public actor CLIClient {
             }
         }
 
-        throw CLIServiceError.commandNotFound(command)
+        throw CLIClientError.commandNotFound(command)
     }
 
     private func executeProcess(
@@ -654,7 +654,7 @@ public actor CLIClient {
 
         // Check timeout
         if let timeout, duration >= timeout && exitCode != 0 {
-            throw CLIServiceError.timeout(
+            throw CLIClientError.timeout(
                 command: "\(command) \(arguments.joined(separator: " "))",
                 duration: timeout
             )
@@ -681,7 +681,7 @@ public actor CLIClient {
     ///   - printCommand: Whether to print the command before execution
     ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: Tuple of (parsed output, execution result). Parse only attempted if command succeeds.
-    /// - Throws: CLIServiceError if command not found or parsing fails
+    /// - Throws: CLIClientError if command not found or parsing fails
     public func executeWithResult<C: CLICommand, P: CLIOutputParser>(
         _ command: C,
         parser: P,
@@ -746,7 +746,7 @@ public actor CLIClient {
     ///   - printCommand: Whether to print the command before execution
     ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     /// - Returns: Parsed output of type `P.Output`
-    /// - Throws: CLIServiceError if command fails or parsing fails
+    /// - Throws: CLIClientError if command fails or parsing fails
     public func execute<C: CLICommand, P: CLIOutputParser>(
         _ command: C,
         parser: P,
@@ -765,7 +765,7 @@ public actor CLIClient {
         )
 
         guard let parsed else {
-            throw CLIServiceError.executionFailed(
+            throw CLIClientError.executionFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output

@@ -232,7 +232,7 @@ struct ParserTests {
     @Test("GitRevListCountParser throws on invalid input")
     func testRevListCountParseInvalid() {
         let parser = GitRevListCountParser()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             _ = try parser.parse("not a number")
         }
     }
@@ -266,7 +266,7 @@ struct ParserTests {
     @Test("GitLogParser throws on invalid format")
     func testLogParseInvalid() {
         let parser = GitLogParser()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             _ = try parser.parse("invalid|only|three")
         }
     }
@@ -387,7 +387,7 @@ struct CLIOutputParserTests {
     @Test("JSONOutputParser throws on invalid JSON")
     func testJSONParserInvalid() {
         let parser = JSONOutputParser<[String]>()
-        #expect(throws: CLIServiceError.self) {
+        #expect(throws: CLIClientError.self) {
             _ = try parser.parse("not json")
         }
     }

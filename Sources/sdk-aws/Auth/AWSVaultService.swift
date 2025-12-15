@@ -37,7 +37,7 @@ public struct AWSVaultService: Sendable {
         )
 
         guard let result = result, result.isSuccess else {
-            throw CLIServiceError.invalidCommand(
+            throw CLIClientError.invalidCommand(
                 "aws-vault is not installed. Install it with:\n" +
                 "  brew install --cask aws-vault\n\n" +
                 "Or disable aws-vault in your config by setting:\n" +
