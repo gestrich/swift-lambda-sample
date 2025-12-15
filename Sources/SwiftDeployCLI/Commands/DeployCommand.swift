@@ -35,7 +35,7 @@ extension AWSCommand {
                 cdkDirectory: cdkDirectory
             )
 
-            let options = DeploymentOptions(
+            let options = DeploymentConfiguration(
                 skipPostgres: true,
                 skipNATGateway: true,
                 awsProfile: awsConfig.profileName,

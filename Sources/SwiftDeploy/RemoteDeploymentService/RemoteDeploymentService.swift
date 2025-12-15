@@ -32,14 +32,14 @@ public actor RemoteDeploymentService {
 
     /// Deploy CDK stack (maintains current configuration)
     /// Returns deployment result with stack outputs
-    public func deploy(options: DeploymentOptions) async throws -> DeploymentResult {
+    public func deploy(options: DeploymentConfiguration) async throws -> DeploymentResult {
         print("\n📦 Starting CDK deployment...")
 
         // Query current deployed state
         let deployedState = try await queryDeployedState()
 
         // Determine what to deploy based on current state
-        let finalOptions: DeploymentOptions
+        let finalOptions: DeploymentConfiguration
 
         if let state = deployedState {
             print("\n📊 Detected existing stack configuration:")
@@ -47,7 +47,7 @@ public actor RemoteDeploymentService {
             print("   NAT Gateway: \(state.hasNATGateway ? "YES" : "NO")")
             print("   → Maintaining current configuration\n")
 
-            finalOptions = DeploymentOptions(
+            finalOptions = DeploymentConfiguration(
                 skipPostgres: !state.hasDatabase,
                 skipNATGateway: !state.hasNATGateway,
                 awsProfile: options.awsProfile,
@@ -91,7 +91,7 @@ public actor RemoteDeploymentService {
 
     /// Initial deployment workflow - sets infrastructure configuration
     public func deployInit(
-        options: DeploymentOptions,
+        options: DeploymentConfiguration,
         withPostgres: Bool,
         skipPush: Bool = false,
         stackName: String = "SwiftLambdaSampleStack"
@@ -413,7 +413,7 @@ public actor RemoteDeploymentService {
     }
 
     private func deployInfrastructure(
-        options: DeploymentOptions,
+        options: DeploymentConfiguration,
         stackName: String = "SwiftLambdaSampleStack"
     ) async throws -> [String: String] {
         // Build TypeScript first

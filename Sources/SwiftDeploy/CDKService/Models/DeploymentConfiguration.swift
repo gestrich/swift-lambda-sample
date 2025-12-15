@@ -1,7 +1,7 @@
 import Foundation
 
 /// Deployment configuration options
-public struct DeploymentOptions: Sendable {
+public struct DeploymentConfiguration: Sendable {
     /// Whether to skip PostgreSQL database deployment
     public let skipPostgres: Bool
 
