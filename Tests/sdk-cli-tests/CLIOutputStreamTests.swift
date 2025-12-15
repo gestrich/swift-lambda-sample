@@ -1,5 +1,5 @@
 import Testing
-@testable import CLIKit
+@testable import sdk_cli
 
 // Test command ID for consistent testing
 private let testCommandID = CommandID()

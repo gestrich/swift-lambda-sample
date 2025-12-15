@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import Foundation
 
 /// Homebrew CLI program definition using macro-based API

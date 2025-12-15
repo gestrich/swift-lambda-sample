@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import Foundation
 
 /// Stateless service for GitHub Actions operations

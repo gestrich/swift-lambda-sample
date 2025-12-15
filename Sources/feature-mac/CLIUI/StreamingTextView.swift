@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import SwiftUI
 
 // MARK: - Command Block Model

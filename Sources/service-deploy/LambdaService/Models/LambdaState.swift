@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import Foundation
 
 /// Simple data container for Lambda lifecycle state

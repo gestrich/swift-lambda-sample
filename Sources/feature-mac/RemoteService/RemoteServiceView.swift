@@ -1,5 +1,5 @@
 import AppKit
-import CLIKit
+import sdk_cli
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management

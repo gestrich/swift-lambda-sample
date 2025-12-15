@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import SwiftUI
 
 /// A collapsible output panel with Xcode-style toggle button.

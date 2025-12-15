@@ -33,7 +33,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "CLIKit",
+            name: "sdk-cli",
             dependencies: [
                 .target(name: "CLIMacros"),
             ],
@@ -57,7 +57,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Client"),
                 .target(name: "sdk-storage"),
-                .target(name: "CLIKit"),
+                .target(name: "sdk-cli"),
             ]
         ),
         .executableTarget(
@@ -75,7 +75,7 @@ let package = Package(
                 .target(name: "Client"),
                 .target(name: "service-deploy"),
                 .target(name: "sdk-storage"),
-                .target(name: "CLIKit"),
+                .target(name: "sdk-cli"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
@@ -109,9 +109,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "CLIKitTests",
+            name: "sdk-cli-tests",
             dependencies: [
-                .target(name: "CLIKit"),
+                .target(name: "sdk-cli"),
                 .target(name: "CLIMacros"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]

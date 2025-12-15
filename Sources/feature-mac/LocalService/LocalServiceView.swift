@@ -1,5 +1,5 @@
 import AppKit
-import CLIKit
+import sdk_cli
 import service_deploy
 import SwiftUI
 

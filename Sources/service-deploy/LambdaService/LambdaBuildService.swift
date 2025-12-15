@@ -5,7 +5,7 @@
 //  Service for building and uploading Lambda for Linux using Docker
 //
 
-import CLIKit
+import sdk_cli
 import Foundation
 
 /// Service for building and uploading Lambda for Linux (AMD64) using Docker

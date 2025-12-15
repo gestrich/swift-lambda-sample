@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import Client
 import Combine
 import Foundation

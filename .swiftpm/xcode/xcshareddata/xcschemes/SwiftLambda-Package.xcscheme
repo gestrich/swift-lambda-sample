@@ -110,9 +110,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "CLIKitTests"
-               BuildableName = "CLIKitTests"
-               BlueprintName = "CLIKitTests"
+               BlueprintIdentifier = "sdk-cli-tests"
+               BuildableName = "sdk-cli-tests"
+               BlueprintName = "sdk-cli-tests"
                ReferencedContainer = "container:">
             </BuildableReference>
          </TestableReference>

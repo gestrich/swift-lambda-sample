@@ -1,8 +1,8 @@
 import Testing
-import CLIKit
+import sdk_cli
 
-@Suite("CLIKit Tests")
-struct CLIKitTests {
+@Suite("sdk-cli Tests")
+struct SdkCliTests {
 
     @Test("String to kebab-case conversion")
     func testKebabCase() {

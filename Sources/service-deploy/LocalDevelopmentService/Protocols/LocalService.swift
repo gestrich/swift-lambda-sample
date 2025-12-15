@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 import Foundation
 
 /// Combined protocol for local Lambda services (Xcode and Linux)

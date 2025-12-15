@@ -1,4 +1,4 @@
-import CLIKit
+import sdk_cli
 @testable import service_deploy
 import Testing
 
