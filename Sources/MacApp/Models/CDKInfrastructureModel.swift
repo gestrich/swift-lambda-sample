@@ -34,69 +34,32 @@ public final class CDKInfrastructureModel {
 
     // MARK: - UI State Operations
 
-    /// Refresh infrastructure status including stack state, configuration, and outputs.
-    /// - Parameter force: If true, bypasses the isBusy check (used after deploy/destroy completes)
+    /// Refresh infrastructure status from AWS
+    /// - Parameter force: If true, bypasses the isBusy check (used after operations complete)
     public func refreshStatus(force: Bool = false) async {
         guard force || !infrastructureStatus.status.isBusy else { return }
 
         infrastructureStatus.status = .loading
 
         do {
-            let snapshot = try await queryService.getFullStatus(stackName: infrastructureStatus.stackName)
+            let stackName = infrastructureStatus.stackName
+            infrastructureStatus = try await queryService.getFullStatus(stackName: stackName)
 
-            switch snapshot.state {
-            case .deployed:
-                infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration(
-                    hasDatabase: snapshot.configuration.hasDatabase,
-                    hasNATGateway: snapshot.configuration.hasNATGateway,
-                    hasVPC: snapshot.configuration.hasVPC
-                )
-                infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs(
-                    apiGatewayUrl: snapshot.outputs.apiGatewayUrl,
-                    lambdaFunctionName: snapshot.outputs.lambdaFunctionName,
-                    bucketName: snapshot.outputs.bucketName,
-                    allOutputs: snapshot.outputs.allOutputs
-                )
-                infrastructureStatus.status = .deployed
-
-            case .deploying(let operation):
-                infrastructureStatus.status = .deploying(operation: operation)
-                Task {
-                    await monitorExistingOperation()
-                }
-
-            case .destroying:
-                infrastructureStatus.status = .destroying
-                Task {
-                    await monitorExistingOperation()
-                }
-
-            case .failed(let reason):
-                infrastructureStatus.status = .failed(reason: reason)
-
-            case .notDeployed:
-                infrastructureStatus.status = .notDeployed
-                infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
-                infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
+            if infrastructureStatus.status.isBusy {
+                Task { await monitorExistingOperation() }
             }
         } catch CDKInfrastructureError.credentialExpired(let message) {
             infrastructureStatus.status = .failed(reason: message)
         } catch {
+            // Service returns .notDeployed for non-existent stacks, so this shouldn't be reached
+            // unless there's an unexpected error
             infrastructureStatus.status = .notDeployed
-            infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
-            infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
         }
     }
 
     /// Deploy infrastructure with specified configuration
-    /// - Parameters:
-    ///   - withPostgres: Include PostgreSQL database
-    ///   - withNATGateway: Include NAT Gateway
-    ///   - output: Optional client-owned stream to receive output
     public func deploy(withPostgres: Bool, withNATGateway: Bool, output: CLIOutputStream? = nil) async throws {
-        infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
-        infrastructureStatus.status = .deploying(operation: withPostgres ? "Deploying with Database" : "Deploying")
+        beginOperation(status: .deploying(operation: withPostgres ? "Deploying with Database" : "Deploying"))
 
         do {
             let stream = queryService.deployWithProgress(
@@ -110,23 +73,17 @@ public final class CDKInfrastructureModel {
                 infrastructureStatus.deploymentProgress = progress
             }
 
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            endOperation()
             await refreshStatus(force: true)
         } catch {
-            infrastructureStatus.status = .failed(reason: error.localizedDescription)
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            endOperation(failed: error.localizedDescription)
             throw error
         }
     }
 
     /// Update infrastructure maintaining current configuration
-    /// - Parameter output: Optional client-owned stream to receive output
     public func updateInfrastructure(output: CLIOutputStream? = nil) async throws {
-        infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
-        infrastructureStatus.status = .deploying(operation: "Updating")
+        beginOperation(status: .deploying(operation: "Updating"))
 
         let hasDatabase = infrastructureStatus.configuration.hasDatabase
         let hasNATGateway = infrastructureStatus.configuration.hasNATGateway
@@ -143,23 +100,17 @@ public final class CDKInfrastructureModel {
                 infrastructureStatus.deploymentProgress = progress
             }
 
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            endOperation()
             await refreshStatus(force: true)
         } catch {
-            infrastructureStatus.status = .failed(reason: error.localizedDescription)
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            endOperation(failed: error.localizedDescription)
             throw error
         }
     }
 
     /// Destroy infrastructure
-    /// - Parameter output: Optional client-owned stream to receive output
     public func destroy(output: CLIOutputStream? = nil) async throws {
-        infrastructureStatus.status = .destroying
-        infrastructureStatus.deployStartTime = Date()
-        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+        beginOperation(status: .destroying)
 
         do {
             let stream = queryService.destroyWithProgress(
@@ -171,20 +122,31 @@ public final class CDKInfrastructureModel {
                 infrastructureStatus.deploymentProgress = progress
             }
 
-            infrastructureStatus.status = .notDeployed
-            infrastructureStatus.configuration = CDKInfrastructureStatus.Configuration()
-            infrastructureStatus.outputs = CDKInfrastructureStatus.StackOutputs()
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            endOperation()
+            await refreshStatus(force: true)
         } catch {
-            infrastructureStatus.status = .failed(reason: error.localizedDescription)
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+            endOperation(failed: error.localizedDescription)
             throw error
         }
     }
 
-    // MARK: - Private
+    // MARK: - Private Helpers
+
+    /// Begin an operation - sets transient UI state
+    private func beginOperation(status: CDKInfrastructureStatus.StackStatus) {
+        infrastructureStatus.status = status
+        infrastructureStatus.deployStartTime = Date()
+        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+    }
+
+    /// End an operation - clears transient UI state
+    private func endOperation(failed reason: String? = nil) {
+        infrastructureStatus.deployStartTime = nil
+        infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
+        if let reason = reason {
+            infrastructureStatus.status = .failed(reason: reason)
+        }
+    }
 
     /// Monitor an existing in-progress operation (detected on app startup)
     private func monitorExistingOperation() async {
@@ -196,129 +158,13 @@ public final class CDKInfrastructureModel {
 
             for try await progress in stream {
                 infrastructureStatus.deploymentProgress = progress
-
-                if progress.isComplete {
-                    break
-                }
+                if progress.isComplete { break }
             }
-
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
-            await refreshStatus(force: true)
         } catch {
-            infrastructureStatus.deployStartTime = nil
-            infrastructureStatus.deploymentProgress = CDKDeploymentProgress()
-            await refreshStatus(force: true)
+            // Monitoring failed, just refresh to get current state
         }
+
+        endOperation()
+        await refreshStatus(force: true)
     }
-}
-
-// MARK: - UI State Types
-
-/// State for CDK Infrastructure tracking
-public struct CDKInfrastructureStatus: Equatable, Sendable {
-    public enum StackStatus: Equatable, Sendable {
-        case unknown
-        case loading
-        case notDeployed
-        case deployed
-        case deploying(operation: String)
-        case destroying
-        case failed(reason: String)
-
-        public var isDeploying: Bool {
-            if case .deploying = self { return true }
-            return false
-        }
-
-        public var isDestroying: Bool {
-            if case .destroying = self { return true }
-            return false
-        }
-
-        public var isBusy: Bool {
-            switch self {
-            case .loading, .deploying, .destroying:
-                return true
-            default:
-                return false
-            }
-        }
-
-        public var canDeploy: Bool {
-            switch self {
-            case .loading, .deploying, .destroying:
-                return false
-            default:
-                return true
-            }
-        }
-
-        public var canDestroy: Bool {
-            switch self {
-            case .deployed:
-                return true
-            default:
-                return false
-            }
-        }
-    }
-
-    /// Detected infrastructure configuration
-    public struct Configuration: Equatable, Sendable {
-        public let hasDatabase: Bool
-        public let hasNATGateway: Bool
-        public let hasVPC: Bool
-
-        public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
-            self.hasDatabase = hasDatabase
-            self.hasNATGateway = hasNATGateway
-            self.hasVPC = hasVPC
-        }
-    }
-
-    /// Stack output values
-    public struct StackOutputs: Equatable, Sendable {
-        public let apiGatewayUrl: String?
-        public let lambdaFunctionName: String?
-        public let bucketName: String?
-        public let allOutputs: [String: String]
-
-        public init(
-            apiGatewayUrl: String? = nil,
-            lambdaFunctionName: String? = nil,
-            bucketName: String? = nil,
-            allOutputs: [String: String] = [:]
-        ) {
-            self.apiGatewayUrl = apiGatewayUrl
-            self.lambdaFunctionName = lambdaFunctionName
-            self.bucketName = bucketName
-            self.allOutputs = allOutputs
-        }
-
-        public static func from(_ outputs: [String: String]) -> StackOutputs {
-            StackOutputs(
-                apiGatewayUrl: outputs["ApiGatewayUrl"],
-                lambdaFunctionName: outputs["LambdaFunctionName"],
-                bucketName: outputs["BucketName"],
-                allOutputs: outputs
-            )
-        }
-    }
-
-    public var status: StackStatus = .unknown
-    public var configuration: Configuration = Configuration()
-    public var outputs: StackOutputs = StackOutputs()
-    public var stackName: String = "SwiftLambdaSampleStack"
-    public var deployStartTime: Date?
-
-    /// Deployment progress - aggregated resource states during deploy/destroy
-    /// Uses the service's CDKDeploymentProgress type directly
-    public var deploymentProgress: CDKDeploymentProgress = CDKDeploymentProgress()
-
-    public init() {}
-
-    /// Convenience computed properties for UI
-    public var hasPolled: Bool { deploymentProgress.pollCount > 0 }
-    public var hasPolledEnough: Bool { deploymentProgress.pollCount >= 5 }
 }

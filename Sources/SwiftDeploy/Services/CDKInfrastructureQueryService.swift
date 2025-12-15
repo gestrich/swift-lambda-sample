@@ -100,45 +100,43 @@ public actor CDKInfrastructureQueryService {
         try await cdkService.destroy(force: true, output: output)
     }
 
-    // MARK: - High-Level Status Snapshot
+    // MARK: - High-Level Status
 
-    /// Get complete infrastructure status snapshot
+    /// Get complete infrastructure status
     /// - Parameter stackName: Name of the stack
-    /// - Returns: Complete status snapshot with state, configuration, and outputs
+    /// - Returns: Complete status with state, configuration, and outputs
     /// - Throws: CDKInfrastructureError for credential issues
-    public func getFullStatus(stackName: String) async throws -> CDKInfrastructureStatusSnapshot {
+    public func getFullStatus(stackName: String) async throws -> CDKInfrastructureStatus {
+        var result = CDKInfrastructureStatus()
+        result.stackName = stackName
+
         do {
             let stackStatus = try await getStackStatus(stackName: stackName)
 
             switch stackStatus {
             case CloudFormationStackStatusValues.createComplete,
                  CloudFormationStackStatusValues.updateComplete:
-                let config = try await queryConfiguration(stackName: stackName)
-                let outputs = try await getStackOutputs(stackName: stackName)
-
-                return CDKInfrastructureStatusSnapshot(
-                    state: .deployed,
-                    configuration: config,
-                    outputs: CDKStackOutputs.from(outputs)
-                )
+                result.configuration = try await queryConfiguration(stackName: stackName)
+                result.outputs = CDKStackOutputs.from(try await getStackOutputs(stackName: stackName))
+                result.status = .deployed
 
             case CloudFormationStackStatusValues.createInProgress,
                  CloudFormationStackStatusValues.updateInProgress,
                  CloudFormationStackStatusValues.updateCompleteCleanupInProgress:
-                return CDKInfrastructureStatusSnapshot(state: .deploying(operation: "Updating"))
+                result.status = .deploying(operation: "Updating")
 
             case CloudFormationStackStatusValues.deleteInProgress:
-                return CDKInfrastructureStatusSnapshot(state: .destroying)
+                result.status = .destroying
 
             case CloudFormationStackStatusValues.createFailed,
                  CloudFormationStackStatusValues.updateFailed,
                  CloudFormationStackStatusValues.rollbackComplete,
                  CloudFormationStackStatusValues.rollbackFailed,
                  CloudFormationStackStatusValues.deleteFailed:
-                return CDKInfrastructureStatusSnapshot(state: .failed(reason: stackStatus))
+                result.status = .failed(reason: stackStatus)
 
             default:
-                return CDKInfrastructureStatusSnapshot(state: .deployed)
+                result.status = .deployed
             }
         } catch {
             let errorMessage = error.localizedDescription
@@ -146,9 +144,11 @@ public actor CDKInfrastructureQueryService {
             if CDKInfrastructureError.isCredentialError(errorMessage) {
                 throw CDKInfrastructureError.credentialExpired(message: errorMessage)
             } else {
-                return CDKInfrastructureStatusSnapshot(state: .notDeployed)
+                result.status = .notDeployed
             }
         }
+
+        return result
     }
 
     // MARK: - Progress Streaming Operations
@@ -475,31 +475,6 @@ public enum CDKInfrastructureError: Error, Equatable, Sendable {
     }
 }
 
-/// Complete status snapshot for CDK infrastructure
-public struct CDKInfrastructureStatusSnapshot: Sendable, Equatable {
-    public enum StackState: Sendable, Equatable {
-        case notDeployed
-        case deployed
-        case deploying(operation: String)
-        case destroying
-        case failed(reason: String)
-    }
-
-    public let state: StackState
-    public let configuration: CDKInfrastructureConfiguration
-    public let outputs: CDKStackOutputs
-
-    public init(
-        state: StackState,
-        configuration: CDKInfrastructureConfiguration = CDKInfrastructureConfiguration(),
-        outputs: CDKStackOutputs = CDKStackOutputs()
-    ) {
-        self.state = state
-        self.configuration = configuration
-        self.outputs = outputs
-    }
-}
-
 /// Progress snapshot during deployment/destroy operations
 public struct CDKDeploymentProgress: Sendable, Equatable {
     public let resources: [ResourceProgressSnapshot]
@@ -609,4 +584,71 @@ public enum ResourceStatusSnapshot: Sendable, Equatable {
             self = .pending
         }
     }
+}
+
+// MARK: - CDK Infrastructure Status (Observable State Container)
+
+/// Mutable state container for CDK Infrastructure tracking
+/// Used by models to hold observable UI state
+public struct CDKInfrastructureStatus: Equatable, Sendable {
+    /// Current stack status
+    public enum StackStatus: Equatable, Sendable {
+        case unknown
+        case loading
+        case notDeployed
+        case deployed
+        case deploying(operation: String)
+        case destroying
+        case failed(reason: String)
+
+        public var isDeploying: Bool {
+            if case .deploying = self { return true }
+            return false
+        }
+
+        public var isDestroying: Bool {
+            if case .destroying = self { return true }
+            return false
+        }
+
+        public var isBusy: Bool {
+            switch self {
+            case .loading, .deploying, .destroying:
+                return true
+            default:
+                return false
+            }
+        }
+
+        public var canDeploy: Bool {
+            switch self {
+            case .loading, .deploying, .destroying:
+                return false
+            default:
+                return true
+            }
+        }
+
+        public var canDestroy: Bool {
+            switch self {
+            case .deployed:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    public var status: StackStatus = .unknown
+    public var configuration: CDKInfrastructureConfiguration = CDKInfrastructureConfiguration()
+    public var outputs: CDKStackOutputs = CDKStackOutputs()
+    public var stackName: String = "SwiftLambdaSampleStack"
+    public var deployStartTime: Date?
+    public var deploymentProgress: CDKDeploymentProgress = CDKDeploymentProgress()
+
+    public init() {}
+
+    /// Convenience computed properties for UI
+    public var hasPolled: Bool { deploymentProgress.pollCount > 0 }
+    public var hasPolledEnough: Bool { deploymentProgress.pollCount >= 5 }
 }

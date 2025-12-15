@@ -399,19 +399,28 @@ View → Model.deploy() → Service.deployWithProgress() → AsyncThrowingStream
   - `.operationInProgress(operation:)` - Operation already running
   - `.unknown(message:)` - Other errors
 - Moved `isCredentialError()` to service as static method on error type
-- Added `getFullStatus()` method returning `CDKInfrastructureStatusSnapshot`
+- Added `getFullStatus()` method returning `CDKInfrastructureStatus` directly
 - Model catches typed errors and maps to UI states
 
 ### [x] 8.4 Updated Views
 - Updated `CDKInfrastructureSectionView` to use `ResourceProgressSnapshot` and `ResourceStatusSnapshot`
 - Added `SwiftDeploy` import to view file
 
+### [x] 8.5 Moved CDKInfrastructureStatus to service
+- `CDKInfrastructureStatus` struct moved from Model to Service
+- Reuses `CDKInfrastructureConfiguration` and `CDKStackOutputs` (no duplicate types)
+- `getFullStatus()` returns `CDKInfrastructureStatus` directly (removed intermediate `CDKInfrastructureStatusSnapshot`)
+- Model now directly assigns: `infrastructureStatus = try await queryService.getFullStatus(stackName:)`
+- `refreshStatus()` reduced from ~40 lines to ~20 lines
+
 **Benefits Achieved:**
 - Services remain stateless and fully testable
 - Models are trivially simple (state assignment + subscriptions)
 - Clear data flow: Service returns state → Model stores state → View observes state
 - Consistent pattern across all Model/Service pairs
-- Reduced code in Model (~100 lines removed)
+- Reduced code in Model (~200 lines removed total)
+- Single source of truth for CDK types in service layer
+- No intermediate snapshot type needed
 
 ---
 
