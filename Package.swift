@@ -40,6 +40,12 @@ let package = Package(
             exclude: ["README.md"]
         ),
         .target(
+            name: "sdk-aws",
+            dependencies: [
+                .target(name: "sdk-cli"),
+            ]
+        ),
+        .target(
             name: "service-storage"
         ),
         .executableTarget(
