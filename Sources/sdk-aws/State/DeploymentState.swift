@@ -1,0 +1,164 @@
+import Foundation
+
+/// Generic deployment state for CloudFormation stacks.
+/// This enum represents the high-level state of a CloudFormation deployment
+/// without any app-specific configuration knowledge.
+public enum DeploymentState: Sendable, Equatable {
+    case unknown
+    case loading
+    case notDeployed
+    case deployed(outputs: [String: String])
+    case deploying(operation: String, progress: DeploymentProgress, startTime: Date)
+    case destroying(progress: DeploymentProgress, startTime: Date)
+    case failed(reason: String)
+    case credentialExpired(message: String)
+
+    public var isBusy: Bool {
+        switch self {
+        case .loading, .deploying, .destroying:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public var canDeploy: Bool {
+        switch self {
+        case .loading, .deploying, .destroying:
+            return false
+        default:
+            return true
+        }
+    }
+
+    public var canDestroy: Bool {
+        switch self {
+        case .deployed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public var outputs: [String: String] {
+        if case .deployed(let outputs) = self {
+            return outputs
+        }
+        return [:]
+    }
+
+    public var progress: DeploymentProgress {
+        switch self {
+        case .deploying(_, let progress, _), .destroying(let progress, _):
+            return progress
+        default:
+            return DeploymentProgress()
+        }
+    }
+
+    public var operationStartTime: Date? {
+        switch self {
+        case .deploying(_, _, let startTime), .destroying(_, let startTime):
+            return startTime
+        default:
+            return nil
+        }
+    }
+}
+
+/// CloudFormation stack status values.
+/// See: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html
+public enum StackStatus {
+    public static let createComplete = "CREATE_COMPLETE"
+    public static let updateComplete = "UPDATE_COMPLETE"
+
+    public static let createInProgress = "CREATE_IN_PROGRESS"
+    public static let updateInProgress = "UPDATE_IN_PROGRESS"
+    public static let updateCompleteCleanupInProgress = "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS"
+    public static let deleteInProgress = "DELETE_IN_PROGRESS"
+
+    public static let createFailed = "CREATE_FAILED"
+    public static let updateFailed = "UPDATE_FAILED"
+    public static let rollbackComplete = "ROLLBACK_COMPLETE"
+    public static let rollbackFailed = "ROLLBACK_FAILED"
+    public static let deleteFailed = "DELETE_FAILED"
+
+    public static func isDeployed(_ status: String) -> Bool {
+        status == createComplete || status == updateComplete
+    }
+
+    public static func isInProgress(_ status: String) -> Bool {
+        switch status {
+        case createInProgress, updateInProgress, updateCompleteCleanupInProgress, deleteInProgress:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public static func isFailed(_ status: String) -> Bool {
+        switch status {
+        case createFailed, updateFailed, rollbackComplete, rollbackFailed, deleteFailed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    public static func isDeleting(_ status: String) -> Bool {
+        status == deleteInProgress
+    }
+}
+
+/// Typed errors for CloudFormation deployment operations.
+public enum DeploymentError: Error, Equatable, Sendable {
+    case credentialExpired(message: String)
+    case stackNotFound(stackName: String)
+    case deploymentFailed(reason: String)
+    case buildFailed(reason: String)
+    case operationInProgress(operation: String)
+    case unknown(message: String)
+
+    public var localizedDescription: String {
+        switch self {
+        case .credentialExpired(let message):
+            return "AWS credentials expired: \(message)"
+        case .stackNotFound(let stackName):
+            return "Stack not found: \(stackName)"
+        case .deploymentFailed(let reason):
+            return "Deployment failed: \(reason)"
+        case .buildFailed(let reason):
+            return "Build failed: \(reason)"
+        case .operationInProgress(let operation):
+            return "Operation in progress: \(operation)"
+        case .unknown(let message):
+            return message
+        }
+    }
+
+    /// Check if an error message indicates AWS credential issues
+    public static func isCredentialError(_ error: String) -> Bool {
+        let credentialPatterns = [
+            "credentials missing",
+            "credential_process",
+            "Error getting temporary credentials",
+            "ExpiredToken",
+            "InvalidClientTokenId",
+            "AccessDenied",
+            "AuthFailure",
+            "security token included in the request is invalid",
+            "could not be found"
+        ]
+        return credentialPatterns.contains { error.localizedCaseInsensitiveContains($0) }
+    }
+
+    /// Check if an error message indicates the stack doesn't exist
+    public static func isStackNotFoundError(_ error: String) -> Bool {
+        let notFoundPatterns = [
+            "does not exist",
+            "Stack with id",
+            "ValidationError"
+        ]
+        return notFoundPatterns.contains { error.localizedCaseInsensitiveContains($0) }
+    }
+}

@@ -1,130 +1,14 @@
-import sdk_cli
 import sdk_aws
 import Foundation
 
-/// Progress snapshot during deployment/destroy operations
-public struct CDKDeploymentProgress: Sendable, Equatable {
-    public let resources: [ResourceProgressSnapshot]
-    public let pollCount: Int
-    public let isComplete: Bool
+/// Progress snapshot during deployment/destroy operations.
+/// This is a typealias to the generic DeploymentProgress from sdk-aws.
+public typealias CDKDeploymentProgress = DeploymentProgress
 
-    public var completedCount: Int {
-        resources.filter { $0.status.isComplete }.count
-    }
+/// Progress snapshot for a single resource.
+/// This is a typealias to the generic ResourceProgress from sdk-aws.
+public typealias ResourceProgressSnapshot = ResourceProgress
 
-    public var inProgressCount: Int {
-        resources.filter { $0.status.isInProgress }.count
-    }
-
-    public var hasFailures: Bool {
-        resources.contains { $0.status.isFailed }
-    }
-
-    public var hasPolled: Bool { pollCount > 0 }
-    public var hasPolledEnough: Bool { pollCount >= 5 }
-
-    public init(resources: [ResourceProgressSnapshot] = [], pollCount: Int = 0, isComplete: Bool = false) {
-        self.resources = resources
-        self.pollCount = pollCount
-        self.isComplete = isComplete
-    }
-
-    /// Create progress snapshot from CloudFormation events
-    public static func from(events: [CloudFormationStackEvent], since: Date?, pollCount: Int, isComplete: Bool = false) -> CDKDeploymentProgress {
-        let relevantEvents = events.filter { event in
-            guard let since = since else { return true }
-            return event.timestamp >= since
-        }
-
-        var latestByResource: [String: CloudFormationStackEvent] = [:]
-        for event in relevantEvents {
-            if event.resourceType == "AWS::CloudFormation::Stack" { continue }
-
-            if let existing = latestByResource[event.logicalResourceId] {
-                if event.timestamp > existing.timestamp {
-                    latestByResource[event.logicalResourceId] = event
-                }
-            } else {
-                latestByResource[event.logicalResourceId] = event
-            }
-        }
-
-        let resources = latestByResource.values
-            .sorted { $0.timestamp > $1.timestamp }
-            .map { ResourceProgressSnapshot(from: $0) }
-
-        return CDKDeploymentProgress(resources: resources, pollCount: pollCount, isComplete: isComplete)
-    }
-}
-
-/// Progress snapshot for a single resource
-public struct ResourceProgressSnapshot: Sendable, Equatable, Identifiable {
-    public let resourceId: String
-    public let displayName: String
-    public let resourceType: String
-    public let status: ResourceStatusSnapshot
-    public let statusReason: String?
-    public let timestamp: Date
-
-    public var id: String { resourceId }
-
-    public init(
-        resourceId: String,
-        displayName: String,
-        resourceType: String,
-        status: ResourceStatusSnapshot,
-        statusReason: String?,
-        timestamp: Date
-    ) {
-        self.resourceId = resourceId
-        self.displayName = displayName
-        self.resourceType = resourceType
-        self.status = status
-        self.statusReason = statusReason
-        self.timestamp = timestamp
-    }
-
-    public init(from event: CloudFormationStackEvent) {
-        self.resourceId = event.logicalResourceId
-        self.displayName = event.displayName
-        self.resourceType = event.displayType
-        self.status = ResourceStatusSnapshot(from: event.resourceStatus)
-        self.statusReason = event.resourceStatusReason
-        self.timestamp = event.timestamp
-    }
-}
-
-/// Status of a resource during deployment
-public enum ResourceStatusSnapshot: Sendable, Equatable {
-    case pending
-    case inProgress
-    case complete
-    case failed(reason: String?)
-
-    public var isInProgress: Bool {
-        if case .inProgress = self { return true }
-        return false
-    }
-
-    public var isComplete: Bool {
-        if case .complete = self { return true }
-        return false
-    }
-
-    public var isFailed: Bool {
-        if case .failed = self { return true }
-        return false
-    }
-
-    public init(from status: String) {
-        if status.contains("COMPLETE") && !status.contains("CLEANUP") && !status.contains("ROLLBACK") {
-            self = .complete
-        } else if status.contains("IN_PROGRESS") {
-            self = .inProgress
-        } else if status.contains("FAILED") || status.contains("ROLLBACK") {
-            self = .failed(reason: nil)
-        } else {
-            self = .pending
-        }
-    }
-}
+/// Status of a resource during deployment.
+/// This is a typealias to the generic ResourceStatus from sdk-aws.
+public typealias ResourceStatusSnapshot = ResourceStatus

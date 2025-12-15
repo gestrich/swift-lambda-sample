@@ -335,8 +335,8 @@ public actor CDKInfrastructureQueryService {
         output: CLIOutputStream?,
         startTime: Date
     ) async {
-        let parser = CDKOutputParser()
-        let accumulator = CDKProgressAccumulator()
+        let parser = sdk_aws.CDKOutputParser()
+        let accumulator = sdk_aws.CDKProgressAccumulator()
 
         let parsingTask: Task<Void, Never>?
         if let output = output {
@@ -378,8 +378,8 @@ public actor CDKInfrastructureQueryService {
     }
 
     private func executeDestroyWithProgress(output: CLIOutputStream?, startTime: Date) async {
-        let parser = CDKOutputParser()
-        let accumulator = CDKProgressAccumulator()
+        let parser = sdk_aws.CDKOutputParser()
+        let accumulator = sdk_aws.CDKProgressAccumulator()
 
         let parsingTask: Task<Void, Never>?
         if let output = output {
