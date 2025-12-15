@@ -8,7 +8,6 @@
 import AWSLambdaEvents
 import AWSLambdaRuntime
 import Foundation
-import service_server
 
 struct CloudWatchHandler {
 

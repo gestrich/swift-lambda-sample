@@ -10,7 +10,6 @@ import AWSLambdaRuntime
 import sdk_client
 import Foundation
 import HTTPTypes
-import service_server
 
 struct APIGWHandler {
 

@@ -65,7 +65,11 @@ let package = Package(
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
-                .target(name: "service-server"),
+                .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
+                .product(name: "SotoS3", package: "soto"),
+                .product(name: "SotoSecretsManager", package: "soto"),
+                .product(name: "SotoDynamoDB", package: "soto"),
                 .target(name: "sdk-client")
             ]
         ),
@@ -85,27 +89,10 @@ let package = Package(
             name: "sdk-client",
             dependencies: []
         ),
-        .target(
-            name: "service-server",
-            dependencies: [
-                .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
-                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
-                .product(name: "SotoS3", package: "soto"),
-                .product(name: "SotoSecretsManager", package: "soto"),
-                .product(name: "SotoDynamoDB", package: "soto"),
-                .target(name: "sdk-client"),
-            ]
-        ),
         .testTarget(
             name: "service-deploy-tests",
             dependencies: [
                 .target(name: "service-deploy")
-            ]
-        ),
-        .testTarget(
-            name: "service-server-tests",
-            dependencies: [
-                .target(name: "service-server")
             ]
         ),
         .testTarget(

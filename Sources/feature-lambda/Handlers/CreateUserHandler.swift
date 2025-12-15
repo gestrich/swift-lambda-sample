@@ -9,7 +9,6 @@
 
 import AWSLambdaRuntime
 import Foundation
-import service_server
 
 /// Handles direct CreateUser invocations
 ///

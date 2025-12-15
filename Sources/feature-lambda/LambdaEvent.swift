@@ -7,7 +7,6 @@
 
 import AWSLambdaEvents
 import Foundation
-import service_server
 
 /// Union type that can represent multiple Lambda event sources
 ///

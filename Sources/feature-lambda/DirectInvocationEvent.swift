@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import service_server
 
 /// Represents a direct Lambda invocation event
 ///
