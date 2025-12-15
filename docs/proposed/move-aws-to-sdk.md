@@ -388,30 +388,30 @@ This ensures incremental progress is preserved and any issues can be easily bise
 
 ---
 
-### Phase 1: Create sdk-aws Target
+### Phase 1: Create sdk-aws Target ✅
 
-- [ ] Create `Sources/sdk-aws/` directory structure
-- [ ] Add `sdk-aws` target to `Package.swift`
-- [ ] Add `sdk-cli` as dependency (for CLIService)
+- [x] Create `Sources/sdk-aws/` directory structure
+- [x] Add `sdk-aws` target to `Package.swift`
+- [x] Add `sdk-cli` as dependency (for CLIService)
 
-### Phase 2: Move Generic CLI Builders
+### Phase 2: Move Generic CLI Builders ✅
 
-- [ ] Move `Cdk.swift` → `sdk-aws/CLI/CDKCommand.swift`
-- [ ] Move `Npm.swift` → `sdk-aws/CLI/NpmCommand.swift`
-- [ ] Move `Aws.swift` → `sdk-aws/CLI/AWSCommand.swift`
-- [ ] Update imports in moved files
+- [x] Move `Cdk.swift` → `sdk-aws/CLI/CDKCommand.swift`
+- [x] Move `Npm.swift` → `sdk-aws/CLI/NpmCommand.swift`
+- [x] Move `Aws.swift` → `sdk-aws/CLI/AWSCommand.swift`
+- [x] Update imports in moved files
 
-### Phase 3: Move Auth Services
+### Phase 3: Move Auth Services ✅
 
-- [ ] Move `AWSAuthConfiguration.swift` → `sdk-aws/Auth/`
-- [ ] Move `AWSVaultService.swift` → `sdk-aws/Auth/`
-- [ ] Create `AWSCredentialProvider` protocol
+- [x] Move `AWSAuthConfiguration.swift` → `sdk-aws/Auth/`
+- [x] Move `AWSVaultService.swift` → `sdk-aws/Auth/`
+- [x] Create `AWSCredentialProvider` protocol
 
-### Phase 4: Extract Generic Services
+### Phase 4: Extract Generic Services ✅
 
-- [ ] Create `sdk-aws/CloudFormation/CloudFormationService.swift` (extract from AWSCLIService)
-- [ ] Create `sdk-aws/Services/CDKService.swift` (generic version)
-- [ ] Move `CloudWatchLogsService.swift` → `sdk-aws/CloudWatch/` (remove default Lambda name)
+- [x] Create `sdk-aws/CloudFormation/CloudFormationService.swift` (extract from AWSCLIService)
+- [x] Create `sdk-aws/Services/CDKService.swift` (generic version)
+- [x] Move `CloudWatchLogsService.swift` → `sdk-aws/CloudWatch/` (remove default Lambda name)
 
 ### Phase 5: Create Generic State Machine
 

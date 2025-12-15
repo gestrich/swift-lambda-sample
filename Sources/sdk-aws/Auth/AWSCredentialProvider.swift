@@ -5,10 +5,17 @@
 //  Protocol for AWS credential strategies
 //
 
+import sdk_cli
 import Foundation
 
 /// Protocol for providing AWS credentials to CLI commands
 public protocol AWSCredentialProvider: Sendable {
+    /// The AWS profile name used for authentication
+    var profileName: String { get }
+
+    /// Environment variables to pass to CLI commands (e.g., AWS_PROFILE)
+    var environment: [String: String] { get }
+
     /// Wrap a command with credential configuration
     /// - Parameters:
     ///   - command: The base command (e.g., "aws", "cdk")
@@ -18,11 +25,20 @@ public protocol AWSCredentialProvider: Sendable {
         command: String,
         arguments: [String]
     ) -> (command: String, arguments: [String])
+
+    /// Build command line from a typed CLI command
+    /// - Parameter command: The CLI command to build
+    /// - Returns: Tuple with executable command and arguments
+    func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String])
 }
 
 /// Credential provider using AWS profile
 public struct ProfileCredentialProvider: AWSCredentialProvider {
     public let profileName: String
+
+    public var environment: [String: String] {
+        ["AWS_PROFILE": profileName]
+    }
 
     public init(profileName: String) {
         self.profileName = profileName
@@ -39,13 +55,27 @@ public struct ProfileCredentialProvider: AWSCredentialProvider {
         }
         return (command, args)
     }
+
+    public func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) {
+        let programName = C.Program.programName
+        let arguments = command.commandArguments
+        return wrapCommand(command: programName, arguments: arguments)
+    }
 }
 
 /// Credential provider using aws-vault
 public struct VaultCredentialProvider: AWSCredentialProvider {
+    public let profileName: String
     private let vaultService: AWSVaultService
 
+    public var environment: [String: String] {
+        // aws-vault injects credentials via environment, but we still need AWS_PROFILE
+        // for commands that don't use aws-vault wrapping
+        ["AWS_PROFILE": profileName]
+    }
+
     public init(profile: String) {
+        self.profileName = profile
         self.vaultService = AWSVaultService(profile: profile)
     }
 
@@ -56,6 +86,12 @@ public struct VaultCredentialProvider: AWSCredentialProvider {
         // Remove any existing --profile flags (aws-vault handles auth)
         let filteredArgs = AWSVaultService.removeProfileFlags(from: arguments)
         return vaultService.wrapCommand(command: command, arguments: filteredArgs)
+    }
+
+    public func buildCommandLine<C: CLICommand>(_ command: C) -> (command: String, arguments: [String]) {
+        let programName = C.Program.programName
+        let arguments = command.commandArguments
+        return wrapCommand(command: programName, arguments: arguments)
     }
 }
 

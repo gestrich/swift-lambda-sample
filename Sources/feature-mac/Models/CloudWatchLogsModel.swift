@@ -25,7 +25,7 @@ public final class CloudWatchLogsModel {
 
     // MARK: - Private
 
-    private let logsService: CloudWatchLogsService
+    private let logsService: LambdaLogsService
     private let output: CLIOutputStream
     private var streamTask: Task<Void, Never>?
 
@@ -64,7 +64,7 @@ public final class CloudWatchLogsModel {
         cliService: CLIService,
         lambdaFunctionName: String = "swift-lambda-sample"
     ) {
-        self.logsService = CloudWatchLogsService(
+        self.logsService = LambdaLogsService(
             awsConfig: awsConfig,
             cliService: cliService,
             lambdaFunctionName: lambdaFunctionName
