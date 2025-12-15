@@ -1,4 +1,4 @@
-import Client
+import sdk_client
 import SwiftUI
 
 struct RemindersView: View {

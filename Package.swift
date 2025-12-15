@@ -55,7 +55,7 @@ let package = Package(
         .target(
             name: "service-deploy",
             dependencies: [
-                .target(name: "Client"),
+                .target(name: "sdk-client"),
                 .target(name: "sdk-storage"),
                 .target(name: "sdk-cli"),
             ]
@@ -66,13 +66,13 @@ let package = Package(
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
                 .target(name: "service-server"),
-                .target(name: "Client")
+                .target(name: "sdk-client")
             ]
         ),
         .executableTarget(
             name: "feature-mac",
             dependencies: [
-                .target(name: "Client"),
+                .target(name: "sdk-client"),
                 .target(name: "service-deploy"),
                 .target(name: "sdk-storage"),
                 .target(name: "sdk-cli"),
@@ -82,7 +82,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "Client",
+            name: "sdk-client",
             dependencies: []
         ),
         .target(
@@ -93,7 +93,7 @@ let package = Package(
                 .product(name: "SotoS3", package: "soto"),
                 .product(name: "SotoSecretsManager", package: "soto"),
                 .product(name: "SotoDynamoDB", package: "soto"),
-                .target(name: "Client"),
+                .target(name: "sdk-client"),
             ]
         ),
         .testTarget(

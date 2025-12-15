@@ -1,5 +1,5 @@
 import sdk_cli
-import Client
+import sdk_client
 import Foundation
 
 /// Stateless service for remote AWS Lambda deployment and management

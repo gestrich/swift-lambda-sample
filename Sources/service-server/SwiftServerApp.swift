@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Client
+import sdk_client
 
 public struct SwiftServerApp {
 

@@ -166,7 +166,7 @@ feature-mac ──→ service-deploy ──→ service-aws ──→ sdk-cli
 | `LocalStorageService` | `sdk-storage`         | SDK     |
 | `CLIKit`            | `sdk-cli`               | SDK     |
 | `CLIMacros`         | `sdk-cli-macros`        | SDK     |
-| `Client`            | `sdk-client` or `sdk-api-types` | SDK |
+| `Client`            | `sdk-client`            | SDK     |
 
 ## Shared Types
 
@@ -225,7 +225,7 @@ Services are easily testable because SDKs can be injected as protocols.
 - [x] `SwiftServerApp` → `service-server`
 - [x] `CLIKit` → `sdk-cli`
 - [x] `CLIMacros` → `sdk-cli-macros`
-- [ ] `Client` → `feature-client`
+- [x] `Client` → `sdk-client`
 
 [ ] `sdk-storage` → `feature-storage`
 

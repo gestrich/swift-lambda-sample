@@ -1,4 +1,4 @@
-import Client
+import sdk_client
 import sdk_cli
 import Foundation
 import service_deploy

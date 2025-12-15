@@ -1,5 +1,5 @@
 import sdk_cli
-import Client
+import sdk_client
 import Foundation
 
 /// Service for testing deployed AWS Lambda and infrastructure

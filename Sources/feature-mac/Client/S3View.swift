@@ -1,5 +1,5 @@
 import AppKit
-import Client
+import sdk_client
 import SwiftUI
 
 struct S3View: View {
