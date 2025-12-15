@@ -1,3 +1,4 @@
+import sdk_aws
 import sdk_cli
 import service_deploy
 import SwiftUI
@@ -434,7 +435,7 @@ struct CDKInfrastructureSectionView: View {
     }
 
     @ViewBuilder
-    private func resourceRow(_ resource: ResourceProgressSnapshot) -> some View {
+    private func resourceRow(_ resource: ResourceProgress) -> some View {
         HStack(spacing: 6) {
             // Status icon
             resourceStatusIcon(resource.status)
@@ -458,7 +459,7 @@ struct CDKInfrastructureSectionView: View {
     }
 
     @ViewBuilder
-    private func resourceStatusIcon(_ status: ResourceStatusSnapshot) -> some View {
+    private func resourceStatusIcon(_ status: ResourceStatus) -> some View {
         switch status {
         case .pending:
             Image(systemName: "circle")

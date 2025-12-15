@@ -19,8 +19,8 @@ public actor CDKInfrastructureQueryService {
         case loading
         case notDeployed
         case deployed(configuration: CDKInfrastructureConfiguration, outputs: CDKStackOutputs)
-        case deploying(operation: String, progress: CDKDeploymentProgress, startTime: Date)
-        case destroying(progress: CDKDeploymentProgress, startTime: Date)
+        case deploying(operation: String, progress: DeploymentProgress, startTime: Date)
+        case destroying(progress: DeploymentProgress, startTime: Date)
         case failed(reason: String)
         case credentialExpired(message: String)
 
@@ -65,12 +65,12 @@ public actor CDKInfrastructureQueryService {
             return CDKStackOutputs()
         }
 
-        public var progress: CDKDeploymentProgress {
+        public var progress: DeploymentProgress {
             switch self {
             case .deploying(_, let progress, _), .destroying(let progress, _):
                 return progress
             default:
-                return CDKDeploymentProgress()
+                return DeploymentProgress()
             }
         }
 
@@ -168,7 +168,7 @@ public actor CDKInfrastructureQueryService {
             if newState.isBusy {
                 await monitorExistingOperation()
             }
-        } catch CDKInfrastructureError.credentialExpired(let message) {
+        } catch DeploymentError.credentialExpired(let message) {
             publish(.credentialExpired(message: message))
         } catch {
             publish(.failed(reason: error.localizedDescription))
@@ -181,7 +181,7 @@ public actor CDKInfrastructureQueryService {
 
         let operationName = withPostgres ? "Deploying with Database" : "Deploying"
         let startTime = Date()
-        publish(.deploying(operation: operationName, progress: CDKDeploymentProgress(), startTime: startTime))
+        publish(.deploying(operation: operationName, progress: DeploymentProgress(), startTime: startTime))
 
         do {
             try await cdkService.build(output: output)
@@ -213,7 +213,7 @@ public actor CDKInfrastructureQueryService {
         guard state.canDestroy else { return }
 
         let startTime = Date()
-        publish(.destroying(progress: CDKDeploymentProgress(), startTime: startTime))
+        publish(.destroying(progress: DeploymentProgress(), startTime: startTime))
 
         do {
             await executeDestroyWithProgress(output: output, startTime: startTime)
@@ -295,11 +295,11 @@ public actor CDKInfrastructureQueryService {
                  CloudFormationStackStatusValues.updateInProgress,
                  CloudFormationStackStatusValues.updateCompleteCleanupInProgress:
                 let startTime = await getOperationStartTime() ?? Date()
-                return .deploying(operation: "Updating", progress: CDKDeploymentProgress(), startTime: startTime)
+                return .deploying(operation: "Updating", progress: DeploymentProgress(), startTime: startTime)
 
             case CloudFormationStackStatusValues.deleteInProgress:
                 let startTime = await getOperationStartTime() ?? Date()
-                return .destroying(progress: CDKDeploymentProgress(), startTime: startTime)
+                return .destroying(progress: DeploymentProgress(), startTime: startTime)
 
             case CloudFormationStackStatusValues.createFailed,
                  CloudFormationStackStatusValues.updateFailed,
@@ -316,12 +316,12 @@ public actor CDKInfrastructureQueryService {
         } catch {
             let errorMessage = error.localizedDescription
 
-            if CDKInfrastructureError.isCredentialError(errorMessage) {
-                throw CDKInfrastructureError.credentialExpired(message: errorMessage)
-            } else if CDKInfrastructureError.isStackNotFoundError(errorMessage) {
+            if DeploymentError.isCredentialError(errorMessage) {
+                throw DeploymentError.credentialExpired(message: errorMessage)
+            } else if DeploymentError.isStackNotFoundError(errorMessage) {
                 return .notDeployed
             } else {
-                throw CDKInfrastructureError.unknown(message: errorMessage)
+                throw DeploymentError.unknown(message: errorMessage)
             }
         }
     }
@@ -428,7 +428,7 @@ public actor CDKInfrastructureQueryService {
 
             do {
                 let events = try await getStackEvents()
-                let progress = CDKDeploymentProgress.from(
+                let progress = DeploymentProgress.from(
                     events: events,
                     since: nil,
                     pollCount: pollCount

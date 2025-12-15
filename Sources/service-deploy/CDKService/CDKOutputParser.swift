@@ -1,4 +1,5 @@
 import Foundation
+import sdk_aws
 
 /// Parser for extracting progress information from CDK CLI output
 /// Handles both deploy and destroy operations
@@ -152,11 +153,11 @@ public final class CDKProgressAccumulator: @unchecked Sendable {
         defer { lock.unlock() }
 
         let resourceSnapshots = _resources.values.map { event in
-            ResourceProgressSnapshot(
+            ResourceProgress(
                 resourceId: event.logicalResourceId ?? event.resourceName,
                 displayName: event.resourceName,
                 resourceType: event.displayType,
-                status: ResourceStatusSnapshot(from: event.status),
+                status: ResourceStatus(from: event.status),
                 statusReason: nil,
                 timestamp: Date()
             )
@@ -183,11 +184,11 @@ public final class CDKProgressAccumulator: @unchecked Sendable {
 public struct CDKParsedProgress: Sendable, Equatable {
     public let currentStep: Int
     public let totalSteps: Int?
-    public let resources: [ResourceProgressSnapshot]
+    public let resources: [ResourceProgress]
 
-    /// Convert to CDKDeploymentProgress for compatibility with existing UI
-    public func toDeploymentProgress(isComplete: Bool = false) -> CDKDeploymentProgress {
-        CDKDeploymentProgress(
+    /// Convert to DeploymentProgress for compatibility with existing UI
+    public func toDeploymentProgress(isComplete: Bool = false) -> DeploymentProgress {
+        DeploymentProgress(
             resources: resources,
             pollCount: currentStep, // Use step count as poll count for UI logic
             isComplete: isComplete
