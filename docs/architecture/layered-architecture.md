@@ -160,7 +160,7 @@ feature-mac ──→ service-deploy ──→ service-aws ──→ sdk-cli
 |---------------------|-------------------------|---------|
 | `SwiftLambda`       | `feature-lambda`        | Feature |
 | `MacApp`            | `feature-mac`           | Feature |
-| `SwiftDeployCLI`    | `feature-deploy-cli`    | Feature |
+| `SwiftDeployCLI`    | `feature-cli`           | Feature |
 | `SwiftDeploy`       | `service-deploy`        | Service |
 | `SwiftServerApp`    | `service-server`        | Service |
 | `LocalStorageService` | `sdk-storage`         | SDK     |
@@ -221,7 +221,7 @@ Services are easily testable because SDKs can be injected as protocols.
 - [x] `MacApp` → `feature-mac`
 - [x] `SwiftDeployCLI` → `feature-deploy-cli`
 - [x] `SwiftDeploy` → `service-deploy`
-- [ ] `feature-deploy-cli` → `feature-cli`
+- [x] `feature-deploy-cli` → `feature-cli`
 - [x] `SwiftServerApp` → `service-server`
 - [ ] `LocalStorageService` → `sdk-storage`
 - [ ] `CLIKit` → `sdk-cli`

@@ -43,7 +43,7 @@ let package = Package(
             name: "LocalStorageService"
         ),
         .executableTarget(
-            name: "feature-deploy-cli",
+            name: "feature-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "service-deploy"),
