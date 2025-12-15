@@ -6,6 +6,7 @@ import Foundation
 /// Service for testing deployed AWS Lambda and infrastructure
 public actor AWSTestingService {
     private let awsService: AWSCLIService
+    private let s3Client: S3Client
     private let cliClient: CLIClient
     private let stackName = "SwiftLambdaSampleStack"
     private let lambdaName = "swift-lambda-sample"
@@ -13,6 +14,7 @@ public actor AWSTestingService {
     public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
         self.cliClient = cliClient
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        self.s3Client = S3Client(credentialProvider: awsConfig.makeCredentialProvider(), cliClient: cliClient)
     }
 
     /// Convenience initializer that creates its own CLIClient
@@ -20,6 +22,7 @@ public actor AWSTestingService {
         let cliClient = CLIClient()
         self.cliClient = cliClient
         self.awsService = AWSCLIService(awsConfig: awsConfig, cliClient: cliClient)
+        self.s3Client = S3Client(credentialProvider: awsConfig.makeCredentialProvider(), cliClient: cliClient)
     }
 
     /// Create an API client configured with the deployed API Gateway URL
@@ -122,13 +125,13 @@ public actor AWSTestingService {
 
         // List files in bucket
         print("Files in bucket:")
-        let files = try await awsService.s3List(bucket: bucketName)
+        let files = try await s3Client.listRaw(bucket: bucketName)
         print(files)
         print("")
 
         // Get file content
         print("Content of hello-world.text:")
-        let content = try await awsService.s3Copy(
+        let content = try await s3Client.copy(
             source: "s3://\(bucketName)/hello-world.text",
             destination: "-"
         )
