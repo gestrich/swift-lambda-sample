@@ -2,7 +2,7 @@ import sdk_cli
 import Foundation
 
 /// Service for wrapping AWS commands with aws-vault
-public struct AWSVaultService {
+public struct AWSVaultService: Sendable {
     private let profile: String
 
     public init(profile: String) {
@@ -40,7 +40,7 @@ public struct AWSVaultService {
             throw CLIServiceError.invalidCommand(
                 "aws-vault is not installed. Install it with:\n" +
                 "  brew install --cask aws-vault\n\n" +
-                "Or disable aws-vault in ~/.swiftSampleDemo/aws-config.json by setting:\n" +
+                "Or disable aws-vault in your config by setting:\n" +
                 "  \"useAWSVault\": false"
             )
         }

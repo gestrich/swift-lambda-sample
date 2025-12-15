@@ -1,3 +1,4 @@
+import sdk_aws
 import sdk_cli
 import Foundation
 import Observation

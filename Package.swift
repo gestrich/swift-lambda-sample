@@ -53,6 +53,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "service-deploy"),
+                .target(name: "sdk-aws"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
@@ -83,6 +84,7 @@ let package = Package(
         .executableTarget(
             name: "feature-mac",
             dependencies: [
+                .target(name: "sdk-aws"),
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy"),
                 .target(name: "service-storage"),

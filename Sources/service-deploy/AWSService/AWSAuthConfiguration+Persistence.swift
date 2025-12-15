@@ -1,26 +1,25 @@
 //
-//  AWSAuthConfiguration.swift
-//  SwiftDeploy
+//  AWSAuthConfiguration+Persistence.swift
+//  service-deploy
 //
-//  AWS authentication configuration for deployment tooling
+//  App-specific persistence for AWSAuthConfiguration
 //
 
 import Foundation
 import service_storage
+import sdk_aws
 
-/// AWS authentication configuration for SwiftDeploy CLI
-public struct AWSAuthConfiguration: Codable, Sendable {
-    public let profileName: String
-    public let useAWSVault: Bool
+// MARK: - Storage Keys
 
+/// Storage key for AWS configuration file
+public struct AWSConfigFileKey: StorageFileKey {
+    public static let filename = "aws-config.json"
+}
+
+// MARK: - Persistence
+
+extension AWSAuthConfiguration {
     private static let storageService = LocalStorageService()
-
-    public init(profileName: String, useAWSVault: Bool = false) {
-        self.profileName = profileName
-        self.useAWSVault = useAWSVault
-    }
-
-    // MARK: - Configuration File
 
     /// Path to AWS configuration file
     public static var configPath: String {
@@ -59,11 +58,4 @@ public struct AWSAuthConfiguration: Codable, Sendable {
         let data = try encoder.encode(self)
         try data.write(to: url)
     }
-}
-
-// MARK: - Storage Keys
-
-/// Storage key for AWS configuration file
-public struct AWSConfigFileKey: StorageFileKey {
-    public static let filename = "aws-config.json"
 }

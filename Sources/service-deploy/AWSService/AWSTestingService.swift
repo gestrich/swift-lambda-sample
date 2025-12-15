@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_aws
 import sdk_client
 import Foundation
 

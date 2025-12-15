@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import sdk_aws
 import service_deploy
 
 /// Top-level command for all AWS operations
