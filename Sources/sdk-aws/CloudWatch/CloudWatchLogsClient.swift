@@ -24,10 +24,10 @@ public enum CloudWatchLogsProgress: Sendable {
     case stopped
 }
 
-/// Generic service for streaming CloudWatch logs
+/// Generic client for streaming CloudWatch logs
 /// Provides AsyncStream-based log tailing for real-time log viewing.
-/// This is a generic service - the log group must be provided by the caller.
-public actor CloudWatchLogsService {
+/// This is a generic client - the log group must be provided by the caller.
+public actor CloudWatchLogsClient {
     private let credentialProvider: AWSCredentialProvider
     private let cliService: CLIClient
     private let logGroup: String
@@ -35,7 +35,7 @@ public actor CloudWatchLogsService {
     /// Currently running stream task (for cancellation)
     private var streamTask: Task<Void, Never>?
 
-    /// Initialize CloudWatch logs service
+    /// Initialize CloudWatch logs client
     /// - Parameters:
     ///   - logGroup: CloudWatch log group name (e.g., "/aws/lambda/my-function")
     ///   - credentialProvider: AWS credential provider for authentication
@@ -271,7 +271,7 @@ public enum CloudWatchLogsError: LocalizedError {
         case .commandFailed(let exitCode):
             return "Command failed with exit code \(exitCode)"
         case .notConfigured:
-            return "CloudWatch logs service is not configured"
+            return "CloudWatch logs client is not configured"
         }
     }
 }

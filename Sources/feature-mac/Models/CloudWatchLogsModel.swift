@@ -5,7 +5,7 @@ import Observation
 import service_deploy
 
 /// Observable model for CloudWatch logs viewing
-/// Holds UI state and delegates operations to CloudWatchLogsService
+/// Holds UI state and delegates operations to LambdaLogsService
 @MainActor
 @Observable
 public final class CloudWatchLogsModel {

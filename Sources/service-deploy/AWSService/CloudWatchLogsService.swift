@@ -9,9 +9,9 @@ public typealias CloudWatchLogsError = sdk_aws.CloudWatchLogsError
 
 /// App-specific service for streaming CloudWatch logs from Lambda
 /// Provides app-specific defaults (lambda function name) while delegating
-/// to the generic CloudWatchLogsService from sdk-aws.
+/// to the generic CloudWatchLogsClient from sdk-aws.
 public actor LambdaLogsService {
-    private let genericService: sdk_aws.CloudWatchLogsService
+    private let genericClient: sdk_aws.CloudWatchLogsClient
 
     /// Initialize with app-specific configuration
     /// - Parameters:
@@ -25,7 +25,7 @@ public actor LambdaLogsService {
     ) {
         let logGroup = "/aws/lambda/\(lambdaFunctionName)"
         let credentialProvider = awsConfig.makeCredentialProvider()
-        self.genericService = sdk_aws.CloudWatchLogsService(
+        self.genericClient = sdk_aws.CloudWatchLogsClient(
             logGroup: logGroup,
             credentialProvider: credentialProvider,
             cliService: cliService
@@ -35,13 +35,13 @@ public actor LambdaLogsService {
     /// Whether logs are currently being streamed
     public var isStreaming: Bool {
         get async {
-            await genericService.isStreaming
+            await genericClient.isStreaming
         }
     }
 
     /// Stop the current log stream
     public func stopStreaming() async {
-        await genericService.stopStreaming()
+        await genericClient.stopStreaming()
     }
 
     /// Stream CloudWatch logs with polling mode
@@ -54,7 +54,7 @@ public actor LambdaLogsService {
         since: String = "5m",
         output: CLIOutputStream? = nil
     ) -> AsyncStream<CloudWatchLogsProgress> {
-        genericService.tailLogs(since: since, output: output)
+        genericClient.tailLogs(since: since, output: output)
     }
 
     /// Fetch recent logs (non-streaming, one-shot)
@@ -66,6 +66,6 @@ public actor LambdaLogsService {
         since: String = "5m",
         output: CLIOutputStream? = nil
     ) async throws -> [CloudWatchLogEntry] {
-        try await genericService.fetchRecentLogs(since: since, output: output)
+        try await genericClient.fetchRecentLogs(since: since, output: output)
     }
 }

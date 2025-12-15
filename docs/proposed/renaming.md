@@ -14,7 +14,7 @@ Rename all `*Service` types in the `sdk-*` packages to `*Client`.
 - [x] `AWSVaultService` → `AWSVaultClient` (Sources/sdk-aws/Auth/AWSVaultClient.swift)
 - [x] `CloudFormationService` → `CloudFormationClient` (Sources/sdk-aws/CloudFormation/CloudFormationClient.swift)
 - [x] `CDKService` → `CDKClient` (Sources/sdk-aws/Services/CDKClient.swift)
-- [ ] `CloudWatchLogsService` → `CloudWatchLogsClient` (Sources/sdk-aws/CloudWatch/CloudWatchLogsService.swift)
+- [x] `CloudWatchLogsService` → `CloudWatchLogsClient` (Sources/sdk-aws/CloudWatch/CloudWatchLogsClient.swift)
 
 ## Variable/Parameter Renames
 
