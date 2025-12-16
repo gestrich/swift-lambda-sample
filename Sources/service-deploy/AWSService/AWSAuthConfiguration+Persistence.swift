@@ -13,7 +13,6 @@ import sdk_aws
 // This allows app-mac to depend only on service-deploy, not directly on sdk-aws
 @_exported import struct sdk_aws.AWSAuthConfiguration
 @_exported import struct sdk_aws.CloudWatchLogEntry
-@_exported import enum sdk_aws.CloudWatchLogsProgress
 
 // CloudFormation state types used by views
 @_exported import enum sdk_aws.CloudFormationState

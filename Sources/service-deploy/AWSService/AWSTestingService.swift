@@ -7,23 +7,21 @@ import sdk_client
 public actor AWSTestingService {
     private let cloudFormationClient: CloudFormationClient
     private let cloudWatchLogsClient: CloudWatchLogsClient
+    private let credentialProvider: AWSCredentialProvider
     private let s3Client: S3Client
     private let cliClient: CLIClient
     private let stackName = CDKStackConfiguration.defaultStackName
-    private let lambdaName = "swift-lambda-sample"
+    private let lambdaLogGroup = "/aws/lambda/swift-lambda-sample"
 
     public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
         self.cliClient = cliClient
         let credentialProvider = awsConfig.makeCredentialProvider()
+        self.credentialProvider = credentialProvider
         self.cloudFormationClient = CloudFormationClient(
             credentialProvider: credentialProvider,
             cliClient: cliClient
         )
-        self.cloudWatchLogsClient = CloudWatchLogsClient(
-            logGroup: "/aws/lambda/swift-lambda-sample",
-            credentialProvider: credentialProvider,
-            cliClient: cliClient
-        )
+        self.cloudWatchLogsClient = CloudWatchLogsClient(cliClient: cliClient)
         self.s3Client = S3Client(credentialProvider: credentialProvider, cliClient: cliClient)
     }
 
@@ -32,15 +30,12 @@ public actor AWSTestingService {
         let cliClient = CLIClient()
         self.cliClient = cliClient
         let credentialProvider = awsConfig.makeCredentialProvider()
+        self.credentialProvider = credentialProvider
         self.cloudFormationClient = CloudFormationClient(
             credentialProvider: credentialProvider,
             cliClient: cliClient
         )
-        self.cloudWatchLogsClient = CloudWatchLogsClient(
-            logGroup: "/aws/lambda/swift-lambda-sample",
-            credentialProvider: credentialProvider,
-            cliClient: cliClient
-        )
+        self.cloudWatchLogsClient = CloudWatchLogsClient(cliClient: cliClient)
         self.s3Client = S3Client(credentialProvider: credentialProvider, cliClient: cliClient)
     }
 
@@ -246,7 +241,11 @@ public actor AWSTestingService {
     public func checkLogs(since: String = "5m") async throws {
         print("\n📋 Lambda execution logs (last \(since)):")
 
-        _ = try await cloudWatchLogsClient.fetchRecentLogs(since: since)
+        _ = try await cloudWatchLogsClient.fetchLogs(
+            logGroup: lambdaLogGroup,
+            since: since,
+            credentialProvider: credentialProvider
+        )
     }
 
     // MARK: - Comprehensive Testing

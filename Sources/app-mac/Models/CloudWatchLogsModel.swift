@@ -112,10 +112,6 @@ public final class CloudWatchLogsModel {
         streamTask?.cancel()
         streamTask = nil
 
-        Task {
-            await logsService.stopStreaming()
-        }
-
         if isStreaming {
             status = .stopped
         }

@@ -16,82 +16,32 @@ public struct CloudWatchLogEntry: Sendable, Identifiable, Equatable {
     }
 }
 
-/// Progress updates from CloudWatch log streaming
-public enum CloudWatchLogsProgress: Sendable {
-    case started
-    case entry(CloudWatchLogEntry)
-    case error(String)
-    case stopped
-}
-
-/// Generic client for streaming CloudWatch logs
-/// Provides AsyncStream-based log tailing for real-time log viewing.
-/// This is a generic client - the log group must be provided by the caller.
-public actor CloudWatchLogsClient {
-    private let credentialProvider: AWSCredentialProvider
+/// Stateless client for fetching CloudWatch logs.
+/// Each method call is independent - caller manages task lifecycle via Swift's cooperative cancellation.
+public struct CloudWatchLogsClient: Sendable {
     private let cliClient: CLIClient
-    private let logGroup: String
 
-    /// Currently running stream task (for cancellation)
-    private var streamTask: Task<Void, Never>?
-
-    /// Initialize CloudWatch logs client
-    /// - Parameters:
-    ///   - logGroup: CloudWatch log group name (e.g., "/aws/lambda/my-function")
-    ///   - credentialProvider: AWS credential provider for authentication
-    ///   - cliClient: CLI service for executing commands
-    public init(
-        logGroup: String,
-        credentialProvider: AWSCredentialProvider,
-        cliClient: CLIClient
-    ) {
-        self.logGroup = logGroup
-        self.credentialProvider = credentialProvider
+    public init(cliClient: CLIClient) {
         self.cliClient = cliClient
     }
 
-    /// Whether logs are currently being streamed
-    public var isStreaming: Bool {
-        streamTask != nil && !streamTask!.isCancelled
-    }
-
-    /// Stop the current log stream
-    public func stopStreaming() {
-        streamTask?.cancel()
-        streamTask = nil
-    }
-
-    /// Stream CloudWatch logs with polling mode
-    /// Returns an AsyncStream that yields log entries in real-time
+    /// Fetch logs once (non-streaming)
     /// - Parameters:
+    ///   - logGroup: CloudWatch log group name (e.g., "/aws/lambda/my-function")
     ///   - since: Time period to fetch logs from (e.g., "5m", "1h")
-    ///   - output: Optional CLIOutputStream for displaying raw output
-    /// - Returns: AsyncStream of CloudWatchLogsProgress updates
-    public nonisolated func tailLogs(
-        since: String = "5m",
-        output: CLIOutputStream? = nil
-    ) -> AsyncStream<CloudWatchLogsProgress> {
-        AsyncStream { continuation in
-            Task {
-                await self.startTailingInternal(
-                    since: since,
-                    output: output,
-                    continuation: continuation
-                )
-            }
-        }
-    }
-
-    /// Fetch recent logs (non-streaming, one-shot)
-    /// - Parameters:
-    ///   - since: Time period to fetch logs from (e.g., "5m", "1h")
-    ///   - output: Optional CLIOutputStream for displaying raw output
+    ///   - credentialProvider: AWS credential provider for authentication
     /// - Returns: Array of log entries
-    public func fetchRecentLogs(
-        since: String = "5m",
-        output: CLIOutputStream? = nil
+    public func fetchLogs(
+        logGroup: String,
+        since: String,
+        credentialProvider: AWSCredentialProvider
     ) async throws -> [CloudWatchLogEntry] {
-        let (execCommand, arguments) = buildCommandLine(since: since, follow: false)
+        let (execCommand, arguments) = buildCommandLine(
+            logGroup: logGroup,
+            since: since,
+            follow: false,
+            credentialProvider: credentialProvider
+        )
 
         let result = try await cliClient.execute(
             command: execCommand,
@@ -101,7 +51,7 @@ public actor CloudWatchLogsClient {
                 "AWS_PAGER": ""
             ]) { _, new in new },
             printCommand: true,
-            output: output
+            output: nil
         )
 
         if result.exitCode != 0 {
@@ -119,57 +69,65 @@ public actor CloudWatchLogsClient {
         return entries
     }
 
-    // MARK: - Private Helpers
-
-    private func startTailingInternal(
+    /// Stream log entries - caller manages cancellation via task cancellation
+    /// - Parameters:
+    ///   - logGroup: CloudWatch log group name (e.g., "/aws/lambda/my-function")
+    ///   - since: Time period to fetch logs from (e.g., "5m", "1h")
+    ///   - credentialProvider: AWS credential provider for authentication
+    ///   - pollInterval: How often to poll for new logs
+    /// - Returns: AsyncThrowingStream of log entries
+    public func tailLogs(
+        logGroup: String,
         since: String,
-        output: CLIOutputStream?,
-        continuation: AsyncStream<CloudWatchLogsProgress>.Continuation
-    ) async {
-        stopStreaming()
+        credentialProvider: AWSCredentialProvider,
+        pollInterval: Duration
+    ) -> AsyncThrowingStream<CloudWatchLogEntry, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                var seenLines = Set<String>()
 
-        continuation.yield(.started)
+                while !Task.isCancelled {
+                    do {
+                        let entries = try await self.fetchLogs(
+                            logGroup: logGroup,
+                            since: since,
+                            credentialProvider: credentialProvider
+                        )
 
-        let task = Task { [self] in
-            var seenLines = Set<String>()
-            let pollInterval: Duration = .seconds(3)
-            var isFirstPoll = true
-
-            while !Task.isCancelled {
-                do {
-                    let entries = try await self.fetchRecentLogs(since: since, output: isFirstPoll ? output : nil)
-
-                    for entry in entries {
-                        if !seenLines.contains(entry.rawLine) {
-                            seenLines.insert(entry.rawLine)
-                            continuation.yield(.entry(entry))
+                        for entry in entries {
+                            if !seenLines.contains(entry.rawLine) {
+                                seenLines.insert(entry.rawLine)
+                                continuation.yield(entry)
+                            }
                         }
-                    }
 
-                    isFirstPoll = false
-
-                    try await Task.sleep(for: pollInterval)
-                } catch {
-                    if !Task.isCancelled {
-                        continuation.yield(.error(error.localizedDescription))
+                        try await Task.sleep(for: pollInterval)
+                    } catch is CancellationError {
+                        break
+                    } catch {
+                        continuation.finish(throwing: error)
+                        return
                     }
-                    break
                 }
+
+                continuation.finish()
             }
 
-            continuation.yield(.stopped)
-            continuation.finish()
-        }
-
-        streamTask = task
-
-        continuation.onTermination = { @Sendable _ in
-            task.cancel()
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
+            }
         }
     }
 
+    // MARK: - Private Helpers
+
     /// Build command line with credential provider
-    private func buildCommandLine(since: String, follow: Bool) -> (command: String, arguments: [String]) {
+    private func buildCommandLine(
+        logGroup: String,
+        since: String,
+        follow: Bool,
+        credentialProvider: AWSCredentialProvider
+    ) -> (command: String, arguments: [String]) {
         let command = Aws.Logs.Tail(
             logGroup: logGroup,
             since: since,
@@ -183,7 +141,7 @@ public actor CloudWatchLogsClient {
 
     /// Parse a log line from AWS CLI output
     /// AWS logs tail --format short outputs: "2024-01-15T10:30:00 message content here" (no timezone!)
-    private nonisolated func parseLogLine(_ line: String) -> CloudWatchLogEntry? {
+    private func parseLogLine(_ line: String) -> CloudWatchLogEntry? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 

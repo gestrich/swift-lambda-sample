@@ -343,7 +343,7 @@ Key changes:
 
 ## Migration Steps
 
-- [ ] **Refactor `CloudWatchLogsClient`** (sdk-aws)
+- [x] **Refactor `CloudWatchLogsClient`** (sdk-aws) ✅ COMPLETED
    - Convert from actor to struct
    - Remove internal `streamTask` state
    - Return `AsyncThrowingStream<CloudWatchLogEntry, Error>` that respects task cancellation
@@ -388,3 +388,37 @@ Key changes:
 3. **Testable** - Workflow can be tested independently of UI
 4. **Consistent** - Follows established patterns in the codebase
 5. **Simpler model** - Less logic to maintain and debug
+
+## Implementation Notes
+
+### Phase 1: CloudWatchLogsClient Refactor (Completed)
+
+**Changes made:**
+
+1. **CloudWatchLogsClient** (`Sources/sdk-aws/CloudWatch/CloudWatchLogsClient.swift`):
+   - Converted from `actor` to `struct` (now `Sendable`)
+   - Removed internal `streamTask` state tracking
+   - Changed init to only require `CLIClient` (stateless)
+   - `fetchLogs()` now requires explicit `logGroup`, `since`, and `credentialProvider` parameters
+   - `tailLogs()` returns `AsyncThrowingStream<CloudWatchLogEntry, Error>` with explicit `pollInterval` parameter
+   - Removed `CloudWatchLogsProgress` enum from SDK (moved to service layer)
+   - Removed `isStreaming` and `stopStreaming()` methods (caller manages lifecycle)
+
+2. **AWSTestingService** (`Sources/service-deploy/AWSService/AWSTestingService.swift`):
+   - Now stores `credentialProvider` as instance property
+   - Renamed `lambdaName` to `lambdaLogGroup` for clarity
+   - Updated `checkLogs()` to pass explicit parameters to stateless client
+
+3. **LambdaLogsService** (`Sources/service-deploy/AWSService/CloudWatchLogsService.swift`):
+   - Updated to work with stateless client
+   - Now stores `logGroup` and `credentialProvider` as instance properties
+   - `CloudWatchLogsProgress` enum now defined here in service layer (not SDK)
+   - Removed `isStreaming` and `stopStreaming()` methods
+   - `tailLogs()` creates its own `AsyncStream<CloudWatchLogsProgress>` wrapper
+
+4. **CloudWatchLogsModel** (`Sources/app-mac/Models/CloudWatchLogsModel.swift`):
+   - Removed call to `logsService.stopStreaming()` (no longer needed)
+   - Task cancellation via `streamTask?.cancel()` is now the only mechanism
+
+5. **AWSAuthConfiguration+Persistence** (`Sources/service-deploy/AWSService/AWSAuthConfiguration+Persistence.swift`):
+   - Removed `@_exported import enum sdk_aws.CloudWatchLogsProgress` (type moved to service layer)
