@@ -1,8 +1,8 @@
-import Foundation
 import ArgumentParser
-import service_deploy
+import Foundation
 import sdk_aws
 import sdk_cli
+import service_deploy
 
 extension AWSCommand {
     struct TearDownCommand: AsyncParsableCommand {
@@ -84,8 +84,9 @@ extension AWSCommand {
             for try await progress in components.workflow.run(options: options) {
                 switch progress.step {
                 case .destroying:
-                    if let detail = progress.detail {
-                        printDestroyProgress(detail)
+                    if let detail = progress.detail,
+                       !detail.destroyProgressDescription.isEmpty {
+                        print("🗑️  \(detail.destroyProgressDescription)")
                     } else {
                         print("🗑️  Destroying resources...")
                     }
@@ -96,14 +97,6 @@ extension AWSCommand {
             }
 
             print("\n🎉 Tear down completed successfully!")
-        }
-
-        private func printDestroyProgress(_ progress: DeploymentProgress) {
-            let completed = progress.completedCount
-            let total = progress.resources.count
-            if total > 0 {
-                print("🗑️  Destroying resources: \(completed)/\(total)")
-            }
         }
     }
 }

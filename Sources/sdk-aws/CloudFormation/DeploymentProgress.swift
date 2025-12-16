@@ -37,6 +37,20 @@ public struct DeploymentProgress: Sendable, Equatable {
     public var hasPolled: Bool { pollCount > 0 }
     public var hasPolledEnough: Bool { pollCount >= 5 }
 
+    /// Human-readable progress description for CLI output
+    public var progressDescription: String {
+        let completed = completedCount
+        let total = resources.count
+        return total > 0 ? "Deploying resources: \(completed)/\(total)" : ""
+    }
+
+    /// Human-readable progress description for destroy operations
+    public var destroyProgressDescription: String {
+        let completed = completedCount
+        let total = resources.count
+        return total > 0 ? "Destroying resources: \(completed)/\(total)" : ""
+    }
+
     public init(resources: [ResourceProgress] = [], pollCount: Int = 0, isComplete: Bool = false) {
         self.resources = resources
         self.pollCount = pollCount

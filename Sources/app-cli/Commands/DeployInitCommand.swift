@@ -148,27 +148,21 @@ extension AWSCommand {
                 print("🔨 Building CDK TypeScript...")
 
             case .deploying:
-                if case .cdk(let deployProgress) = progress.detail {
-                    printCDKProgress(deployProgress)
+                if case .cdk(let deployProgress) = progress.detail,
+                   !deployProgress.progressDescription.isEmpty {
+                    print("☁️  \(deployProgress.progressDescription)")
                 }
 
             case .monitoring:
-                if case .cdk(let deployProgress) = progress.detail {
-                    printCDKProgress(deployProgress)
+                if case .cdk(let deployProgress) = progress.detail,
+                   !deployProgress.progressDescription.isEmpty {
+                    print("☁️  \(deployProgress.progressDescription)")
                 } else {
                     print("☁️  Monitoring CloudFormation...")
                 }
 
             case .complete:
                 break
-            }
-        }
-
-        private func printCDKProgress(_ progress: DeploymentProgress) {
-            let completed = progress.completedCount
-            let total = progress.resources.count
-            if total > 0 {
-                print("☁️  Deploying resources: \(completed)/\(total)")
             }
         }
 

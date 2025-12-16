@@ -1,8 +1,8 @@
-import Foundation
 import ArgumentParser
-import service_deploy
+import Foundation
 import sdk_aws
 import sdk_cli
+import service_deploy
 
 extension AWSCommand {
     struct DeployCommand: AsyncParsableCommand {
@@ -55,13 +55,15 @@ extension AWSCommand {
                     print("🔨 Building CDK TypeScript...")
 
                 case .deploying:
-                    if case .cdk(let deployProgress) = progress.detail {
-                        printDeployProgress(deployProgress)
+                    if case .cdk(let deployProgress) = progress.detail,
+                       !deployProgress.progressDescription.isEmpty {
+                        print("☁️  \(deployProgress.progressDescription)")
                     }
 
                 case .monitoring:
-                    if case .cdk(let deployProgress) = progress.detail {
-                        printDeployProgress(deployProgress)
+                    if case .cdk(let deployProgress) = progress.detail,
+                       !deployProgress.progressDescription.isEmpty {
+                        print("☁️  \(deployProgress.progressDescription)")
                     } else {
                         print("☁️  Monitoring CloudFormation...")
                     }
@@ -113,14 +115,6 @@ extension AWSCommand {
             print("   → Use 'deploy-init' to set initial configuration\n")
 
             return .minimal
-        }
-
-        private func printDeployProgress(_ progress: DeploymentProgress) {
-            let completed = progress.completedCount
-            let total = progress.resources.count
-            if total > 0 {
-                print("☁️  Deploying resources: \(completed)/\(total)")
-            }
         }
     }
 }

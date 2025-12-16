@@ -1,7 +1,7 @@
-import sdk_cli
-import sdk_aws
-import sdk_client
 import Foundation
+import sdk_aws
+import sdk_cli
+import sdk_client
 
 /// Service for testing deployed AWS Lambda and infrastructure
 public actor AWSTestingService {
@@ -9,7 +9,7 @@ public actor AWSTestingService {
     private let cloudWatchLogsClient: CloudWatchLogsClient
     private let s3Client: S3Client
     private let cliClient: CLIClient
-    private let stackName = "SwiftLambdaSampleStack"
+    private let stackName = CDKStackConfiguration.defaultStackName
     private let lambdaName = "swift-lambda-sample"
 
     public init(awsConfig: AWSAuthConfiguration, cliClient: CLIClient) {
