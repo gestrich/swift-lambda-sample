@@ -1,6 +1,5 @@
 import ArgumentParser
 import Foundation
-import sdk_aws
 import service_deploy
 
 extension AWSCommand {

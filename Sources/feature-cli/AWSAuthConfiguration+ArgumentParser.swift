@@ -6,7 +6,6 @@
 //
 
 import ArgumentParser
-import sdk_aws
 import service_deploy
 
 extension AWSAuthConfiguration {

@@ -9,6 +9,18 @@ import Foundation
 import service_storage
 import sdk_aws
 
+// Re-export SDK types for feature-mac and other consumers
+// This allows feature-mac to depend only on service-deploy, not directly on sdk-aws
+@_exported import struct sdk_aws.AWSAuthConfiguration
+@_exported import struct sdk_aws.CloudWatchLogEntry
+@_exported import enum sdk_aws.CloudWatchLogsProgress
+
+// CloudFormation state types used by views
+@_exported import enum sdk_aws.DeploymentState
+@_exported import struct sdk_aws.DeploymentProgress
+@_exported import struct sdk_aws.ResourceProgress
+@_exported import enum sdk_aws.ResourceStatus
+
 // MARK: - Storage Keys
 
 /// Storage key for AWS configuration file

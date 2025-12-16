@@ -1,5 +1,4 @@
 import AppKit
-import sdk_aws
 import sdk_cli
 import service_deploy
 import SwiftUI
