@@ -115,37 +115,54 @@ sdk-github/
 
 ---
 
-### [ ] Phase 2: Add AsyncStream State to SDK Clients
+### [x] Phase 2: Add AsyncStream State to SDK Clients ✅
 
 **Goal**: Stateful SDKs should publish state via `AsyncStream` per layered-architecture.md.
 
+**Status**: COMPLETED
+
 **Tasks**:
-- [ ] Add `State` enum to `CDKClient` in sdk-aws (idle, building, deploying, deployed, failed)
-- [ ] Add `states() -> AsyncStream<State>` to `CDKClient`
-- [ ] Add `State` enum to `CloudFormationClient` in sdk-aws (idle, querying, ready, failed)
-- [ ] Add `states() -> AsyncStream<State>` to `CloudFormationClient`
-- [ ] Add `State` enum to `GitHubActionsClient` in sdk-github (idle, triggering, monitoring, completed, failed)
-- [ ] Add `states() -> AsyncStream<State>` to `GitHubActionsClient`
-- [ ] Implement continuation management and cleanup in each
-- [ ] Add concurrency guards to prevent concurrent operations
+- [x] Add `State` enum to `CDKClient` in sdk-aws (idle, installing, building, deploying, deployed, destroying, destroyed, failed)
+- [x] Add `states() -> AsyncStream<State>` to `CDKClient`
+- [x] Add `State` enum to `CloudFormationClient` in sdk-aws (idle, querying, ready, failed)
+- [x] Add `states() -> AsyncStream<State>` to `CloudFormationClient`
+- [x] Add `State` enum to `GitHubActionsClient` in sdk-github (idle, triggering, monitoring, completed, failed)
+- [x] Add `states() -> AsyncStream<State>` to `GitHubActionsClient`
+- [x] Implement continuation management and cleanup in each
+- [x] Add concurrency guards to prevent concurrent operations
+
+**Technical Notes**:
+- Each SDK client now manages a `currentState` property and a `continuations` dictionary for multiple subscribers
+- The `states()` method is `nonisolated` to allow creation outside actor context, with async continuation registration
+- State changes are published via a `publish(_:)` method that updates all subscribers
+- Each state enum includes computed properties: `isBusy`, `canDeploy`/`canDestroy`/`canTrigger`, and `description`
+- Concurrency guards added via state checks before starting operations (throws `CDKError.operationInProgress` if busy)
+- Error states are published before throwing, ensuring observers see failure state
+- `CDKClient.State` includes: `.idle`, `.installing`, `.building`, `.deploying(startTime:)`, `.deployed(outputs:)`, `.destroying(startTime:)`, `.destroyed`, `.failed(error:)`
+- `CloudFormationClient.State` includes: `.idle`, `.querying(operation:)`, `.ready(stackExists:)`, `.failed(error:)`
+- `GitHubActionsClient.State` includes: `.idle`, `.triggering(workflow:)`, `.monitoring(runId:startTime:)`, `.completed(runId:)`, `.failed(error:)`
 
 **Example CDKClient State**:
 ```swift
 actor CDKClient {
-    enum State: Sendable {
+    enum State: Sendable, Equatable {
         case idle
+        case installing
         case building
-        case deploying(progress: Double, startTime: Date)
+        case deploying(startTime: Date)
         case deployed(outputs: [String: String])
-        case destroying(progress: Double, startTime: Date)
+        case destroying(startTime: Date)
         case destroyed
         case failed(error: String)
 
         var isBusy: Bool { ... }
         var canDeploy: Bool { ... }
+        var canDestroy: Bool { ... }
+        var description: String { ... }
     }
 
-    func states() -> AsyncStream<State> { ... }
+    nonisolated func states() -> AsyncStream<State> { ... }
+    func getState() -> State { ... }
     private func publish(_ state: State) { ... }
 }
 ```

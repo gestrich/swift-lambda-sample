@@ -40,6 +40,14 @@ public actor GitHubActionsClient {
     private let cliClient: CLIClient
     private let config: GitHubActionsConfiguration
 
+    // MARK: - State Management
+
+    /// Current state of the GitHub Actions client
+    private var currentState: State = .idle
+
+    /// Continuations for state stream subscribers
+    private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
+
     // MARK: - Init
 
     public init(repoPath: String, config: GitHubActionsConfiguration, cliClient: CLIClient) {
@@ -47,6 +55,48 @@ public actor GitHubActionsClient {
         self.cliClient = cliClient
         self.ghCLIClient = GitHubCLIClient(repository: config.repository, cliClient: cliClient)
         self.gitClient = GitClient(repoPath: repoPath, cliClient: cliClient)
+    }
+
+    // MARK: - State Stream
+
+    /// Subscribe to state changes
+    /// Returns an AsyncStream that yields state updates
+    public nonisolated func states() -> AsyncStream<State> {
+        AsyncStream { continuation in
+            let id = UUID()
+
+            Task {
+                await self.addContinuation(id: id, continuation: continuation)
+
+                continuation.onTermination = { @Sendable _ in
+                    Task { await self.removeContinuation(id: id) }
+                }
+            }
+        }
+    }
+
+    /// Get the current state (for synchronous queries)
+    public func getState() -> State {
+        currentState
+    }
+
+    /// Add a continuation to track
+    private func addContinuation(id: UUID, continuation: AsyncStream<State>.Continuation) {
+        continuations[id] = continuation
+        continuation.yield(currentState)
+    }
+
+    /// Remove a continuation when stream is cancelled
+    private func removeContinuation(id: UUID) {
+        continuations.removeValue(forKey: id)
+    }
+
+    /// Publish a state change to all subscribers
+    private func publish(_ state: State) {
+        currentState = state
+        for continuation in continuations.values {
+            continuation.yield(state)
+        }
     }
 
     // MARK: - Configuration
@@ -143,35 +193,63 @@ public actor GitHubActionsClient {
     /// Push commits and trigger a deployment workflow
     /// Returns the new workflow run ID
     public func pushAndTriggerWorkflow(output: CLIOutputStream? = nil) async throws -> String {
-        let hasCommitsToPush = try await gitClient.hasCommitsToPush()
+        let workflowName = config.workflowName ?? "push"
+        publish(.triggering(workflow: workflowName))
 
-        if hasCommitsToPush {
-            let beforeRunId = try await ghCLIClient.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)?.id
-            try await gitClient.push(output: output)
+        do {
+            let hasCommitsToPush = try await gitClient.hasCommitsToPush()
 
-            guard let newRunId = try await waitForNewRun(afterRunId: beforeRunId) else {
-                throw GitHubClientError.timeout(operation: "Could not find new workflow run after push", duration: 60)
+            if hasCommitsToPush {
+                let beforeRunId = try await ghCLIClient.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)?.id
+                try await gitClient.push(output: output)
+
+                guard let newRunId = try await waitForNewRun(afterRunId: beforeRunId) else {
+                    let error = GitHubClientError.timeout(operation: "Could not find new workflow run after push", duration: 60)
+                    publish(.failed(error: error.localizedDescription))
+                    throw error
+                }
+                publish(.completed(runId: newRunId))
+                return newRunId
+            } else {
+                return try await triggerWorkflow(output: output)
             }
-            return newRunId
-        } else {
-            return try await triggerWorkflow(output: output)
+        } catch {
+            if case .failed = currentState {
+                // Already published failure
+            } else {
+                publish(.failed(error: error.localizedDescription))
+            }
+            throw error
         }
     }
 
     /// Trigger a workflow manually and return the run ID
     public func triggerWorkflow(output: CLIOutputStream? = nil) async throws -> String {
-        let beforeRunId = try await ghCLIClient.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)?.id
-
-        // Use configured workflow name or default to "Dev Deploy"
         let workflowToTrigger = config.workflowName ?? "Dev Deploy"
-        try await ghCLIClient.triggerWorkflow(workflow: workflowToTrigger, branch: config.branch, output: output)
+        publish(.triggering(workflow: workflowToTrigger))
 
-        try await Task.sleep(for: .seconds(2))
+        do {
+            let beforeRunId = try await ghCLIClient.getLatestWorkflowRun(branch: config.branch, workflow: config.workflowName)?.id
 
-        guard let newRunId = try await waitForNewRun(afterRunId: beforeRunId) else {
-            throw GitHubClientError.timeout(operation: "Could not find new workflow run after trigger", duration: 60)
+            try await ghCLIClient.triggerWorkflow(workflow: workflowToTrigger, branch: config.branch, output: output)
+
+            try await Task.sleep(for: .seconds(2))
+
+            guard let newRunId = try await waitForNewRun(afterRunId: beforeRunId) else {
+                let error = GitHubClientError.timeout(operation: "Could not find new workflow run after trigger", duration: 60)
+                publish(.failed(error: error.localizedDescription))
+                throw error
+            }
+            publish(.completed(runId: newRunId))
+            return newRunId
+        } catch {
+            if case .failed = currentState {
+                // Already published failure
+            } else {
+                publish(.failed(error: error.localizedDescription))
+            }
+            throw error
         }
-        return newRunId
     }
 
     /// Trigger a workflow and wait for completion
@@ -179,15 +257,26 @@ public actor GitHubActionsClient {
         workflowName: String,
         timeoutMinutes: Int = 20
     ) async throws {
+        publish(.triggering(workflow: workflowName))
+
         print("\n🔄 Triggering GitHub Actions workflow '\(workflowName)' on branch '\(config.branch)'...")
 
-        let beforeRunId = try await getLatestRunId()
+        do {
+            let beforeRunId = try await getLatestRunId()
 
-        try await ghCLIClient.triggerWorkflow(workflow: workflowName, branch: config.branch)
+            try await ghCLIClient.triggerWorkflow(workflow: workflowName, branch: config.branch)
 
-        print("✅ Workflow triggered successfully")
+            print("✅ Workflow triggered successfully")
 
-        try await waitForNewWorkflowCompletion(afterRunId: beforeRunId, timeoutMinutes: timeoutMinutes)
+            try await waitForNewWorkflowCompletion(afterRunId: beforeRunId, timeoutMinutes: timeoutMinutes)
+        } catch {
+            if case .failed = currentState {
+                // Already published failure
+            } else {
+                publish(.failed(error: error.localizedDescription))
+            }
+            throw error
+        }
     }
 
     /// Wait for a NEW workflow run to appear (newer than afterRunId) and complete
@@ -199,6 +288,7 @@ public actor GitHubActionsClient {
 
         let maxAttempts = timeoutMinutes * 6 // Check every 10 seconds
         let pollInterval: UInt64 = 10_000_000_000 // 10 seconds in nanoseconds
+        let startTime = Date()
 
         var attempts = 0
         var trackedRunId: Int?
@@ -214,7 +304,9 @@ public actor GitHubActionsClient {
             }
 
             guard let id = Int(latestRun.id) else {
-                throw GitHubClientError.invalidOutput(reason: "Could not parse workflow run ID")
+                let error = GitHubClientError.invalidOutput(reason: "Could not parse workflow run ID")
+                publish(.failed(error: error.localizedDescription))
+                throw error
             }
 
             if let afterId = afterRunId, id <= afterId {
@@ -226,6 +318,7 @@ public actor GitHubActionsClient {
 
             if trackedRunId == nil {
                 trackedRunId = id
+                publish(.monitoring(runId: latestRun.id, startTime: startTime))
                 print("  Found new workflow run \(id)")
             }
 
@@ -233,14 +326,17 @@ public actor GitHubActionsClient {
 
             if latestRun.isCompleted {
                 if latestRun.wasSuccessful {
+                    publish(.completed(runId: latestRun.id))
                     print("\n✅ Workflow completed successfully")
                     return
                 } else {
-                    throw GitHubClientError.commandFailed(
+                    let error = GitHubClientError.commandFailed(
                         command: "GitHub Actions workflow",
                         exitCode: 1,
                         output: "Workflow failed with conclusion: \(latestRun.conclusion ?? "unknown")"
                     )
+                    publish(.failed(error: error.localizedDescription))
+                    throw error
                 }
             }
 
@@ -248,7 +344,9 @@ public actor GitHubActionsClient {
             try await Task.sleep(nanoseconds: pollInterval)
         }
 
-        throw GitHubClientError.timeout(operation: "GitHub Actions workflow", duration: Double(timeoutMinutes * 60))
+        let error = GitHubClientError.timeout(operation: "GitHub Actions workflow", duration: Double(timeoutMinutes * 60))
+        publish(.failed(error: error.localizedDescription))
+        throw error
     }
 
     // MARK: - Monitoring
@@ -424,5 +522,64 @@ public struct WorkflowRunInfo: Sendable, Equatable {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: createdAt, relativeTo: Date())
+    }
+}
+
+// MARK: - GitHubActionsClient State
+
+extension GitHubActionsClient {
+    /// State of the GitHub Actions client operations
+    public enum State: Sendable, Equatable {
+        /// No operation in progress
+        case idle
+
+        /// Triggering a workflow
+        case triggering(workflow: String)
+
+        /// Monitoring a workflow run
+        case monitoring(runId: String, startTime: Date)
+
+        /// Workflow completed successfully
+        case completed(runId: String)
+
+        /// Workflow or operation failed
+        case failed(error: String)
+
+        /// Whether an operation is currently in progress
+        public var isBusy: Bool {
+            switch self {
+            case .idle, .completed, .failed:
+                return false
+            case .triggering, .monitoring:
+                return true
+            }
+        }
+
+        /// Whether a new workflow can be triggered
+        public var canTrigger: Bool {
+            switch self {
+            case .idle, .completed, .failed:
+                return true
+            case .triggering, .monitoring:
+                return false
+            }
+        }
+
+        /// Human-readable description of the current state
+        public var description: String {
+            switch self {
+            case .idle:
+                return "Idle"
+            case .triggering(let workflow):
+                return "Triggering \(workflow)..."
+            case .monitoring(let runId, let startTime):
+                let elapsed = Int(Date().timeIntervalSince(startTime))
+                return "Monitoring run \(runId) (\(elapsed)s)"
+            case .completed(let runId):
+                return "Completed (run \(runId))"
+            case .failed(let error):
+                return "Failed: \(error)"
+            }
+        }
     }
 }
