@@ -256,7 +256,8 @@ public class DeploymentModel {
         guard canDeploy else { return }
 
         lastError = nil
-        operationStartTime = Date()
+        let startTime = Date()
+        operationStartTime = startTime
 
         let workflow = DeployWorkflow(
             cdkClient: cdkClient,
@@ -267,30 +268,12 @@ public class DeploymentModel {
         do {
             for try await progress in workflow.run(options: options, output: output) {
                 activeWorkflow = .deploy(progress)
+                deploymentState = progress.toDeploymentState(startTime: startTime)
 
-                // Update state based on workflow progress
-                switch progress.step {
-                case .building:
-                    deploymentState = .deploying(operation: .building, progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
-
-                case .deploying:
-                    if case .cdk(let deployProgress) = progress.detail {
-                        deploymentState = .deploying(operation: .deploying, progress: deployProgress, startTime: operationStartTime ?? Date())
-                    }
-
-                case .monitoring:
-                    if case .cdk(let deployProgress) = progress.detail {
-                        deploymentState = .deploying(operation: .monitoring, progress: deployProgress, startTime: operationStartTime ?? Date())
-                    }
-
-                case .complete:
-                    if case .outputs(let outputs, let config) = progress.detail {
-                        stackOutputs = outputs
-                        infrastructureConfiguration = config
-                        if let outputs = outputs {
-                            deploymentState = .deployed(outputs: outputs.allOutputs)
-                        }
-                    }
+                // Extract app-specific state on completion
+                if progress.step == .complete {
+                    stackOutputs = progress.stackOutputs
+                    infrastructureConfiguration = progress.infrastructureConfiguration
                 }
             }
         } catch {
@@ -316,7 +299,8 @@ public class DeploymentModel {
         guard canDestroy else { return }
 
         lastError = nil
-        operationStartTime = Date()
+        let startTime = Date()
+        operationStartTime = startTime
 
         let workflow = DestroyWorkflow(
             cdkClient: cdkClient,
@@ -327,18 +311,10 @@ public class DeploymentModel {
         do {
             for try await progress in workflow.run(output: output) {
                 activeWorkflow = .destroy(progress)
+                deploymentState = progress.toDeploymentState(startTime: startTime)
 
-                // Update state based on workflow progress
-                switch progress.step {
-                case .destroying:
-                    if let deployProgress = progress.detail {
-                        deploymentState = .destroying(progress: deployProgress, startTime: operationStartTime ?? Date())
-                    } else {
-                        deploymentState = .destroying(progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
-                    }
-
-                case .complete:
-                    deploymentState = .notDeployed
+                // Clear app-specific state on completion
+                if progress.step == .complete {
                     stackOutputs = nil
                     infrastructureConfiguration = nil
                 }

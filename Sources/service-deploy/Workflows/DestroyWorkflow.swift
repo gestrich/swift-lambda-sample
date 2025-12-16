@@ -77,6 +77,19 @@ public struct DestroyWorkflow: Sendable {
             self.step = step
             self.detail = detail
         }
+
+        /// Converts workflow progress to CloudFormation state for UI display.
+        /// This moves the mapping logic from the app layer (DeploymentModel) to the service layer.
+        /// - Parameter startTime: Operation start time for elapsed time display
+        /// - Returns: CloudFormationState representing the current destroy state
+        public func toDeploymentState(startTime: Date) -> CloudFormationState {
+            switch step {
+            case .destroying:
+                return .destroying(progress: detail ?? DeploymentProgress(), startTime: startTime)
+            case .complete:
+                return .notDeployed
+            }
+        }
     }
 
     /// Options for destroying infrastructure

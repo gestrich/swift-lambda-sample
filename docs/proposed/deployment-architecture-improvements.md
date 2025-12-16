@@ -404,12 +404,20 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 - CLI command reduced from ~100 lines to ~100 lines but business logic is now in the service layer
 - GitHub config path hint preserved in CLI output for user guidance when not configured
 
-### Phase 5: Thin DeploymentModel
+### Phase 5: Thin DeploymentModel ✅ COMPLETED
 
-- [ ] Add `toDeploymentState()` extension on `DeployWorkflow.Progress`
-- [ ] Simplify `deploy()` method to just observe stream
-- [ ] Add `toDeploymentState()` extension on `DestroyWorkflow.Progress`
-- [ ] Simplify `destroy()` method to just observe stream
+- [x] Add `toDeploymentState()` extension on `DeployWorkflow.Progress`
+- [x] Simplify `deploy()` method to just observe stream
+- [x] Add `toDeploymentState()` extension on `DestroyWorkflow.Progress`
+- [x] Simplify `destroy()` method to just observe stream
+
+**Technical Notes:**
+- `toDeploymentState(startTime:)` method added directly to `DeployWorkflow.Progress` struct (not as extension) for encapsulation
+- Helper computed properties `stackOutputs` and `infrastructureConfiguration` added to `DeployWorkflow.Progress` for cleaner extraction
+- `DestroyWorkflow.Progress` also gained `toDeploymentState(startTime:)` for consistency
+- `deploy()` method reduced from 40 lines to 25 lines, with mapping logic moved to service layer
+- `destroy()` method reduced from 35 lines to 25 lines, with mapping logic moved to service layer
+- App-specific state extraction (stackOutputs, infrastructureConfiguration) still handled in model as it's UI coordination, not business logic
 
 ### Phase 6: Code Cleanup
 
@@ -426,7 +434,7 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 |-----------|---------|--------|
 | CLI commands are thin (I/O only) | ✅ Full (Phase 4) | ✅ Full |
 | Workflows handle orchestration | ✅ Full (Phase 4) | ✅ Full |
-| Models observe streams | ⚠️ Partial | ✅ Full |
+| Models observe streams | ✅ Full (Phase 5) | ✅ Full |
 | No default fallbacks | ✅ Full (Phase 3) | ✅ Full |
 | Consistent factory patterns | ✅ Full (Phase 1) | ✅ Full |
 | DRY (no duplicated setup) | ✅ Full (Phase 1) | ✅ Full |

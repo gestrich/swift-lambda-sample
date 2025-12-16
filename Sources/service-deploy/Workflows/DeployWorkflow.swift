@@ -106,6 +106,57 @@ public struct DeployWorkflow: Sendable {
             self.step = step
             self.detail = detail
         }
+
+        /// Converts workflow progress to CloudFormation state for UI display.
+        /// This moves the mapping logic from the app layer (DeploymentModel) to the service layer.
+        /// - Parameter startTime: Operation start time for elapsed time display
+        /// - Returns: CloudFormationState representing the current deployment state
+        public func toDeploymentState(startTime: Date) -> CloudFormationState {
+            switch step {
+            case .building:
+                return .deploying(operation: .building, progress: DeploymentProgress(), startTime: startTime)
+
+            case .deploying:
+                let deployProgress: DeploymentProgress
+                if case .cdk(let progress) = detail {
+                    deployProgress = progress
+                } else {
+                    deployProgress = DeploymentProgress()
+                }
+                return .deploying(operation: .deploying, progress: deployProgress, startTime: startTime)
+
+            case .monitoring:
+                let deployProgress: DeploymentProgress
+                if case .cdk(let progress) = detail {
+                    deployProgress = progress
+                } else {
+                    deployProgress = DeploymentProgress()
+                }
+                return .deploying(operation: .monitoring, progress: deployProgress, startTime: startTime)
+
+            case .complete:
+                if case .outputs(let outputs, _) = detail, let outputs = outputs {
+                    return .deployed(outputs: outputs.allOutputs)
+                }
+                return .deployed(outputs: [:])
+            }
+        }
+
+        /// Extracts stack outputs from the progress detail, if available.
+        public var stackOutputs: CDKStackOutputs? {
+            if case .outputs(let outputs, _) = detail {
+                return outputs
+            }
+            return nil
+        }
+
+        /// Extracts infrastructure configuration from the progress detail, if available.
+        public var infrastructureConfiguration: CDKInfrastructureConfiguration? {
+            if case .outputs(_, let config) = detail {
+                return config
+            }
+            return nil
+        }
     }
 
     /// App-specific deployment options
