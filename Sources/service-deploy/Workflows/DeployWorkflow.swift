@@ -267,7 +267,7 @@ public struct DeployWorkflow: Sendable {
 
             case .deployed(let outputs):
                 // Get infrastructure configuration
-                let config = try await detectConfiguration()
+                let config = try await cfClient.detectConfiguration(stackName: stackName)
                 let stackOutputs = CDKStackOutputs.from(outputs)
                 continuation.yield(Progress(
                     step: .complete,
@@ -296,7 +296,7 @@ public struct DeployWorkflow: Sendable {
         let finalState = try await cfClient.queryState(stackName: stackName)
         switch finalState {
         case .deployed(let outputs):
-            let config = try await detectConfiguration()
+            let config = try await cfClient.detectConfiguration(stackName: stackName)
             let stackOutputs = CDKStackOutputs.from(outputs)
             continuation.yield(Progress(
                 step: .complete,
@@ -312,20 +312,6 @@ public struct DeployWorkflow: Sendable {
 
         default:
             throw DeploymentError.unknown(message: "Unexpected final state: \(finalState)")
-        }
-    }
-
-    /// Detect infrastructure configuration from CloudFormation resources
-    private func detectConfiguration() async throws -> CDKInfrastructureConfiguration? {
-        do {
-            let resources = try await cfClient.describeStackResources(name: stackName)
-            return CDKInfrastructureConfiguration(resources: resources)
-        } catch let error as CloudFormationError {
-            if case .commandFailed(_, _, let output) = error,
-               output.contains("does not exist") {
-                return nil
-            }
-            throw error
         }
     }
 }

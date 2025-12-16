@@ -352,7 +352,7 @@ public class DeploymentModel {
     private func updateAppSpecificState() async throws {
         switch deploymentState {
         case .deployed(let outputs):
-            infrastructureConfiguration = try await detectConfiguration()
+            infrastructureConfiguration = try await cfClient.detectConfiguration(stackName: stackName)
             stackOutputs = CDKStackOutputs.from(outputs)
 
         case .notDeployed:
@@ -361,20 +361,6 @@ public class DeploymentModel {
 
         default:
             break
-        }
-    }
-
-    /// Detect the current infrastructure configuration from CloudFormation resources
-    private func detectConfiguration() async throws -> CDKInfrastructureConfiguration? {
-        do {
-            let resources = try await cfClient.describeStackResources(name: stackName)
-            return CDKInfrastructureConfiguration(resources: resources)
-        } catch let error as CloudFormationError {
-            if case .commandFailed(_, _, let output) = error,
-               output.contains("does not exist") {
-                return nil
-            }
-            throw error
         }
     }
 }

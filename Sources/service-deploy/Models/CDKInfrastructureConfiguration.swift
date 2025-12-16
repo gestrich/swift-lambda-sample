@@ -30,3 +30,20 @@ public struct CDKInfrastructureConfiguration: Equatable, Sendable {
         )
     }
 }
+
+extension CloudFormationClient {
+    /// Detect infrastructure configuration from CloudFormation resources.
+    /// Returns nil if the stack does not exist.
+    public func detectConfiguration(stackName: String) async throws -> CDKInfrastructureConfiguration? {
+        do {
+            let resources = try await describeStackResources(name: stackName)
+            return CDKInfrastructureConfiguration(resources: resources)
+        } catch let error as CloudFormationError {
+            if case .commandFailed(_, _, let output) = error,
+               output.contains("does not exist") {
+                return nil
+            }
+            throw error
+        }
+    }
+}
