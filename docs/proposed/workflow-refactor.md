@@ -161,10 +161,12 @@ public struct DeployWorkflow {
 
 ---
 
-## Phase 4: Create DestroyWorkflow
+## Phase 4: Create DestroyWorkflow ✅
+
+**Status:** COMPLETED
 
 **Files:**
-- Create: `Sources/service-deploy/Workflows/DestroyWorkflow.swift`
+- Created: `Sources/service-deploy/Workflows/DestroyWorkflow.swift`
 
 **Design:**
 ```swift
@@ -178,6 +180,18 @@ public struct DestroyWorkflow {
     public func run() -> AsyncThrowingStream<Progress, Error>
 }
 ```
+
+**Verification:** Build succeeds, workflow compiles with correct types.
+
+**Technical Notes:**
+- `DestroyWorkflow.Options` wraps CDKClient.DestroyOptions with `force: Bool` (defaults to `true`)
+- Two-phase approach: CDK destroy stream followed by CloudFormation monitor stream
+- Progress steps: `.destroying` → `.complete`
+- CDK phase yields progress updates from `CDKProgress.destroying(DeploymentProgress)`
+- CloudFormation phase monitors until `.notDeployed` state (stack fully deleted)
+- Handles edge cases: credential expiration, destroy failures, operations still in progress
+- Final state query if stream ends unexpectedly (same pattern as DeployWorkflow)
+- Simpler than DeployWorkflow - no configuration detection needed since stack is being deleted
 
 ---
 
