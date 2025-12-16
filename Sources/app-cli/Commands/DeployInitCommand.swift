@@ -206,39 +206,38 @@ extension AWSCommand {
             )
             let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
 
+            let workflow = UpdateLambdaWorkflow(
+                gitClient: gitClient,
+                githubClient: githubClient
+            )
+
             print("\n📦 Updating Lambda code...")
 
-            if !skipPush {
-                let hasCommitsToPush = try await gitClient.hasCommitsToPush()
+            let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
-                if hasCommitsToPush {
+            for try await progress in workflow.run(options: options) {
+                switch progress.step {
+                case .checkingGitStatus:
+                    if case .skippedPush = progress.detail {
+                        print("   ⏭️  Skipping git push (--skip-push enabled)")
+                    }
+
+                case .pushing:
                     print("   Pushing commits...")
-                    let beforeRunId = try await githubClient.getLatestRunId()
-                    try await gitClient.push()
 
+                case .triggeringWorkflow:
+                    if case .gitStatus(let hasCommits) = progress.detail, !hasCommits {
+                        print("   ✅ No commits to push")
+                    }
+                    print("   🔄 Triggering workflow...")
+
+                case .waitingForWorkflow:
                     print("   Waiting for GitHub Actions workflow...")
-                    try await githubClient.waitForNewWorkflowCompletion(
-                        afterRunId: beforeRunId,
-                        timeoutMinutes: 10
-                    )
-                } else {
-                    print("   ✅ No commits to push")
-                    print("   🔄 Triggering workflow to redeploy current code...")
-                    try await githubClient.triggerWorkflowAndWait(
-                        workflowName: "Dev Deploy",
-                        timeoutMinutes: 10
-                    )
-                }
-            } else {
-                print("   ⏭️  Skipping git push (--skip-push enabled)")
-                print("   🔄 Triggering workflow...")
-                try await githubClient.triggerWorkflowAndWait(
-                    workflowName: "Dev Deploy",
-                    timeoutMinutes: 10
-                )
-            }
 
-            print("   ✅ Lambda code updated")
+                case .complete:
+                    print("   ✅ Lambda code updated")
+                }
+            }
         }
 
         private func initializeDatabase(apiUrl: String, cliClient: CLIClient) async throws {

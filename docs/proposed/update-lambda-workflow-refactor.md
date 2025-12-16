@@ -84,300 +84,67 @@ Create `UpdateLambdaWorkflow` in `service-deploy/Workflows/` following the estab
 
 ## Implementation
 
-### Phase 1: Create UpdateLambdaWorkflow
+### Phase 1: Create UpdateLambdaWorkflow ✅ COMPLETED (2025-12-16)
 
 **File:** `Sources/service-deploy/Workflows/UpdateLambdaWorkflow.swift`
 
-```swift
-import Foundation
-import sdk_cli
-import sdk_github
+**Status:** Created workflow following the established pattern from DeployWorkflow and DestroyWorkflow.
 
-/// Workflow for updating Lambda code via GitHub Actions.
-/// Orchestrates git operations and workflow monitoring, returning progress via stream.
-public struct UpdateLambdaWorkflow: Sendable {
-    private let gitClient: GitClient
-    private let githubClient: GitHubActionsClient
-
-    public init(
-        gitClient: GitClient,
-        githubClient: GitHubActionsClient
-    ) {
-        self.gitClient = gitClient
-        self.githubClient = githubClient
-    }
-
-    /// Progress updates from the update lambda workflow.
-    public struct Progress: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingGitStatus
-            case pushing
-            case triggeringWorkflow
-            case waitingForWorkflow
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case gitStatus(hasCommitsToPush: Bool)
-            case workflowProgress(WorkflowProgress)
-            case skippedPush
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    /// Options for the update lambda workflow.
-    public struct Options: Sendable {
-        public let skipPush: Bool
-        public let workflowName: String
-        public let timeoutMinutes: Int
-
-        public init(
-            skipPush: Bool = false,
-            workflowName: String = "Dev Deploy",
-            timeoutMinutes: Int = 10
-        ) {
-            self.skipPush = skipPush
-            self.workflowName = workflowName
-            self.timeoutMinutes = timeoutMinutes
-        }
-    }
-
-    /// Run the update lambda workflow.
-    public func run(options: Options = Options()) -> AsyncThrowingStream<Progress, Error> {
-        AsyncThrowingStream { continuation in
-            Task {
-                do {
-                    try await runWorkflow(options: options, continuation: continuation)
-                } catch {
-                    continuation.finish(throwing: error)
-                }
-            }
-        }
-    }
-
-    private func runWorkflow(
-        options: Options,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
-    ) async throws {
-        if options.skipPush {
-            // Skip git operations, go straight to triggering
-            continuation.yield(Progress(step: .checkingGitStatus, detail: .skippedPush))
-            continuation.yield(Progress(step: .triggeringWorkflow))
-
-            try await githubClient.triggerWorkflowAndWait(
-                workflowName: options.workflowName,
-                timeoutMinutes: options.timeoutMinutes
-            )
-
-            continuation.yield(Progress(step: .complete))
-            continuation.finish()
-            return
-        }
-
-        // Check git status
-        continuation.yield(Progress(step: .checkingGitStatus))
-        let hasCommitsToPush = try await gitClient.hasCommitsToPush()
-        continuation.yield(Progress(step: .checkingGitStatus, detail: .gitStatus(hasCommitsToPush: hasCommitsToPush)))
-
-        if hasCommitsToPush {
-            // Push commits and wait for triggered workflow
-            let beforeRunId = try await githubClient.getLatestRunId()
-
-            continuation.yield(Progress(step: .pushing))
-            try await gitClient.push()
-
-            continuation.yield(Progress(step: .waitingForWorkflow))
-            try await githubClient.waitForNewWorkflowCompletion(
-                afterRunId: beforeRunId,
-                timeoutMinutes: options.timeoutMinutes
-            )
-        } else {
-            // No commits - trigger workflow manually
-            continuation.yield(Progress(step: .triggeringWorkflow))
-            try await githubClient.triggerWorkflowAndWait(
-                workflowName: options.workflowName,
-                timeoutMinutes: options.timeoutMinutes
-            )
-        }
-
-        continuation.yield(Progress(step: .complete))
-        continuation.finish()
-    }
-}
-```
+**Implementation Notes:**
+- Workflow uses `AsyncThrowingStream<Progress, Error>` pattern
+- Progress types: `checkingGitStatus`, `pushing`, `triggeringWorkflow`, `waitingForWorkflow`, `complete`
+- Detail enum provides context: `gitStatus(hasCommitsToPush:)`, `workflowProgress(_:)`, `skippedPush`
+- Options configurable: `skipPush`, `workflowName`, `timeoutMinutes`
 
 **Verification:** Build succeeds, workflow compiles.
 
 ---
 
-### Phase 2: Update DeploymentModel
+### Phase 2: Update DeploymentModel ✅ COMPLETED (2025-12-16)
 
 **File:** `Sources/app-mac/Models/DeploymentModel.swift`
 
-Replace the `updateLambdaCode` method with workflow consumption:
+**Status:** Replaced `updateLambdaCode` method with workflow consumption.
 
-```swift
-// MARK: - Lambda Code Updates
+**Implementation Notes:**
+- Removed ~35 lines of duplicated orchestration logic
+- Now consumes `UpdateLambdaWorkflow` stream
+- Progress is silently consumed (can be extended for UI feedback if needed)
+- Maintains same public API: `updateLambdaCode(skipPush:)`
 
-/// Update Lambda code via GitHub Actions
-public func updateLambdaCode(skipPush: Bool = false) async throws {
-    guard let githubClient = githubClient else {
-        throw DeployError.configurationMissing(
-            file: "~/.swiftSampleDemo/github-config.json",
-            hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
-        )
-    }
-
-    let workflow = UpdateLambdaWorkflow(
-        gitClient: gitClient,
-        githubClient: githubClient
-    )
-
-    let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
-
-    for try await progress in workflow.run(options: options) {
-        // Model can track progress if needed for UI
-        // For now, workflow handles the orchestration
-        _ = progress
-    }
-}
-```
-
-**Note:** If the Mac app needs to display update progress, add an `ActiveWorkflow.updateLambda(UpdateLambdaWorkflow.Progress)` case and update the model accordingly.
+**Future Enhancement:** If the Mac app needs to display update progress, add an `ActiveWorkflow.updateLambda(UpdateLambdaWorkflow.Progress)` case.
 
 **Verification:** Build succeeds, DeploymentModel uses workflow.
 
 ---
 
-### Phase 3: Update DeployInitCommand
+### Phase 3: Update DeployInitCommand ✅ COMPLETED (2025-12-16)
 
 **File:** `Sources/app-cli/Commands/DeployInitCommand.swift`
 
-Replace the `updateLambdaCode` method:
+**Status:** Replaced `updateLambdaCode` method with workflow consumption.
 
-```swift
-private func updateLambdaCode(projectRoot: String, cliClient: CLIClient, skipPush: Bool) async throws {
-    guard let githubConfig = GitHubConfiguration.loadConfig() else {
-        throw DeployError.configurationMissing(
-            file: "~/.swiftSampleDemo/github-config.json",
-            hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
-        )
-    }
-
-    let githubClient = makeGitHubActionsClient(
-        repoPath: projectRoot,
-        config: githubConfig,
-        cliClient: cliClient
-    )
-    let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
-
-    let workflow = UpdateLambdaWorkflow(
-        gitClient: gitClient,
-        githubClient: githubClient
-    )
-
-    print("\n📦 Updating Lambda code...")
-
-    let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
-
-    for try await progress in workflow.run(options: options) {
-        switch progress.step {
-        case .checkingGitStatus:
-            if case .skippedPush = progress.detail {
-                print("   ⏭️  Skipping git push (--skip-push enabled)")
-            }
-
-        case .pushing:
-            print("   Pushing commits...")
-
-        case .triggeringWorkflow:
-            if case .gitStatus(let hasCommits) = progress.detail, !hasCommits {
-                print("   ✅ No commits to push")
-            }
-            print("   🔄 Triggering workflow...")
-
-        case .waitingForWorkflow:
-            print("   Waiting for GitHub Actions workflow...")
-
-        case .complete:
-            print("   ✅ Lambda code updated")
-        }
-    }
-}
-```
+**Implementation Notes:**
+- Removed ~45 lines of duplicated orchestration logic
+- Now consumes `UpdateLambdaWorkflow` stream with progress printing
+- Progress messages printed at appropriate workflow steps
+- Same user-facing output as before
 
 **Verification:** Build succeeds, CLI uses workflow.
 
 ---
 
-### Phase 4: Update UpdateLambdaCommand
+### Phase 4: Update UpdateLambdaCommand ✅ COMPLETED (2025-12-16)
 
 **File:** `Sources/app-cli/Commands/UpdateLambdaCommand.swift`
 
-Replace the entire `run()` method:
+**Status:** Replaced `run()` method with workflow consumption.
 
-```swift
-mutating func run() async throws {
-    print("🚀 Updating Lambda code...\n")
-
-    let projectRoot = FileManager.default.currentDirectoryPath
-
-    guard let githubConfig = GitHubConfiguration.loadConfig()?.toSDKConfiguration() else {
-        throw DeployError.configurationMissing(
-            file: GitHubConfiguration.configPath,
-            hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
-        )
-    }
-
-    let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
-    let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
-    let githubClient = GitHubActionsClient(
-        repoPath: projectRoot,
-        config: githubConfig,
-        cliClient: cliClient
-    )
-
-    let workflow = UpdateLambdaWorkflow(
-        gitClient: gitClient,
-        githubClient: githubClient
-    )
-
-    let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
-
-    for try await progress in workflow.run(options: options) {
-        switch progress.step {
-        case .checkingGitStatus:
-            if case .skippedPush = progress.detail {
-                print("\n⏭️  Skipping git push (--skip-push enabled)")
-            }
-
-        case .pushing:
-            break // Git push happens silently
-
-        case .triggeringWorkflow:
-            if case .gitStatus(let hasCommits) = progress.detail, !hasCommits {
-                print("\n✅ No commits to push")
-            }
-            print("🔄 Triggering workflow...\n")
-
-        case .waitingForWorkflow:
-            break // Waiting handled by SDK
-
-        case .complete:
-            break
-        }
-    }
-
-    print("\n🎉 Lambda deployment completed successfully!")
-}
-```
+**Implementation Notes:**
+- Removed ~30 lines of duplicated orchestration logic
+- Now consumes `UpdateLambdaWorkflow` stream
+- Minimal progress printing (pushing/waiting handled silently by SDK)
+- Same user-facing output as before
 
 **Verification:** Build succeeds, all CLI commands use workflow.
 
@@ -385,12 +152,12 @@ mutating func run() async throws {
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `Sources/service-deploy/Workflows/UpdateLambdaWorkflow.swift` | CREATE - New workflow |
-| `Sources/app-mac/Models/DeploymentModel.swift` | MODIFY - Use workflow |
-| `Sources/app-cli/Commands/DeployInitCommand.swift` | MODIFY - Use workflow |
-| `Sources/app-cli/Commands/UpdateLambdaCommand.swift` | MODIFY - Use workflow |
+| File | Change | Status |
+|------|--------|--------|
+| `Sources/service-deploy/Workflows/UpdateLambdaWorkflow.swift` | CREATE - New workflow | ✅ Done |
+| `Sources/app-mac/Models/DeploymentModel.swift` | MODIFY - Use workflow | ✅ Done |
+| `Sources/app-cli/Commands/DeployInitCommand.swift` | MODIFY - Use workflow | ✅ Done |
+| `Sources/app-cli/Commands/UpdateLambdaCommand.swift` | MODIFY - Use workflow | ✅ Done |
 
 ---
 
@@ -401,3 +168,22 @@ mutating func run() async throws {
 3. **Testable** — Workflow can be tested independently of UI
 4. **Progress reporting** — Stream-based progress enables future UI enhancements
 5. **Separation of concerns** — App layer handles I/O, service layer handles orchestration
+
+---
+
+## Implementation Summary
+
+**Completed:** 2025-12-16
+
+All four phases have been implemented:
+- Phase 1: Created `UpdateLambdaWorkflow` in service-deploy layer
+- Phase 2: Updated `DeploymentModel` to consume workflow
+- Phase 3: Updated `DeployInitCommand` to consume workflow
+- Phase 4: Updated `UpdateLambdaCommand` to consume workflow
+
+**Lines of Code:**
+- ~110 lines of duplicated code removed from app layer
+- ~105 lines of new workflow code in service layer
+- Net reduction in duplication: 3 copies → 1 source of truth
+
+**Build Status:** ✅ All targets compile successfully

@@ -351,32 +351,15 @@ public class DeploymentModel {
             )
         }
 
-        if !skipPush {
-            let hasCommitsToPush = try await gitClient.hasCommitsToPush()
+        let workflow = UpdateLambdaWorkflow(
+            gitClient: gitClient,
+            githubClient: githubClient
+        )
 
-            if hasCommitsToPush {
-                let beforeRunId = try await githubClient.getLatestRunId()
-                try await gitClient.push()
+        let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
-                try await githubClient.waitForNewWorkflowCompletion(
-                    afterRunId: beforeRunId,
-                    timeoutMinutes: 10
-                )
-            } else {
-                print("\n✅ No commits to push")
-                print("🔄 Triggering workflow to redeploy current code...\n")
-                try await githubClient.triggerWorkflowAndWait(
-                    workflowName: "Dev Deploy",
-                    timeoutMinutes: 10
-                )
-            }
-        } else {
-            print("\n⏭️  Skipping git push (--skip-push enabled)")
-            print("🔄 Triggering workflow...\n")
-            try await githubClient.triggerWorkflowAndWait(
-                workflowName: "Dev Deploy",
-                timeoutMinutes: 10
-            )
+        for try await progress in workflow.run(options: options) {
+            _ = progress
         }
     }
 
