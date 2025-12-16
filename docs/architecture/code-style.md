@@ -61,3 +61,21 @@ func fetch() -> Result<Data, ClientError>
 ```
 
 If you find yourself wanting a type alias, consider whether the underlying type should be renamed or if a new type is warranted.
+
+## Avoid Default and Fallback Values
+
+Prefer requiring data explicitly rather than providing defaults or fallbacks. Missing values often represent errors that should surface immediately rather than being silently masked.
+
+```swift
+// Avoid - masks missing data
+func configure(timeout: Int = 30, retries: Int = 3) { ... }
+let name = user.displayName ?? "Unknown"
+
+// Prefer - require what you need
+func configure(timeout: Int, retries: Int) { ... }
+let name = user.displayName  // Let caller handle nil appropriately
+```
+
+**When fallbacks are appropriate**: Only use optionals with fallbacks when the value genuinely may be absent and that absence is expected behavior, not an error condition. Examples include user preferences that haven't been set yet or optional UI customizations.
+
+**Rationale**: Default values hide configuration decisions and make debugging harder. When something breaks, you want to know immediately that required data was missing, not discover later that a silent fallback caused unexpected behavior. APIs should require the data they need from the client.
