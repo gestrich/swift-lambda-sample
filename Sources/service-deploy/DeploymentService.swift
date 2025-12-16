@@ -33,9 +33,6 @@ public class DeploymentService {
     /// Parsed stack outputs
     public private(set) var stackOutputs: CDKStackOutputs?
 
-    /// Deployment progress (for deploying/destroying operations)
-    public private(set) var progress: DeploymentProgress = DeploymentProgress()
-
     /// Operation start time (for elapsed time display)
     public private(set) var operationStartTime: Date?
 
@@ -212,13 +209,24 @@ public class DeploymentService {
     private func observeCDKState() async {
         for await state in cdkClient.states() {
             self.cdkState = state
+
+            // Map CDK deploying/destroying state to CloudFormationState for progress updates
+            switch state {
+            case .deploying(let progress, let startTime):
+                self.deploymentState = .deploying(operation: "Deploying", progress: progress, startTime: startTime)
+                self.operationStartTime = startTime
+            case .destroying(let progress, let startTime):
+                self.deploymentState = .destroying(progress: progress, startTime: startTime)
+                self.operationStartTime = startTime
+            default:
+                break
+            }
         }
     }
 
     private func observeCloudFormationCloudFormationState() async {
         for await state in cloudFormationClient.states() {
             self.deploymentState = state
-            self.progress = state.progress
 
             if !state.isBusy {
                 self.operationStartTime = nil
@@ -308,20 +316,9 @@ public class DeploymentService {
     public func deploy(options: DeployOptions, output: CLIOutputStream? = nil) async {
         guard canDeploy else { return }
 
-        let operationName = options.withPostgres ? "Deploying with Database" : "Deploying"
-        let startTime = Date()
-        operationStartTime = startTime
-        progress = DeploymentProgress()
-        deploymentState = .deploying(operation: operationName, progress: progress, startTime: startTime)
-
         do {
             try await cdkClient.build(output: output)
-
-            await executeDeployWithProgress(
-                options: options,
-                output: output,
-                startTime: startTime
-            )
+            try await cdkClient.deploy(options: options.toCDKOptions(), output: output)
 
             // Query final state (publishes via observer) and update app-specific state
             _ = try await cloudFormationClient.queryState(stackName: stackName)
@@ -382,13 +379,9 @@ public class DeploymentService {
     public func destroy(output: CLIOutputStream? = nil) async {
         guard canDestroy else { return }
 
-        let startTime = Date()
-        operationStartTime = startTime
-        progress = DeploymentProgress()
-        deploymentState = .destroying(progress: progress, startTime: startTime)
-
         do {
-            await executeDestroyWithProgress(output: output, startTime: startTime)
+            let destroyOptions = CDKClient.DestroyOptions(stackName: nil, force: true)
+            try await cdkClient.destroy(options: destroyOptions, output: output)
 
             // Query final state (publishes via observer) and update app-specific state
             _ = try await cloudFormationClient.queryState(stackName: stackName)
@@ -554,105 +547,6 @@ public class DeploymentService {
         default:
             break
         }
-    }
-
-    // MARK: - Private: Deploy/Destroy With Progress
-
-    private func executeDeployWithProgress(
-        options: DeployOptions,
-        output: CLIOutputStream?,
-        startTime: Date
-    ) async {
-        let parser = CDKOutputParser()
-        let accumulator = CDKProgressAccumulator()
-
-        let parsingTask: Task<Void, Never>?
-        if let output = output {
-            parsingTask = Task {
-                let stream = await output.makeStream()
-                for await item in stream {
-                    guard !Task.isCancelled else { break }
-
-                    let text: String
-                    switch item {
-                    case .stdout(_, let t), .stderr(_, let t):
-                        text = t
-                    default:
-                        continue
-                    }
-
-                    for line in text.components(separatedBy: .newlines) {
-                        if let event = parser.parse(line) {
-                            accumulator.update(with: event)
-                            let newProgress = accumulator.snapshot().toDeploymentProgress()
-                            await MainActor.run {
-                                self.progress = newProgress
-                                self.deploymentState = .deploying(operation: "Deploying", progress: newProgress, startTime: startTime)
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            parsingTask = nil
-        }
-
-        do {
-            try await cdkClient.deploy(options: options.toCDKOptions(), output: output)
-        } catch {
-            parsingTask?.cancel()
-            deploymentState = .failed(reason: error.localizedDescription)
-            return
-        }
-
-        parsingTask?.cancel()
-    }
-
-    private func executeDestroyWithProgress(output: CLIOutputStream?, startTime: Date) async {
-        let parser = CDKOutputParser()
-        let accumulator = CDKProgressAccumulator()
-
-        let parsingTask: Task<Void, Never>?
-        if let output = output {
-            parsingTask = Task {
-                let stream = await output.makeStream()
-                for await item in stream {
-                    guard !Task.isCancelled else { break }
-
-                    let text: String
-                    switch item {
-                    case .stdout(_, let t), .stderr(_, let t):
-                        text = t
-                    default:
-                        continue
-                    }
-
-                    for line in text.components(separatedBy: .newlines) {
-                        if let event = parser.parse(line) {
-                            accumulator.update(with: event)
-                            let newProgress = accumulator.snapshot().toDeploymentProgress()
-                            await MainActor.run {
-                                self.progress = newProgress
-                                self.deploymentState = .destroying(progress: newProgress, startTime: startTime)
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            parsingTask = nil
-        }
-
-        do {
-            let destroyOptions = CDKClient.DestroyOptions(stackName: nil, force: true)
-            try await cdkClient.destroy(options: destroyOptions, output: output)
-        } catch {
-            parsingTask?.cancel()
-            deploymentState = .failed(reason: error.localizedDescription)
-            return
-        }
-
-        parsingTask?.cancel()
     }
 
     // MARK: - Private: Database Initialization

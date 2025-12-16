@@ -169,7 +169,7 @@ public actor CDKClient {
         }
 
         let startTime = Date()
-        publish(.deploying(startTime: startTime))
+        publish(.deploying(progress: DeploymentProgress(), startTime: startTime))
 
         let contextArray = options.context.map { "\($0.key)=\($0.value)" }
 
@@ -181,14 +181,45 @@ public actor CDKClient {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
+        // Create internal output stream for progress parsing if needed
+        let internalOutput = output ?? CLIOutputStream()
+        let parser = CDKOutputParser()
+        let accumulator = CDKProgressAccumulator()
+
+        // Start progress parsing task
+        let parsingTask = Task { [weak self] in
+            let stream = await internalOutput.makeStream()
+            for await item in stream {
+                guard !Task.isCancelled else { break }
+
+                let text: String
+                switch item {
+                case .stdout(_, let t), .stderr(_, let t):
+                    text = t
+                default:
+                    continue
+                }
+
+                for line in text.components(separatedBy: .newlines) {
+                    if let event = parser.parse(line) {
+                        accumulator.update(with: event)
+                        let newProgress = accumulator.snapshot().toDeploymentProgress()
+                        await self?.publishDeployProgress(newProgress, startTime: startTime)
+                    }
+                }
+            }
+        }
+
         do {
             let result = try await cliClient.execute(
                 command: execCommand,
                 arguments: arguments,
                 workingDirectory: cdkDirectory,
                 environment: credentialProvider.environment,
-                output: output
+                output: internalOutput
             )
+
+            parsingTask.cancel()
 
             guard result.isSuccess else {
                 let error = CDKError.commandFailed(
@@ -202,6 +233,7 @@ public actor CDKClient {
 
             publish(.deployed(outputs: [:]))
         } catch {
+            parsingTask.cancel()
             if case .failed = currentState {
                 // Already published failure
             } else {
@@ -209,6 +241,11 @@ public actor CDKClient {
             }
             throw error
         }
+    }
+
+    /// Helper to publish deploy progress from parsing task
+    private func publishDeployProgress(_ progress: DeploymentProgress, startTime: Date) {
+        publish(.deploying(progress: progress, startTime: startTime))
     }
 
     /// Options for CDK destroy command
@@ -235,7 +272,7 @@ public actor CDKClient {
         }
 
         let startTime = Date()
-        publish(.destroying(startTime: startTime))
+        publish(.destroying(progress: DeploymentProgress(), startTime: startTime))
 
         let command = Cdk.Destroy(
             profile: credentialProvider.profileName,
@@ -244,14 +281,45 @@ public actor CDKClient {
 
         let (execCommand, arguments) = buildCommandLine(command)
 
+        // Create internal output stream for progress parsing if needed
+        let internalOutput = output ?? CLIOutputStream()
+        let parser = CDKOutputParser()
+        let accumulator = CDKProgressAccumulator()
+
+        // Start progress parsing task
+        let parsingTask = Task { [weak self] in
+            let stream = await internalOutput.makeStream()
+            for await item in stream {
+                guard !Task.isCancelled else { break }
+
+                let text: String
+                switch item {
+                case .stdout(_, let t), .stderr(_, let t):
+                    text = t
+                default:
+                    continue
+                }
+
+                for line in text.components(separatedBy: .newlines) {
+                    if let event = parser.parse(line) {
+                        accumulator.update(with: event)
+                        let newProgress = accumulator.snapshot().toDeploymentProgress()
+                        await self?.publishDestroyProgress(newProgress, startTime: startTime)
+                    }
+                }
+            }
+        }
+
         do {
             let result = try await cliClient.execute(
                 command: execCommand,
                 arguments: arguments,
                 workingDirectory: cdkDirectory,
                 environment: credentialProvider.environment,
-                output: output
+                output: internalOutput
             )
+
+            parsingTask.cancel()
 
             guard result.isSuccess else {
                 let error = CDKError.commandFailed(
@@ -265,6 +333,7 @@ public actor CDKClient {
 
             publish(.destroyed)
         } catch {
+            parsingTask.cancel()
             if case .failed = currentState {
                 // Already published failure
             } else {
@@ -272,6 +341,11 @@ public actor CDKClient {
             }
             throw error
         }
+    }
+
+    /// Helper to publish destroy progress from parsing task
+    private func publishDestroyProgress(_ progress: DeploymentProgress, startTime: Date) {
+        publish(.destroying(progress: progress, startTime: startTime))
     }
 
     /// Show differences between deployed stack and local code
@@ -453,13 +527,13 @@ extension CDKClient {
         case building
 
         /// Deploying CDK stack
-        case deploying(startTime: Date)
+        case deploying(progress: DeploymentProgress, startTime: Date)
 
         /// Successfully deployed with stack outputs
         case deployed(outputs: [String: String])
 
         /// Destroying CDK stack
-        case destroying(startTime: Date)
+        case destroying(progress: DeploymentProgress, startTime: Date)
 
         /// Successfully destroyed
         case destroyed
@@ -497,6 +571,16 @@ extension CDKClient {
             }
         }
 
+        /// Deployment progress (if in deploying/destroying state)
+        public var progress: DeploymentProgress {
+            switch self {
+            case .deploying(let progress, _), .destroying(let progress, _):
+                return progress
+            default:
+                return DeploymentProgress()
+            }
+        }
+
         /// Human-readable description of the current state
         public var description: String {
             switch self {
@@ -506,13 +590,23 @@ extension CDKClient {
                 return "Installing dependencies..."
             case .building:
                 return "Building CDK..."
-            case .deploying(let startTime):
+            case .deploying(let progress, let startTime):
                 let elapsed = Int(Date().timeIntervalSince(startTime))
+                let completed = progress.resources.filter { $0.status == .complete }.count
+                let total = progress.resources.count
+                if total > 0 {
+                    return "Deploying... (\(completed)/\(total) resources, \(elapsed)s)"
+                }
                 return "Deploying... (\(elapsed)s)"
             case .deployed:
                 return "Deployed"
-            case .destroying(let startTime):
+            case .destroying(let progress, let startTime):
                 let elapsed = Int(Date().timeIntervalSince(startTime))
+                let completed = progress.resources.filter { $0.status == .complete }.count
+                let total = progress.resources.count
+                if total > 0 {
+                    return "Destroying... (\(completed)/\(total) resources, \(elapsed)s)"
+                }
                 return "Destroying... (\(elapsed)s)"
             case .destroyed:
                 return "Destroyed"
