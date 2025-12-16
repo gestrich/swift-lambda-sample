@@ -10,8 +10,12 @@ import service_deploy
 class AppModel {
     // MARK: - Services (Eager Initialization)
 
-    /// All services are created at app startup. The active mode determines which is in use.
-    let remoteService: DeploymentModel
+    /// Remote service is optional - nil if AWS config is missing
+    let remoteService: DeploymentModel?
+
+    /// Error from failed remote service initialization (nil if service was created successfully)
+    let remoteServiceError: Error?
+
     let xcodeLocalService: XcodeLocalModel
     let linuxLocalService: LinuxLocalModel
 
@@ -28,6 +32,7 @@ class AppModel {
         case .localXcode: return xcodeLocalModel
         case .localLinux: return linuxLocalModel
         case .remote: return nil
+        case .unconfigured: return nil
         }
     }
 
@@ -50,12 +55,20 @@ class AppModel {
     init() {
         let projectDirectory = Self.resolveProjectDirectory()
 
-        // Create all services eagerly at startup
-        let remote = DeploymentModel(projectRoot: projectDirectory)
+        // Create remote service - may fail if AWS config is missing
+        var remote: DeploymentModel?
+        var remoteError: Error?
+        do {
+            remote = try DeploymentModel(projectRoot: projectDirectory)
+        } catch {
+            remoteError = error
+        }
+
         let xcode = XcodeLocalModel(workingDirectory: projectDirectory)
         let linux = LinuxLocalModel(workingDirectory: projectDirectory)
 
         self.remoteService = remote
+        self.remoteServiceError = remoteError
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
 
@@ -74,7 +87,12 @@ class AppModel {
         case LinuxLocalModel.persistenceKey:
             initialMode = .localLinux(linux)
         default:
-            initialMode = .remote(remote)
+            // Fall back to Xcode mode if remote service failed to initialize
+            if let remote {
+                initialMode = .remote(remote)
+            } else {
+                initialMode = .localXcode(xcode)
+            }
         }
         self.mode = initialMode
 
@@ -96,7 +114,7 @@ class AppModel {
             print("🔄 Found localModel, calling startIfNecessary")
             await localModel.startIfNecessary()
             print("🔄 startIfNecessary completed")
-        } else {
+        } else if let remoteService {
             print("🔄 No localModel (remote mode), calling refresh")
             await remoteService.refresh()
         }
@@ -131,6 +149,7 @@ class AppModel {
     // MARK: - Mode Setters (for Picker binding)
 
     func setRemote() {
+        guard let remoteService else { return }
         mode = .remote(remoteService)
     }
 
@@ -153,6 +172,8 @@ class AppModel {
             return service.isConfigured
         case .localLinux(let service):
             return service.isConfigured
+        case .unconfigured:
+            return false
         }
     }
 
@@ -165,6 +186,8 @@ class AppModel {
             service.refreshStatus()
         case .localLinux(let service):
             service.refreshStatus()
+        case .unconfigured:
+            break
         }
     }
 
@@ -181,6 +204,7 @@ enum ConnectionMode {
     case remote(DeploymentModel)
     case localXcode(XcodeLocalModel)
     case localLinux(LinuxLocalModel)
+    case unconfigured
 
     /// Persistence key for saving/restoring mode selection
     var persistenceKey: String {
@@ -188,6 +212,7 @@ enum ConnectionMode {
         case .remote: return "remote"
         case .localXcode: return XcodeLocalModel.persistenceKey
         case .localLinux: return LinuxLocalModel.persistenceKey
+        case .unconfigured: return "unconfigured"
         }
     }
 
@@ -197,6 +222,7 @@ enum ConnectionMode {
         case .localXcode(let service): return service
         case .localLinux(let service): return service
         case .remote: return nil
+        case .unconfigured: return nil
         }
     }
 }

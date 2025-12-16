@@ -203,11 +203,17 @@ public class DeploymentModel {
     }
 
     /// Convenience initializer that loads configs from disk
+    /// - Throws: `DeployError.configurationMissing` if AWS config file is not found
     public convenience init(
         projectRoot: String,
         cliClient: CLIClient? = nil
-    ) {
-        let awsConfig = AWSAuthConfiguration.loadConfig() ?? AWSAuthConfiguration(profileName: "default", useAWSVault: false)
+    ) throws {
+        guard let awsConfig = AWSAuthConfiguration.loadConfig() else {
+            throw DeployError.configurationMissing(
+                file: AWSAuthConfiguration.configPath,
+                hint: "Run 'swift run SwiftDeploy local copy-config' to create"
+            )
+        }
         let githubConfig = GitHubConfiguration.loadConfig()?.toSDKConfiguration()
 
         self.init(

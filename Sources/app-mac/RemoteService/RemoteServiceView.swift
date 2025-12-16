@@ -186,7 +186,8 @@ struct RemoteServiceView: View {
 // MARK: - Preview
 
 #Preview {
-    let service = DeploymentModel(projectRoot: FileManager.default.currentDirectoryPath)
+    // swiftlint:disable:next force_try
+    let service = try! DeploymentModel(projectRoot: FileManager.default.currentDirectoryPath)
     return RemoteServiceView(service: service)
         .padding()
         .frame(width: 500)

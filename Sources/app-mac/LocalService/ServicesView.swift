@@ -311,47 +311,85 @@ struct ServicesView: View {
 
     @ViewBuilder
     private var remoteDetailView: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                DeploymentExplainer(
-                    icon: "cloud.fill",
-                    iconColor: .blue,
-                    title: "Deploy to AWS",
-                    summary: "Deploy infrastructure with CDK and Lambda code via GitHub Actions",
-                    details: [
-                        ExplainerDetail(
-                            icon: "square.stack.3d.up.fill",
-                            title: "CDK Infrastructure",
-                            description: "AWS CDK deploys the full infrastructure stack including VPC, API Gateway, RDS, S3, and SQS. Run deploy commands from this view to provision or update resources.",
-                            color: .purple
-                        ),
-                        ExplainerDetail(
-                            icon: "arrow.triangle.2.circlepath",
-                            title: "GitHub Actions",
-                            description: "Lambda code is built and deployed automatically via GitHub Actions when you push to dev or main. The build uses Docker to compile Swift for Linux.",
-                            color: .blue
-                        ),
-                        ExplainerDetail(
-                            icon: "bolt.fill",
-                            title: "Lambda Updates",
-                            description: "After GitHub Actions builds the Lambda, it uploads the zip directly to AWS. Infrastructure and Lambda code are deployed independently.",
-                            color: .orange
-                        )
-                    ]
-                )
-                .padding()
-
-                RemoteServiceView(service: model.remoteService, onOpenSettings: {
-                    showingSettings = true
-                })
-            }
-
-            if model.remoteService.isConfigured {
-                Divider()
+        if let remoteService = model.remoteService {
+            HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader(title: "Client API", subtitle: "Test API endpoints")
-                    ClientView(apiClient: model.remoteService.apiClient)
+                    DeploymentExplainer(
+                        icon: "cloud.fill",
+                        iconColor: .blue,
+                        title: "Deploy to AWS",
+                        summary: "Deploy infrastructure with CDK and Lambda code via GitHub Actions",
+                        details: [
+                            ExplainerDetail(
+                                icon: "square.stack.3d.up.fill",
+                                title: "CDK Infrastructure",
+                                description: "AWS CDK deploys the full infrastructure stack including VPC, API Gateway, RDS, S3, and SQS. Run deploy commands from this view to provision or update resources.",
+                                color: .purple
+                            ),
+                            ExplainerDetail(
+                                icon: "arrow.triangle.2.circlepath",
+                                title: "GitHub Actions",
+                                description: "Lambda code is built and deployed automatically via GitHub Actions when you push to dev or main. The build uses Docker to compile Swift for Linux.",
+                                color: .blue
+                            ),
+                            ExplainerDetail(
+                                icon: "bolt.fill",
+                                title: "Lambda Updates",
+                                description: "After GitHub Actions builds the Lambda, it uploads the zip directly to AWS. Infrastructure and Lambda code are deployed independently.",
+                                color: .orange
+                            )
+                        ]
+                    )
+                    .padding()
+
+                    RemoteServiceView(service: remoteService, onOpenSettings: {
+                        showingSettings = true
+                    })
                 }
+
+                if remoteService.isConfigured {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 0) {
+                        sectionHeader(title: "Client API", subtitle: "Test API endpoints")
+                        ClientView(apiClient: remoteService.apiClient)
+                    }
+                }
+            }
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    DeploymentExplainer(
+                        icon: "cloud.fill",
+                        iconColor: .blue,
+                        title: "Deploy to AWS",
+                        summary: "Deploy infrastructure with CDK and Lambda code via GitHub Actions",
+                        details: [
+                            ExplainerDetail(
+                                icon: "square.stack.3d.up.fill",
+                                title: "CDK Infrastructure",
+                                description: "AWS CDK deploys the full infrastructure stack including VPC, API Gateway, RDS, S3, and SQS. Run deploy commands from this view to provision or update resources.",
+                                color: .purple
+                            ),
+                            ExplainerDetail(
+                                icon: "arrow.triangle.2.circlepath",
+                                title: "GitHub Actions",
+                                description: "Lambda code is built and deployed automatically via GitHub Actions when you push to dev or main. The build uses Docker to compile Swift for Linux.",
+                                color: .blue
+                            ),
+                            ExplainerDetail(
+                                icon: "bolt.fill",
+                                title: "Lambda Updates",
+                                description: "After GitHub Actions builds the Lambda, it uploads the zip directly to AWS. Infrastructure and Lambda code are deployed independently.",
+                                color: .orange
+                            )
+                        ]
+                    )
+
+                    AWSCredentialErrorView(
+                        errorMessage: model.remoteServiceError?.localizedDescription ?? "AWS configuration is missing"
+                    )
+                }
+                .padding()
             }
         }
     }

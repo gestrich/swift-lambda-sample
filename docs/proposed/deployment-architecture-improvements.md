@@ -374,11 +374,19 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 - `ExistingConfiguration` type exposes detected stack state for UI display
 - Verification uses health endpoint (`/api/health`) rather than S3 upload test for faster feedback
 
-### Phase 3: Configuration Validation
+### Phase 3: Configuration Validation ✅ COMPLETED
 
-- [ ] Remove default fallback in `DeploymentModel` convenience init
-- [ ] Make convenience init throwing
-- [ ] Update callers to handle missing config explicitly
+- [x] Remove default fallback in `DeploymentModel` convenience init
+- [x] Make convenience init throwing
+- [x] Update callers to handle missing config explicitly
+
+**Technical Notes:**
+- `DeploymentModel` convenience init now throws `DeployError.configurationMissing` if AWS config file is missing
+- `AppModel` stores optional `remoteService` and `remoteServiceError` to gracefully handle missing config
+- Added `ConnectionMode.unconfigured` case for when remote service fails to initialize
+- `ServicesView` shows `AWSCredentialErrorView` when remote service is unavailable, with instructions to create config
+- Preview uses `try!` since it's development-only and should fail fast if config is missing
+- App falls back to Xcode local mode if remote config is missing, providing a functional experience
 
 ### Phase 4: StatusWorkflow
 
@@ -410,6 +418,6 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 | CLI commands are thin (I/O only) | ⚠️ Partial | ✅ Full |
 | Workflows handle orchestration | ⚠️ Partial | ✅ Full |
 | Models observe streams | ⚠️ Partial | ✅ Full |
-| No default fallbacks | ❌ | ✅ |
+| No default fallbacks | ✅ Full (Phase 3) | ✅ Full |
 | Consistent factory patterns | ✅ Full (Phase 1) | ✅ Full |
 | DRY (no duplicated setup) | ✅ Full (Phase 1) | ✅ Full |
