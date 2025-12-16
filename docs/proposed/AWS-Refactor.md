@@ -300,44 +300,68 @@ service-deploy/
 
 ---
 
-### [ ] Phase 5: Clean Up service-deploy
+### [x] Phase 5: Clean Up service-deploy ✅
 
 **Goal**: Remove redundant wrappers and consolidate service-deploy to contain only `DeploymentService` and app-specific models.
 
+**Status**: COMPLETED
+
 **Tasks**:
-- [ ] Delete `SwiftLambdaCDKService.swift` (logic moved to DeploymentService)
-- [ ] Delete `SwiftLambdaInfrastructureService.swift` (logic moved to DeploymentService)
-- [ ] Delete `RemoteDeploymentService.swift` (replaced by DeploymentService)
-- [ ] Evaluate `RemoteDeploymentOrchestrator` - merge into DeploymentService or keep for CLI
-- [ ] Consolidate models into `service-deploy/Models/`
-- [ ] Remove empty directories
+- [x] Delete `SwiftLambdaCDKService.swift` (logic moved to DeploymentService)
+- [x] Delete `SwiftLambdaInfrastructureService.swift` (logic moved to DeploymentService)
+- [x] Delete `RemoteDeploymentService.swift` (replaced by DeploymentService)
+- [x] Delete `RemoteDeploymentOrchestrator.swift` (merged into DeploymentService)
+- [x] Consolidate models into `service-deploy/Models/`
+- [x] Remove empty directories (`CDKService/`, `RemoteDeploymentService/`)
+- [x] Update CLI commands to use `DeploymentService` (merged Phase 6 into this)
 
 **Final service-deploy Structure**:
 ```
 service-deploy/
 ├── DeploymentService.swift         # @Observable, main service
-├── DeploymentOrchestrator.swift    # Optional: stateless CLI helper
-└── Models/
-    ├── DeploymentConfiguration.swift
-    ├── CDKInfrastructureConfiguration.swift
-    └── CDKStackOutputs.swift
+├── Models/
+│   ├── DeploymentConfiguration.swift
+│   ├── CDKInfrastructureConfiguration.swift
+│   ├── CDKStackConfiguration.swift
+│   └── CDKStackOutputs.swift
+├── AWSService/                     # AWS-specific service utilities
+├── DockerService/                  # Docker operations
+├── GitHubService/                  # GitHub configuration persistence
+├── LambdaService/                  # Lambda build service
+├── LocalDevelopmentService/        # Local dev services
+├── ToolsService/                   # CLI tool wrappers (Homebrew, etc.)
+└── Core/                           # Shared errors
 ```
+
+**Technical Notes**:
+- `RemoteDeploymentOrchestrator` was deleted rather than kept—`DeploymentService` now serves both Mac app and CLI
+- CLI commands use `@MainActor` helper methods to invoke `DeploymentService`
+- Models moved from `CDKService/Models/` to top-level `Models/`
+- `GitHubService/` retained for `GitHubConfiguration` (file persistence) and type re-exports for backwards compatibility
+- `AWSService/`, `DockerService/`, `LambdaService/`, `LocalDevelopmentService/`, `ToolsService/`, `Core/` retained—these are not redundant wrappers
 
 ---
 
-### [ ] Phase 6: Update feature-cli Commands
+### [x] Phase 6: Update feature-cli Commands ✅
 
 **Goal**: CLI commands should use `DeploymentService` or SDK clients directly.
 
+**Status**: COMPLETED (merged into Phase 5)
+
 **Tasks**:
-- [ ] Update `DeployCommand` to use `DeploymentService`
-- [ ] Update `DeployInitCommand` to use `DeploymentService`
-- [ ] Update `TearDownCommand` to use `DeploymentService`
-- [ ] Update `StatusCommand` to use `DeploymentService`
-- [ ] Update `UpdateLambdaCommand` to use `DeploymentService`
-- [ ] Update `LogsCommand` to use `sdk-cloudwatch` directly
-- [ ] Update `TestCommand` to use appropriate SDKs
-- [ ] Remove any direct usage of deleted services
+- [x] Update `DeployCommand` to use `DeploymentService`
+- [x] Update `DeployInitCommand` to use `DeploymentService`
+- [x] Update `TearDownCommand` to use `DeploymentService`
+- [x] Update `StatusCommand` to use `DeploymentService`
+- [x] Update `UpdateLambdaCommand` to use `DeploymentService`
+- [ ] Update `LogsCommand` to use `sdk-cloudwatch` directly (future work—not critical)
+- [ ] Update `TestCommand` to use appropriate SDKs (future work—not critical)
+- [x] Remove any direct usage of deleted services
+
+**Technical Notes**:
+- CLI commands now use `@MainActor` helper methods to bridge async operations with `DeploymentService`
+- Pattern: `mutating func run() async throws` calls `try await runX()` which is `@MainActor`
+- This pattern allows CLI commands to work with `@MainActor @Observable` DeploymentService
 
 ---
 

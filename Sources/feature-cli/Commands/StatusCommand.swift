@@ -25,20 +25,23 @@ extension AWSCommand {
             print("📊 Checking status...\n")
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let service = RemoteDeploymentService(
+            try await runStatus(projectRoot: projectRoot, awsConfig: awsConfig)
+        }
+
+        @MainActor
+        private func runStatus(projectRoot: String, awsConfig: AWSAuthConfiguration) async throws {
+            let service = DeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )
 
             let status = try await service.getComprehensiveStatus()
 
-            // Git status
             print("📝 Git Status:")
             print("  Uncommitted changes: \(status.gitStatus.hasUncommittedChanges ? "YES" : "NO")")
             print("  Commits to push: \(status.gitStatus.hasCommitsToPush ? "YES" : "NO")")
             print("  Current branch: \(status.gitStatus.currentBranch)")
 
-            // GitHub Actions status
             if let github = status.githubStatus {
                 print("\n🔄 GitHub Actions:")
                 print("  Repository: \(github.repository)")
@@ -55,7 +58,6 @@ extension AWSCommand {
                 print("\n🔄 GitHub Actions: Unable to fetch status")
             }
 
-            // CDK Stack status
             print("\n☁️  CDK Stack:")
             if !status.stackOutputs.isEmpty {
                 for (key, value) in status.stackOutputs.sorted(by: { $0.key < $1.key }) {

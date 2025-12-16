@@ -42,16 +42,20 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let service = RemoteDeploymentService(
+            try await runTearDown(projectRoot: projectRoot, awsConfig: awsConfig, cdkDirectory: cdkDirectory)
+        }
+
+        @MainActor
+        private func runTearDown(projectRoot: String, awsConfig: AWSAuthConfiguration, cdkDirectory: String) async throws {
+            let service = DeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
             )
 
-            // Refresh to get current state (destroy only works if deployed)
             await service.refresh()
 
-            let currentState = await service.getCurrentState()
+            let currentState = service.deploymentState
             guard case .deployed = currentState else {
                 if case .notDeployed = currentState {
                     print("ℹ️  Stack is not deployed. Nothing to tear down.")
@@ -62,7 +66,7 @@ extension AWSCommand {
 
             await service.destroy()
 
-            let finalState = await service.getCurrentState()
+            let finalState = service.deploymentState
             if case .failed(let reason) = finalState {
                 throw DeployError.deploymentFailed(reason: reason)
             }

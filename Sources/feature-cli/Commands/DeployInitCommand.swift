@@ -49,17 +49,35 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let service = RemoteDeploymentService(
+            try await runDeployInit(
+                projectRoot: projectRoot,
+                awsConfig: awsConfig,
+                cdkDirectory: cdkDirectory,
+                withPostgres: withPostgres,
+                withNatGateway: withNatGateway,
+                skipPush: skipPush
+            )
+        }
+
+        @MainActor
+        private func runDeployInit(
+            projectRoot: String,
+            awsConfig: AWSAuthConfiguration,
+            cdkDirectory: String,
+            withPostgres: Bool,
+            withNatGateway: Bool,
+            skipPush: Bool
+        ) async throws {
+            let service = DeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
             )
 
-            // Check existing state for warning
             await service.refresh()
-            let currentState = await service.getCurrentState()
+            let currentState = service.deploymentState
 
-            if case .deployed(let config, _) = currentState {
+            if case .deployed = currentState, let config = service.infrastructureConfiguration {
                 print("\n⚠️  WARNING: Stack already exists!")
                 print("   Current configuration:")
                 print("     Database: \(config.hasDatabase ? "YES" : "NO")")
@@ -70,9 +88,13 @@ extension AWSCommand {
                 print("\n   Updating existing stack...\n")
             }
 
-            try await service.deployInit(
+            let options = DeploymentService.DeployOptions(
                 withPostgres: withPostgres,
-                withNATGateway: withNatGateway,
+                withNATGateway: withNatGateway
+            )
+
+            try await service.deployInit(
+                options: options,
                 skipPush: skipPush
             )
 

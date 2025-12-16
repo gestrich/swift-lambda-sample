@@ -32,18 +32,22 @@ extension AWSCommand {
             print("\n📦 Starting CDK deployment...")
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            let service = RemoteDeploymentService(
+
+            try await runDeployment(projectRoot: projectRoot, awsConfig: awsConfig, cdkDirectory: cdkDirectory)
+        }
+
+        @MainActor
+        private func runDeployment(projectRoot: String, awsConfig: AWSAuthConfiguration, cdkDirectory: String) async throws {
+            let service = DeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig,
                 cdkDirectory: cdkDirectory
             )
 
-            // Refresh to get current state
             await service.refresh()
-            let currentState = await service.getCurrentState()
+            let currentState = service.deploymentState
 
-            // Show detected configuration
-            if case .deployed(let config, _) = currentState {
+            if case .deployed = currentState, let config = service.infrastructureConfiguration {
                 print("\n📊 Detected existing stack configuration:")
                 print("   Database: \(config.hasDatabase ? "YES" : "NO")")
                 print("   NAT Gateway: \(config.hasNATGateway ? "YES" : "NO")")
@@ -54,19 +58,16 @@ extension AWSCommand {
                 print("   → Use 'deploy-init' to set initial configuration\n")
             }
 
-            // Update infrastructure maintaining current config
             await service.updateInfrastructure()
 
-            let finalState = await service.getCurrentState()
+            let finalState = service.deploymentState
             if case .failed(let reason) = finalState {
                 throw DeployError.deploymentFailed(reason: reason)
             }
 
-            // Display outputs
-            if case .deployed(_, let outputs) = finalState {
+            if case .deployed = finalState, let outputs = service.stackOutputs {
                 print("\n📋 Stack Outputs:")
-                let rawOutputs = (try? await service.getRawStackOutputs()) ?? [:]
-                for (key, value) in rawOutputs.sorted(by: { $0.key < $1.key }) {
+                for (key, value) in outputs.allOutputs.sorted(by: { $0.key < $1.key }) {
                     print("  \(key): \(value)")
                 }
                 if outputs.apiGatewayUrl != nil {

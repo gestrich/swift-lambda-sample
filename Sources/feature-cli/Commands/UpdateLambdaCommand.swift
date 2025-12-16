@@ -22,7 +22,12 @@ extension AWSCommand {
                 useAWSVault: nil
             )
 
-            let service = RemoteDeploymentService(
+            try await runUpdateLambda(projectRoot: projectRoot, awsConfig: awsConfig, skipPush: skipPush)
+        }
+
+        @MainActor
+        private func runUpdateLambda(projectRoot: String, awsConfig: AWSAuthConfiguration, skipPush: Bool) async throws {
+            let service = DeploymentService(
                 projectRoot: projectRoot,
                 awsConfig: awsConfig
             )
