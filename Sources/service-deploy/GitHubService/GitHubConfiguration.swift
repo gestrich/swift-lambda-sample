@@ -2,13 +2,15 @@
 //  GitHubConfiguration.swift
 //  SwiftDeploy
 //
-//  GitHub configuration for CI/CD integration
+//  GitHub configuration for CI/CD integration with file persistence
 //
 
 import Foundation
 import service_storage
+import sdk_github
 
-/// GitHub configuration for SwiftDeploy
+/// GitHub configuration for SwiftDeploy with file persistence
+/// This extends the SDK's GitHubActionsConfiguration with file loading/saving capabilities
 public struct GitHubConfiguration: Codable, Sendable {
     /// Repository in "owner/repo" format (e.g., "gestrich/swift-lambda-sample")
     public let repository: String
@@ -75,6 +77,17 @@ public struct GitHubConfiguration: Codable, Sendable {
     /// Repo name part of the repository (e.g., "swift-lambda-sample")
     public var repoName: String {
         repository.components(separatedBy: "/").last ?? ""
+    }
+
+    // MARK: - SDK Conversion
+
+    /// Convert to SDK configuration type
+    public func toSDKConfiguration() -> GitHubActionsConfiguration {
+        GitHubActionsConfiguration(
+            repository: repository,
+            branch: branch,
+            workflowName: workflowName
+        )
     }
 }
 

@@ -308,8 +308,8 @@ public actor RemoteDeploymentService {
             )
         }
 
-        let gitService = GitService(repoPath: projectRoot, cliClient: cliClient)
-        let actionsService = GitHubActionsService(repoPath: projectRoot, config: config, cliClient: cliClient)
+        let gitService = GitClient(repoPath: projectRoot, cliClient: cliClient)
+        let actionsService = makeGitHubActionsClient(repoPath: projectRoot, config: config, cliClient: cliClient)
 
         if !skipPush {
             let hasCommitsToPush = try await gitService.hasCommitsToPush()
@@ -370,7 +370,7 @@ public actor RemoteDeploymentService {
             await refresh()
         }
 
-        let gitService = GitService(repoPath: projectRoot, cliClient: cliClient)
+        let gitService = GitClient(repoPath: projectRoot, cliClient: cliClient)
 
         // Get git status
         let hasUncommitted = try await gitService.hasUncommittedChanges()
@@ -386,7 +386,7 @@ public actor RemoteDeploymentService {
         // Get GitHub status if configured
         var githubStatus: ComprehensiveStatus.GitHubStatusInfo? = nil
         if let githubConfig = GitHubConfiguration.loadConfig() {
-            let actionsService = GitHubActionsService(repoPath: projectRoot, config: githubConfig, cliClient: cliClient)
+            let actionsService = makeGitHubActionsClient(repoPath: projectRoot, config: githubConfig, cliClient: cliClient)
             do {
                 let (status, conclusion) = try await actionsService.getLatestRunStatus()
                 githubStatus = ComprehensiveStatus.GitHubStatusInfo(

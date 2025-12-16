@@ -1,8 +1,8 @@
 import sdk_cli
 import Foundation
 
-/// Service for Git operations
-public actor GitService {
+/// Client for Git operations
+public actor GitClient {
     private let cliClient: CLIClient
     private let repoPath: String
 
@@ -48,7 +48,7 @@ public actor GitService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.gitOperationFailed(reason: "Failed to get current branch")
+            throw GitHubClientError.gitOperationFailed(reason: "Failed to get current branch")
         }
 
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -66,7 +66,7 @@ public actor GitService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.gitOperationFailed(reason: "Git push failed: \(result.stderr)")
+            throw GitHubClientError.gitOperationFailed(reason: "Git push failed: \(result.stderr)")
         }
 
         print("✅ Commits pushed successfully")
@@ -81,7 +81,7 @@ public actor GitService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.gitOperationFailed(reason: "Failed to get remote URL")
+            throw GitHubClientError.gitOperationFailed(reason: "Failed to get remote URL")
         }
 
         let remoteUrl = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -92,7 +92,7 @@ public actor GitService {
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: remoteUrl, range: NSRange(remoteUrl.startIndex..., in: remoteUrl)),
               match.numberOfRanges >= 3 else {
-            throw DeployError.gitOperationFailed(reason: "Could not parse GitHub repository from remote URL: \(remoteUrl)")
+            throw GitHubClientError.gitOperationFailed(reason: "Could not parse GitHub repository from remote URL: \(remoteUrl)")
         }
 
         let ownerRange = Range(match.range(at: 1), in: remoteUrl)!

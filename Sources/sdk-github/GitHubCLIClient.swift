@@ -1,8 +1,8 @@
 import sdk_cli
 import Foundation
 
-/// Service for interacting with GitHub CLI (gh)
-public actor GitHubCLIService {
+/// Client for interacting with GitHub CLI (gh)
+public actor GitHubCLIClient {
     private let cliClient: CLIClient
     private let repository: String
 
@@ -30,7 +30,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command, printCommand: false)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -57,7 +57,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command, output: output)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -91,7 +91,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command, printCommand: false)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -112,7 +112,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command, output: output)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -140,7 +140,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -162,7 +162,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command, printCommand: false)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output
@@ -182,7 +182,7 @@ public actor GitHubCLIService {
         let result = try await cliClient.executeForResult(command)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw GitHubClientError.commandFailed(
                 command: command.commandString,
                 exitCode: result.exitCode,
                 output: result.output

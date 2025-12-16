@@ -80,26 +80,38 @@ sdk-github/
 
 ## Refactoring Phases
 
-### [ ] Phase 1: Move GitHub to SDK Layer
+### [x] Phase 1: Move GitHub to SDK Layer ✅
 
 **Goal**: Move `GitHubActionsService` and `GitService` from service-deploy to a new `sdk-github` target.
 
-**Tasks**:
-- [ ] Create `sdk-github` target in Package.swift
-- [ ] Move `GitHubActionsService.swift` → `sdk-github/GitHubActionsClient.swift`
-- [ ] Move `GitService.swift` → `sdk-github/GitClient.swift`
-- [ ] Rename classes to use `*Client` suffix
-- [ ] Update imports in service-deploy
-- [ ] Update Package.swift dependencies
+**Status**: COMPLETED
 
-**Files to Create/Move**:
+**Tasks**:
+- [x] Create `sdk-github` target in Package.swift
+- [x] Move `GitHubActionsService.swift` → `sdk-github/GitHubActionsClient.swift`
+- [x] Move `GitService.swift` → `sdk-github/GitClient.swift`
+- [x] Rename classes to use `*Client` suffix
+- [x] Update imports in service-deploy
+- [x] Update Package.swift dependencies
+
+**Files Created**:
 ```
 sdk-github/
-├── GitHubActionsClient.swift       # from service-deploy/GitHubService/
-├── GitClient.swift                 # from service-deploy/GitHubService/
-└── Models/
-    └── GitHubWorkflowRun.swift
+├── CLI/
+│   └── Gh.swift                    # GitHub CLI command definitions + models
+├── GitHubActionsClient.swift       # High-level GitHub Actions orchestration
+├── GitHubCLIClient.swift           # Low-level gh CLI wrapper
+├── GitClient.swift                 # Git operations client
+├── GitHubClientError.swift         # SDK-specific errors
+└── (models inline in Gh.swift)     # GitHubWorkflowRun, GitHubRunDetail, etc.
 ```
+
+**Technical Notes**:
+- Created `GitHubActionsConfiguration` in sdk-github for SDK use
+- Kept `GitHubConfiguration` in service-deploy for file persistence (extends SDK config with `toSDKConfiguration()`)
+- Added `makeGitHubActionsClient()` factory function for creating clients from service-layer config
+- Re-exported SDK types from service-deploy for backwards compatibility using `@_exported import`
+- Type aliases (`GitHubActionsService = GitHubActionsClient`) maintain API compatibility
 
 ---
 

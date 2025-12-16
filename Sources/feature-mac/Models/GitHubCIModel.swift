@@ -1,10 +1,11 @@
 import sdk_cli
+import sdk_github
 import Foundation
 import Observation
 import service_deploy
 
 /// Observable model for GitHub CI operations
-/// Holds UI state and delegates operations to GitHubActionsService
+/// Holds UI state and delegates operations to GitHubActionsClient
 @MainActor
 @Observable
 public final class GitHubCIModel {
@@ -18,13 +19,13 @@ public final class GitHubCIModel {
 
     // MARK: - Private Services
 
-    private let actionsService: GitHubActionsService
+    private let actionsService: GitHubActionsClient
 
     // MARK: - Init
 
     public init(repoPath: String, config: GitHubConfiguration, cliClient: CLIClient) {
         self.config = config
-        self.actionsService = GitHubActionsService(repoPath: repoPath, config: config, cliClient: cliClient)
+        self.actionsService = makeGitHubActionsClient(repoPath: repoPath, config: config, cliClient: cliClient)
 
         // Fetch status from GitHub immediately on init
         Task {

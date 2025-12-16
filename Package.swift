@@ -46,6 +46,12 @@ let package = Package(
             ]
         ),
         .target(
+            name: "sdk-github",
+            dependencies: [
+                .target(name: "sdk-cli"),
+            ]
+        ),
+        .target(
             name: "service-storage"
         ),
         .executableTarget(
@@ -66,6 +72,7 @@ let package = Package(
                 .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-aws"),
+                .target(name: "sdk-github"),
             ]
         ),
         .executableTarget(
@@ -89,6 +96,7 @@ let package = Package(
                 .target(name: "service-deploy"),
                 .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
+                .target(name: "sdk-github"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
