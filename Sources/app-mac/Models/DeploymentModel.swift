@@ -237,7 +237,7 @@ public class DeploymentModel {
             deploymentState = queriedState
 
             // Update app-specific state based on deployment state
-            try await updateAppSpecificState()
+            updateAppSpecificState()
         } catch let error as DeploymentError {
             if case .credentialExpired(let message) = error {
                 deploymentState = .credentialExpired(message: message)
@@ -349,11 +349,11 @@ public class DeploymentModel {
     // MARK: - Private: App-Specific State
 
     /// Update app-specific state (infrastructureConfiguration, stackOutputs) based on deployment state.
-    private func updateAppSpecificState() async throws {
+    private func updateAppSpecificState() {
         switch deploymentState {
-        case .deployed(let outputs):
-            infrastructureConfiguration = try await cfClient.detectConfiguration(stackName: stackName)
-            stackOutputs = CDKStackOutputs.from(outputs)
+        case .deployed(let stack):
+            infrastructureConfiguration = CDKInfrastructureConfiguration(stack.infrastructure)
+            stackOutputs = CDKStackOutputs.from(stack.outputs)
 
         case .notDeployed:
             infrastructureConfiguration = nil

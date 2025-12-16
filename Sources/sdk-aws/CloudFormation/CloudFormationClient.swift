@@ -224,7 +224,12 @@ public actor CloudFormationClient {
             switch stackStatus {
             case StackStatus.createComplete, StackStatus.updateComplete:
                 let outputs = try await getStackOutputs(name: stackName)
-                return .deployed(outputs: outputs)
+                let resources = try await describeStackResources(name: stackName)
+                let stack = DeployedStack(
+                    outputs: outputs,
+                    infrastructure: DetectedInfrastructure(resources: resources)
+                )
+                return .deployed(stack)
 
             case StackStatus.createInProgress,
                  StackStatus.updateInProgress,
@@ -249,7 +254,12 @@ public actor CloudFormationClient {
 
             default:
                 let outputs = try await getStackOutputs(name: stackName)
-                return .deployed(outputs: outputs)
+                let resources = try await describeStackResources(name: stackName)
+                let stack = DeployedStack(
+                    outputs: outputs,
+                    infrastructure: DetectedInfrastructure(resources: resources)
+                )
+                return .deployed(stack)
             }
         } catch {
             let errorMessage = error.localizedDescription

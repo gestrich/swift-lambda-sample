@@ -116,7 +116,7 @@ public struct StatusWorkflow: Sendable {
     /// CloudFormation stack status
     public enum StackStatus: Sendable {
         case notDeployed
-        case deployed(outputs: [String: String])
+        case deployed(DeployedStack)
         case deploying
         case destroying
         case failed(reason: String)
@@ -127,8 +127,8 @@ public struct StatusWorkflow: Sendable {
             switch state {
             case .notDeployed:
                 self = .notDeployed
-            case .deployed(let outputs):
-                self = .deployed(outputs: outputs)
+            case .deployed(let stack):
+                self = .deployed(stack)
             case .deploying:
                 self = .deploying
             case .destroying:

@@ -82,14 +82,15 @@ extension AWSCommand {
 
         private func printStackStatus(_ status: StatusWorkflow.StackStatus) {
             switch status {
-            case .deployed(let outputs):
-                if outputs.isEmpty {
+            case .deployed(let stack):
+                if stack.outputs.isEmpty {
                     print("  Stack deployed but no outputs")
                 } else {
-                    for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
+                    for (key, value) in stack.outputs.sorted(by: { $0.key < $1.key }) {
                         print("  \(key): \(value)")
                     }
                 }
+                print("  Infrastructure: DB=\(stack.infrastructure.hasDatabase), NAT=\(stack.infrastructure.hasNATGateway), VPC=\(stack.infrastructure.hasVPC)")
             case .notDeployed:
                 print("  Stack not deployed")
             case .credentialExpired(let message):

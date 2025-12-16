@@ -1,5 +1,37 @@
 import Foundation
 
+/// Infrastructure components detected from CloudFormation stack resources.
+/// This is an SDK-level type representing what was actually deployed.
+public struct DetectedInfrastructure: Sendable, Equatable {
+    public let hasDatabase: Bool
+    public let hasNATGateway: Bool
+    public let hasVPC: Bool
+
+    public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
+        self.hasDatabase = hasDatabase
+        self.hasNATGateway = hasNATGateway
+        self.hasVPC = hasVPC
+    }
+
+    public init(resources: [CloudFormationStackResource]) {
+        self.hasDatabase = resources.hasDatabase
+        self.hasNATGateway = resources.hasNATGateway
+        self.hasVPC = resources.hasVPC
+    }
+}
+
+/// Represents a successfully deployed CloudFormation stack.
+/// Bundles outputs and infrastructure detection since they're fetched together.
+public struct DeployedStack: Sendable, Equatable {
+    public let outputs: [String: String]
+    public let infrastructure: DetectedInfrastructure
+
+    public init(outputs: [String: String] = [:], infrastructure: DetectedInfrastructure = DetectedInfrastructure()) {
+        self.outputs = outputs
+        self.infrastructure = infrastructure
+    }
+}
+
 /// High-level state machine for CloudFormation stack lifecycle.
 ///
 /// This is the SDK-layer state type representing the overall stack status.
@@ -33,7 +65,7 @@ public enum CloudFormationState: Sendable, Equatable {
     case unknown
     case loading
     case notDeployed
-    case deployed(outputs: [String: String])
+    case deployed(DeployedStack)
     case deploying(operation: DeployOperation, progress: DeploymentProgress, startTime: Date)
     case destroying(progress: DeploymentProgress, startTime: Date)
     case failed(reason: String)
@@ -66,11 +98,19 @@ public enum CloudFormationState: Sendable, Equatable {
         }
     }
 
-    public var outputs: [String: String] {
-        if case .deployed(let outputs) = self {
-            return outputs
+    public var deployedStack: DeployedStack? {
+        if case .deployed(let stack) = self {
+            return stack
         }
-        return [:]
+        return nil
+    }
+
+    public var outputs: [String: String] {
+        deployedStack?.outputs ?? [:]
+    }
+
+    public var infrastructure: DetectedInfrastructure? {
+        deployedStack?.infrastructure
     }
 
     public var progress: DeploymentProgress {

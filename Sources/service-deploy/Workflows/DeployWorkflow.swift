@@ -135,10 +135,14 @@ public struct DeployWorkflow: Sendable {
                 return .deploying(operation: .monitoring, progress: deployProgress, startTime: startTime)
 
             case .complete:
-                if case .outputs(let outputs, _) = detail, let outputs = outputs {
-                    return .deployed(outputs: outputs.allOutputs)
+                if case .outputs(let outputs, let config) = detail {
+                    let stack = DeployedStack(
+                        outputs: outputs?.allOutputs ?? [:],
+                        infrastructure: config?.detectedInfrastructure ?? DetectedInfrastructure()
+                    )
+                    return .deployed(stack)
                 }
-                return .deployed(outputs: [:])
+                return .deployed(DeployedStack())
             }
         }
 
@@ -265,13 +269,11 @@ public struct DeployWorkflow: Sendable {
             case .deploying(_, let progress, _):
                 continuation.yield(Progress(step: .monitoring, detail: .cdk(progress)))
 
-            case .deployed(let outputs):
-                // Get infrastructure configuration
-                let config = try await cfClient.detectConfiguration(stackName: stackName)
-                let stackOutputs = CDKStackOutputs.from(outputs)
+            case .deployed(let stack):
+                let stackOutputs = CDKStackOutputs.from(stack.outputs)
                 continuation.yield(Progress(
                     step: .complete,
-                    detail: .outputs(stackOutputs, config)
+                    detail: .outputs(stackOutputs, CDKInfrastructureConfiguration(stack.infrastructure))
                 ))
                 continuation.finish()
                 return
@@ -295,12 +297,11 @@ public struct DeployWorkflow: Sendable {
         // Query final state to determine outcome
         let finalState = try await cfClient.queryState(stackName: stackName)
         switch finalState {
-        case .deployed(let outputs):
-            let config = try await cfClient.detectConfiguration(stackName: stackName)
-            let stackOutputs = CDKStackOutputs.from(outputs)
+        case .deployed(let stack):
+            let stackOutputs = CDKStackOutputs.from(stack.outputs)
             continuation.yield(Progress(
                 step: .complete,
-                detail: .outputs(stackOutputs, config)
+                detail: .outputs(stackOutputs, CDKInfrastructureConfiguration(stack.infrastructure))
             ))
             continuation.finish()
 

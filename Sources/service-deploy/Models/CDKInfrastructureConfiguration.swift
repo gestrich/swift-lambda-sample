@@ -29,21 +29,22 @@ public struct CDKInfrastructureConfiguration: Equatable, Sendable {
             hasVPC: resources.hasVPC
         )
     }
-}
 
-extension CloudFormationClient {
-    /// Detect infrastructure configuration from CloudFormation resources.
-    /// Returns nil if the stack does not exist.
-    public func detectConfiguration(stackName: String) async throws -> CDKInfrastructureConfiguration? {
-        do {
-            let resources = try await describeStackResources(name: stackName)
-            return CDKInfrastructureConfiguration(resources: resources)
-        } catch let error as CloudFormationError {
-            if case .commandFailed(_, _, let output) = error,
-               output.contains("does not exist") {
-                return nil
-            }
-            throw error
-        }
+    /// Initialize from SDK-layer detected infrastructure
+    public init(_ detected: DetectedInfrastructure) {
+        self.init(
+            hasDatabase: detected.hasDatabase,
+            hasNATGateway: detected.hasNATGateway,
+            hasVPC: detected.hasVPC
+        )
+    }
+
+    /// Convert to SDK-layer detected infrastructure
+    public var detectedInfrastructure: DetectedInfrastructure {
+        DetectedInfrastructure(
+            hasDatabase: hasDatabase,
+            hasNATGateway: hasNATGateway,
+            hasVPC: hasVPC
+        )
     }
 }
