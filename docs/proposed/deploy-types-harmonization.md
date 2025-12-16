@@ -345,7 +345,7 @@ public func updateInfrastructure(output: CLIOutputStream? = nil) async {
 
 ---
 
-## Phase 4: Document Progress Type Hierarchy
+## Phase 4: Document Progress Type Hierarchy ✅ COMPLETED
 
 **Goal:** Add documentation explaining why each progress type exists.
 
@@ -400,7 +400,13 @@ Add header documentation to each file:
 /// - `DeploymentModel.activeWorkflow` (UI binding)
 ```
 
-**Verification:** Documentation renders correctly.
+**Implementation Notes:**
+- Each type now includes a "Progress Type Hierarchy" section with ASCII diagram showing its position in the architecture.
+- Added "YOU ARE HERE" marker in each diagram to make navigation easier.
+- Updated module names to use actual target names (`sdk-aws`, `service-deploy`, `feature-mac`).
+- Added "Consumers" section to `DeployWorkflow.Progress` documenting where it's used.
+
+**Verification:** Build succeeds. Documentation renders correctly in Xcode Quick Help.
 
 ---
 

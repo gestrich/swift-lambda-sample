@@ -1,6 +1,22 @@
 import Foundation
 
-/// Progress snapshot during deployment/destroy operations.
+/// Resource-level progress during CloudFormation operations.
+///
+/// This is the SDK-layer progress type that tracks individual AWS resource
+/// creation/update/deletion. It's used by:
+/// - `CloudFormationState.deploying` and `.destroying` cases
+/// - `DeployWorkflow.Progress.Detail.cdk` for detailed resource status
+///
+/// ## Progress Type Hierarchy
+///
+/// ```
+/// DeploymentProgress (sdk-aws) - individual resources
+///     └── embedded in CloudFormationState (sdk-aws) - stack lifecycle
+///         └── consumed by DeployWorkflow.Progress (service-deploy) - workflow steps
+///             └── consumed by ActiveWorkflow (feature-mac) - UI state
+/// ```
+///
+/// Each layer adds context: resources → stack state → workflow phase → UI binding.
 public struct DeploymentProgress: Sendable, Equatable {
     public let resources: [ResourceProgress]
     public let pollCount: Int

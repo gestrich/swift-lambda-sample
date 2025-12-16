@@ -19,7 +19,29 @@ public struct DeployWorkflow: Sendable {
         self.stackName = stackName
     }
 
-    /// Progress updates from the deploy workflow
+    /// Progress updates from the deploy workflow.
+    ///
+    /// This is the service-layer progress type that tracks workflow phases:
+    /// building → deploying → monitoring → complete
+    ///
+    /// The `Detail` enum wraps SDK-layer progress (`DeploymentProgress`) and
+    /// adds workflow-specific context like final outputs and configuration.
+    ///
+    /// ## Progress Type Hierarchy
+    ///
+    /// This type aggregates SDK-layer progress for consumption by the app layer:
+    ///
+    /// ```
+    /// DeploymentProgress (sdk-aws) - individual resources
+    ///     └── embedded in CloudFormationState (sdk-aws) - stack lifecycle
+    ///         └── consumed by DeployWorkflow.Progress (service-deploy) ← YOU ARE HERE
+    ///             └── consumed by ActiveWorkflow (feature-mac) - UI state
+    /// ```
+    ///
+    /// ## Consumers
+    ///
+    /// - CLI commands (print progress directly)
+    /// - `DeploymentModel.activeWorkflow` (UI binding)
     public struct Progress: Sendable {
         public let step: Step
         public let detail: Detail?

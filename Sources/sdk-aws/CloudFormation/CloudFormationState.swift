@@ -1,8 +1,26 @@
 import Foundation
 
-/// State of a CloudFormation stack.
-/// This enum represents the high-level state of a CloudFormation stack
-/// without any app-specific configuration knowledge.
+/// High-level state machine for CloudFormation stack lifecycle.
+///
+/// This is the SDK-layer state type representing the overall stack status.
+/// It embeds `DeploymentProgress` for resource-level details during operations.
+///
+/// ## Usage
+///
+/// - `CloudFormationClient.queryState()` return type
+/// - `CloudFormationClient.monitorStream()` yields
+/// - `DeploymentModel.deploymentState` for stable state display
+///
+/// ## Progress Type Hierarchy
+///
+/// This type sits between resource-level tracking and workflow-level tracking:
+///
+/// ```
+/// DeploymentProgress (sdk-aws) - individual resources
+///     └── embedded in CloudFormationState (sdk-aws) ← YOU ARE HERE
+///         └── consumed by DeployWorkflow.Progress (service-deploy)
+///             └── consumed by ActiveWorkflow (feature-mac)
+/// ```
 public enum CloudFormationState: Sendable, Equatable {
     /// Operations that can occur during deployment
     public enum DeployOperation: String, Sendable, Equatable {
