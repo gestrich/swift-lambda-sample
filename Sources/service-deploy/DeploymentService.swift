@@ -503,48 +503,6 @@ public class DeploymentService {
         )
     }
 
-    // MARK: - Testing Operations
-
-    /// Test remote Lambda endpoints
-    public func testEndpoints() async throws {
-        guard let apiUrl = apiGatewayUrl else {
-            throw DeployError.testFailed(message: "Remote endpoint not configured. Deploy first.")
-        }
-
-        print("\n🧪 Testing remote Lambda at \(apiUrl)...")
-        print("")
-
-        let client = APIClient(baseURL: apiUrl, serviceName: "Remote (API Gateway)")
-
-        print("→ Testing file upload...")
-        let testContent = "Hello from remote test!"
-        guard let testData = testContent.data(using: .utf8) else {
-            throw DeployError.testFailed(message: "Failed to create test data")
-        }
-
-        let uploadResponse = try await client.uploadFile(fileName: "test-remote.txt", data: testData)
-        if uploadResponse.contains("File uploaded: test-remote.txt") {
-            print("  ✅ File upload test passed")
-        } else {
-            print("  ❌ File upload test failed: \(uploadResponse)")
-            throw DeployError.testFailed(message: "File upload endpoint test failed")
-        }
-
-        print("")
-
-        print("→ Testing list files...")
-        let fileList = try await client.listFiles()
-        if fileList.contains("test-remote.txt") {
-            print("  ✅ List files test passed (found \(fileList.count) files)")
-        } else {
-            print("  ❌ List files test failed: \(fileList)")
-            throw DeployError.testFailed(message: "List files endpoint test failed")
-        }
-
-        print("")
-        print("✅ All remote Lambda tests passed!")
-    }
-
     // MARK: - Private: Infrastructure Detection
 
     /// Detect the current infrastructure configuration from CloudFormation resources
