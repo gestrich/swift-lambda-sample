@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Mac app follows a **Feature-Service-SDK** architecture where services ARE the models.
+The Mac app follows a **Feature-Service-SDK** architecture where services ARE the models. Views observe `@Observable` services directly—there is no separate model layer.
 
 ## Project Structure
 
@@ -10,20 +10,25 @@ The Mac app follows a **Feature-Service-SDK** architecture where services ARE th
 feature-mac/                             # Feature layer (handles I/O)
 ├── Views/
 │   ├── ContentView.swift                # Main view, switches on mode
-│   ├── RemoteView.swift                 # AWS deployment UI
+│   ├── RemoteServiceView.swift          # AWS deployment UI
 │   ├── XcodeLocalView.swift             # Native macOS local dev UI
 │   └── LinuxLocalView.swift             # Linux container local dev UI
 
-Services/                                # Service layer (@Observable)
-├── service-deploy/                      # AWS deployment state & orchestration
-├── service-local-dev/                   # Local dev (Xcode + Linux)
-└── service-settings/                    # App settings
+service-deploy/                          # Service layer (@Observable)
+├── DeploymentService.swift              # Main service, orchestrates SDKs
+├── Models/                              # App-specific models
+├── LocalDevelopmentService/             # Local dev services
 
-SDKs/                                    # SDK layer (reusable)
-├── sdk-cdk/                             # AWS CDK operations
-├── sdk-github/                          # GitHub Actions operations
-├── sdk-docker/                          # Docker container operations
-└── sdk-cli/                             # Process execution utilities
+sdk-aws/                                 # SDK layer (reusable)
+├── CDK/CDKClient.swift                  # CDK operations (actor, AsyncStream)
+├── CloudFormation/CloudFormationClient.swift  # Stack queries
+├── Lambda/LambdaClient.swift            # Lambda operations
+├── S3/S3Client.swift                    # S3 operations
+└── CloudWatch/CloudWatchLogsClient.swift
+
+sdk-github/                              # GitHub SDK
+├── GitHubActionsClient.swift            # GitHub Actions (actor, AsyncStream)
+└── GitClient.swift                      # Git operations
 ```
 
 ## Services ARE Models
@@ -38,93 +43,95 @@ In this architecture, there is no separate model layer. Services are `@Observabl
 - Views observe services directly
 
 ```swift
-@MainActor @Observable
-class DeploymentService {
-    // State from SDKs
-    private(set) var cdkState: CDKClient.State = .idle
-    private(set) var githubState: GitHubClient.State = .idle
+// feature-mac: View observes DeploymentService directly
+struct RemoteServiceView: View {
+    @State var service: DeploymentService
 
-    // SDKs
+    var body: some View {
+        // Read state directly from service
+        if service.isOperationInProgress {
+            ProgressView()
+        }
+
+        // Bind to service properties
+        CDKInfrastructureSectionView(service: service)
+    }
+}
+```
+
+## DeploymentService
+
+The main `@Observable` service that orchestrates all AWS/GitHub SDK clients.
+
+```swift
+@MainActor @Observable
+public class DeploymentService {
+    // SDK state observations (updated via AsyncStream)
+    private(set) var cdkState: CDKClient.State = .idle
+    private(set) var cloudFormationState: CloudFormationClient.State = .idle
+    private(set) var githubState: GitHubActionsClient.State = .idle
+
+    // SDK clients
     private let cdkClient: CDKClient
-    private let githubClient: GitHubClient
+    private let cloudFormationClient: CloudFormationClient
+    private let githubClient: GitHubActionsClient
 
     // Cross-SDK derived state
     var canDeploy: Bool {
-        cdkState.isIdle && githubState.isIdle
+        !isOperationInProgress && cloudFormationState.canDeploy
     }
 
-    // Actions for views
-    func deploy() {
-        Task {
-            await cdkClient.deploy()
-            await githubClient.triggerWorkflow()
-        }
+    var canDestroy: Bool {
+        !isOperationInProgress && cloudFormationState.canDestroy
     }
+
+    var isOperationInProgress: Bool {
+        cdkState.isBusy || cloudFormationState.isBusy || githubState.isBusy
+    }
+
+    // App-specific state
+    private(set) var infrastructureConfiguration: CDKInfrastructureConfiguration?
+    private(set) var stackOutputs: CDKStackOutputs?
+
+    // Actions delegate to SDKs
+    func deploy(options: DeployOptions, output: OutputHandler) async { ... }
+    func destroy(output: OutputHandler) async { ... }
+    func refresh() async { ... }
 }
 ```
 
-## AppService
+## SDKs with AsyncStream State
 
-A top-level `AppService` serves as the root, composing all domain services.
-
-```swift
-@MainActor @Observable
-class AppService {
-    let deploymentService: DeploymentService
-    let xcodeLocalDevService: XcodeLocalDevService
-    let linuxLocalDevService: LinuxLocalDevService
-    let settingsService: SettingsService
-
-    var mode: ConnectionMode  // Current active mode
-}
-```
-
-## Optional Services
-
-Some services are defined as optional. These represent state that only exists after configuration or user action.
-
-```swift
-@MainActor @Observable
-class AppService {
-    let settingsService: SettingsService
-    var syncService: SyncService?  // Only exists after user configures sync
-}
-```
-
-## SDKs
-
-SDKs are **reusable utilities** that handle external interactions. They are not app-specific.
-
-**Key characteristics**:
-- NOT `@Observable`
-- Implemented as `actor` for thread safety (when stateful)
-- May have state if inherently stateful (CDK, Docker)
-- Publish state via `AsyncStream`
-- Can be used directly by CLI (no MainActor requirement)
+SDKs are `actor` types that publish state via `AsyncStream`. This allows services to observe SDK state changes reactively.
 
 ```swift
 actor CDKClient {
-    enum State: Sendable {
+    enum State: Sendable, Equatable {
         case idle
-        case deploying(progress: Double, startTime: Date)
-        case deployed(outputs: StackOutputs)
+        case installing
+        case building
+        case deploying(startTime: Date)
+        case deployed(outputs: [String: String])
+        case destroying(startTime: Date)
+        case destroyed
         case failed(error: String)
+
+        var isBusy: Bool { ... }
+        var canDeploy: Bool { ... }
+        var canDestroy: Bool { ... }
     }
 
-    func states() -> AsyncStream<State> { ... }
-    func deploy() async throws { ... }
-    func destroy() async throws { ... }
+    nonisolated func states() -> AsyncStream<State> { ... }
+    func deploy(...) async throws { ... }
+    func destroy(...) async throws { ... }
 }
 ```
 
 ## Data Flow
 
 ```
-View → Service (@Observable) → SDK (AsyncStream)
+SDK (actor) → AsyncStream → Service (@Observable) → View
 ```
-
-- **feature-mac**: Views observe services directly. Services call SDKs. SDKs publish state.
-- **feature-cli**: Commands call services directly. Services call SDKs.
 
 ### State Update Flow
 
@@ -133,26 +140,72 @@ View → Service (@Observable) → SDK (AsyncStream)
 3. View automatically re-renders due to `@Observable` change
 
 ```swift
-// Service observes SDK
+// DeploymentService observes SDK states
+private func startObservingSDKStates() async {
+    async let cdk: Void = observeCDK()
+    async let cf: Void = observeCloudFormation()
+    async let gh: Void = observeGitHub()
+    _ = await (cdk, cf, gh)
+}
+
 private func observeCDK() async {
     for await state in await cdkClient.states() {
-        self.cdkState = state  // @Observable property
+        self.cdkState = state  // @Observable property triggers view update
     }
 }
 ```
 
-## Service Protocols (Optional)
+## Dependency Flow
 
-Services may conform to protocols for testing or when multiple implementations exist:
+Features access SDKs **through services only**. SDK types are re-exported from service-deploy for convenience.
+
+```
+feature-mac
+    │
+    └──→ service-deploy (depends on sdk-aws, sdk-github)
+              │
+              ├──→ sdk-aws (CDKClient, CloudFormationClient, etc.)
+              └──→ sdk-github (GitHubActionsClient, GitClient)
+```
+
+**Package.swift dependencies:**
+```swift
+.target(name: "feature-mac", dependencies: [
+    "sdk-client", "service-deploy", "service-storage", "sdk-cli"
+])
+// Note: feature-mac does NOT directly depend on sdk-aws or sdk-github
+```
+
+## Auxiliary Models
+
+Some views require auxiliary models for specific functionality. These are created from DeploymentService's exposed configuration:
 
 ```swift
-protocol LambdaServiceProtocol {
-    var endpoint: URL { get }
-    var status: DeploymentStatus { get }
-    func test() async throws -> TestResult
-}
+// RemoteServiceView creates auxiliary models from DeploymentService
+private func initializeAuxiliaryModels() {
+    let awsConfig = service.awsConfig
+    let projectRoot = service.projectRoot
 
-// Both conform to same protocol
-class DeploymentService: LambdaServiceProtocol { ... }
-class XcodeLocalDevService: LambdaServiceProtocol { ... }
+    self.logsModel = CloudWatchLogsModel(awsConfig: awsConfig, ...)
+    self.ciModel = GitHubCIModel(config: service.githubConfig, ...)
+    self.buildService = LambdaBuildService(projectRoot: projectRoot, ...)
+}
+```
+
+## Testing
+
+Services are testable by injecting mock SDK clients. SDKs can be tested in isolation.
+
+```swift
+// Test DeploymentService with mock SDKs
+let mockCDK = MockCDKClient()
+let mockCF = MockCloudFormationClient()
+let mockGH = MockGitHubActionsClient()
+
+let service = DeploymentService(
+    cdkClient: mockCDK,
+    cloudFormationClient: mockCF,
+    githubClient: mockGH,
+    ...
+)
 ```

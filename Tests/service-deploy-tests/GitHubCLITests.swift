@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_github
 @testable import service_deploy
 import Testing
 

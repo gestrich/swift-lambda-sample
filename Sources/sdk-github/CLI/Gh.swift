@@ -165,6 +165,7 @@ public struct Gh {
         /// Example: gh auth status
         @CLICommand("status")
         public struct Status {
+            public init() {}
         }
     }
 }

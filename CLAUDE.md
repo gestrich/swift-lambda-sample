@@ -89,28 +89,81 @@ let dataDir = storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
 
 ## Project Structure
 
+### Layered Architecture
+
+This project follows a **Feature-Service-SDK** layered architecture where dependencies flow downward:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        FEATURE                               │
+│   feature-lambda  ·  feature-mac  ·  feature-cli             │
+│   Entry points, handle I/O (Lambda, SwiftUI, CLI)            │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ uses
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        SERVICE                               │
+│             service-deploy  ·  service-storage               │
+│   @Observable services (services ARE the models)             │
+│   App-specific, orchestrates SDKs                            │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ uses
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                          SDK                                 │
+│      sdk-aws  ·  sdk-github  ·  sdk-cli  ·  sdk-client       │
+│   Reusable utilities, not app-specific                       │
+│   Stateful SDKs publish via AsyncStream                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Principles:**
+- **Services ARE models** — No separate model layer. Views observe services directly.
+- **Features only handle I/O** — Entry points, SwiftUI views, CLI argument parsing.
+- **SDKs are reusable** — Could be extracted to separate packages.
+
+### Source Code Structure
+
+```
+Sources/
+├── feature-lambda/       # AWS Lambda handler (entry point)
+├── feature-mac/          # Mac app (SwiftUI views)
+├── feature-cli/          # CLI tool (SwiftDeploy commands)
+├── service-deploy/       # AWS deployment service (@Observable)
+│   ├── DeploymentService.swift      # Main service, orchestrates SDKs
+│   ├── Models/                      # App-specific models
+│   ├── AWSService/                  # AWS auth config persistence
+│   ├── GitHubService/               # GitHub config persistence
+│   ├── DockerService/               # Docker operations
+│   ├── LambdaService/               # Lambda build service
+│   ├── LocalDevelopmentService/     # Local dev services
+│   ├── ToolsService/                # CLI tool wrappers
+│   └── Core/                        # Shared errors
+├── service-storage/      # Local file storage service
+├── sdk-aws/              # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
+├── sdk-github/           # GitHub SDKs (Actions, Git)
+├── sdk-cli/              # CLI utilities (process execution, streams)
+├── sdk-cli-macros/       # Swift macros for CLI
+└── sdk-client/           # HTTP client utilities
+```
+
 ### Nested CDK Directory
 
 This project has a **nested `cdk/` directory** that contains the AWS Cloud Development Kit (CDK) infrastructure code, which deploys the Lambda function and all supporting AWS services.
 
 ```
-swift-lambda-sample/
-├── Sources/              # Swift Lambda source code
-│   ├── SwiftLambda/      # Lambda handler and API Gateway routing
-│   └── SwiftServerApp/   # Business logic, database, S3, etc.
-├── cdk/                  # AWS CDK infrastructure (TypeScript)
-│   ├── lib/
-│   │   ├── swift-lambda-stack.ts        # Main CDK stack
-│   │   └── constructs/                  # Reusable infrastructure components
-│   │       ├── vpc-construct.ts         # VPC networking
-│   │       ├── lambda-construct.ts      # Lambda function
-│   │       ├── api-gateway-construct.ts # API Gateway (PUBLIC endpoint)
-│   │       ├── database-construct.ts    # RDS PostgreSQL
-│   │       ├── queue-construct.ts       # SQS queues
-│   │       ├── storage-construct.ts     # S3 bucket
-│   │       └── monitoring-construct.ts  # CloudWatch Events
-│   └── README.md         # Detailed CDK documentation
-└── lambda_function_payload.zip  # Compiled Lambda deployment package
+cdk/                  # AWS CDK infrastructure (TypeScript)
+├── lib/
+│   ├── swift-lambda-stack.ts        # Main CDK stack
+│   └── constructs/                  # Reusable infrastructure components
+│       ├── vpc-construct.ts         # VPC networking
+│       ├── lambda-construct.ts      # Lambda function
+│       ├── api-gateway-construct.ts # API Gateway (PUBLIC endpoint)
+│       ├── database-construct.ts    # RDS PostgreSQL
+│       ├── queue-construct.ts       # SQS queues
+│       ├── storage-construct.ts     # S3 bucket
+│       └── monitoring-construct.ts  # CloudWatch Events
+└── README.md         # Detailed CDK documentation
 ```
 
 ### What the CDK Deploys

@@ -404,18 +404,47 @@ service-deploy/
 
 ---
 
-### [ ] Phase 8: Documentation and Verification
+### [x] Phase 8: Documentation and Verification ✅
 
 **Goal**: Update documentation and verify the refactor is complete.
 
+**Status**: COMPLETED
+
 **Tasks**:
-- [ ] Update CLAUDE.md with new target structure
-- [ ] Update MacAppArchitecture.md to reflect changes
-- [ ] Delete or archive old proposed refactor docs that are now complete
-- [ ] Run full test suite
-- [ ] Test Mac app functionality
-- [ ] Test CLI functionality
-- [ ] Verify deployment flow works end-to-end
+- [x] Update CLAUDE.md with new target structure
+- [x] Update MacAppArchitecture.md to reflect changes
+- [x] Move completed proposed refactor docs to completed folder
+- [x] Run full test suite
+- [x] Verify build succeeds
+- [ ] Test Mac app functionality (manual testing by Bill)
+- [ ] Test CLI functionality (manual testing by Bill)
+- [ ] Verify deployment flow works end-to-end (manual testing by Bill)
+
+**Technical Notes**:
+- Updated CLAUDE.md to document the Feature-Service-SDK layered architecture with current target structure
+- Updated MacAppArchitecture.md to reflect DeploymentService as the main @Observable service, direct view observation pattern, and SDK AsyncStream state flow
+- Moved completed refactor docs to `docs/completed/`:
+  - `CDKInfrastructureQueryService-refactor.md` - All 7 phases completed
+  - `move-aws-to-sdk.md` - All 7 phases completed
+- Added `sdk-github` dependency to test target for GitHubCLITests
+- Added public init to `Gh.Auth.Status` for test accessibility
+- All 357 unit tests pass; 1 pre-existing integration test failure (route mismatch in LinuxDeployTests: `/api/file` vs `/api/files`) is unrelated to this refactor
+
+**Files Changed**:
+```
+CLAUDE.md                                      # Updated project structure docs
+docs/architecture/MacAppArchitecture.md        # Updated to reflect new architecture
+docs/proposed/AWS-Refactor.md                  # Marked Phase 8 complete
+Package.swift                                  # Added sdk-github to test dependencies
+Sources/sdk-github/CLI/Gh.swift                # Added public init to Gh.Auth.Status
+Tests/service-deploy-tests/GitHubCLITests.swift # Added sdk_github import
+```
+
+**Docs Moved**:
+```
+docs/proposed/CDKInfrastructureQueryService-refactor.md → docs/completed/
+docs/proposed/move-aws-to-sdk.md → docs/completed/
+```
 
 ---
 
@@ -440,13 +469,13 @@ service-deploy/
 
 After refactoring is complete:
 
-- [ ] No separate "Model" classes in feature-mac (services ARE models)
-- [ ] All SDK clients are `actor` with `AsyncStream<State>`
-- [ ] `DeploymentService` is `@Observable` and orchestrates SDKs
-- [ ] Views observe services directly
-- [ ] CLI commands use services or SDKs directly
-- [ ] GitHub code moved to sdk-github
-- [ ] All tests pass
-- [ ] Mac app works correctly
-- [ ] CLI works correctly
-- [ ] Deployment flow works end-to-end
+- [x] No separate "Model" classes in feature-mac (services ARE models)
+- [x] All SDK clients are `actor` with `AsyncStream<State>`
+- [x] `DeploymentService` is `@Observable` and orchestrates SDKs
+- [x] Views observe services directly
+- [x] CLI commands use services or SDKs directly
+- [x] GitHub code moved to sdk-github
+- [x] All tests pass (357/358, 1 pre-existing integration test issue)
+- [ ] Mac app works correctly (manual verification pending)
+- [ ] CLI works correctly (manual verification pending)
+- [ ] Deployment flow works end-to-end (manual verification pending)

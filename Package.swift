@@ -106,7 +106,8 @@ let package = Package(
         .testTarget(
             name: "service-deploy-tests",
             dependencies: [
-                .target(name: "service-deploy")
+                .target(name: "service-deploy"),
+                .target(name: "sdk-github"),
             ]
         ),
         .testTarget(
