@@ -348,7 +348,7 @@ Key changes:
    - Remove internal `streamTask` state
    - Return `AsyncThrowingStream<CloudWatchLogEntry, Error>` that respects task cancellation
 
-- [ ] **Create `CloudWatchLogsWorkflow`** (service-deploy)
+- [x] **Create `CloudWatchLogsWorkflow`** (service-deploy) ✅ COMPLETED
    - New workflow struct with `State` enum
    - Move trimming logic here
    - Return `AsyncThrowingStream<State, Error>`
@@ -376,7 +376,7 @@ Key changes:
 |------|--------|
 | `Sources/sdk-aws/CloudWatch/CloudWatchLogsClient.swift` | Refactor to stateless |
 | `Sources/service-deploy/AWSService/CloudWatchLogsService.swift` | Delete |
-| `Sources/service-deploy/AWSService/CloudWatchLogsWorkflow.swift` | Create |
+| `Sources/service-deploy/Workflows/CloudWatchLogsWorkflow.swift` | Create |
 | `Sources/app-mac/Models/CloudWatchLogsModel.swift` | Refactor to enum state |
 | `Sources/app-mac/RemoteService/CloudWatchLogsSectionView.swift` | Update for new state |
 | `Sources/app-mac/RemoteService/RemoteServiceView.swift` | Update model creation |
@@ -422,3 +422,24 @@ Key changes:
 
 5. **AWSAuthConfiguration+Persistence** (`Sources/service-deploy/AWSService/AWSAuthConfiguration+Persistence.swift`):
    - Removed `@_exported import enum sdk_aws.CloudWatchLogsProgress` (type moved to service layer)
+
+### Phase 2: CloudWatchLogsWorkflow Creation (Completed)
+
+**Changes made:**
+
+1. **CloudWatchLogsWorkflow** (`Sources/service-deploy/Workflows/CloudWatchLogsWorkflow.swift`):
+   - Created new workflow struct following project patterns (similar to `StatusWorkflow`)
+   - Implements `Sendable` for thread safety
+   - `State` enum with three cases: `.started`, `.streaming(entries:)`, `.stopped(entries:)`
+   - `stream(since:pollInterval:maxEntries:)` returns `AsyncThrowingStream<State, Error>`
+   - `fetch(since:)` provides one-shot log fetching
+   - Static `create(cliClient:lambdaFunctionName:credentialProvider:)` factory method
+   - Trimming logic (`trimIfNeeded`) moved here from model layer
+   - Handles cancellation gracefully, yielding `.stopped` state before finishing
+
+**Design decisions:**
+- Placed in `Workflows/` directory alongside other workflows (not `AWSService/`)
+- Parameters for `pollInterval` and `maxEntries` exposed but have sensible defaults
+- Stream yields accumulated entries (not individual entries) matching proposal
+- Cancellation error treated as graceful stop, other errors propagated via `finish(throwing:)`
+- `LambdaLogsService` not yet removed—will be done in Phase 3 after model is updated to use workflow
