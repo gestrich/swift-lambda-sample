@@ -22,16 +22,6 @@ public class DeploymentModel {
     /// Last error from a workflow (kept separate for error display after operation completes)
     public private(set) var lastOperationError: Error?
 
-    // MARK: - SDK Clients
-
-    private let cdkClient: CDKClient
-    private let cfClient: CloudFormationClient
-    private let githubClient: GitHubActionsClient?
-    private let gitClient: GitClient
-
-    /// CLI client for executing commands (exposed for auxiliary services)
-    public let cliClient: CLIClient
-
     // MARK: - Configuration
 
     /// Stack name being managed
@@ -45,38 +35,14 @@ public class DeploymentModel {
 
     /// GitHub configuration (exposed for auxiliary services)
     public let githubConfig: GitHubActionsConfiguration?
+    
+    // MARK: - SDK Clients
 
-    // MARK: - Derived State (Convenience Accessors)
-
-    /// Whether any workflow is currently active
-    public var isIdle: Bool {
-        state.isIdle
-    }
-
-    /// Whether a deploy operation can be started
-    public var canDeploy: Bool {
-        state.canDeploy
-    }
-
-    /// Whether a destroy operation can be started
-    public var canDestroy: Bool {
-        state.canDestroy
-    }
-
-    /// Whether Lambda code can be updated (via GitHub Actions)
-    public var canUpdateLambda: Bool {
-        state.isIdle && (githubClient != nil)
-    }
-
-    /// API client for making requests to this service
-    public var apiClient: APIClient {
-        APIClient(baseURL: state.endpoint, mode: .remote, serviceName: "Remote")
-    }
-
-    /// Operation start time (for elapsed time display) - derived from state
-    public var operationStartTime: Date? {
-        state.operationStartTime
-    }
+    private let cdkClient: CDKClient
+    private let cfClient: CloudFormationClient
+    private let githubClient: GitHubActionsClient?
+    private let gitClient: GitClient
+    public let cliClient: CLIClient
 
     // MARK: - Initialization
 
@@ -143,6 +109,38 @@ public class DeploymentModel {
             githubConfig: githubConfig,
             cliClient: cliClient
         )
+    }
+    
+    // MARK: - Derived State (Convenience Accessors)
+
+    /// Whether any workflow is currently active
+    public var isIdle: Bool {
+        state.isIdle
+    }
+
+    /// Whether a deploy operation can be started
+    public var canDeploy: Bool {
+        state.canDeploy
+    }
+
+    /// Whether a destroy operation can be started
+    public var canDestroy: Bool {
+        state.canDestroy
+    }
+
+    /// Whether Lambda code can be updated (via GitHub Actions)
+    public var canUpdateLambda: Bool {
+        state.isIdle && (githubClient != nil)
+    }
+
+    /// API client for making requests to this service
+    public var apiClient: APIClient {
+        APIClient(baseURL: state.endpoint, mode: .remote, serviceName: "Remote")
+    }
+
+    /// Operation start time (for elapsed time display) - derived from state
+    public var operationStartTime: Date? {
+        state.operationStartTime
     }
 
     // MARK: - Refresh Operations
