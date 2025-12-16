@@ -1,7 +1,5 @@
 import ArgumentParser
-import Foundation
 import sdk_aws
-import sdk_cli
 import service_deploy
 
 extension AWSCommand {
@@ -30,14 +28,11 @@ extension AWSCommand {
         var skipPush: Bool = false
 
         mutating func run() async throws {
-            let awsConfig = try AWSAuthConfiguration.resolve(
-                profileName: awsProfile,
-                useAWSVault: useAwsVault
+            let env = try CLIAWSEnvironment.resolve(
+                awsProfile: awsProfile,
+                useAwsVault: useAwsVault,
+                cdkDirectory: cdkDirectory
             )
-
-            if awsProfile == nil {
-                print("ℹ️  Using AWS profile '\(awsConfig.profileName)' from config file\n")
-            }
 
             print("🚀 Starting deployment...\n")
 
@@ -49,15 +44,11 @@ extension AWSCommand {
                 print("")
             }
 
-            let projectRoot = FileManager.default.currentDirectoryPath
-            let cliClient = CLIClient()
-            let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
-
             let components = DeployInitWorkflow.create(
-                cdkDirectory: fullCdkPath,
-                credentialProvider: awsConfig.makeCredentialProvider(),
-                cliClient: cliClient,
-                projectRoot: projectRoot
+                cdkDirectory: env.cdkDirectory,
+                credentialProvider: env.credentialProvider,
+                cliClient: env.cliClient,
+                projectRoot: env.projectRoot
             )
 
             let options = DeployInitWorkflow.Options(

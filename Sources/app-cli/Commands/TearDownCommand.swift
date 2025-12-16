@@ -1,7 +1,5 @@
 import ArgumentParser
-import Foundation
 import sdk_aws
-import sdk_cli
 import service_deploy
 
 extension AWSCommand {
@@ -24,9 +22,10 @@ extension AWSCommand {
         var force: Bool = false
 
         mutating func run() async throws {
-            let awsConfig = try AWSAuthConfiguration.resolve(
-                profileName: awsProfile,
-                useAWSVault: useAwsVault
+            let env = try CLIAWSEnvironment.resolve(
+                awsProfile: awsProfile,
+                useAwsVault: useAwsVault,
+                cdkDirectory: cdkDirectory
             )
 
             print("🗑️  Starting tear down...\n")
@@ -42,14 +41,10 @@ extension AWSCommand {
                 }
             }
 
-            let projectRoot = FileManager.default.currentDirectoryPath
-            let cliClient = CLIClient()
-            let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
-
             let components = DestroyWorkflow.create(
-                cdkDirectory: fullCdkPath,
-                credentialProvider: awsConfig.makeCredentialProvider(),
-                cliClient: cliClient
+                cdkDirectory: env.cdkDirectory,
+                credentialProvider: env.credentialProvider,
+                cliClient: env.cliClient
             )
 
             let currentState = try await components.cfClient.queryState(stackName: components.stackName)

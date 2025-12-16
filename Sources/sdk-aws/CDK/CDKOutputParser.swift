@@ -1,8 +1,26 @@
 import Foundation
 
 /// Parser for CDK CLI output lines to extract deployment events
+///
+/// CDK output format (6 pipe-separated fields):
+/// ```
+/// SwiftLambdaSampleStack | 23/30 | 4:13:09 PM | CREATE_IN_PROGRESS | AWS::ApiGateway::Stage | ApiGateway/Api/...
+/// SwiftLambdaSampleStack |   0   | 4:18:44 PM | DELETE_IN_PROGRESS | AWS::Lambda::Function  | Lambda/Function
+/// ```
+/// Fields: stackName | progress | timestamp | status | resourceType | resourceName
+///
+/// Note: Progress format differs between operations:
+/// - Deploy: "X/Y" (e.g., "23/30")
+/// - Destroy: single number (e.g., "0", "1", "2")
 public class CDKOutputParser {
-    private let resourcePattern = #"(\S+)\s*\|\s*(\d+\/\d+)\s*\|\s*(\S+)\s*\|\s*(\S+(?:\s+\S+)*)\s*\|\s*(.+)"#
+    // Match 6 pipe-separated fields:
+    // 1. Stack name (non-whitespace)
+    // 2. Progress (X/Y or just X for destroy)
+    // 3. Timestamp (H:MM:SS AM/PM)
+    // 4. Status (e.g., CREATE_IN_PROGRESS, DELETE_COMPLETE)
+    // 5. Resource type (e.g., AWS::ApiGateway::Stage)
+    // 6. Resource name (everything else)
+    private let resourcePattern = #"(\S+)\s*\|\s*(\d+(?:\/\d+)?)\s*\|\s*(\d+:\d+:\d+\s*[AP]M)\s*\|\s*(\S+)\s*\|\s*([^|]+)\s*\|\s*(.+)"#
     private var regex: NSRegularExpression?
 
     public init() {
@@ -25,19 +43,21 @@ public class CDKOutputParser {
             return String(line[range])
         }
 
-        guard let timestamp = extractGroup(1),
+        guard let stackName = extractGroup(1),
               let progress = extractGroup(2),
-              let action = extractGroup(3),
-              let resourceType = extractGroup(4),
-              let resourceName = extractGroup(5) else {
+              let timestamp = extractGroup(3),
+              let status = extractGroup(4),
+              let resourceType = extractGroup(5),
+              let resourceName = extractGroup(6) else {
             return nil
         }
 
         return CDKResourceEvent(
-            timestamp: timestamp,
+            stackName: stackName,
             progress: progress,
-            action: action,
-            resourceType: resourceType,
+            timestamp: timestamp,
+            status: status,
+            resourceType: resourceType.trimmingCharacters(in: .whitespaces),
             resourceName: resourceName.trimmingCharacters(in: .whitespaces)
         )
     }
@@ -45,22 +65,23 @@ public class CDKOutputParser {
 
 /// A single resource event parsed from CDK output
 public struct CDKResourceEvent: Sendable {
-    public let timestamp: String
+    public let stackName: String
     public let progress: String
-    public let action: String
+    public let timestamp: String
+    public let status: String
     public let resourceType: String
     public let resourceName: String
 
     public var isComplete: Bool {
-        action.lowercased().contains("complete")
+        status.contains("COMPLETE") && !status.contains("ROLLBACK")
     }
 
     public var isInProgress: Bool {
-        action.lowercased().contains("progress") || action.lowercased().contains("creating") || action.lowercased().contains("updating")
+        status.contains("IN_PROGRESS")
     }
 
     public var isFailed: Bool {
-        action.lowercased().contains("failed") || action.lowercased().contains("rollback")
+        status.contains("FAILED") || status.contains("ROLLBACK")
     }
 }
 

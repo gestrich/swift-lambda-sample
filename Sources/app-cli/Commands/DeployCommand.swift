@@ -1,7 +1,5 @@
 import ArgumentParser
-import Foundation
 import sdk_aws
-import sdk_cli
 import service_deploy
 
 extension AWSCommand {
@@ -21,25 +19,18 @@ extension AWSCommand {
         var cdkDirectory: String = "cdk"
 
         mutating func run() async throws {
-            let awsConfig = try AWSAuthConfiguration.resolve(
-                profileName: awsProfile,
-                useAWSVault: useAwsVault
+            let env = try CLIAWSEnvironment.resolve(
+                awsProfile: awsProfile,
+                useAwsVault: useAwsVault,
+                cdkDirectory: cdkDirectory
             )
-
-            if awsProfile == nil {
-                print("ℹ️  Using AWS profile '\(awsConfig.profileName)' from config file\n")
-            }
 
             print("\n📦 Starting CDK deployment...")
 
-            let projectRoot = FileManager.default.currentDirectoryPath
-            let cliClient = CLIClient()
-            let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
-
             let components = DeployWorkflow.create(
-                cdkDirectory: fullCdkPath,
-                credentialProvider: awsConfig.makeCredentialProvider(),
-                cliClient: cliClient
+                cdkDirectory: env.cdkDirectory,
+                credentialProvider: env.credentialProvider,
+                cliClient: env.cliClient
             )
 
             let options = try await detectCurrentConfiguration(
