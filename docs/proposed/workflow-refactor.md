@@ -195,19 +195,21 @@ public struct DestroyWorkflow {
 
 ---
 
-## Phase 5: Move DeploymentService → DeploymentModel in app-mac
+## Phase 5: Create DeploymentModel in app-mac ✅
 
-**Goal:** DeploymentService becomes a thin DeploymentModel in the app layer.
+**Status:** COMPLETED
+
+**Goal:** Create a thin DeploymentModel in the app layer that uses workflows.
 
 **Files:**
-- Move & Rename: `Sources/service-deploy/DeploymentService.swift` → `Sources/feature-mac/Models/DeploymentModel.swift`
+- Created: `Sources/feature-mac/Models/DeploymentModel.swift`
 
 **Design:**
 ```swift
 @MainActor @Observable
 public class DeploymentModel {
     // Stable state
-    public private(set) var state: DeploymentState = .unknown
+    public private(set) var state: CloudFormationState = .unknown
     public private(set) var stackOutputs: CDKStackOutputs?
     public private(set) var infrastructureConfig: CDKInfrastructureConfiguration?
 
@@ -230,7 +232,17 @@ public class DeploymentModel {
 }
 ```
 
-**Verification:** Can be tested with mock workflows.
+**Verification:** Build succeeds, model compiles with correct types.
+
+**Technical Notes:**
+- Created new `DeploymentModel` in feature-mac rather than moving `DeploymentService` (to allow incremental migration)
+- `DeploymentModel` uses `DeployWorkflow` and `DestroyWorkflow` from service-deploy
+- Workflow progress updates drive state changes: `activeWorkflow` tracks current step, `state` reflects CloudFormation status
+- Uses `cfClient.queryStateOnce()` for refresh (stateless, doesn't publish)
+- `DeployOptions` provides same interface as `DeploymentService.DeployOptions` with `toWorkflowOptions()` conversion
+- Maintains same derived properties as `DeploymentService` for view compatibility (`canDeploy`, `canDestroy`, `isDeployed`, etc.)
+- `DeploymentService` remains in service-deploy for CLI and existing views (will migrate views in Phase 7)
+- Both models can coexist during transition, allowing incremental migration of views
 
 ---
 
