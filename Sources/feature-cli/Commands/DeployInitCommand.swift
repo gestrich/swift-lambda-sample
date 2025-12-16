@@ -95,7 +95,7 @@ extension AWSCommand {
 
         private func checkDatabaseSafety(cfClient: CloudFormationClient) async throws {
             do {
-                let state = try await cfClient.queryStateOnce(stackName: Self.stackName)
+                let state = try await cfClient.queryState(stackName: Self.stackName)
 
                 if case .deployed = state {
                     let resources = try await cfClient.describeStackResources(name: Self.stackName)
@@ -118,7 +118,7 @@ extension AWSCommand {
 
         private func checkExistingConfiguration(cfClient: CloudFormationClient) async throws {
             do {
-                let state = try await cfClient.queryStateOnce(stackName: Self.stackName)
+                let state = try await cfClient.queryState(stackName: Self.stackName)
 
                 if case .deployed = state {
                     let resources = try await cfClient.describeStackResources(name: Self.stackName)

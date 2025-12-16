@@ -30,14 +30,16 @@ sdk-aws
 └── CloudFormationClient (stateless - query, return)
 ```
 
-## Current State
+## Current State (After Phase 8)
 
-| Component | Issue |
-|-----------|-------|
-| `CDKClient` | Has `states()` AsyncStream, `currentState`, `continuations`, `publish()` |
-| `CloudFormationClient` | Has `states()` AsyncStream, monitoring loop, internal state |
-| `DeploymentService` | 644 lines, @Observable, observes all SDK streams, does orchestration |
-| CLI commands | Create `DeploymentService`, use @MainActor, read state after operations |
+| Component | Status |
+|-----------|--------|
+| `CDKClient` | ✅ Stateless - stream methods only (`deployStream`, `destroyStream`) |
+| `CloudFormationClient` | ✅ Stateless - query methods only (`queryState`, `monitorStream`) |
+| `DeploymentService` | ✅ DELETED - replaced by workflows and DeploymentModel |
+| CLI commands | ✅ Use SDK clients and workflows directly, no @MainActor needed |
+| `DeploymentModel` | ✅ App layer @Observable model in feature-mac |
+| Workflows | ✅ `DeployWorkflow`, `DestroyWorkflow` orchestrate multi-step operations |
 
 ---
 
@@ -323,34 +325,63 @@ func run() async throws {
 
 ---
 
-## Phase 8: Remove Stateful Code from SDK Clients
+## Phase 8: Remove Stateful Code from SDK Clients and DeploymentService ✅
 
-**Goal:** Clean up - remove now-unused state management.
+**Status:** COMPLETED
+
+**Goal:** Clean up - remove now-unused state management from SDK clients and remove DeploymentService.
 
 **Files:**
-- Modify: `Sources/sdk-aws/CDK/CDKClient.swift`
-- Modify: `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift`
+- Modified: `Sources/sdk-aws/CDK/CDKClient.swift`
+- Modified: `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift`
+- Modified: `Sources/feature-cli/Commands/StatusCommand.swift`
+- Modified: `Sources/feature-cli/Commands/UpdateLambdaCommand.swift`
+- Deleted: `Sources/service-deploy/DeploymentService.swift`
 
-**Remove:**
-- `currentState`, `continuations`, `publish()` methods
-- `states()` AsyncStream methods
-- `monitorTask` from CloudFormationClient
+**Removed from CDKClient:**
+- `currentState` property
+- `continuations` dictionary
+- `publish()`, `addContinuation()`, `removeContinuation()` methods
+- `states()` AsyncStream method
+- `getState()` method
+- Stateful `build()`, `deploy()`, `destroy()`, `install()` methods
+- `CDKClient.State` enum
+- `CDKError.operationInProgress` case
 
-**Keep:**
-- Stream-returning methods from Phases 1-2
-- All query/execute methods
+**Removed from CloudFormationClient:**
+- `currentState` property
+- `continuations` dictionary
+- `monitorTask` property
+- `publish()`, `addContinuation()`, `removeContinuation()` methods
+- `states()` AsyncStream method
+- `getState()` method
+- `queryState()` stateful method (renamed stateless `queryStateOnce()` to `queryState()`)
+- `startMonitoring()`, `stopMonitoring()`, `isMonitoring` methods
+- `runMonitorLoop()` method
+
+**CLI Commands migrated to SDK clients directly:**
+- `StatusCommand` - now uses CloudFormationClient, GitClient, GitHubActionsClient directly
+- `UpdateLambdaCommand` - now uses GitClient, GitHubActionsClient directly
+
+**Technical Notes:**
+- Combined Phase 8 and Phase 9 since all consumers of `DeploymentService` had already been migrated
+- `DeploymentService` was no longer used by any actual code after Phases 5-7
+- Renamed `queryStateOnce()` to `queryState()` since the "Once" suffix was only to distinguish from the removed stateful version
+- Updated all callers to use the new method name (`queryState` instead of `queryStateOnce`)
+- Renamed private `installWithoutPublish()` to `install()` and `buildWithoutPublish()` to `build()` since they're now the only implementations
+- Updated protocol comments in `LambdaService.swift` and `LocalService.swift` to reference `DeploymentModel` instead of `DeploymentService`
 
 ---
 
-## Phase 9: Remove DeploymentService from service-deploy
+## Phase 9: (Merged into Phase 8)
 
-**Goal:** After Phase 5 moves it to app-mac as DeploymentModel, remove any remnants from service-deploy.
-
-**Result:** service-deploy contains only Workflows. No @Observable code in service layer.
+Phase 9 was completed as part of Phase 8 since `DeploymentService` removal was straightforward after migrating all consumers.
 
 ---
 
 ## Phase 10: Rename feature-* to app-*
+
+**Status:** NOT STARTED
 
 **Files:**
 - Modify: `Package.swift`
@@ -364,18 +395,48 @@ func run() async throws {
 
 | File | Changes |
 |------|---------|
-| `Sources/sdk-aws/CDK/CDKClient.swift` | Add stream methods, later remove state |
-| `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift` | Add query methods, later remove state |
-| `Sources/service-deploy/Workflows/DeployWorkflow.swift` | New - orchestration |
-| `Sources/feature-mac/Models/DeploymentModel.swift` | Moved from DeploymentService, made thin |
-| `Sources/feature-mac/Models/AppModel.swift` | Use DeploymentModel |
-| `Sources/feature-cli/Commands/DeployCommand.swift` | Use workflow directly |
-| `Sources/service-deploy/DeploymentService.swift` | Move to app-mac, then delete |
+| `Sources/sdk-aws/CDK/CDKClient.swift` | ✅ Now stateless - only stream methods remain |
+| `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift` | ✅ Now stateless - queryState + monitorStream |
+| `Sources/service-deploy/Workflows/DeployWorkflow.swift` | ✅ Orchestrates deployment |
+| `Sources/service-deploy/Workflows/DestroyWorkflow.swift` | ✅ Orchestrates destruction |
+| `Sources/feature-mac/Models/DeploymentModel.swift` | ✅ App layer @Observable model |
+| `Sources/feature-mac/Models/AppModel.swift` | ✅ Uses DeploymentModel |
+| `Sources/feature-cli/Commands/DeployCommand.swift` | ✅ Uses workflow directly |
+| `Sources/service-deploy/DeploymentService.swift` | ✅ DELETED |
 
 ---
 
 ## Execution Order
 
-Phases 1-4 are additive (non-breaking). Phases 5-7 migrate consumers. Phases 8-10 clean up.
+Phases 1-4 are additive (non-breaking). Phases 5-7 migrate consumers. Phase 8 cleans up. Phase 10 is optional renaming.
 
 Each phase results in working code - can stop and verify at any point.
+
+## Current Architecture Summary
+
+After completing Phase 8, the architecture is:
+
+```
+feature-mac                          feature-cli
+├── DeploymentModel (@Observable)    ├── Commands (use SDK clients + workflows)
+└── Views                            └── No @Observable needed
+
+         ↓ uses                              ↓ uses
+
+service-deploy
+├── DeployWorkflow      → AsyncThrowingStream<DeployProgress, Error>
+├── DestroyWorkflow     → AsyncThrowingStream<DestroyProgress, Error>
+└── (DeploymentService DELETED)
+
+         ↓ uses
+
+sdk-aws
+├── CDKClient           (stateless: deployStream, destroyStream, diff, synth, etc.)
+└── CloudFormationClient (stateless: queryState, monitorStream, describeStack, etc.)
+```
+
+Key benefits achieved:
+- SDK layer is fully stateless - no internal state management
+- Workflows orchestrate multi-step operations via AsyncThrowingStream
+- App layer (@Observable) only in feature-mac where SwiftUI needs it
+- CLI commands are simple consumers of SDK clients and workflows

@@ -221,7 +221,7 @@ public class DeploymentModel {
         deploymentState = .loading
 
         do {
-            let queriedState = try await cfClient.queryStateOnce(stackName: stackName)
+            let queriedState = try await cfClient.queryState(stackName: stackName)
             deploymentState = queriedState
 
             // Update app-specific state based on deployment state

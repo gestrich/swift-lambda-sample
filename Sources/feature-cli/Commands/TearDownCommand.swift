@@ -60,7 +60,7 @@ extension AWSCommand {
             )
 
             // Check if stack exists before attempting destroy
-            let currentState = try await cfClient.queryStateOnce(stackName: Self.stackName)
+            let currentState = try await cfClient.queryState(stackName: Self.stackName)
 
             switch currentState {
             case .notDeployed:

@@ -100,7 +100,7 @@ extension AWSCommand {
 
         private func detectCurrentConfiguration(cfClient: CloudFormationClient) async throws -> DeployWorkflow.Options {
             do {
-                let state = try await cfClient.queryStateOnce(stackName: Self.stackName)
+                let state = try await cfClient.queryState(stackName: Self.stackName)
 
                 if case .deployed = state {
                     let resources = try await cfClient.describeStackResources(name: Self.stackName)

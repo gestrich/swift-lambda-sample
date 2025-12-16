@@ -166,7 +166,7 @@ public struct DeployWorkflow: Sendable {
 
         // If we get here, stream ended without completing
         // Query final state to determine outcome
-        let finalState = try await cfClient.queryStateOnce(stackName: stackName)
+        let finalState = try await cfClient.queryState(stackName: stackName)
         switch finalState {
         case .deployed(let outputs):
             let config = try await detectConfiguration()
