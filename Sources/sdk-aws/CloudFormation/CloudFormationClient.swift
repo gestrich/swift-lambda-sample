@@ -400,6 +400,154 @@ public actor CloudFormationClient {
             .map { $0.timestamp }
             .min() ?? Date()
     }
+
+    // MARK: - Stateless Query Methods
+
+    /// Query the deployment state of a CloudFormation stack without publishing to subscribers.
+    /// This is a one-shot query that returns the state directly.
+    /// - Parameter stackName: The stack name
+    /// - Returns: CloudFormationState based on stack status
+    /// - Throws: DeploymentError.credentialExpired for auth issues, DeploymentError.unknown for other errors
+    public func queryStateOnce(stackName: String) async throws -> CloudFormationState {
+        do {
+            let stackStatus = try await getStackStatus(name: stackName)
+
+            switch stackStatus {
+            case StackStatus.createComplete, StackStatus.updateComplete:
+                let outputs = try await getStackOutputs(name: stackName)
+                return .deployed(outputs: outputs)
+
+            case StackStatus.createInProgress,
+                 StackStatus.updateInProgress,
+                 StackStatus.updateCompleteCleanupInProgress:
+                let startTime = await getOperationStartTime(stackName: stackName)
+                return .deploying(
+                    operation: "Updating",
+                    progress: DeploymentProgress(),
+                    startTime: startTime
+                )
+
+            case StackStatus.deleteInProgress:
+                let startTime = await getOperationStartTime(stackName: stackName)
+                return .destroying(progress: DeploymentProgress(), startTime: startTime)
+
+            case StackStatus.createFailed,
+                 StackStatus.updateFailed,
+                 StackStatus.rollbackComplete,
+                 StackStatus.rollbackFailed,
+                 StackStatus.deleteFailed:
+                return .failed(reason: stackStatus)
+
+            default:
+                let outputs = try await getStackOutputs(name: stackName)
+                return .deployed(outputs: outputs)
+            }
+        } catch {
+            let errorMessage = error.localizedDescription
+
+            if DeploymentError.isCredentialError(errorMessage) {
+                throw DeploymentError.credentialExpired(message: errorMessage)
+            } else if DeploymentError.isStackNotFoundError(errorMessage) {
+                return .notDeployed
+            } else {
+                throw DeploymentError.unknown(message: errorMessage)
+            }
+        }
+    }
+
+    /// Monitor a CloudFormation stack and return a stream of state updates.
+    /// The stream completes when the stack operation finishes (success or failure).
+    /// - Parameters:
+    ///   - stackName: The stack name to monitor
+    ///   - pollInterval: How often to poll for updates (default: 2 seconds)
+    /// - Returns: AsyncThrowingStream that yields CloudFormationState updates
+    public nonisolated func monitorStream(
+        stackName: String,
+        pollInterval: Duration = .seconds(2)
+    ) -> AsyncThrowingStream<CloudFormationState, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                await self.runMonitorStreamLoop(
+                    stackName: stackName,
+                    pollInterval: pollInterval,
+                    continuation: continuation
+                )
+            }
+        }
+    }
+
+    /// Internal method to run the monitoring loop for monitorStream
+    private func runMonitorStreamLoop(
+        stackName: String,
+        pollInterval: Duration,
+        continuation: AsyncThrowingStream<CloudFormationState, Error>.Continuation
+    ) async {
+        var pollCount = 0
+        var startTime: Date?
+        var operation: String = "Updating"
+
+        // Get initial state to determine operation type and start time
+        do {
+            let initialState = try await queryStateOnce(stackName: stackName)
+            startTime = initialState.operationStartTime ?? Date()
+            operation = initialState.operationName ?? "Updating"
+            continuation.yield(initialState)
+
+            // If not in progress, we're done
+            if !initialState.isBusy {
+                continuation.finish()
+                return
+            }
+        } catch {
+            continuation.finish(throwing: error)
+            return
+        }
+
+        let operationStartTime = startTime ?? Date()
+
+        // Poll until complete
+        while !Task.isCancelled {
+            pollCount += 1
+
+            do {
+                try await Task.sleep(for: pollInterval)
+
+                let events = try await getStackEvents(name: stackName, limit: 50)
+                let newProgress = DeploymentProgress.from(
+                    events: events,
+                    since: nil,
+                    pollCount: pollCount
+                )
+
+                // Check current status
+                let status = try await getStackStatus(name: stackName)
+
+                if StackStatus.isInProgress(status) {
+                    // Still in progress - yield updated state
+                    let state: CloudFormationState
+                    if StackStatus.isDeleting(status) {
+                        state = .destroying(progress: newProgress, startTime: operationStartTime)
+                    } else {
+                        state = .deploying(operation: operation, progress: newProgress, startTime: operationStartTime)
+                    }
+                    continuation.yield(state)
+                } else {
+                    // Operation complete - get final state and finish
+                    let finalState = try await queryStateOnce(stackName: stackName)
+                    continuation.yield(finalState)
+                    continuation.finish()
+                    return
+                }
+            } catch {
+                // On error, try to finish gracefully
+                continuation.finish(throwing: error)
+                return
+            }
+        }
+
+        // Task was cancelled
+        continuation.finish()
+    }
 }
 
 // MARK: - Errors

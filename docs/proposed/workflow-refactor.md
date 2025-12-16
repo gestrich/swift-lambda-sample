@@ -84,7 +84,9 @@ These methods yield progress directly without using internal `publish()`.
 
 ---
 
-## Phase 2: Add Stateless Methods to CloudFormationClient
+## Phase 2: Add Stateless Methods to CloudFormationClient ✅
+
+**Status:** COMPLETED
 
 **Goal:** Add query methods that return results without publishing.
 
@@ -104,6 +106,14 @@ public func monitorStream(stackName: String, pollInterval: Duration = .seconds(2
 ```
 
 **Verification:** Existing code still works.
+
+**Technical Notes:**
+- `queryStateOnce()` reuses existing `getStackStatus()`, `getStackOutputs()`, and `getOperationStartTime()` methods
+- Handles same error cases as `queryState()` but without calling `publish()`
+- `monitorStream()` uses `nonisolated` to return `AsyncThrowingStream` immediately
+- Internal `runMonitorStreamLoop()` runs isolated, polling status and yielding progress updates
+- Stream automatically completes when operation finishes (via `continuation.finish()`)
+- Properly handles task cancellation and errors during polling
 
 ---
 
