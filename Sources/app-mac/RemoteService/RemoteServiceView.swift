@@ -1,4 +1,5 @@
 import AppKit
+import sdk_aws
 import sdk_cli
 import service_deploy
 import SwiftUI
@@ -66,11 +67,13 @@ struct RemoteServiceView: View {
             )
         }
 
-        // Create CloudWatchLogsModel
-        self.cloudWatchLogsModel = CloudWatchLogsModel(
-            awsConfig: service.awsConfig,
-            cliClient: service.cliClient
+        // Create CloudWatchLogsModel via workflow
+        let workflow = CloudWatchLogsWorkflow.create(
+            cliClient: service.cliClient,
+            lambdaFunctionName: "swift-lambda-sample",
+            credentialProvider: service.awsConfig.makeCredentialProvider()
         )
+        self.cloudWatchLogsModel = CloudWatchLogsModel(workflow: workflow)
 
         // Create LambdaBuildService
         self.lambdaBuildService = LambdaBuildService(

@@ -353,20 +353,20 @@ Key changes:
    - Move trimming logic here
    - Return `AsyncThrowingStream<State, Error>`
 
-- [ ] **Remove `LambdaLogsService`** (service-deploy)
+- [x] **Remove `LambdaLogsService`** (service-deploy) ✅ COMPLETED
    - Delete the thin wrapper
    - Remove type aliases and re-exports
 
-- [ ] **Refactor `CloudWatchLogsModel`** (app-mac)
+- [x] **Refactor `CloudWatchLogsModel`** (app-mac) ✅ COMPLETED
    - Convert to enum-based state
    - Remove business logic
    - Accept workflow via init
 
-- [ ] **Update `CloudWatchLogsSectionView`** (app-mac)
+- [x] **Update `CloudWatchLogsSectionView`** (app-mac) ✅ COMPLETED
    - Update to use new `State` enum
    - Update model initialization
 
-- [ ] **Update dependent code**
+- [x] **Update dependent code** ✅ COMPLETED
    - `RemoteServiceView.swift` - Update model creation
    - Any tests that reference these types
 
@@ -442,4 +442,36 @@ Key changes:
 - Parameters for `pollInterval` and `maxEntries` exposed but have sensible defaults
 - Stream yields accumulated entries (not individual entries) matching proposal
 - Cancellation error treated as graceful stop, other errors propagated via `finish(throwing:)`
-- `LambdaLogsService` not yet removed—will be done in Phase 3 after model is updated to use workflow
+
+### Phase 3: Model Refactor and Service Removal (Completed)
+
+**Changes made:**
+
+1. **Deleted `LambdaLogsService`** (`Sources/service-deploy/AWSService/CloudWatchLogsService.swift`):
+   - Removed the entire file (thin wrapper no longer needed)
+   - Type aliases (`CloudWatchLogEntry`, `CloudWatchLogsError`) were already re-exported via `AWSAuthConfiguration+Persistence.swift`
+   - `CloudWatchLogsProgress` enum was only used internally by the service
+
+2. **Refactored `CloudWatchLogsModel`** (`Sources/app-mac/Models/CloudWatchLogsModel.swift`):
+   - Replaced multiple independent properties with single enum-based `State`
+   - Changed from `LambdaLogsService` dependency to `CloudWatchLogsWorkflow` dependency
+   - Removed business logic (trimming now handled by workflow)
+   - Removed `CLIOutputStream` (not needed for workflow approach)
+   - Removed `makeOutputStream()` method
+   - State enum with cases: `.idle(entries:)`, `.loading`, `.streaming(entries:)`, `.stopped(entries:)`, `.error(String)`
+   - Computed properties (`isStreaming`, `isLoading`, `canStart`, `entries`, `errorMessage`) moved to model level for view convenience
+
+3. **Updated `CloudWatchLogsSectionView`** (`Sources/app-mac/RemoteService/CloudWatchLogsSectionView.swift`):
+   - Updated status badge switch to use `model.state` instead of `model.status`
+   - Updated references from `model.logEntries` to `model.entries`
+   - Updated preview to create workflow and pass to model
+
+4. **Updated `RemoteServiceView`** (`Sources/app-mac/RemoteService/RemoteServiceView.swift`):
+   - Changed model creation from `CloudWatchLogsModel(awsConfig:cliClient:)` to workflow-based initialization
+   - Creates `CloudWatchLogsWorkflow` using factory method, then passes to model
+
+**Design decisions:**
+- State enum uses `idle(entries:)` instead of separate `idle` and `idle(entries:)` cases (Swift doesn't allow same case name with different associated values)
+- Computed properties kept on model rather than State enum for cleaner view code
+- View imports `sdk_aws` directly to access `CloudWatchLogEntry` type (follows direct import pattern)
+- Workflow created in view initialization using factory method for convenience

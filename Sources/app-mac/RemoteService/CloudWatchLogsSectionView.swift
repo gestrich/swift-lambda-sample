@@ -1,3 +1,4 @@
+import sdk_aws
 import sdk_cli
 import service_deploy
 import SwiftUI
@@ -40,7 +41,7 @@ struct CloudWatchLogsSectionView: View {
     @ViewBuilder
     private var statusBadge: some View {
         HStack(spacing: 4) {
-            switch model.status {
+            switch model.state {
             case .idle:
                 Image(systemName: "circle")
                     .foregroundColor(.secondary)
@@ -123,7 +124,7 @@ struct CloudWatchLogsSectionView: View {
             Button(action: { model.clearLogs() }) {
                 Label("Clear", systemImage: "trash")
             }
-            .disabled(model.logEntries.isEmpty && model.errorMessage == nil)
+            .disabled(model.entries.isEmpty && model.errorMessage == nil)
         }
     }
 
@@ -153,7 +154,7 @@ struct CloudWatchLogsSectionView: View {
             }
 
             // Log entries with auto-scroll
-            LogEntriesScrollView(entries: model.logEntries, isStreaming: model.isStreaming)
+            LogEntriesScrollView(entries: model.entries, isStreaming: model.isStreaming)
         }
     }
 
@@ -289,9 +290,14 @@ private struct LogEntryRow: View {
 #Preview {
     let awsConfig = AWSAuthConfiguration(profileName: "default", useAWSVault: false)
     let cliClient = CLIClient()
-    let model = CloudWatchLogsModel(awsConfig: awsConfig, cliClient: cliClient)
+    let workflow = CloudWatchLogsWorkflow.create(
+        cliClient: cliClient,
+        lambdaFunctionName: "swift-lambda-sample",
+        credentialProvider: awsConfig.makeCredentialProvider()
+    )
+    let model = CloudWatchLogsModel(workflow: workflow)
 
-    return CloudWatchLogsSectionView(model: model)
+    CloudWatchLogsSectionView(model: model)
         .padding()
         .frame(width: 600)
 }

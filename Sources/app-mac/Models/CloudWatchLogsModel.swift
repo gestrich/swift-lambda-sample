@@ -1,44 +1,38 @@
+import sdk_aws
 import sdk_cli
 import Foundation
 import Observation
 import service_deploy
 
-/// Observable model for CloudWatch logs viewing
-/// Holds UI state and delegates operations to LambdaLogsService
+/// Observable model for CloudWatch logs viewing.
+/// Holds UI state and delegates operations to CloudWatchLogsWorkflow.
 @MainActor
 @Observable
 public final class CloudWatchLogsModel {
     // MARK: - State
 
-    /// Current log entries being displayed
-    public private(set) var logEntries: [CloudWatchLogEntry] = []
-
-    /// Current streaming status
-    public private(set) var status: LogsStatus = .idle
+    /// Current state of the logs model
+    public private(set) var state: State = .idle(entries: [])
 
     /// Selected time period for log fetching
     public var sincePeriod: String = "1h"
 
-    /// Error message if any
-    public private(set) var errorMessage: String?
-
     // MARK: - Private
 
-    private let logsService: LambdaLogsService
-    private let output: CLIOutputStream
+    private let workflow: CloudWatchLogsWorkflow
     private var streamTask: Task<Void, Never>?
 
     // MARK: - Computed
 
     /// Whether logs are currently being streamed
     public var isStreaming: Bool {
-        if case .streaming = status { return true }
+        if case .streaming = state { return true }
         return false
     }
 
     /// Whether an operation is in progress
     public var isLoading: Bool {
-        switch status {
+        switch state {
         case .loading, .streaming:
             return true
         default:
@@ -48,27 +42,28 @@ public final class CloudWatchLogsModel {
 
     /// Whether the start button should be enabled
     public var canStart: Bool {
-        switch status {
-        case .idle, .error, .stopped:
+        switch state {
+        case .idle, .stopped, .error:
             return true
         default:
             return false
         }
     }
 
+    /// Current log entries
+    public var entries: [CloudWatchLogEntry] {
+        state.entries
+    }
+
+    /// Error message if any
+    public var errorMessage: String? {
+        state.errorMessage
+    }
+
     // MARK: - Init
 
-    public init(
-        awsConfig: AWSAuthConfiguration,
-        cliClient: CLIClient,
-        lambdaFunctionName: String = "swift-lambda-sample"
-    ) {
-        self.logsService = LambdaLogsService(
-            awsConfig: awsConfig,
-            cliClient: cliClient,
-            lambdaFunctionName: lambdaFunctionName
-        )
-        self.output = CLIOutputStream()
+    public init(workflow: CloudWatchLogsWorkflow) {
+        self.workflow = workflow
     }
 
     // MARK: - Public Methods
@@ -78,31 +73,24 @@ public final class CloudWatchLogsModel {
         guard canStart else { return }
 
         stopStreaming()
-        logEntries = []
-        errorMessage = nil
-        status = .streaming
+        state = .streaming(entries: [])
 
         streamTask = Task {
-            for await progress in logsService.tailLogs(since: sincePeriod, output: output) {
-                guard !Task.isCancelled else { break }
+            do {
+                for try await workflowState in workflow.stream(since: sincePeriod) {
+                    guard !Task.isCancelled else { break }
 
-                switch progress {
-                case .started:
-                    status = .streaming
-                case .entry(let entry):
-                    logEntries.append(entry)
-                    trimEntriesIfNeeded()
-                case .error(let message):
-                    errorMessage = message
-                case .stopped:
-                    if status == .streaming {
-                        status = .stopped
+                    switch workflowState {
+                    case .started:
+                        state = .streaming(entries: [])
+                    case .streaming(let entries):
+                        state = .streaming(entries: entries)
+                    case .stopped(let entries):
+                        state = .stopped(entries: entries)
                     }
                 }
-            }
-
-            if status == .streaming {
-                status = .stopped
+            } catch {
+                state = .error(error.localizedDescription)
             }
         }
     }
@@ -112,8 +100,8 @@ public final class CloudWatchLogsModel {
         streamTask?.cancel()
         streamTask = nil
 
-        if isStreaming {
-            status = .stopped
+        if case .streaming(let entries) = state {
+            state = .stopped(entries: entries)
         }
     }
 
@@ -122,62 +110,53 @@ public final class CloudWatchLogsModel {
         guard canStart else { return }
 
         stopStreaming()
-        logEntries = []
-        errorMessage = nil
-        status = .loading
+        state = .loading
 
         do {
-            let entries = try await logsService.fetchRecentLogs(since: sincePeriod, output: output)
-            logEntries = entries
-            status = .idle
+            let entries = try await workflow.fetch(since: sincePeriod)
+            state = .idle(entries: entries)
         } catch {
-            errorMessage = error.localizedDescription
-            status = .error(error.localizedDescription)
+            state = .error(error.localizedDescription)
         }
     }
 
     /// Clear all log entries
     public func clearLogs() {
-        logEntries = []
-        errorMessage = nil
+        state = .idle(entries: [])
     }
 
-    /// Get the output stream for StreamingTextView
-    public func makeOutputStream() async -> AsyncStream<StreamOutput> {
-        await output.makeStream()
-    }
+    // MARK: - State Enum
 
-    // MARK: - Private
+    public enum State: Equatable {
+        case idle(entries: [CloudWatchLogEntry])
+        case loading
+        case streaming(entries: [CloudWatchLogEntry])
+        case stopped(entries: [CloudWatchLogEntry])
+        case error(String)
 
-    private func trimEntriesIfNeeded() {
-        let maxEntries = 1000
-        if logEntries.count > maxEntries {
-            logEntries = Array(logEntries.suffix(maxEntries))
+        public var entries: [CloudWatchLogEntry] {
+            switch self {
+            case .idle(let entries): return entries
+            case .loading: return []
+            case .streaming(let entries): return entries
+            case .stopped(let entries): return entries
+            case .error: return []
+            }
         }
-    }
-}
 
-// MARK: - Status Enum
+        public var errorMessage: String? {
+            if case .error(let message) = self { return message }
+            return nil
+        }
 
-public enum LogsStatus: Equatable {
-    case idle
-    case loading
-    case streaming
-    case stopped
-    case error(String)
-
-    public var displayText: String {
-        switch self {
-        case .idle:
-            return "Ready"
-        case .loading:
-            return "Loading..."
-        case .streaming:
-            return "Streaming"
-        case .stopped:
-            return "Stopped"
-        case .error(let message):
-            return "Error: \(message)"
+        public var displayText: String {
+            switch self {
+            case .idle: return "Ready"
+            case .loading: return "Loading..."
+            case .streaming: return "Streaming"
+            case .stopped: return "Stopped"
+            case .error(let message): return "Error: \(message)"
+            }
         }
     }
 }
