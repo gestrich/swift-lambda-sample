@@ -246,44 +246,56 @@ public class DeploymentService {
 
 ---
 
-### [ ] Phase 4: Remove RemoteModel from feature-mac
+### [x] Phase 4: Remove RemoteModel from feature-mac ✅
 
 **Goal**: Views should observe `DeploymentService` directly—no separate model layer.
 
+**Status**: COMPLETED
+
 **Tasks**:
-- [ ] Update `RemoteView` to use `@Bindable var service: DeploymentService`
-- [ ] Move any view-specific logic from `RemoteModel` to the view or service
-- [ ] Delete `RemoteModel.swift`
-- [ ] Update `AppModel` to hold `DeploymentService` instead of `RemoteModel`
-- [ ] Update view hierarchy to pass `DeploymentService`
+- [x] Update `RemoteServiceView` to use `@State var service: DeploymentService`
+- [x] Update `CDKInfrastructureSectionView` to use `@Bindable var service: DeploymentService`
+- [x] Update `LambdaUpdateView` to accept auxiliary models directly (GitHubCIModel, LambdaBuildService)
+- [x] Move auxiliary model creation (GitHubCIModel, CloudWatchLogsModel, LambdaBuildService) to view init
+- [x] Update `AppModel` to hold `DeploymentService` instead of `RemoteModel`
+- [x] Update `ConnectionMode` enum to use `DeploymentService` for remote case
+- [x] Delete `RemoteModel.swift`
+- [x] Add exposed properties to `DeploymentService` (cliClient, projectRoot, awsConfig, githubConfig, apiClient)
 
-**Before**:
-```swift
-// RemoteModel.swift (DELETE)
-@Observable class RemoteModel {
-    private var remoteDeploymentService: RemoteDeploymentService?
-    var cdkState: RemoteDeploymentService.State
-}
+**Technical Notes**:
+- `DeploymentService` now exposes configuration properties needed by auxiliary models:
+  - `cliClient: CLIClient` - for CLI operations
+  - `projectRoot: String` - working directory
+  - `awsConfig: AWSAuthConfiguration` - AWS credentials
+  - `githubConfig: GitHubActionsConfiguration?` - GitHub settings
+  - `apiClient: APIClient` - for API requests (computed from endpoint)
+  - `endpoint: String` - API Gateway URL
+  - `isConfigured: Bool` - whether endpoint is available
+- Auxiliary models (`GitHubCIModel`, `CloudWatchLogsModel`, `LambdaBuildService`) are created in `RemoteServiceView.initializeAuxiliaryModels()` using DeploymentService's exposed config
+- `ConnectionMode.service` property removed - remote services have different semantics than local services and don't need polymorphic access
+- `ConnectionMode.localService` added to access local services via `LambdaService` protocol when needed
+- State mapping: `DeploymentService.deploymentState: DeploymentState` replaces `RemoteModel.cdkState: RemoteDeploymentService.State`
+- Configuration access: `service.infrastructureConfiguration?.hasDatabase` instead of `state.configuration.hasDatabase`
+- Output access: `service.stackOutputs?.allOutputs` instead of `state.outputs.allOutputs`
+- Action methods now async: `service.deploy(options:output:)`, `service.destroy(output:)`, `service.refresh()`
 
-// RemoteView.swift
-struct RemoteView: View {
-    @Bindable var model: RemoteModel
-}
+**Files Changed**:
 ```
+feature-mac/
+├── Models/
+│   ├── RemoteModel.swift           # DELETED
+│   └── AppModel.swift              # Updated to use DeploymentService
+├── RemoteService/
+│   ├── RemoteServiceView.swift     # Updated to use DeploymentService
+│   ├── CDKInfrastructureSectionView.swift  # Updated to use DeploymentService
+│   └── LambdaUpdateView.swift      # Updated to take auxiliary models directly
 
-**After**:
-```swift
-// RemoteView.swift
-struct RemoteView: View {
-    @Bindable var service: DeploymentService
-
-    var body: some View {
-        switch service.cdkState {
-        case .idle: ...
-        case .deploying: ...
-        }
-    }
-}
+service-deploy/
+├── DeploymentService.swift         # Added exposed properties
+├── LambdaService/Protocols/
+│   └── LambdaService.swift         # Updated comments
+└── LocalDevelopmentService/Protocols/
+    └── LocalService.swift          # Updated comments
 ```
 
 ---

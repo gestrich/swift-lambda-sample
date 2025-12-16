@@ -3,7 +3,7 @@ import Foundation
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
 /// Both XcodeLocalModel and LinuxLocalModel conform to this protocol.
-/// RemoteModel does NOT conform - it only conforms to LambdaService.
+/// Remote AWS deployments use DeploymentService directly (different semantics).
 @MainActor
 public protocol LocalService: AnyObject, LambdaService {
     // MARK: - Docker Services (PostgreSQL + MinIO/S3)

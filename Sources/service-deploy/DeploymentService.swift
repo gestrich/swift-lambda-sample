@@ -49,13 +49,25 @@ public class DeploymentService {
     private let cloudFormationClient: CloudFormationClient
     private let githubClient: GitHubActionsClient?
     private let gitClient: GitClient
-    private let cliClient: CLIClient
+
+    /// CLI client for executing commands (exposed for auxiliary services)
+    public let cliClient: CLIClient
 
     // MARK: - Configuration
 
-    private let stackName: String
-    private let projectRoot: String
+    /// Stack name being managed
+    public let stackName: String
+
+    /// Project root directory
+    public let projectRoot: String
+
     private let cdkDirectory: String
+
+    /// AWS configuration (exposed for auxiliary services)
+    public let awsConfig: AWSAuthConfiguration
+
+    /// GitHub configuration (exposed for auxiliary services)
+    public let githubConfig: GitHubActionsConfiguration?
 
     // MARK: - Cross-SDK Derived State
 
@@ -82,6 +94,21 @@ public class DeploymentService {
     /// API Gateway URL from stack outputs
     public var apiGatewayUrl: String? {
         stackOutputs?.apiGatewayUrl
+    }
+
+    /// Endpoint URL (alias for apiGatewayUrl for compatibility)
+    public var endpoint: String {
+        apiGatewayUrl ?? "https://<not-configured>"
+    }
+
+    /// Whether the service is configured (has a valid endpoint)
+    public var isConfigured: Bool {
+        apiGatewayUrl != nil
+    }
+
+    /// API client for making requests to this service
+    public var apiClient: APIClient {
+        APIClient(baseURL: endpoint, mode: .remote, serviceName: "Remote")
     }
 
     /// Lambda function name from stack outputs
@@ -126,6 +153,8 @@ public class DeploymentService {
         self.projectRoot = projectRoot
         self.stackName = stackName
         self.cdkDirectory = cdkDirectory
+        self.awsConfig = awsConfig
+        self.githubConfig = githubConfig
 
         let cli = cliClient ?? CLIClient(defaultWorkingDirectory: projectRoot)
         self.cliClient = cli

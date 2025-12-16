@@ -1,14 +1,21 @@
 import AppKit
+import sdk_aws
 import sdk_cli
+import service_deploy
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management
-/// Connects directly to RemoteModel without going through MacAppModel
+/// Connects directly to DeploymentService without going through a separate model layer
 struct RemoteServiceView: View {
-    @State var service: RemoteModel
+    @State var service: DeploymentService
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
+
+    /// Auxiliary models created from service config
+    @State private var githubCIModel: GitHubCIModel?
+    @State private var cloudWatchLogsModel: CloudWatchLogsModel?
+    @State private var lambdaBuildService: LambdaBuildService?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,32 +45,61 @@ struct RemoteServiceView: View {
             // Collapsible output panel pinned to bottom
             CollapsibleOutputPanel(
                 streamProvider: { await service.cliClient.outputStream() },
-                streamId: RemoteModel.persistenceKey,
+                streamId: "remote",
                 onCommand: { runCommand($0) }
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            initializeAuxiliaryModels()
+        }
+    }
+
+    // MARK: - Auxiliary Model Initialization
+
+    private func initializeAuxiliaryModels() {
+        // Create GitHubCIModel if GitHub config is available
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            self.githubCIModel = GitHubCIModel(
+                repoPath: service.projectRoot,
+                config: githubConfig,
+                cliClient: service.cliClient
+            )
+        }
+
+        // Create CloudWatchLogsModel
+        self.cloudWatchLogsModel = CloudWatchLogsModel(
+            awsConfig: service.awsConfig,
+            cliClient: service.cliClient
+        )
+
+        // Create LambdaBuildService
+        self.lambdaBuildService = LambdaBuildService(
+            workingDirectory: service.projectRoot,
+            cliClient: service.cliClient,
+            awsConfig: service.awsConfig
+        )
     }
 
     // MARK: - CDK Infrastructure Section
 
     @ViewBuilder
     private var cdkInfrastructureSection: some View {
-        if service.isCDKConfigured {
-            CDKInfrastructureSectionView(
-                model: service,
-                onOpenSettings: onOpenSettings
-            )
-        } else {
-            CDKInfrastructureLoadingView()
-        }
+        CDKInfrastructureSectionView(
+            service: service,
+            onOpenSettings: onOpenSettings
+        )
     }
 
     // MARK: - Lambda Update Section
 
     @ViewBuilder
     private var lambdaUpdateSection: some View {
-        LambdaUpdateView(service: service, onOpenSettings: onOpenSettings)
+        LambdaUpdateView(
+            githubCIModel: githubCIModel,
+            lambdaBuildService: lambdaBuildService,
+            onOpenSettings: onOpenSettings
+        )
     }
 
     // MARK: - Endpoint Section
@@ -80,7 +116,7 @@ struct RemoteServiceView: View {
                 // Status badge
                 remoteStatusBadge
 
-                Button(action: { service.refreshStatus() }) {
+                Button(action: { Task { await service.refresh() } }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
@@ -89,9 +125,9 @@ struct RemoteServiceView: View {
 
             // Endpoint
             CopyableEndpointView(
-                label: service.endpointLabel,
+                label: "API Gateway URL",
                 endpoint: service.endpoint,
-                helpText: service.endpointHelpText
+                helpText: "URL is automatically fetched when refreshing status"
             )
         }
     }
@@ -100,7 +136,7 @@ struct RemoteServiceView: View {
 
     @ViewBuilder
     private var cloudWatchLogsSection: some View {
-        if let logsModel = service.cloudWatchLogsModel {
+        if let logsModel = cloudWatchLogsModel {
             CloudWatchLogsSectionView(model: logsModel)
         } else {
             VStack(alignment: .leading, spacing: 8) {
@@ -151,7 +187,7 @@ struct RemoteServiceView: View {
 // MARK: - Preview
 
 #Preview {
-    let service = RemoteModel(workingDirectory: FileManager.default.currentDirectoryPath)
+    let service = DeploymentService(projectRoot: FileManager.default.currentDirectoryPath)
     return RemoteServiceView(service: service)
         .padding()
         .frame(width: 500)

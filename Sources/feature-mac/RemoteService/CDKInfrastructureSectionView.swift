@@ -44,7 +44,7 @@ struct CDKInfrastructureLoadingView: View {
 /// View for the CDK Infrastructure section in Remote mode
 /// Shows stack status, configuration, outputs, and deploy/destroy actions
 struct CDKInfrastructureSectionView: View {
-    @Bindable var model: RemoteModel
+    @Bindable var service: DeploymentService
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
@@ -62,8 +62,8 @@ struct CDKInfrastructureSectionView: View {
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    private var state: RemoteDeploymentService.State {
-        model.cdkState
+    private var state: DeploymentState {
+        service.deploymentState
     }
 
     var body: some View {
@@ -77,7 +77,7 @@ struct CDKInfrastructureSectionView: View {
 
                 // Refresh button
                 Button {
-                    model.refreshCDKState()
+                    Task { await service.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -92,7 +92,7 @@ struct CDKInfrastructureSectionView: View {
                     errorMessage: message,
                     onOpenSettings: onOpenSettings,
                     onRetry: {
-                        model.refreshCDKState()
+                        Task { await service.refresh() }
                     }
                 )
             } else if case .failed(let reason) = state,
@@ -101,7 +101,7 @@ struct CDKInfrastructureSectionView: View {
                     errorMessage: reason,
                     onOpenSettings: onOpenSettings,
                     onRetry: {
-                        model.refreshCDKState()
+                        Task { await service.refresh() }
                     }
                 )
             } else {
@@ -124,7 +124,7 @@ struct CDKInfrastructureSectionView: View {
                     actionButtons
 
                     // Stack outputs (collapsible, when deployed)
-                    if case .deployed = state, !state.outputs.allOutputs.isEmpty {
+                    if case .deployed = state, !state.outputs.isEmpty {
                         outputsSection
                     }
                 }
@@ -167,7 +167,7 @@ struct CDKInfrastructureSectionView: View {
             Spacer()
 
             // Stack name
-            Text(model.cdkStackName)
+            Text(service.stackName)
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -305,25 +305,26 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var configurationRow: some View {
+        let config = service.infrastructureConfiguration ?? CDKInfrastructureConfiguration()
         HStack(spacing: 16) {
             // Database
             HStack(spacing: 4) {
-                Image(systemName: state.configuration.hasDatabase ? "checkmark.circle.fill" : "xmark.circle")
+                Image(systemName: config.hasDatabase ? "checkmark.circle.fill" : "xmark.circle")
                     .font(.caption)
-                    .foregroundColor(state.configuration.hasDatabase ? .green : .secondary)
+                    .foregroundColor(config.hasDatabase ? .green : .secondary)
                 Text("Database")
                     .font(.caption)
-                    .foregroundColor(state.configuration.hasDatabase ? .primary : .secondary)
+                    .foregroundColor(config.hasDatabase ? .primary : .secondary)
             }
 
             // NAT Gateway
             HStack(spacing: 4) {
-                Image(systemName: state.configuration.hasNATGateway ? "checkmark.circle.fill" : "xmark.circle")
+                Image(systemName: config.hasNATGateway ? "checkmark.circle.fill" : "xmark.circle")
                     .font(.caption)
-                    .foregroundColor(state.configuration.hasNATGateway ? .green : .secondary)
+                    .foregroundColor(config.hasNATGateway ? .green : .secondary)
                 Text("NAT Gateway")
                     .font(.caption)
-                    .foregroundColor(state.configuration.hasNATGateway ? .primary : .secondary)
+                    .foregroundColor(config.hasNATGateway ? .primary : .secondary)
             }
         }
     }
@@ -490,21 +491,36 @@ struct CDKInfrastructureSectionView: View {
                 Menu {
                     Button {
                         showOutput()
-                        model.deployCDK(withPostgres: false, withNATGateway: false, output: stream)
+                        Task {
+                            await service.deploy(
+                                options: .init(withPostgres: false, withNATGateway: false),
+                                output: stream
+                            )
+                        }
                     } label: {
                         Label("Minimal (No Database)", systemImage: "leaf")
                     }
 
                     Button {
                         showOutput()
-                        model.deployCDK(withPostgres: true, withNATGateway: false, output: stream)
+                        Task {
+                            await service.deploy(
+                                options: .init(withPostgres: true, withNATGateway: false),
+                                output: stream
+                            )
+                        }
                     } label: {
                         Label("With PostgreSQL", systemImage: "cylinder")
                     }
 
                     Button {
                         showOutput()
-                        model.deployCDK(withPostgres: true, withNATGateway: true, output: stream)
+                        Task {
+                            await service.deploy(
+                                options: .init(withPostgres: true, withNATGateway: true),
+                                output: stream
+                            )
+                        }
                     } label: {
                         Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
                     }
@@ -514,7 +530,9 @@ struct CDKInfrastructureSectionView: View {
 
                         Button {
                             showOutput()
-                            model.updateCDKInfrastructure(output: stream)
+                            Task {
+                                await service.updateInfrastructure(output: stream)
+                            }
                         } label: {
                             Label("Update (Keep Config)", systemImage: "arrow.triangle.2.circlepath")
                         }
@@ -551,7 +569,9 @@ struct CDKInfrastructureSectionView: View {
             ) {
                 Button("Destroy", role: .destructive) {
                     showOutput()
-                    model.destroyCDK(output: stream)
+                    Task {
+                        await service.destroy(output: stream)
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -577,6 +597,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var outputsSection: some View {
+        let outputs = service.stackOutputs ?? CDKStackOutputs()
         VStack(alignment: .leading, spacing: 8) {
             Divider()
 
@@ -602,12 +623,12 @@ struct CDKInfrastructureSectionView: View {
             if showOutputs {
                 VStack(alignment: .leading, spacing: 6) {
                     // API URL (highlighted)
-                    if let apiUrl = state.outputs.apiGatewayUrl {
+                    if let apiUrl = outputs.apiGatewayUrl {
                         outputRow(key: "API URL", value: apiUrl, copyable: true)
                     }
 
                     // Other outputs
-                    ForEach(state.outputs.allOutputs.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                    ForEach(outputs.allOutputs.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
                         if key != "ApiGatewayUrl" {
                             outputRow(key: key, value: value, copyable: true)
                         }
