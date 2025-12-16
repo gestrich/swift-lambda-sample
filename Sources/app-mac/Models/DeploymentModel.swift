@@ -239,41 +239,8 @@ public class DeploymentModel {
 
     // MARK: - Deploy Operations
 
-    /// App-specific deployment options (mirrors service-deploy for compatibility)
-    public struct DeployOptions: Sendable {
-        public let withPostgres: Bool
-        public let withNATGateway: Bool
-        public let requireApproval: Bool
-
-        public init(
-            withPostgres: Bool = false,
-            withNATGateway: Bool = false,
-            requireApproval: Bool = false
-        ) {
-            self.withPostgres = withPostgres
-            self.withNATGateway = withNATGateway
-            self.requireApproval = requireApproval
-        }
-
-        public static var minimal: DeployOptions {
-            DeployOptions(withPostgres: false, withNATGateway: false)
-        }
-
-        public static var full: DeployOptions {
-            DeployOptions(withPostgres: true, withNATGateway: true)
-        }
-
-        func toWorkflowOptions() -> DeployWorkflow.Options {
-            DeployWorkflow.Options(
-                withPostgres: withPostgres,
-                withNATGateway: withNATGateway,
-                requireApproval: requireApproval
-            )
-        }
-    }
-
     /// Deploy infrastructure with specified configuration
-    public func deploy(options: DeployOptions, output: CLIOutputStream? = nil) async {
+    public func deploy(options: DeployWorkflow.Options, output: CLIOutputStream? = nil) async {
         guard canDeploy else { return }
 
         lastError = nil
@@ -286,7 +253,7 @@ public class DeploymentModel {
         )
 
         do {
-            for try await progress in workflow.run(options: options.toWorkflowOptions(), output: output) {
+            for try await progress in workflow.run(options: options, output: output) {
                 activeWorkflow = .deploy(progress)
 
                 // Update state based on workflow progress
@@ -328,7 +295,7 @@ public class DeploymentModel {
         let hasDatabase = infrastructureConfiguration?.hasDatabase ?? false
         let hasNATGateway = infrastructureConfiguration?.hasNATGateway ?? false
 
-        let options = DeployOptions(withPostgres: hasDatabase, withNATGateway: hasNATGateway)
+        let options = DeployWorkflow.Options(withPostgres: hasDatabase, withNATGateway: hasNATGateway)
         await deploy(options: options, output: output)
     }
 

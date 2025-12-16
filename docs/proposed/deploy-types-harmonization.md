@@ -82,7 +82,7 @@ These are architecturally correct but the relationships aren't documented.
 
 ---
 
-## Phase 1: Delete DeploymentModel.DeployOptions
+## Phase 1: Delete DeploymentModel.DeployOptions ✅ COMPLETED
 
 **Goal:** App layer uses `DeployWorkflow.Options` directly.
 
@@ -124,6 +124,12 @@ await deploy(options: options, output: output)
 let options = DeployWorkflow.Options(withPostgres: hasDatabase, withNATGateway: hasNATGateway)
 await deploy(options: options, output: output)
 ```
+
+**Implementation Notes:**
+- Deleted the `DeploymentModel.DeployOptions` struct (30 lines removed)
+- Changed `deploy(options:output:)` parameter type from `DeployOptions` to `DeployWorkflow.Options`
+- Removed `.toWorkflowOptions()` conversion call since options are now passed directly
+- Updated `updateInfrastructure()` to construct `DeployWorkflow.Options` directly
 
 **Verification:** Build succeeds. No behavioral change.
 
