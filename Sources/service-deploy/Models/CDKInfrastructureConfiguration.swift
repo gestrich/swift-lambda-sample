@@ -1,14 +1,22 @@
 import Foundation
 
-/// Detected infrastructure configuration from CloudFormation
+/// Detected infrastructure configuration from CloudFormation.
+/// Extends InfrastructureShape with additional detected properties.
 public struct CDKInfrastructureConfiguration: Equatable, Sendable {
-    public let hasDatabase: Bool
-    public let hasNATGateway: Bool
+    /// Core infrastructure shape (matches desired state type)
+    public let shape: InfrastructureShape
+
+    /// Whether VPC was detected (detection-only, not a deployment option)
     public let hasVPC: Bool
 
+    /// Convenience accessor for database status
+    public var hasDatabase: Bool { shape.hasDatabase }
+
+    /// Convenience accessor for NAT Gateway status
+    public var hasNATGateway: Bool { shape.hasNATGateway }
+
     public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
-        self.hasDatabase = hasDatabase
-        self.hasNATGateway = hasNATGateway
+        self.shape = InfrastructureShape(hasDatabase: hasDatabase, hasNATGateway: hasNATGateway)
         self.hasVPC = hasVPC
     }
 }

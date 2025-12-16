@@ -204,7 +204,7 @@ public var operationName: String? {
 
 ---
 
-## Phase 3: Create Unified InfrastructureShape Type
+## Phase 3: Create Unified InfrastructureShape Type ✅ COMPLETED
 
 **Goal:** Single type for both desired and detected infrastructure configuration.
 
@@ -333,6 +333,13 @@ public func updateInfrastructure(output: CLIOutputStream? = nil) async {
     await deploy(options: options, output: output)
 }
 ```
+
+**Implementation Notes:**
+- Created `InfrastructureShape` as a simple value type with `hasDatabase` and `hasNATGateway` properties.
+- Added static `.minimal` and `.full` factory properties for common configurations.
+- `CDKInfrastructureConfiguration` now wraps `InfrastructureShape` via its `shape` property, while maintaining backward-compatible computed properties (`hasDatabase`, `hasNATGateway`).
+- `DeployWorkflow.Options` now stores `InfrastructureShape` internally, with a backward-compatible convenience initializer using the old `withPostgres`/`withNATGateway` parameter names.
+- `DeploymentModel.updateInfrastructure()` simplified to pass the shape directly from detected configuration to deploy options.
 
 **Verification:** Build succeeds. No behavioral change.
 

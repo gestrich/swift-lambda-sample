@@ -292,10 +292,8 @@ public class DeploymentModel {
 
     /// Update infrastructure maintaining current configuration
     public func updateInfrastructure(output: CLIOutputStream? = nil) async {
-        let hasDatabase = infrastructureConfiguration?.hasDatabase ?? false
-        let hasNATGateway = infrastructureConfiguration?.hasNATGateway ?? false
-
-        let options = DeployWorkflow.Options(withPostgres: hasDatabase, withNATGateway: hasNATGateway)
+        let shape = infrastructureConfiguration?.shape ?? .minimal
+        let options = DeployWorkflow.Options(infrastructure: shape)
         await deploy(options: options, output: output)
     }
 

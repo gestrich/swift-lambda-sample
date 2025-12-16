@@ -44,34 +44,44 @@ public struct DeployWorkflow: Sendable {
 
     /// App-specific deployment options
     public struct Options: Sendable {
-        public let withPostgres: Bool
-        public let withNATGateway: Bool
+        public let infrastructure: InfrastructureShape
         public let requireApproval: Bool
 
+        public init(
+            infrastructure: InfrastructureShape = .minimal,
+            requireApproval: Bool = false
+        ) {
+            self.infrastructure = infrastructure
+            self.requireApproval = requireApproval
+        }
+
+        /// Convenience initializer for backward compatibility
         public init(
             withPostgres: Bool = false,
             withNATGateway: Bool = false,
             requireApproval: Bool = false
         ) {
-            self.withPostgres = withPostgres
-            self.withNATGateway = withNATGateway
+            self.infrastructure = InfrastructureShape(
+                hasDatabase: withPostgres,
+                hasNATGateway: withNATGateway
+            )
             self.requireApproval = requireApproval
         }
 
         public static var minimal: Options {
-            Options(withPostgres: false, withNATGateway: false)
+            Options(infrastructure: .minimal)
         }
 
         public static var full: Options {
-            Options(withPostgres: true, withNATGateway: true)
+            Options(infrastructure: .full)
         }
 
         func toCDKOptions() -> CDKClient.DeployOptions {
             var context: [String: String] = [:]
-            if !withPostgres {
+            if !infrastructure.hasDatabase {
                 context["skipPostgres"] = "true"
             }
-            if !withNATGateway {
+            if !infrastructure.hasNATGateway {
                 context["skipNATGateway"] = "true"
             }
             return CDKClient.DeployOptions(
