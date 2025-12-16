@@ -1,546 +1,145 @@
 # Layered Architecture
 
-This document defines the layered architecture and naming conventions for organizing Swift targets across the project.
+This document defines the layered architecture for organizing Swift targets across the project.
 
 ## Overview
 
 The project uses a three-layer architecture where dependencies flow downward:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                       FEATURE                           │
-│      feature-lambda  ·  feature-mac  ·  feature-cli     │
-│                                                         │
-│   Entry points, handle input/output                     │
-└────────────────────────┬────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                          APP                                 │
+│          app-lambda  ·  app-mac  ·  app-cli                  │
+│                                                              │
+│   Entry points, I/O, @Observable models (where needed)       │
+└────────────────────────┬────────────────────────────────────┘
                          │ uses
                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                       SERVICE                           │
-│   service-deploy  ·  service-local-dev  ·  ...          │
-│                                                         │
-│   Often @Observable (services ARE the models)           │
-│   App-specific, orchestrates SDKs                       │
-└────────────────────────┬────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                       SERVICE                                │
+│              service-deploy  ·  service-storage              │
+│                                                              │
+│   Workflows returning AsyncThrowingStream                    │
+└────────────────────────┬────────────────────────────────────┘
                          │ uses
                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                         SDK                             │
-│      sdk-cdk  ·  sdk-github  ·  sdk-docker  ·  ...      │
-│                                                         │
-│   Reusable, not app-specific                            │
-│   May have state (publishes via AsyncStream)            │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                         SDK                                  │
+│        sdk-aws  ·  sdk-github  ·  sdk-cli  ·  sdk-client     │
+│                                                              │
+│   Stateless clients and utilities                            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Layer Definitions
 
-### Features (`feature-*`)
+### Apps (`app-*`)
 
-Features are entry points—the executables that handle I/O.
+Entry points that handle I/O.
 
-**Naming**: `feature-lambda`, `feature-mac`, `feature-cli`
-
-**Characteristics**:
-- Executable targets (apps, command-line tools, Lambda handlers)
-- Handle input/output
-- Wire up services and present output
-- Platform-specific I/O (SwiftUI views, terminal output, Lambda response encoding)
-
-**What belongs here**:
-- SwiftUI `View` structs (feature-mac)
-- Argument parsing and output formatting (feature-cli)
-- Request/response encoding (feature-lambda)
-- Entry point and dependency wiring
-
-```swift
-// feature-mac - View observes Service directly
-struct DeploymentView: View {
-    @Bindable var service: DeploymentService
-
-    var body: some View {
-        switch service.state {
-        case .idle:
-            Button("Deploy") { service.deploy() }
-        case .deploying(let progress):
-            ProgressView(value: progress)
-        case .deployed:
-            Text("Deployed")
-        case .failed(let error):
-            ErrorView(error: error) { service.retry() }
-        }
-    }
-}
-
-// feature-cli - Command uses Service
-struct DeployCommand: AsyncParsableCommand {
-    func run() async throws {
-        let service = DeploymentService(...)
-        try await service.deploy()
-        print("Deployed successfully")
-    }
-}
-```
-
----
+- Executable targets (apps, CLI tools, Lambda handlers)
+- Platform-specific I/O (SwiftUI views, terminal output, Lambda encoding)
+- `@Observable` models live here when needed (e.g., app-mac for SwiftUI)
+- CLI commands can use workflows directly without `@Observable`
 
 ### Services (`service-*`)
 
-Services contain app-specific business logic. In this architecture, **services ARE the models**—there is no separate model layer.
+Workflows that orchestrate multi-step operations.
 
-**Naming**: `service-deploy`, `service-local-dev`, `service-settings`
-
-**Characteristics**:
-- Often `@Observable` (for UI binding)
-- `@MainActor` when used by UI (feature-mac)
-- App-specific—not designed for reuse in other projects
-- Orchestrate multiple SDKs
-- Can depend on other services
-- Hold and manage state for their service area
-
-**State management**:
-- Services own their state directly as `@Observable` properties
-- Observe SDK state via `AsyncStream` using `for await` loops
-- Cross-SDK derived state lives in services
-
-```swift
-@MainActor @Observable
-class DeploymentService {
-    // State from SDKs
-    private(set) var cdkState: CDKClient.State = .idle
-    private(set) var githubState: GitHubClient.State = .idle
-
-    // SDKs
-    private let cdkClient: CDKClient
-    private let githubClient: GitHubClient
-
-    // Cross-SDK derived state
-    var canDeploy: Bool {
-        cdkState.isIdle && githubState.isIdle
-    }
-
-    var state: DeploymentState {
-        if case .deploying = cdkState { return .deploying }
-        if case .deploying = githubState { return .deploying }
-        if case .failed(let e) = cdkState { return .failed(e) }
-        return .idle
-    }
-
-    init(cdkClient: CDKClient, githubClient: GitHubClient) {
-        self.cdkClient = cdkClient
-        self.githubClient = githubClient
-        Task { await startObserving() }
-    }
-
-    private func startObserving() async {
-        async let cdk: Void = observeCDK()
-        async let github: Void = observeGitHub()
-        _ = await (cdk, github)
-    }
-
-    private func observeCDK() async {
-        for await state in await cdkClient.states() {
-            self.cdkState = state
-        }
-    }
-
-    // Actions
-    func deploy() {
-        Task {
-            await cdkClient.deploy()
-            await githubClient.triggerWorkflow()
-        }
-    }
-}
-```
-
----
+- Workflows are structs returning `AsyncThrowingStream<Progress, Error>`
+- Coordinate multiple SDK clients
+- App-specific business logic
+- **Not** `@Observable`—that belongs in the app layer
 
 ### SDKs (`sdk-*`)
 
-SDKs are reusable utilities that are not specific to this application. They could be extracted into separate open-source packages.
+Stateless reusable utilities.
 
-**Naming**: `sdk-cdk`, `sdk-github`, `sdk-docker`, `sdk-cli`
+- Wrap external tools and services
+- **Stateless**—no internal state management
+- Operations return `AsyncThrowingStream` for progress or values for one-shot queries
+- Can be extracted to separate packages
 
-**Characteristics**:
-- Library targets
-- Reusable—not app-specific
-- Can depend on other SDKs
-- NOT `@Observable`
-- May have state if inherently stateful (CDK deployments, Docker containers)
-- Publish state changes via `AsyncStream`
-- Many SDKs will be stateless
+## Key Principles
 
-**Stateful SDK example** (CDK has inherent state—deployments in progress):
+### Stateless SDKs
+
+SDK clients don't maintain internal state. Each method call is independent.
 
 ```swift
-actor CDKClient {
-    enum State: Sendable {
-        case idle
-        case deploying(progress: Double, startTime: Date)
-        case deployed(outputs: StackOutputs)
-        case failed(error: String)
+public actor CDKClient {
+    // Returns stream—no internal state tracking
+    public nonisolated func deployStream(options: DeployOptions) -> AsyncThrowingStream<CDKProgress, Error>
 
-        var isIdle: Bool {
-            if case .idle = self { return true }
-            return false
-        }
+    // Returns value directly
+    public func getStackOutputs(stackName: String) async throws -> [String: String]
+}
+```
 
-        var isBusy: Bool {
-            switch self {
-            case .deploying: return true
-            default: return false
+### Workflows for Orchestration
+
+Multi-step operations live in workflows that yield progress via streams.
+
+```swift
+public struct DeployWorkflow {
+    public func run(options: Options) -> AsyncThrowingStream<Progress, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                // Coordinate SDK clients, yield progress
+                for try await cdkProgress in cdkClient.deployStream(options: opts) {
+                    continuation.yield(...)
+                }
+                continuation.finish()
             }
-        }
-    }
-
-    private var state: State = .idle
-    private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
-
-    func states() -> AsyncStream<State> {
-        AsyncStream { continuation in
-            let id = UUID()
-            self.continuations[id] = continuation
-            continuation.yield(self.state)
-
-            continuation.onTermination = { [weak self] _ in
-                Task { await self?.removeContinuation(id) }
-            }
-        }
-    }
-
-    private func removeContinuation(_ id: UUID) {
-        continuations.removeValue(forKey: id)
-    }
-
-    private func publish(_ newState: State) {
-        state = newState
-        for continuation in continuations.values {
-            continuation.yield(newState)
-        }
-    }
-
-    func deploy() async {
-        guard !state.isBusy else { return }
-        publish(.deploying(progress: 0, startTime: Date()))
-
-        do {
-            let outputs = try await runCDKDeploy()
-            publish(.deployed(outputs: outputs))
-        } catch {
-            publish(.failed(error: error.localizedDescription))
         }
     }
 }
 ```
 
-**Stateless SDK example** (simple utilities):
+### @Observable Only in App Layer
+
+`@Observable` models exist only where UI binding is needed (app-mac). They consume workflow streams.
 
 ```swift
-struct ProcessRunner {
-    func run(_ command: String, arguments: [String]) async throws -> ProcessResult {
-        // Execute process, return result
+// app-mac model consumes workflow
+@MainActor @Observable
+class DeploymentModel {
+    func deploy() {
+        Task {
+            for try await progress in workflow.run(options: opts) {
+                self.activeWorkflow = .deploy(progress)
+            }
+        }
     }
 }
 
-struct ProcessResult {
-    let exitCode: Int32
-    let stdout: String
-    let stderr: String
+// app-cli uses workflow directly
+struct DeployCommand: AsyncParsableCommand {
+    func run() async throws {
+        for try await progress in workflow.run(options: opts) {
+            print(progress)
+        }
+    }
 }
 ```
 
----
+## Data Flow
+
+**CLI**: `Workflow stream → print progress`
+
+**Mac App**: `Workflow stream → @Observable model → View`
 
 ## Dependency Rules
 
-1. **Features** may depend on **Services** and **SDKs**
-2. **Services** may depend on other **Services** and **SDKs**
-3. **SDKs** may depend on other **SDKs** or external packages only
-4. **Never** depend upward (SDKs cannot depend on services, services cannot depend on features)
-
-```
-feature-mac ──→ service-deploy ──→ sdk-cdk
-     │                │                │
-     │                │                └──→ sdk-cli
-     │                │
-     │                └──→ sdk-github ──→ sdk-cli
-     │
-     └──→ sdk-cdk (direct SDK access allowed for simple cases)
-```
-
----
-
-## State Flow
-
-```
-SDK (AsyncStream) → Service (@Observable) → View
-```
-
-1. SDK performs operation, updates internal state, publishes via `AsyncStream`
-2. Service receives state in `for await` loop, updates `@Observable` property
-3. View automatically re-renders due to `@Observable` change
-
-**Key insight**: Services ARE models. There is no separate model layer. This eliminates unnecessary indirection while keeping clear separation between app-specific logic (services) and reusable utilities (SDKs).
-
----
-
-## Error Handling
-
-Errors flow through the same state system as normal operations.
-
-### Error Flow
-
-```
-SDK catches error → publishes .failed state → Service observes → View displays
-```
-
-### SDK: Errors as State
-
-Include error cases in the State enum. Use distinct cases for errors that need different UI treatment:
-
-```swift
-enum State: Sendable {
-    case idle
-    case loading
-    case ready(data: SomeData)
-    case failed(reason: String)
-    case credentialExpired(message: String)  // Needs different UI/recovery
-}
-```
-
-### SDK: Catching and Publishing Errors
-
-Operations catch errors and publish error state:
-
-```swift
-func refresh() async {
-    guard !state.isBusy else { return }
-    publish(.loading)
-
-    do {
-        let newState = try await queryState()
-        publish(newState)
-    } catch CredentialError.expired(let message) {
-        publish(.credentialExpired(message: message))
-    } catch {
-        publish(.failed(reason: error.localizedDescription))
-    }
-}
-```
-
-### View: Error Display with Recovery
-
-Views switch on state and provide error UI with recovery actions:
-
-```swift
-var body: some View {
-    switch service.sdkState {
-    case .failed(let reason):
-        ErrorView(message: reason) {
-            service.refresh()
-        }
-    case .credentialExpired(let message):
-        CredentialErrorView(message: message) {
-            onOpenSettings?()
-        }
-    // ...
-    }
-}
-```
-
-### Error Handling Principles
-
-1. **Errors are state** - No separate error handling path. Failed is just another state.
-2. **SDK categorizes errors** - Different error types get different state cases.
-3. **View decides presentation** - Different error states can have different UI and recovery actions.
-4. **Recovery through actions** - Error views call service actions (refresh, retry) to recover.
-
----
-
-## State Monitoring Patterns
-
-SDKs often need to monitor external state (AWS, databases, etc.). There are distinct scenarios:
-
-| Scenario | Trigger | Behavior |
-|----------|---------|----------|
-| **Startup** | SDK init | Capture initial state |
-| **View Refresh** | User navigates to view | Re-fetch current state |
-| **In-Progress Polling** | During active operation | Poll until complete |
-| **Operation Complete** | After deploy/destroy | Capture final state |
-
-### Centralized State Query
-
-All scenarios use a single `queryState()` method that returns complete state:
-
-```
-                    ┌─────────────────┐
-                    │  queryState()   │  ← Single source of truth
-                    │   (one-shot)    │
-                    └────────┬────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-   ┌────▼────┐         ┌─────▼─────┐        ┌─────▼─────┐
-   │ startup │         │  refresh  │        │   poll    │
-   └─────────┘         └───────────┘        └───────────┘
-```
-
-```swift
-private func queryState() async throws -> State {
-    let status = try await getStatus()
-
-    switch status {
-    case .complete:
-        return .ready(data: try await fetchData())
-    case .inProgress:
-        let events = try await getEvents()
-        let progress = buildProgress(from: events)
-        let startTime = events.last?.timestamp ?? Date()
-        return .operating(progress: progress, startTime: startTime)
-    case .notFound:
-        return .idle
-    }
-}
-```
-
-### Refresh Method
-
-Handles startup and user-triggered refresh:
-
-```swift
-func refresh() async {
-    guard !state.isBusy else { return }
-    publish(.loading)
-
-    let newState = try await queryState()
-    publish(newState)
-
-    // If we discovered an in-progress operation, monitor it
-    if newState.isInProgress {
-        await monitor()
-    }
-}
-```
-
-### Polling Monitor
-
-For in-progress operations, poll until complete:
-
-```swift
-private func monitor() async {
-    let startTime = Date()
-
-    while !Task.isCancelled {
-        let currentState = try await queryState()
-
-        if case .operating(let progress) = currentState {
-            publish(.operating(progress: progress, startTime: startTime))
-        } else {
-            publish(currentState)
-            return  // Done - no longer in progress
-        }
-
-        try await Task.sleep(for: .seconds(2))
-    }
-}
-```
-
-### State Monitoring Principles
-
-1. **queryState is pure** - Returns complete state snapshot
-2. **Single query method** - All paths use same method for consistency
-3. **Monitor discovers external ops** - If app launches during operation, monitor picks it up
-
----
-
-## Implementation Notes
-
-### Continuation Cleanup
-
-Use `onTermination` to remove continuations when observers stop listening:
-
-```swift
-continuation.onTermination = { [weak self] _ in
-    Task { await self?.removeContinuation(id) }
-}
-```
-
-### Concurrency Guards
-
-Prevent multiple operations from running simultaneously:
-
-```swift
-func doOperation() async {
-    guard !state.isBusy else { return }
-    // proceed
-}
-```
-
-### State Computed Properties
-
-Add helpers on the State enum for common queries:
-
-```swift
-extension CDKClient.State {
-    var isBusy: Bool {
-        switch self {
-        case .loading, .operating: return true
-        default: return false
-        }
-    }
-}
-```
-
----
-
-## Current Targets Mapping
-
-| Current Target      | Proposed Name           | Layer   |
-|---------------------|-------------------------|---------|
-| `SwiftLambda`       | `feature-lambda`        | Feature |
-| `MacApp`            | `feature-mac`           | Feature |
-| `SwiftDeployCLI`    | `feature-cli`           | Feature |
-| `RemoteModel` + `RemoteDeploymentService` | `service-deploy` | Service |
-| `XcodeLocalModel` + `XcodeLocalDevelopmentService` | `service-local-dev` | Service |
-| `LocalStorageService` | `sdk-storage`          | SDK     |
-| `CLIKit`            | `sdk-cli`                | SDK     |
-
----
+1. **Apps** depend on Services and SDKs
+2. **Services** depend on other Services and SDKs
+3. **SDKs** depend only on other SDKs or external packages
+4. Never depend upward
 
 ## When to Create a New Target
 
-**Create a new SDK when**:
-- The code has no app-specific business logic
-- It could be useful in unrelated projects
-- You're wrapping a third-party dependency or external tool
+**SDK**: Reusable, no app-specific logic, wraps external tool/service
 
-**Create a new Service when**:
-- The code contains business logic specific to this app
-- You're orchestrating multiple SDKs for an app-specific workflow
-- You need @Observable state for a feature area
+**Service**: Orchestrates multiple SDKs, app-specific workflow
 
-**Keep code in a Feature when**:
-- It's UI-specific (SwiftUI views)
-- It's platform-specific I/O (argument parsing, response encoding)
-
----
-
-## Testing
-
-Each layer has its own test target:
-- `feature-*-tests` — UI/integration tests
-- `service-*-tests` — Business logic tests (mock SDKs)
-- `sdk-*-tests` — Unit tests (minimal mocking)
-
-Services are easily testable because SDKs can be injected as protocols.
-
----
-
-## Summary
-
-| Layer | @Observable | State | Publishes | Role |
-|-------|-------------|-------|-----------|------|
-| **Feature** | No | `@State` only | No | Entry point, I/O |
-| **Service** | Yes | Cross-SDK | No | Orchestrate, expose to UI |
-| **SDK** | No | Single-SDK | Yes (`AsyncStream`) | Do the work |
+**App**: Entry point, UI, platform-specific I/O
