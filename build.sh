@@ -15,14 +15,14 @@ trap cleanup EXIT
 if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <build target name> [platform name] [github token]"
     echo ""
-    echo "  build target name: Required (e.g., feature-lambda)"
+    echo "  build target name: Required (e.g., app-lambda)"
     echo "  platform name: Optional, defaults to linux/amd64 (matches AWS Lambda x86_64)"
     echo "  github token: Optional, only needed if you have private dependencies"
     echo ""
     echo "Examples:"
-    echo "  $0 feature-lambda"
-    echo "  $0 feature-lambda linux/amd64"
-    echo "  $0 feature-lambda linux/amd64 your-github-token"
+    echo "  $0 app-lambda"
+    echo "  $0 app-lambda linux/amd64"
+    echo "  $0 app-lambda linux/amd64 your-github-token"
     exit 1
 fi
 

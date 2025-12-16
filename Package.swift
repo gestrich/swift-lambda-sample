@@ -10,8 +10,8 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "feature-lambda",
-            targets: ["feature-lambda"]
+            name: "app-lambda",
+            targets: ["app-lambda"]
         )
     ],
     dependencies: [
@@ -55,7 +55,7 @@ let package = Package(
             name: "service-storage"
         ),
         .executableTarget(
-            name: "feature-cli",
+            name: "app-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "service-deploy"),
@@ -78,7 +78,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "feature-lambda",
+            name: "app-lambda",
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
@@ -91,7 +91,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "feature-mac",
+            name: "app-mac",
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy"),

@@ -6,12 +6,12 @@ set -o pipefail
 set -o nounset
 
 # ============================================================================
-# tools.sh - Thin wrapper for feature-cli
+# tools.sh - Thin wrapper for app-cli
 # ============================================================================
 #
 # This script is a simple delegator that passes all arguments directly to
-# the feature-cli tool. It provides a shorter command prefix for
-# convenience: ./tools.sh instead of swift run feature-cli
+# the app-cli tool. It provides a shorter command prefix for
+# convenience: ./tools.sh instead of swift run app-cli
 #
 # Usage:
 #   ./tools.sh [command] [args...]
@@ -28,5 +28,5 @@ set -o nounset
 #   ./tools.sh local --help
 # ============================================================================
 
-# Pass all arguments directly to feature-cli
-swift run feature-cli "$@"
+# Pass all arguments directly to app-cli
+swift run app-cli "$@"

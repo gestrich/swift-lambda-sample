@@ -16,7 +16,7 @@ public actor XcodeLocalDevelopmentService {
 
     // Lambda configuration
     private let lambdaHostPort = 8080
-    private let lambdaProductName = "feature-lambda"
+    private let lambdaProductName = "app-lambda"
     private let lambdaProcessPattern = "swiftlamb"  // lsof truncates process names
 
     // Working directory

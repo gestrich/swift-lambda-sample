@@ -7,10 +7,10 @@ import Foundation
 public struct BuildScript {
 
     /// Build Lambda for Linux (Docker-based)
-    /// Example: ./build.sh feature-lambda linux/amd64 $GITHUB_TOKEN
+    /// Example: ./build.sh app-lambda linux/amd64 $GITHUB_TOKEN
     @CLICommand("")
     public struct Build {
-        /// Build target name (required, e.g., "feature-lambda")
+        /// Build target name (required, e.g., "app-lambda")
         @Positional public var target: String
 
         /// Platform name (defaults to linux/amd64 for AWS Lambda x86_64)
@@ -25,14 +25,14 @@ public struct BuildScript {
 
 public extension BuildScript.Build {
     /// Create a build command for the default AWS Lambda platform (linux/amd64)
-    /// - Parameter target: The build target name (e.g., "feature-lambda")
+    /// - Parameter target: The build target name (e.g., "app-lambda")
     static func lambda(target: String) -> Self {
         Self(target: target, platform: nil, githubToken: nil)
     }
 
     /// Create a build command with a specific platform
     /// - Parameters:
-    ///   - target: The build target name (e.g., "feature-lambda")
+    ///   - target: The build target name (e.g., "app-lambda")
     ///   - platform: The platform name (e.g., "linux/amd64", "linux/arm64")
     static func forPlatform(target: String, platform: String) -> Self {
         Self(target: target, platform: platform, githubToken: nil)
@@ -40,7 +40,7 @@ public extension BuildScript.Build {
 
     /// Create a build command with GitHub token for private dependencies
     /// - Parameters:
-    ///   - target: The build target name (e.g., "feature-lambda")
+    ///   - target: The build target name (e.g., "app-lambda")
     ///   - platform: The platform name (e.g., "linux/amd64")
     ///   - githubToken: GitHub token for private dependencies
     static func withToken(target: String, platform: String? = nil, githubToken: String) -> Self {

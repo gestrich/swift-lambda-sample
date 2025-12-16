@@ -77,6 +77,34 @@
                ReferencedContainer = "container:">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "app-lambda"
+               BuildableName = "app-lambda"
+               BlueprintName = "app-lambda"
+               ReferencedContainer = "container:">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "app-mac"
+               BuildableName = "app-mac"
+               BlueprintName = "app-mac"
+               ReferencedContainer = "container:">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -152,9 +180,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "feature-mac"
-            BuildableName = "feature-mac"
-            BlueprintName = "feature-mac"
+            BlueprintIdentifier = "app-mac"
+            BuildableName = "app-mac"
+            BlueprintName = "app-mac"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -178,9 +206,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "feature-mac"
-            BuildableName = "feature-mac"
-            BlueprintName = "feature-mac"
+            BlueprintIdentifier = "app-mac"
+            BuildableName = "app-mac"
+            BlueprintName = "app-mac"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>

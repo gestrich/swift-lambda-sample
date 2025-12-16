@@ -30,7 +30,7 @@ sdk-aws
 └── CloudFormationClient (stateless - query, return)
 ```
 
-## Current State (After Phase 8)
+## Current State (After Phase 10)
 
 | Component | Status |
 |-----------|--------|
@@ -38,8 +38,9 @@ sdk-aws
 | `CloudFormationClient` | ✅ Stateless - query methods only (`queryState`, `monitorStream`) |
 | `DeploymentService` | ✅ DELETED - replaced by workflows and DeploymentModel |
 | CLI commands | ✅ Use SDK clients and workflows directly, no @MainActor needed |
-| `DeploymentModel` | ✅ App layer @Observable model in feature-mac |
+| `DeploymentModel` | ✅ App layer @Observable model in app-mac |
 | Workflows | ✅ `DeployWorkflow`, `DestroyWorkflow` orchestrate multi-step operations |
+| Directory naming | ✅ Renamed `feature-*` to `app-*` |
 
 ---
 
@@ -379,15 +380,38 @@ Phase 9 was completed as part of Phase 8 since `DeploymentService` removal was s
 
 ---
 
-## Phase 10: Rename feature-* to app-*
+## Phase 10: Rename feature-* to app-* ✅
 
-**Status:** NOT STARTED
+**Status:** COMPLETED
+
+**Goal:** Rename entry point directories from `feature-*` to `app-*` to better reflect the layered architecture.
 
 **Files:**
-- Modify: `Package.swift`
-- Rename: `Sources/feature-mac` → `Sources/app-mac`
-- Rename: `Sources/feature-cli` → `Sources/app-cli`
-- Rename: `Sources/feature-lambda` → `Sources/app-lambda`
+- Modified: `Package.swift` (target names and product names)
+- Renamed: `Sources/feature-mac` → `Sources/app-mac`
+- Renamed: `Sources/feature-cli` → `Sources/app-cli`
+- Renamed: `Sources/feature-lambda` → `Sources/app-lambda`
+- Modified: `tools.sh` (CLI command references)
+- Modified: `.github/workflows/deploy_dev.yml` (productName)
+- Modified: `build.sh` (example commands)
+- Modified: `Sources/service-deploy/LambdaService/CLI/BuildScript.swift` (doc comments)
+- Modified: `Sources/service-deploy/LambdaService/CLI/SwiftCLI.swift` (doc comments)
+- Modified: `Sources/service-deploy/LambdaService/LambdaBuildService.swift` (build target)
+- Modified: `Sources/service-deploy/LocalDevelopmentService/XcodeLocalDevelopmentService.swift` (product name)
+- Modified: `Sources/service-deploy/LocalDevelopmentService/LinuxLocalDevelopmentService.swift` (build target)
+- Modified: `Sources/service-deploy/LambdaService/Protocols/LambdaService.swift` (doc comments)
+- Modified: `Sources/service-deploy/LocalDevelopmentService/Protocols/LocalService.swift` (doc comments)
+- Modified: `Sources/service-deploy/AWSService/AWSAuthConfiguration+Persistence.swift` (doc comments)
+- Modified: `Sources/app-mac/Models/XcodeLocalModel.swift` (executable path)
+
+**Technical Notes:**
+- All three entry point directories renamed from `feature-*` to `app-*`
+- Package.swift product and target names updated consistently
+- tools.sh wrapper now runs `swift run app-cli` instead of `swift run feature-cli`
+- GitHub Actions workflow updated to build `app-lambda` product
+- All source code references to `feature-lambda` updated to `app-lambda`
+- Protocol and service comments updated to reference `app-mac` instead of `feature-mac`
+- Build verified successfully with `swift build`
 
 ---
 
@@ -399,25 +423,27 @@ Phase 9 was completed as part of Phase 8 since `DeploymentService` removal was s
 | `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift` | ✅ Now stateless - queryState + monitorStream |
 | `Sources/service-deploy/Workflows/DeployWorkflow.swift` | ✅ Orchestrates deployment |
 | `Sources/service-deploy/Workflows/DestroyWorkflow.swift` | ✅ Orchestrates destruction |
-| `Sources/feature-mac/Models/DeploymentModel.swift` | ✅ App layer @Observable model |
-| `Sources/feature-mac/Models/AppModel.swift` | ✅ Uses DeploymentModel |
-| `Sources/feature-cli/Commands/DeployCommand.swift` | ✅ Uses workflow directly |
+| `Sources/app-mac/Models/DeploymentModel.swift` | ✅ App layer @Observable model |
+| `Sources/app-mac/Models/AppModel.swift` | ✅ Uses DeploymentModel |
+| `Sources/app-cli/Commands/DeployCommand.swift` | ✅ Uses workflow directly |
 | `Sources/service-deploy/DeploymentService.swift` | ✅ DELETED |
 
 ---
 
 ## Execution Order
 
-Phases 1-4 are additive (non-breaking). Phases 5-7 migrate consumers. Phase 8 cleans up. Phase 10 is optional renaming.
+Phases 1-4 are additive (non-breaking). Phases 5-7 migrate consumers. Phase 8 cleans up. Phase 10 renames directories.
+
+**All phases are now complete.**
 
 Each phase results in working code - can stop and verify at any point.
 
 ## Current Architecture Summary
 
-After completing Phase 8, the architecture is:
+After completing Phase 10, the architecture is:
 
 ```
-feature-mac                          feature-cli
+app-mac                              app-cli
 ├── DeploymentModel (@Observable)    ├── Commands (use SDK clients + workflows)
 └── Views                            └── No @Observable needed
 
@@ -438,5 +464,6 @@ sdk-aws
 Key benefits achieved:
 - SDK layer is fully stateless - no internal state management
 - Workflows orchestrate multi-step operations via AsyncThrowingStream
-- App layer (@Observable) only in feature-mac where SwiftUI needs it
+- App layer (@Observable) only in app-mac where SwiftUI needs it
 - CLI commands are simple consumers of SDK clients and workflows
+- Directory naming reflects layered architecture: `app-*` for entry points

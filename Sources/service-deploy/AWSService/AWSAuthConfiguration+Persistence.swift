@@ -9,8 +9,8 @@ import Foundation
 import service_storage
 import sdk_aws
 
-// Re-export SDK types for feature-mac and other consumers
-// This allows feature-mac to depend only on service-deploy, not directly on sdk-aws
+// Re-export SDK types for app-mac and other consumers
+// This allows app-mac to depend only on service-deploy, not directly on sdk-aws
 @_exported import struct sdk_aws.AWSAuthConfiguration
 @_exported import struct sdk_aws.CloudWatchLogEntry
 @_exported import enum sdk_aws.CloudWatchLogsProgress
