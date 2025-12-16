@@ -231,7 +231,7 @@ public actor CloudFormationClient {
                  StackStatus.updateCompleteCleanupInProgress:
                 let startTime = await getOperationStartTime(stackName: stackName)
                 return .deploying(
-                    operation: "Updating",
+                    operation: .updating,
                     progress: DeploymentProgress(),
                     startTime: startTime
                 )
@@ -293,13 +293,13 @@ public actor CloudFormationClient {
     ) async {
         var pollCount = 0
         var startTime: Date?
-        var operation: String = "Updating"
+        var operation: CloudFormationState.DeployOperation = .updating
 
         // Get initial state to determine operation type and start time
         do {
             let initialState = try await queryState(stackName: stackName)
             startTime = initialState.operationStartTime ?? Date()
-            operation = initialState.operationName ?? "Updating"
+            operation = initialState.operation ?? .updating
             continuation.yield(initialState)
 
             // If not in progress, we're done

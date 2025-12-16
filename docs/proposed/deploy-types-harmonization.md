@@ -129,13 +129,15 @@ await deploy(options: options, output: output)
 
 ---
 
-## Phase 2: Add Operation Enum to CloudFormationState
+## Phase 2: Add Operation Enum to CloudFormationState ✅ COMPLETED
 
 **Goal:** Replace string-based operation names with enum.
 
 **Files:**
 - Modify: `Sources/sdk-aws/CloudFormation/CloudFormationState.swift`
+- Modify: `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift`
 - Modify: `Sources/app-mac/Models/DeploymentModel.swift`
+- Modify: `Sources/app-mac/RemoteService/CDKInfrastructureSectionView.swift`
 
 **Changes:**
 
@@ -148,6 +150,7 @@ public enum CloudFormationState: Sendable, Equatable {
         case building = "Building"
         case deploying = "Deploying"
         case monitoring = "Monitoring"
+        case updating = "Updating"  // Generic in-progress state from CloudFormation queries
     }
 
     case deploying(operation: DeployOperation, progress: DeploymentProgress, startTime: Date)
@@ -184,6 +187,12 @@ public var operationName: String? {
     return nil
 }
 ```
+
+**Implementation Notes:**
+- Added `.updating` case to handle CloudFormation queries that detect an in-progress operation externally (not during a controlled workflow). This case is used by `CloudFormationClient.queryState()` and `monitorStream()`.
+- Added `operation` computed property (returns `DeployOperation?`) to complement existing `operationName` (returns `String?`).
+- Updated `CloudFormationClient.runMonitorStreamLoop()` to use typed `DeployOperation` instead of String for operation tracking.
+- Updated SwiftUI views to use `operation.rawValue` for display text.
 
 **Verification:** Build succeeds. UI displays same strings via `rawValue`.
 
@@ -404,8 +413,10 @@ Phases are independent and can be done in any order. Recommended:
 | File | Phases |
 |------|--------|
 | `Sources/sdk-aws/CloudFormation/CloudFormationState.swift` | 2, 4 |
+| `Sources/sdk-aws/CloudFormation/CloudFormationClient.swift` | 2 |
 | `Sources/sdk-aws/CloudFormation/DeploymentProgress.swift` | 4 |
 | `Sources/service-deploy/Models/InfrastructureShape.swift` | 3 (new) |
 | `Sources/service-deploy/Models/CDKInfrastructureConfiguration.swift` | 3 |
 | `Sources/service-deploy/Workflows/DeployWorkflow.swift` | 3, 4 |
 | `Sources/app-mac/Models/DeploymentModel.swift` | 1, 2, 3 |
+| `Sources/app-mac/RemoteService/CDKInfrastructureSectionView.swift` | 2 |

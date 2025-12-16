@@ -292,16 +292,16 @@ public class DeploymentModel {
                 // Update state based on workflow progress
                 switch progress.step {
                 case .building:
-                    deploymentState = .deploying(operation: "Building", progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
+                    deploymentState = .deploying(operation: .building, progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
 
                 case .deploying:
                     if case .cdk(let deployProgress) = progress.detail {
-                        deploymentState = .deploying(operation: "Deploying", progress: deployProgress, startTime: operationStartTime ?? Date())
+                        deploymentState = .deploying(operation: .deploying, progress: deployProgress, startTime: operationStartTime ?? Date())
                     }
 
                 case .monitoring:
                     if case .cdk(let deployProgress) = progress.detail {
-                        deploymentState = .deploying(operation: "Monitoring", progress: deployProgress, startTime: operationStartTime ?? Date())
+                        deploymentState = .deploying(operation: .monitoring, progress: deployProgress, startTime: operationStartTime ?? Date())
                     }
 
                 case .complete:

@@ -229,7 +229,7 @@ struct CDKInfrastructureSectionView: View {
                 .foregroundColor(.green)
         case .deploying(let operation, _, _):
             HStack(spacing: 6) {
-                Text(operation)
+                Text(operation.rawValue)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.blue)
@@ -395,7 +395,7 @@ struct CDKInfrastructureSectionView: View {
             } else {
                 // Still waiting for first poll
                 if case .deploying(let operation, _, _) = state {
-                    Text("\(operation)...")
+                    Text("\(operation.rawValue)...")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else if case .destroying = state {

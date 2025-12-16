@@ -4,11 +4,19 @@ import Foundation
 /// This enum represents the high-level state of a CloudFormation stack
 /// without any app-specific configuration knowledge.
 public enum CloudFormationState: Sendable, Equatable {
+    /// Operations that can occur during deployment
+    public enum DeployOperation: String, Sendable, Equatable {
+        case building = "Building"
+        case deploying = "Deploying"
+        case monitoring = "Monitoring"
+        case updating = "Updating"  // Generic in-progress state from CloudFormation queries
+    }
+
     case unknown
     case loading
     case notDeployed
     case deployed(outputs: [String: String])
-    case deploying(operation: String, progress: DeploymentProgress, startTime: Date)
+    case deploying(operation: DeployOperation, progress: DeploymentProgress, startTime: Date)
     case destroying(progress: DeploymentProgress, startTime: Date)
     case failed(reason: String)
     case credentialExpired(message: String)
@@ -66,6 +74,13 @@ public enum CloudFormationState: Sendable, Equatable {
     }
 
     public var operationName: String? {
+        if case .deploying(let operation, _, _) = self {
+            return operation.rawValue
+        }
+        return nil
+    }
+
+    public var operation: DeployOperation? {
         if case .deploying(let operation, _, _) = self {
             return operation
         }
