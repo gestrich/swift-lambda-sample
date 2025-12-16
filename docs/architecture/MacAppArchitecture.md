@@ -2,141 +2,157 @@
 
 ## Overview
 
-The app follows a **Model-View (MV)** architecture pattern with Services.
+The Mac app follows a **Feature-Service-SDK** architecture where services ARE the models.
 
 ## Project Structure
 
 ```
-MacApp/Models/                           # Observable state (UI binding)
-├── AppModel.swift                       # Root model, composes all services
-├── RemoteModel.swift                    # AWS deployment state
-├── XcodeLocalModel.swift                # Native macOS local dev state
-├── LinuxLocalModel.swift                # Linux container local dev state
-├── DependencyStatusModel.swift          # Dependency checker state
-└── LocalServicesModel.swift             # Local services state wrapper
+feature-mac/                             # Feature layer (handles I/O)
+├── Views/
+│   ├── ContentView.swift                # Main view, switches on mode
+│   ├── RemoteView.swift                 # AWS deployment UI
+│   ├── XcodeLocalView.swift             # Native macOS local dev UI
+│   └── LinuxLocalView.swift             # Linux container local dev UI
 
-SwiftDeploy/Services/                    # Stateless business logic
-├── RemoteDeploymentService.swift        # AWS deployment operations
-├── XcodeLocalDevelopmentService.swift   # Native macOS local dev operations
-├── LinuxLocalDevelopmentService.swift   # Linux container local dev operations
-├── DependencyCheckerService.swift       # Dependency checking operations
-└── ... (other services)
+Services/                                # Service layer (@Observable)
+├── service-deploy/                      # AWS deployment state & orchestration
+├── service-local-dev/                   # Local dev (Xcode + Linux)
+└── service-settings/                    # App settings
 
-SwiftDeploy/LambdaServices/              # Protocols and shared types
-├── LambdaService.swift                  # Base protocol + DeploymentStatus
-└── LocalService.swift                   # Extended protocol for local services
+SDKs/                                    # SDK layer (reusable)
+├── sdk-cdk/                             # AWS CDK operations
+├── sdk-github/                          # GitHub Actions operations
+├── sdk-docker/                          # Docker container operations
+└── sdk-cli/                             # Process execution utilities
 ```
 
-## Models
+## Services ARE Models
 
-Models hold app state and serve as the API that views interact with.
+In this architecture, there is no separate model layer. Services are `@Observable` and serve as both the business logic layer and the observable state for UI binding.
 
-- Conform to `@Observable`
-- Views observe models directly
-- Contain minimal business logic
-- Delegate work to services
-- Can be composed from other models
-
-### AppModel
-
-A top-level `AppModel` serves as the root, composing all domain models.
+**Key characteristics**:
+- Services use `@Observable` for UI binding
+- Services use `@MainActor` when consumed by UI
+- Services orchestrate multiple SDKs
+- Services hold cross-SDK derived state
+- Views observe services directly
 
 ```swift
-@Observable
-class AppModel {
-    let remoteService: RemoteModel
-    let xcodeLocalService: XcodeLocalModel
-    let linuxLocalService: LinuxLocalModel
-    let dependencyStatusModel: DependencyStatusModel
+@MainActor @Observable
+class DeploymentService {
+    // State from SDKs
+    private(set) var cdkState: CDKClient.State = .idle
+    private(set) var githubState: GitHubClient.State = .idle
+
+    // SDKs
+    private let cdkClient: CDKClient
+    private let githubClient: GitHubClient
+
+    // Cross-SDK derived state
+    var canDeploy: Bool {
+        cdkState.isIdle && githubState.isIdle
+    }
+
+    // Actions for views
+    func deploy() {
+        Task {
+            await cdkClient.deploy()
+            await githubClient.triggerWorkflow()
+        }
+    }
+}
+```
+
+## AppService
+
+A top-level `AppService` serves as the root, composing all domain services.
+
+```swift
+@MainActor @Observable
+class AppService {
+    let deploymentService: DeploymentService
+    let xcodeLocalDevService: XcodeLocalDevService
+    let linuxLocalDevService: LinuxLocalDevService
+    let settingsService: SettingsService
 
     var mode: ConnectionMode  // Current active mode
 }
 ```
 
-### Domain Models
+## Optional Services
 
-Models are thin wrappers that hold observable state and delegate to stateless services:
+Some services are defined as optional. These represent state that only exists after configuration or user action.
 
 ```swift
-@MainActor
-class XcodeLocalModel: LocalService {
-    private let developmentService: XcodeLocalDevelopmentService
-
-    // Observable state for UI
-    let buildState = BuildState()
-    let lambdaState = LambdaState()
-    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
-
-    // Delegate to service
-    func startLambda() async throws {
-        lambdaState.startLambda()
-        try await developmentService.startLambda()
-        lambdaState.markRunning()
-    }
+@MainActor @Observable
+class AppService {
+    let settingsService: SettingsService
+    var syncService: SyncService?  // Only exists after user configures sync
 }
 ```
 
-### Optional Models
+## SDKs
 
-Some models are defined as optional. These represent state that only exists after configuration or user action.
+SDKs are **reusable utilities** that handle external interactions. They are not app-specific.
 
-```swift
-@Observable
-class AppModel {
-    let settingsModel: SettingsModel
-    var syncModel: SyncModel?  // Only exists after user configures sync
-}
-```
-
-## Services
-
-Services are **stateless actors** that handle business logic and external interactions.
-
-- No UI state (no `@Observable`, no Combine publishers)
-- Orchestrate sub-services (Docker, CLI, AWS)
-- Return results, don't store them
+**Key characteristics**:
+- NOT `@Observable`
+- Implemented as `actor` for thread safety (when stateful)
+- May have state if inherently stateful (CDK, Docker)
+- Publish state via `AsyncStream`
 - Can be used directly by CLI (no MainActor requirement)
 
 ```swift
-public actor XcodeLocalDevelopmentService {
-    private let dockerService: DockerService
-    private let postgresService: PostgreSQLService
-    private let minioService: MinIOService
-
-    public func startWithServices() async throws {
-        try await startAllServices()
-        try await setupNetworkAndBucket()
-        try await startLambda()
+actor CDKClient {
+    enum State: Sendable {
+        case idle
+        case deploying(progress: Double, startTime: Date)
+        case deployed(outputs: StackOutputs)
+        case failed(error: String)
     }
 
-    public func status() async throws -> DeploymentStatus {
-        // Query actual state, return result
-    }
+    func states() -> AsyncStream<State> { ... }
+    func deploy() async throws { ... }
+    func destroy() async throws { ... }
 }
 ```
 
 ## Data Flow
 
 ```
-MacApp View → Model (observable state) → Service (stateless) → External
-CLI Command → Service (stateless) → External
+View → Service (@Observable) → SDK (AsyncStream)
 ```
 
-- **MacApp**: Views observe models. Models call services. Services return data.
-- **CLI**: Commands call services directly. Services return data. Commands print results.
+- **feature-mac**: Views observe services directly. Services call SDKs. SDKs publish state.
+- **feature-cli**: Commands call services directly. Services call SDKs.
 
-## Protocols
+### State Update Flow
 
-### LambdaService
+1. SDK performs operation, updates internal state, publishes via `AsyncStream`
+2. Service receives state in `for await` loop, updates `@Observable` property
+3. View automatically re-renders due to `@Observable` change
 
-Base protocol for all Lambda services (remote and local). Provides:
-- Endpoint configuration
-- Status publishing (Combine)
-- Testing capabilities
+```swift
+// Service observes SDK
+private func observeCDK() async {
+    for await state in await cdkClient.states() {
+        self.cdkState = state  // @Observable property
+    }
+}
+```
 
-### LocalService
+## Service Protocols (Optional)
 
-Extended protocol for local services (Xcode and Linux). Adds:
-- Docker service management (PostgreSQL, MinIO, DynamoDB)
-- Build operations
-- Lambda lifecycle management
+Services may conform to protocols for testing or when multiple implementations exist:
+
+```swift
+protocol LambdaServiceProtocol {
+    var endpoint: URL { get }
+    var status: DeploymentStatus { get }
+    func test() async throws -> TestResult
+}
+
+// Both conform to same protocol
+class DeploymentService: LambdaServiceProtocol { ... }
+class XcodeLocalDevService: LambdaServiceProtocol { ... }
+```
