@@ -63,34 +63,8 @@ public struct DestroyWorkflow: Sendable {
         )
     }
 
-    /// Progress updates from the destroy workflow
-    public struct Progress: Sendable {
-        public let step: Step
-        public let detail: DeploymentProgress?
-
-        public enum Step: Sendable, Equatable {
-            case destroying
-            case complete
-        }
-
-        public init(step: Step, detail: DeploymentProgress? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-
-        /// Converts workflow progress to CloudFormation state for UI display.
-        /// This moves the mapping logic from the app layer (DeploymentModel) to the service layer.
-        /// - Parameter startTime: Operation start time for elapsed time display
-        /// - Returns: CloudFormationState representing the current destroy state
-        public func toDeploymentState(startTime: Date) -> CloudFormationState {
-            switch step {
-            case .destroying:
-                return .destroying(progress: detail ?? DeploymentProgress(), startTime: startTime)
-            case .complete:
-                return .notDeployed
-            }
-        }
-    }
+    // Note: This workflow yields WorkflowState directly. The workflow captures
+    // startTime internally; the app layer adds `prior` when needed.
 
     /// Options for destroying infrastructure
     public struct Options: Sendable {
@@ -110,11 +84,11 @@ public struct DestroyWorkflow: Sendable {
     /// - Parameters:
     ///   - options: Destroy options
     ///   - output: Optional CLI output stream for raw command output
-    /// - Returns: AsyncThrowingStream that yields Progress updates
+    /// - Returns: AsyncThrowingStream that yields WorkflowState updates
     public func run(
         options: Options = Options(),
         output: CLIOutputStream? = nil
-    ) -> AsyncThrowingStream<Progress, Error> {
+    ) -> AsyncThrowingStream<WorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -133,17 +107,26 @@ public struct DestroyWorkflow: Sendable {
     private func runWorkflow(
         options: Options,
         output: CLIOutputStream?,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Phase 1: CDK Destroy
         for try await cdkProgress in cdkClient.destroyStream(options: options.toCDKOptions(), output: output) {
             switch cdkProgress {
             case .destroying(let progress):
-                continuation.yield(Progress(step: .destroying, detail: progress))
+                continuation.yield(.destroying(WorkflowState.DestroyProgress(
+                    step: .destroying,
+                    startTime: startTime,
+                    detail: progress
+                )))
 
             case .destroyed:
                 // CDK CLI has completed, but CloudFormation may still be deleting
-                continuation.yield(Progress(step: .destroying))
+                continuation.yield(.destroying(WorkflowState.DestroyProgress(
+                    step: .destroying,
+                    startTime: startTime
+                )))
 
             case .installing, .building, .deploying, .deployed:
                 // Shouldn't happen during destroy, but handle gracefully
@@ -156,11 +139,15 @@ public struct DestroyWorkflow: Sendable {
         for try await cfState in cfClient.monitorStream(stackName: stackName) {
             switch cfState {
             case .destroying(let progress, _):
-                continuation.yield(Progress(step: .destroying, detail: progress))
+                continuation.yield(.destroying(WorkflowState.DestroyProgress(
+                    step: .destroying,
+                    startTime: startTime,
+                    detail: progress
+                )))
 
             case .notDeployed:
                 // Stack has been fully deleted
-                continuation.yield(Progress(step: .complete))
+                continuation.yield(.completed(.notDeployed))
                 continuation.finish()
                 return
 
@@ -181,7 +168,7 @@ public struct DestroyWorkflow: Sendable {
         let finalState = try await cfClient.queryState(stackName: stackName)
         switch finalState {
         case .notDeployed:
-            continuation.yield(Progress(step: .complete))
+            continuation.yield(.completed(.notDeployed))
             continuation.finish()
 
         case .failed(let reason):

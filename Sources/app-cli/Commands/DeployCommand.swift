@@ -49,29 +49,29 @@ extension AWSCommand {
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await progress in components.workflow.run(options: options) {
-                switch progress.step {
-                case .building:
-                    print("🔨 Building CDK TypeScript...")
-
-                case .deploying:
-                    if case .cdk(let deployProgress) = progress.detail,
-                       !deployProgress.progressDescription.isEmpty {
-                        print("☁️  \(deployProgress.progressDescription)")
+            for try await state in components.workflow.run(options: options) {
+                switch state {
+                case .deploying(let progress):
+                    switch progress.step {
+                    case .building:
+                        print("🔨 Building CDK TypeScript...")
+                    case .deploying:
+                        if let detail = progress.detail, !detail.progressDescription.isEmpty {
+                            print("☁️  \(detail.progressDescription)")
+                        }
+                    case .monitoring:
+                        if let detail = progress.detail, !detail.progressDescription.isEmpty {
+                            print("☁️  \(detail.progressDescription)")
+                        } else {
+                            print("☁️  Monitoring CloudFormation...")
+                        }
                     }
 
-                case .monitoring:
-                    if case .cdk(let deployProgress) = progress.detail,
-                       !deployProgress.progressDescription.isEmpty {
-                        print("☁️  \(deployProgress.progressDescription)")
-                    } else {
-                        print("☁️  Monitoring CloudFormation...")
-                    }
+                case .completed(let snapshot):
+                    finalOutputs = snapshot.outputs
 
-                case .complete:
-                    if case .outputs(let outputs, _) = progress.detail {
-                        finalOutputs = outputs
-                    }
+                case .destroying, .updatingLambda:
+                    break
                 }
             }
 

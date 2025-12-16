@@ -61,8 +61,8 @@ struct CDKInfrastructureSectionView: View {
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    private var state: CloudFormationState {
-        service.deploymentState
+    private var modelState: DeploymentModel.ModelState {
+        service.state
     }
 
     var body: some View {
@@ -81,12 +81,13 @@ struct CDKInfrastructureSectionView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .disabled(state.isBusy)
+                .disabled(!modelState.isIdle)
                 .help("Refresh status")
             }
 
             // Credential error banner (shown when AWS credentials are invalid)
-            if case .credentialExpired(let message) = state {
+            if case .ready(let snapshot) = modelState,
+               case .credentialExpired(let message) = snapshot.status {
                 AWSCredentialErrorBanner(
                     errorMessage: message,
                     onOpenSettings: onOpenSettings,
@@ -94,7 +95,8 @@ struct CDKInfrastructureSectionView: View {
                         Task { await service.refresh() }
                     }
                 )
-            } else if case .failed(let reason) = state,
+            } else if case .ready(let snapshot) = modelState,
+                      case .failed(let reason) = snapshot.status,
                       AWSCredentialErrorBanner.isCredentialError(reason) {
                 AWSCredentialErrorBanner(
                     errorMessage: reason,
@@ -110,12 +112,12 @@ struct CDKInfrastructureSectionView: View {
                     statusRow
 
                     // Configuration display (when deployed)
-                    if case .deployed = state {
+                    if modelState.isDeployed {
                         configurationRow
                     }
 
                     // Progress during deploy/destroy
-                    if state.isBusy {
+                    if case .operating = modelState {
                         progressRow
                     }
 
@@ -123,7 +125,7 @@ struct CDKInfrastructureSectionView: View {
                     actionButtons
 
                     // Stack outputs (collapsible, when deployed)
-                    if case .deployed = state, !state.outputs.isEmpty {
+                    if modelState.isDeployed, let outputs = modelState.outputs, !outputs.allOutputs.isEmpty {
                         outputsSection
                     }
                 }
@@ -133,7 +135,7 @@ struct CDKInfrastructureSectionView: View {
             }
         }
         .onReceive(timer) { time in
-            if state.isBusy {
+            if case .operating = modelState {
                 currentTime = time
             }
         }
@@ -142,7 +144,7 @@ struct CDKInfrastructureSectionView: View {
     // MARK: - Elapsed Time
 
     private var elapsedTimeString: String? {
-        guard let startTime = state.operationStartTime else { return nil }
+        guard let startTime = modelState.operationStartTime else { return nil }
 
         let elapsed = currentTime.timeIntervalSince(startTime)
         let minutes = Int(elapsed) / 60
@@ -182,35 +184,35 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var statusIcon: some View {
-        switch state {
-        case .unknown:
+        switch modelState {
+        case .uninitialized:
             Image(systemName: "questionmark.circle")
                 .foregroundColor(.secondary)
         case .loading:
             ProgressView()
                 .scaleEffect(0.7)
-        case .notDeployed:
-            Image(systemName: "circle")
-                .foregroundColor(.secondary)
-        case .deployed:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-        case .deploying:
+        case .ready(let snapshot):
+            switch snapshot.status {
+            case .notDeployed:
+                Image(systemName: "circle")
+                    .foregroundColor(.secondary)
+            case .deployed:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            case .failed, .credentialExpired:
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.red)
+            }
+        case .operating:
             ProgressView()
                 .scaleEffect(0.7)
-        case .destroying:
-            ProgressView()
-                .scaleEffect(0.7)
-        case .failed, .credentialExpired:
-            Image(systemName: "xmark.circle.fill")
-                .foregroundColor(.red)
         }
     }
 
     @ViewBuilder
     private var statusText: some View {
-        switch state {
-        case .unknown:
+        switch modelState {
+        case .uninitialized:
             Text("Unknown")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -218,43 +220,74 @@ struct CDKInfrastructureSectionView: View {
             Text("Loading...")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-        case .notDeployed:
-            Text("Not Deployed")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        case .deployed:
-            Text("Deployed")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.green)
-        case .deploying(let operation, _, _):
-            HStack(spacing: 6) {
-                Text(operation.rawValue)
+        case .ready(let snapshot):
+            switch snapshot.status {
+            case .notDeployed:
+                Text("Not Deployed")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            case .deployed:
+                Text("Deployed")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.blue)
-                if let elapsed = elapsedTimeString {
-                    Text(elapsed)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                    .foregroundColor(.green)
+            case .failed(let reason):
+                failedStatusView(reason: reason)
+            case .credentialExpired(let message):
+                failedStatusView(reason: message)
             }
-        case .destroying:
-            HStack(spacing: 6) {
-                Text("Destroying...")
+        case .operating(let workflowState, _):
+            switch workflowState {
+            case .deploying(let progress):
+                HStack(spacing: 6) {
+                    Text(operationLabel(for: progress.step))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    if let elapsed = elapsedTimeString {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            case .destroying:
+                HStack(spacing: 6) {
+                    Text("Destroying...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.orange)
+                    if let elapsed = elapsedTimeString {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            case .updatingLambda:
+                HStack(spacing: 6) {
+                    Text("Updating Lambda...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    if let elapsed = elapsedTimeString {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            case .completed:
+                Text("Complete")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.orange)
-                if let elapsed = elapsedTimeString {
-                    Text(elapsed)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                    .foregroundColor(.green)
             }
-        case .failed(let reason):
-            failedStatusView(reason: reason)
-        case .credentialExpired(let message):
-            failedStatusView(reason: message)
+        }
+    }
+
+    private func operationLabel(for step: WorkflowState.DeployProgress.Step) -> String {
+        switch step {
+        case .building: return "Building"
+        case .deploying: return "Deploying"
+        case .monitoring: return "Monitoring"
         }
     }
 
@@ -304,7 +337,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var configurationRow: some View {
-        let config = service.infrastructureConfiguration ?? CDKInfrastructureConfiguration()
+        let config = service.state.infrastructure ?? CDKInfrastructureConfiguration()
         HStack(spacing: 16) {
             // Database
             HStack(spacing: 4) {
@@ -330,13 +363,34 @@ struct CDKInfrastructureSectionView: View {
 
     // MARK: - Progress Row
 
+    /// Extract DeploymentProgress from current operation
+    private var currentProgress: DeploymentProgress {
+        guard case .operating(let workflowState, _) = modelState else {
+            return DeploymentProgress()
+        }
+        switch workflowState {
+        case .deploying(let progress):
+            return progress.detail ?? DeploymentProgress()
+        case .destroying(let progress):
+            return progress.detail ?? DeploymentProgress()
+        case .updatingLambda, .completed:
+            return DeploymentProgress()
+        }
+    }
+
+    /// Whether current operation is a deploy (vs destroy)
+    private var isDeployOperation: Bool {
+        guard case .operating(let workflowState, _) = modelState else { return false }
+        return workflowState.isDeploying || workflowState.isUpdatingLambda
+    }
+
     @ViewBuilder
     private var progressRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
 
             // Progress summary
-            let progress = state.progress
+            let progress = currentProgress
             if !progress.resources.isEmpty {
                 HStack(spacing: 4) {
                     // "X of Y complete"
@@ -367,7 +421,7 @@ struct CDKInfrastructureSectionView: View {
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.5)
-                    if case .deploying = state {
+                    if isDeployOperation {
                         Text("Waiting for CloudFormation to start...")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -382,7 +436,7 @@ struct CDKInfrastructureSectionView: View {
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.5)
-                    if case .deploying = state {
+                    if isDeployOperation {
                         Text("Preparing CloudFormation changeset...")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -394,14 +448,25 @@ struct CDKInfrastructureSectionView: View {
                 }
             } else {
                 // Still waiting for first poll
-                if case .deploying(let operation, _, _) = state {
-                    Text("\(operation.rawValue)...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else if case .destroying = state {
-                    Text("Removing AWS resources...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                if case .operating(let workflowState, _) = modelState {
+                    switch workflowState {
+                    case .deploying(let deployProgress):
+                        Text("\(operationLabel(for: deployProgress.step))...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .destroying:
+                        Text("Removing AWS resources...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .updatingLambda:
+                        Text("Updating Lambda...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .completed:
+                        Text("Complete")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }
@@ -411,7 +476,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var resourceProgressList: some View {
-        let progress = state.progress
+        let progress = currentProgress
         let inProgress = progress.resources.filter { $0.status.isInProgress }
         let completed = progress.resources.filter { $0.status.isComplete }.prefix(3)
         let failed = progress.resources.filter { $0.status.isFailed }
@@ -524,7 +589,7 @@ struct CDKInfrastructureSectionView: View {
                         Label("Full (PostgreSQL + NAT)", systemImage: "server.rack")
                     }
 
-                    if case .deployed = state {
+                    if modelState.isDeployed {
                         Divider()
 
                         Button {
@@ -545,10 +610,10 @@ struct CDKInfrastructureSectionView: View {
                     }
                 }
                 .menuStyle(.borderedButton)
-                .disabled(!state.canDeploy)
+                .disabled(!modelState.canDeploy)
 
                 // Destroy button
-                if state.canDestroy {
+                if modelState.canDestroy {
                     Button {
                         showDestroyConfirmation = true
                     } label: {
@@ -580,14 +645,19 @@ struct CDKInfrastructureSectionView: View {
     }
 
     private var deployButtonLabel: String {
-        switch state {
-        case .notDeployed:
+        switch modelState {
+        case .uninitialized, .loading:
             return "Deploy"
-        case .deployed:
-            return "Update"
-        case .failed, .credentialExpired:
-            return "Retry"
-        default:
+        case .ready(let snapshot):
+            switch snapshot.status {
+            case .notDeployed:
+                return "Deploy"
+            case .deployed:
+                return "Update"
+            case .failed, .credentialExpired:
+                return "Retry"
+            }
+        case .operating:
             return "Deploy"
         }
     }
@@ -596,7 +666,7 @@ struct CDKInfrastructureSectionView: View {
 
     @ViewBuilder
     private var outputsSection: some View {
-        let outputs = service.stackOutputs ?? CDKStackOutputs()
+        let outputs = service.state.outputs ?? CDKStackOutputs()
         VStack(alignment: .leading, spacing: 8) {
             Divider()
 

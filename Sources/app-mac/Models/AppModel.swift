@@ -167,7 +167,7 @@ class AppModel {
     var isConfigured: Bool {
         switch mode {
         case .remote(let service):
-            return service.isConfigured
+            return service.state.isConfigured
         case .localXcode(let service):
             return service.isConfigured
         case .localLinux(let service):

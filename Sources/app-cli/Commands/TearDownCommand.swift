@@ -81,17 +81,19 @@ extension AWSCommand {
 
             let options = DestroyWorkflow.Options(force: true)
 
-            for try await progress in components.workflow.run(options: options) {
-                switch progress.step {
-                case .destroying:
-                    if let detail = progress.detail,
-                       !detail.destroyProgressDescription.isEmpty {
+            for try await state in components.workflow.run(options: options) {
+                switch state {
+                case .destroying(let progress):
+                    if let detail = progress.detail, !detail.destroyProgressDescription.isEmpty {
                         print("🗑️  \(detail.destroyProgressDescription)")
                     } else {
                         print("🗑️  Destroying resources...")
                     }
 
-                case .complete:
+                case .completed:
+                    break
+
+                case .deploying, .updatingLambda:
                     break
                 }
             }

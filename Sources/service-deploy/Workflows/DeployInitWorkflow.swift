@@ -80,8 +80,8 @@ public struct DeployInitWorkflow: Sendable {
         public enum Detail: Sendable {
             case safetyCheckPassed
             case existingConfiguration(ExistingConfiguration)
-            case deployProgress(DeployWorkflow.Progress)
-            case lambdaProgress(UpdateLambdaWorkflow.Progress)
+            case deployProgress(WorkflowState)
+            case lambdaProgress(WorkflowState)
             case databaseResponse(String)
             case healthCheckResponse(String)
             case outputs(CDKStackOutputs?)
@@ -172,16 +172,15 @@ public struct DeployInitWorkflow: Sendable {
         var apiUrl: String?
         var finalOutputs: CDKStackOutputs?
 
-        for try await deployProgress in deployComponents.workflow.run(options: deployOptions) {
+        for try await workflowState in deployComponents.workflow.run(options: deployOptions) {
             continuation.yield(Progress(
                 step: .deployingInfrastructure,
-                detail: .deployProgress(deployProgress)
+                detail: .deployProgress(workflowState)
             ))
 
-            if case .complete = deployProgress.step,
-               case .outputs(let outputs, _) = deployProgress.detail {
-                finalOutputs = outputs
-                apiUrl = outputs?.apiGatewayUrl
+            if case .completed(let snapshot) = workflowState {
+                finalOutputs = snapshot.outputs
+                apiUrl = snapshot.apiGatewayUrl
             }
         }
 
@@ -197,10 +196,10 @@ public struct DeployInitWorkflow: Sendable {
         )
         let updateOptions = UpdateLambdaWorkflow.Options(skipPush: options.skipPush)
 
-        for try await lambdaProgress in updateLambdaWorkflow.run(options: updateOptions) {
+        for try await lambdaState in updateLambdaWorkflow.run(options: updateOptions) {
             continuation.yield(Progress(
                 step: .updatingLambda,
-                detail: .lambdaProgress(lambdaProgress)
+                detail: .lambdaProgress(lambdaState)
             ))
         }
 

@@ -14,53 +14,13 @@ import service_deploy
 /// - SDK layer (clients): Stateless execute/query operations
 @MainActor @Observable
 public class DeploymentModel {
-    // MARK: - Stable State
+    // MARK: - Unified State Machine
 
-    /// High-level deployment state (derived from SDK states + CloudFormation queries)
-    public private(set) var deploymentState: CloudFormationState = .unknown
+    /// Single source of truth for all model state
+    public private(set) var state: ModelState = .uninitialized
 
-    /// Parsed stack outputs
-    public private(set) var stackOutputs: CDKStackOutputs?
-
-    /// Detected infrastructure configuration from CloudFormation
-    public private(set) var infrastructureConfiguration: CDKInfrastructureConfiguration?
-
-    // MARK: - Transient Workflow State
-
-    /// Currently active workflow (if any)
-    public private(set) var activeWorkflow: ActiveWorkflow?
-
-    /// Represents an active workflow with its progress
-    public enum ActiveWorkflow {
-        case deploy(DeployWorkflow.Progress)
-        case destroy(DestroyWorkflow.Progress)
-        case updateLambda(UpdateLambdaWorkflow.Progress)
-
-        public var isDeploying: Bool {
-            if case .deploy = self { return true }
-            return false
-        }
-
-        public var isDestroying: Bool {
-            if case .destroy = self { return true }
-            return false
-        }
-
-        public var isUpdatingLambda: Bool {
-            if case .updateLambda = self { return true }
-            return false
-        }
-    }
-
-    // MARK: - Error State
-
-    /// Last error from a workflow (cleared when new workflow starts)
-    public private(set) var lastError: Error?
-
-    // MARK: - Operation Timing
-
-    /// Operation start time (for elapsed time display)
-    public private(set) var operationStartTime: Date?
+    /// Last error from a workflow (kept separate for error display after operation completes)
+    public private(set) var lastOperationError: Error?
 
     // MARK: - SDK Clients
 
@@ -86,75 +46,36 @@ public class DeploymentModel {
     /// GitHub configuration (exposed for auxiliary services)
     public let githubConfig: GitHubActionsConfiguration?
 
-    // MARK: - Derived State
+    // MARK: - Derived State (Convenience Accessors)
 
     /// Whether any workflow is currently active
     public var isIdle: Bool {
-        activeWorkflow == nil
+        state.isIdle
     }
 
     /// Whether a deploy operation can be started
     public var canDeploy: Bool {
-        isIdle && deploymentState.canDeploy
+        state.canDeploy
     }
 
     /// Whether a destroy operation can be started
     public var canDestroy: Bool {
-        isIdle && deploymentState.canDestroy
+        state.canDestroy
     }
 
     /// Whether Lambda code can be updated (via GitHub Actions)
     public var canUpdateLambda: Bool {
-        isIdle && (githubClient != nil)
-    }
-
-    /// API Gateway URL from stack outputs
-    public var apiGatewayUrl: String? {
-        stackOutputs?.apiGatewayUrl
-    }
-
-    /// Endpoint URL (alias for apiGatewayUrl for compatibility)
-    public var endpoint: String {
-        apiGatewayUrl ?? "https://<not-configured>"
-    }
-
-    /// Whether the service is configured (has a valid endpoint)
-    public var isConfigured: Bool {
-        apiGatewayUrl != nil
+        state.isIdle && (githubClient != nil)
     }
 
     /// API client for making requests to this service
     public var apiClient: APIClient {
-        APIClient(baseURL: endpoint, mode: .remote, serviceName: "Remote")
+        APIClient(baseURL: state.endpoint, mode: .remote, serviceName: "Remote")
     }
 
-    /// Lambda function name from stack outputs
-    public var lambdaFunctionName: String? {
-        stackOutputs?.lambdaFunctionName
-    }
-
-    /// S3 bucket name from stack outputs
-    public var bucketName: String? {
-        stackOutputs?.bucketName
-    }
-
-    /// Whether infrastructure is deployed
-    public var isDeployed: Bool {
-        if case .deployed = deploymentState { return true }
-        return false
-    }
-
-    /// Whether credentials have expired
-    public var isCredentialExpired: Bool {
-        if case .credentialExpired = deploymentState { return true }
-        return false
-    }
-
-    /// Error message if in failed state
-    public var errorMessage: String? {
-        if case .failed(let reason) = deploymentState { return reason }
-        if case .credentialExpired(let message) = deploymentState { return message }
-        return nil
+    /// Operation start time (for elapsed time display) - derived from state
+    public var operationStartTime: Date? {
+        state.operationStartTime
     }
 
     // MARK: - Initialization
@@ -228,24 +149,34 @@ public class DeploymentModel {
 
     /// Refresh deployment state from AWS
     public func refresh() async {
-        guard isIdle else { return }
+        guard state.isIdle else { return }
 
-        deploymentState = .loading
+        let prior = state.snapshot
+        state = .loading(prior: prior)
 
         do {
             let queriedState = try await cfClient.queryState(stackName: stackName)
-            deploymentState = queriedState
-
-            // Update app-specific state based on deployment state
-            updateAppSpecificState()
+            state = .ready(DeploymentSnapshot.from(queriedState))
         } catch let error as DeploymentError {
             if case .credentialExpired(let message) = error {
-                deploymentState = .credentialExpired(message: message)
+                state = .ready(DeploymentSnapshot(
+                    status: .credentialExpired(message: message),
+                    outputs: nil,
+                    infrastructure: nil
+                ))
             } else {
-                deploymentState = .failed(reason: error.localizedDescription)
+                state = .ready(DeploymentSnapshot(
+                    status: .failed(reason: error.localizedDescription),
+                    outputs: nil,
+                    infrastructure: nil
+                ))
             }
         } catch {
-            deploymentState = .failed(reason: error.localizedDescription)
+            state = .ready(DeploymentSnapshot(
+                status: .failed(reason: error.localizedDescription),
+                outputs: nil,
+                infrastructure: nil
+            ))
         }
     }
 
@@ -253,11 +184,10 @@ public class DeploymentModel {
 
     /// Deploy infrastructure with specified configuration
     public func deploy(options: DeployWorkflow.Options, output: CLIOutputStream? = nil) async {
-        guard canDeploy else { return }
+        guard state.canDeploy else { return }
 
-        lastError = nil
-        let startTime = Date()
-        operationStartTime = startTime
+        lastOperationError = nil
+        let prior = state.snapshot
 
         let workflow = DeployWorkflow(
             cdkClient: cdkClient,
@@ -266,28 +196,18 @@ public class DeploymentModel {
         )
 
         do {
-            for try await progress in workflow.run(options: options, output: output) {
-                activeWorkflow = .deploy(progress)
-                deploymentState = progress.toDeploymentState(startTime: startTime)
-
-                // Extract app-specific state on completion
-                if progress.step == .complete {
-                    stackOutputs = progress.stackOutputs
-                    infrastructureConfiguration = progress.infrastructureConfiguration
-                }
+            for try await workflowState in workflow.run(options: options, output: output) {
+                state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            lastError = error
-            deploymentState = .failed(reason: error.localizedDescription)
+            lastOperationError = error
+            state = .ready(.failed(reason: error.localizedDescription, preserving: prior))
         }
-
-        activeWorkflow = nil
-        operationStartTime = nil
     }
 
     /// Update infrastructure maintaining current configuration
     public func updateInfrastructure(output: CLIOutputStream? = nil) async {
-        let shape = infrastructureConfiguration?.shape ?? .minimal
+        let shape = state.snapshot?.infrastructure?.shape ?? .minimal
         let options = DeployWorkflow.Options(infrastructure: shape)
         await deploy(options: options, output: output)
     }
@@ -296,11 +216,10 @@ public class DeploymentModel {
 
     /// Destroy infrastructure
     public func destroy(output: CLIOutputStream? = nil) async {
-        guard canDestroy else { return }
+        guard state.canDestroy else { return }
 
-        lastError = nil
-        let startTime = Date()
-        operationStartTime = startTime
+        lastOperationError = nil
+        let prior = state.snapshot
 
         let workflow = DestroyWorkflow(
             cdkClient: cdkClient,
@@ -309,29 +228,24 @@ public class DeploymentModel {
         )
 
         do {
-            for try await progress in workflow.run(output: output) {
-                activeWorkflow = .destroy(progress)
-                deploymentState = progress.toDeploymentState(startTime: startTime)
-
-                // Clear app-specific state on completion
-                if progress.step == .complete {
-                    stackOutputs = nil
-                    infrastructureConfiguration = nil
-                }
+            for try await workflowState in workflow.run(output: output) {
+                state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            lastError = error
-            deploymentState = .failed(reason: error.localizedDescription)
+            lastOperationError = error
+            state = .ready(.failed(reason: error.localizedDescription, preserving: prior))
         }
-
-        activeWorkflow = nil
-        operationStartTime = nil
     }
 
     // MARK: - Lambda Code Updates
 
     /// Update Lambda code via GitHub Actions
     public func updateLambdaCode(skipPush: Bool = false) async throws {
+        guard state.isIdle else { return }
+
+        lastOperationError = nil
+        let prior = state.snapshot
+
         let workflow = try UpdateLambdaWorkflow.create(
             projectRoot: projectRoot,
             cliClient: cliClient
@@ -339,28 +253,146 @@ public class DeploymentModel {
 
         let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
-        for try await progress in workflow.run(options: options) {
-            activeWorkflow = .updateLambda(progress)
+        do {
+            for try await workflowState in workflow.run(options: options) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+            // Stream finished without .completed - restore prior state
+            if let snapshot = prior {
+                state = .ready(snapshot)
+            } else {
+                state = .ready(.notDeployed)
+            }
+        } catch {
+            lastOperationError = error
+            if let snapshot = prior {
+                state = .ready(snapshot)
+            } else {
+                state = .ready(.failed(reason: error.localizedDescription))
+            }
+            throw error
         }
-
-        activeWorkflow = nil
     }
 
-    // MARK: - Private: App-Specific State
+    // MARK: - Nested Types
 
-    /// Update app-specific state (infrastructureConfiguration, stackOutputs) based on deployment state.
-    private func updateAppSpecificState() {
-        switch deploymentState {
-        case .deployed(let stack):
-            infrastructureConfiguration = CDKInfrastructureConfiguration(stack.infrastructure)
-            stackOutputs = CDKStackOutputs.from(stack.outputs)
+    /// Unified state machine for the deployment model.
+    /// Makes invalid states unrepresentable by encoding all state combinations in the type system.
+    ///
+    /// Uses service-layer types (`WorkflowState`, `DeploymentSnapshot`) for actual state,
+    /// while `ModelState` handles the app-layer concerns (loading, prior preservation).
+    public enum ModelState {
+        /// Initial state before any operation
+        case uninitialized
 
-        case .notDeployed:
-            infrastructureConfiguration = nil
-            stackOutputs = nil
+        /// Loading/refreshing state from AWS (preserves prior state if available)
+        case loading(prior: DeploymentSnapshot?)
 
-        default:
-            break
+        /// Ready state with current deployment info
+        case ready(DeploymentSnapshot)
+
+        /// Active workflow in progress (uses WorkflowState from service layer)
+        case operating(WorkflowState, prior: DeploymentSnapshot?)
+
+        // MARK: - Convenience Initializer
+
+        /// Construct ModelState from a workflow state plus app-layer prior.
+        /// This is the key integration point between workflows and the model.
+        public init(from workflowState: WorkflowState, prior: DeploymentSnapshot?) {
+            if let snapshot = workflowState.completedSnapshot {
+                self = .ready(snapshot)
+            } else {
+                self = .operating(workflowState, prior: prior)
+            }
+        }
+
+        // MARK: - Convenience Accessors
+
+        /// Current deployment info (from ready state or prior state during loading/operation)
+        public var snapshot: DeploymentSnapshot? {
+            switch self {
+            case .uninitialized:
+                return nil
+            case .loading(let prior):
+                return prior
+            case .ready(let snapshot):
+                return snapshot
+            case .operating(_, let prior):
+                return prior
+            }
+        }
+
+        /// The active workflow state, if operating
+        public var workflowState: WorkflowState? {
+            guard case .operating(let state, _) = self else { return nil }
+            return state
+        }
+
+        /// Whether the model is idle (not loading or operating)
+        public var isIdle: Bool {
+            switch self {
+            case .uninitialized, .ready:
+                return true
+            case .loading, .operating:
+                return false
+            }
+        }
+
+        /// Whether a deploy operation can be started
+        public var canDeploy: Bool {
+            switch self {
+            case .ready(let snapshot):
+                return snapshot.canDeploy
+            case .uninitialized:
+                return true
+            case .loading, .operating:
+                return false
+            }
+        }
+
+        /// Whether a destroy operation can be started
+        public var canDestroy: Bool {
+            switch self {
+            case .ready(let snapshot):
+                return snapshot.canDestroy
+            case .uninitialized, .loading, .operating:
+                return false
+            }
+        }
+
+        /// Endpoint URL with fallback
+        public var endpoint: String {
+            snapshot?.endpoint ?? "https://<not-configured>"
+        }
+
+        /// Whether configured (has valid endpoint)
+        public var isConfigured: Bool {
+            snapshot?.isConfigured ?? false
+        }
+
+        /// Whether deployed
+        public var isDeployed: Bool {
+            snapshot?.isDeployed ?? false
+        }
+
+        /// Error message if in error state
+        public var errorMessage: String? {
+            snapshot?.errorMessage
+        }
+
+        /// Outputs from current snapshot
+        public var outputs: CDKStackOutputs? {
+            snapshot?.outputs
+        }
+
+        /// Infrastructure from current snapshot
+        public var infrastructure: CDKInfrastructureConfiguration? {
+            snapshot?.infrastructure
+        }
+
+        /// Operation start time (for elapsed time display) - from workflow state
+        public var operationStartTime: Date? {
+            workflowState?.startTime
         }
     }
 }

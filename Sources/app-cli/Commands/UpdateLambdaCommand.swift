@@ -26,26 +26,24 @@ extension AWSCommand {
 
             let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
-            for try await progress in workflow.run(options: options) {
-                switch progress.step {
-                case .checkingGitStatus:
-                    if case .skippedPush = progress.detail {
-                        print("\n⏭️  Skipping git push (--skip-push enabled)")
+            for try await state in workflow.run(options: options) {
+                switch state {
+                case .updatingLambda(let progress):
+                    switch progress.step {
+                    case .checkingGitStatus:
+                        print("Checking git status...")
+
+                    case .pushing:
+                        print("Pushing commits...")
+
+                    case .triggeringWorkflow:
+                        print("🔄 Triggering workflow...\n")
+
+                    case .waitingForWorkflow:
+                        print("Waiting for GitHub Actions workflow...")
                     }
 
-                case .pushing:
-                    break
-
-                case .triggeringWorkflow:
-                    if case .gitStatus(let hasCommits) = progress.detail, !hasCommits {
-                        print("\n✅ No commits to push")
-                    }
-                    print("🔄 Triggering workflow...\n")
-
-                case .waitingForWorkflow:
-                    break
-
-                case .complete:
+                case .completed, .deploying, .destroying:
                     break
                 }
             }

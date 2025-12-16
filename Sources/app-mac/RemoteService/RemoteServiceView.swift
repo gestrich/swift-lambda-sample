@@ -125,7 +125,7 @@ struct RemoteServiceView: View {
             // Endpoint
             CopyableEndpointView(
                 label: "API Gateway URL",
-                endpoint: service.endpoint,
+                endpoint: service.state.endpoint,
                 helpText: "URL is automatically fetched when refreshing status"
             )
         }
@@ -151,7 +151,7 @@ struct RemoteServiceView: View {
     @ViewBuilder
     private var remoteStatusBadge: some View {
         HStack(spacing: 4) {
-            if service.isConfigured {
+            if service.state.isConfigured {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
                 Text("Connected")

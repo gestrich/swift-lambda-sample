@@ -63,105 +63,8 @@ public struct DeployWorkflow: Sendable {
         )
     }
 
-    /// Progress updates from the deploy workflow.
-    ///
-    /// This is the service-layer progress type that tracks workflow phases:
-    /// building → deploying → monitoring → complete
-    ///
-    /// The `Detail` enum wraps SDK-layer progress (`DeploymentProgress`) and
-    /// adds workflow-specific context like final outputs and configuration.
-    ///
-    /// ## Progress Type Hierarchy
-    ///
-    /// This type aggregates SDK-layer progress for consumption by the app layer:
-    ///
-    /// ```
-    /// DeploymentProgress (sdk-aws) - individual resources
-    ///     └── embedded in CloudFormationState (sdk-aws) - stack lifecycle
-    ///         └── consumed by DeployWorkflow.Progress (service-deploy) ← YOU ARE HERE
-    ///             └── consumed by ActiveWorkflow (feature-mac) - UI state
-    /// ```
-    ///
-    /// ## Consumers
-    ///
-    /// - CLI commands (print progress directly)
-    /// - `DeploymentModel.activeWorkflow` (UI binding)
-    public struct Progress: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case building
-            case deploying
-            case monitoring
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case cdk(DeploymentProgress)
-            case outputs(CDKStackOutputs?, CDKInfrastructureConfiguration?)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-
-        /// Converts workflow progress to CloudFormation state for UI display.
-        /// This moves the mapping logic from the app layer (DeploymentModel) to the service layer.
-        /// - Parameter startTime: Operation start time for elapsed time display
-        /// - Returns: CloudFormationState representing the current deployment state
-        public func toDeploymentState(startTime: Date) -> CloudFormationState {
-            switch step {
-            case .building:
-                return .deploying(operation: .building, progress: DeploymentProgress(), startTime: startTime)
-
-            case .deploying:
-                let deployProgress: DeploymentProgress
-                if case .cdk(let progress) = detail {
-                    deployProgress = progress
-                } else {
-                    deployProgress = DeploymentProgress()
-                }
-                return .deploying(operation: .deploying, progress: deployProgress, startTime: startTime)
-
-            case .monitoring:
-                let deployProgress: DeploymentProgress
-                if case .cdk(let progress) = detail {
-                    deployProgress = progress
-                } else {
-                    deployProgress = DeploymentProgress()
-                }
-                return .deploying(operation: .monitoring, progress: deployProgress, startTime: startTime)
-
-            case .complete:
-                if case .outputs(let outputs, let config) = detail {
-                    let stack = DeployedStack(
-                        outputs: outputs?.allOutputs ?? [:],
-                        infrastructure: config?.detectedInfrastructure ?? DetectedInfrastructure()
-                    )
-                    return .deployed(stack)
-                }
-                return .deployed(DeployedStack())
-            }
-        }
-
-        /// Extracts stack outputs from the progress detail, if available.
-        public var stackOutputs: CDKStackOutputs? {
-            if case .outputs(let outputs, _) = detail {
-                return outputs
-            }
-            return nil
-        }
-
-        /// Extracts infrastructure configuration from the progress detail, if available.
-        public var infrastructureConfiguration: CDKInfrastructureConfiguration? {
-            if case .outputs(_, let config) = detail {
-                return config
-            }
-            return nil
-        }
-    }
+    // Note: This workflow yields WorkflowState directly. The workflow captures
+    // startTime internally; the app layer adds `prior` when needed.
 
     /// App-specific deployment options
     public struct Options: Sendable {
@@ -218,11 +121,11 @@ public struct DeployWorkflow: Sendable {
     /// - Parameters:
     ///   - options: Deployment options
     ///   - output: Optional CLI output stream for raw command output
-    /// - Returns: AsyncThrowingStream that yields Progress updates
+    /// - Returns: AsyncThrowingStream that yields WorkflowState updates
     public func run(
         options: Options,
         output: CLIOutputStream? = nil
-    ) -> AsyncThrowingStream<Progress, Error> {
+    ) -> AsyncThrowingStream<WorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -241,20 +144,32 @@ public struct DeployWorkflow: Sendable {
     private func runWorkflow(
         options: Options,
         output: CLIOutputStream?,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Phase 1: CDK Deploy (building + deploying)
         for try await cdkProgress in cdkClient.deployStream(options: options.toCDKOptions(), output: output) {
             switch cdkProgress {
             case .installing, .building:
-                continuation.yield(Progress(step: .building))
+                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                    step: .building,
+                    startTime: startTime
+                )))
 
             case .deploying(let progress):
-                continuation.yield(Progress(step: .deploying, detail: .cdk(progress)))
+                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                    step: .deploying,
+                    startTime: startTime,
+                    detail: progress
+                )))
 
             case .deployed:
                 // CDK CLI has completed, but CloudFormation may still be working
-                continuation.yield(Progress(step: .monitoring))
+                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                    step: .monitoring,
+                    startTime: startTime
+                )))
 
             case .destroying, .destroyed:
                 // Shouldn't happen during deploy, but handle gracefully
@@ -267,14 +182,19 @@ public struct DeployWorkflow: Sendable {
         for try await cfState in cfClient.monitorStream(stackName: stackName) {
             switch cfState {
             case .deploying(_, let progress, _):
-                continuation.yield(Progress(step: .monitoring, detail: .cdk(progress)))
+                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                    step: .monitoring,
+                    startTime: startTime,
+                    detail: progress
+                )))
 
             case .deployed(let stack):
-                let stackOutputs = CDKStackOutputs.from(stack.outputs)
-                continuation.yield(Progress(
-                    step: .complete,
-                    detail: .outputs(stackOutputs, CDKInfrastructureConfiguration(stack.infrastructure))
-                ))
+                let snapshot = DeploymentSnapshot(
+                    status: .deployed(stack),
+                    outputs: CDKStackOutputs.from(stack.outputs),
+                    infrastructure: CDKInfrastructureConfiguration(stack.infrastructure)
+                )
+                continuation.yield(.completed(snapshot))
                 continuation.finish()
                 return
 
@@ -298,11 +218,12 @@ public struct DeployWorkflow: Sendable {
         let finalState = try await cfClient.queryState(stackName: stackName)
         switch finalState {
         case .deployed(let stack):
-            let stackOutputs = CDKStackOutputs.from(stack.outputs)
-            continuation.yield(Progress(
-                step: .complete,
-                detail: .outputs(stackOutputs, CDKInfrastructureConfiguration(stack.infrastructure))
-            ))
+            let snapshot = DeploymentSnapshot(
+                status: .deployed(stack),
+                outputs: CDKStackOutputs.from(stack.outputs),
+                infrastructure: CDKInfrastructureConfiguration(stack.infrastructure)
+            )
+            continuation.yield(.completed(snapshot))
             continuation.finish()
 
         case .failed(let reason):

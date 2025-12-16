@@ -45,30 +45,10 @@ public struct UpdateLambdaWorkflow: Sendable {
         )
     }
 
-    /// Progress updates from the update lambda workflow.
-    public struct Progress: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingGitStatus
-            case pushing
-            case triggeringWorkflow
-            case waitingForWorkflow
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case gitStatus(hasCommitsToPush: Bool)
-            case workflowProgress(WorkflowProgress)
-            case skippedPush
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
+    // Note: This workflow yields WorkflowState.updatingLambda for progress.
+    // On completion, it finishes the stream without yielding .completed
+    // since Lambda updates don't change infrastructure state.
+    // The app layer restores the prior snapshot on stream completion.
 
     /// Options for the update lambda workflow.
     public struct Options: Sendable {
@@ -88,7 +68,10 @@ public struct UpdateLambdaWorkflow: Sendable {
     }
 
     /// Run the update lambda workflow.
-    public func run(options: Options = Options()) -> AsyncThrowingStream<Progress, Error> {
+    /// - Returns: AsyncThrowingStream that yields WorkflowState updates.
+    ///   Note: This workflow finishes without yielding `.completed` since
+    ///   Lambda updates don't change infrastructure state.
+    public func run(options: Options = Options()) -> AsyncThrowingStream<WorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -102,46 +85,65 @@ public struct UpdateLambdaWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         if options.skipPush {
-            continuation.yield(Progress(step: .checkingGitStatus, detail: .skippedPush))
-            continuation.yield(Progress(step: .triggeringWorkflow))
+            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+                step: .checkingGitStatus,
+                startTime: startTime
+            )))
+            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+                step: .triggeringWorkflow,
+                startTime: startTime
+            )))
 
             try await githubClient.triggerWorkflowAndWait(
                 workflowName: options.workflowName,
                 timeoutMinutes: options.timeoutMinutes
             )
 
-            continuation.yield(Progress(step: .complete))
+            // Stream finishes without .completed - Lambda updates don't change infrastructure
             continuation.finish()
             return
         }
 
-        continuation.yield(Progress(step: .checkingGitStatus))
+        continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            step: .checkingGitStatus,
+            startTime: startTime
+        )))
         let hasCommitsToPush = try await gitClient.hasCommitsToPush()
-        continuation.yield(Progress(step: .checkingGitStatus, detail: .gitStatus(hasCommitsToPush: hasCommitsToPush)))
 
         if hasCommitsToPush {
             let beforeRunId = try await githubClient.getLatestRunId()
 
-            continuation.yield(Progress(step: .pushing))
+            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+                step: .pushing,
+                startTime: startTime
+            )))
             try await gitClient.push()
 
-            continuation.yield(Progress(step: .waitingForWorkflow))
+            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+                step: .waitingForWorkflow,
+                startTime: startTime
+            )))
             try await githubClient.waitForNewWorkflowCompletion(
                 afterRunId: beforeRunId,
                 timeoutMinutes: options.timeoutMinutes
             )
         } else {
-            continuation.yield(Progress(step: .triggeringWorkflow))
+            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+                step: .triggeringWorkflow,
+                startTime: startTime
+            )))
             try await githubClient.triggerWorkflowAndWait(
                 workflowName: options.workflowName,
                 timeoutMinutes: options.timeoutMinutes
             )
         }
 
-        continuation.yield(Progress(step: .complete))
+        // Stream finishes without .completed - Lambda updates don't change infrastructure
         continuation.finish()
     }
 }

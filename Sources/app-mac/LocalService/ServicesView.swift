@@ -347,7 +347,7 @@ struct ServicesView: View {
                     })
                 }
 
-                if remoteService.isConfigured {
+                if remoteService.state.isConfigured {
                     Divider()
                     VStack(alignment: .leading, spacing: 0) {
                         sectionHeader(title: "Client API", subtitle: "Test API endpoints")

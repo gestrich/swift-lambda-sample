@@ -142,51 +142,45 @@ extension AWSCommand {
             }
         }
 
-        private func printDeployProgress(_ progress: DeployWorkflow.Progress) {
-            switch progress.step {
-            case .building:
-                print("🔨 Building CDK TypeScript...")
-
-            case .deploying:
-                if case .cdk(let deployProgress) = progress.detail,
-                   !deployProgress.progressDescription.isEmpty {
-                    print("☁️  \(deployProgress.progressDescription)")
+        private func printDeployProgress(_ state: WorkflowState) {
+            switch state {
+            case .deploying(let progress):
+                switch progress.step {
+                case .building:
+                    print("🔨 Building CDK TypeScript...")
+                case .deploying:
+                    if let detail = progress.detail, !detail.progressDescription.isEmpty {
+                        print("☁️  \(detail.progressDescription)")
+                    }
+                case .monitoring:
+                    if let detail = progress.detail, !detail.progressDescription.isEmpty {
+                        print("☁️  \(detail.progressDescription)")
+                    } else {
+                        print("☁️  Monitoring CloudFormation...")
+                    }
                 }
-
-            case .monitoring:
-                if case .cdk(let deployProgress) = progress.detail,
-                   !deployProgress.progressDescription.isEmpty {
-                    print("☁️  \(deployProgress.progressDescription)")
-                } else {
-                    print("☁️  Monitoring CloudFormation...")
-                }
-
-            case .complete:
+            case .completed:
+                break
+            case .destroying, .updatingLambda:
                 break
             }
         }
 
-        private func printLambdaProgress(_ progress: UpdateLambdaWorkflow.Progress) {
+        private func printLambdaProgress(_ state: WorkflowState) {
+            guard case .updatingLambda(let progress) = state else { return }
+
             switch progress.step {
             case .checkingGitStatus:
-                if case .skippedPush = progress.detail {
-                    print("   ⏭️  Skipping git push (--skip-push enabled)")
-                }
+                print("   Checking git status...")
 
             case .pushing:
                 print("   Pushing commits...")
 
             case .triggeringWorkflow:
-                if case .gitStatus(let hasCommits) = progress.detail, !hasCommits {
-                    print("   ✅ No commits to push")
-                }
                 print("   🔄 Triggering workflow...")
 
             case .waitingForWorkflow:
                 print("   Waiting for GitHub Actions workflow...")
-
-            case .complete:
-                print("   ✅ Lambda code updated")
             }
         }
     }
