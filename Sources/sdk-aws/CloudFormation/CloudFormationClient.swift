@@ -358,7 +358,14 @@ public actor CloudFormationClient {
                     return
                 }
             } catch {
-                // On error, try to finish gracefully
+                // Check if stack was deleted (successful destroy)
+                let errorMessage = error.localizedDescription
+                if DeploymentError.isStackNotFoundError(errorMessage) {
+                    continuation.yield(.notDeployed)
+                    continuation.finish()
+                    return
+                }
+                // Other errors - propagate
                 continuation.finish(throwing: error)
                 return
             }
