@@ -123,17 +123,10 @@ extension AWSCommand {
                 if case .deployed = state {
                     let resources = try await cfClient.describeStackResources(name: Self.stackName)
 
-                    let hasDatabase = resources.contains {
-                        $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS")
-                    }
-                    let hasNATGateway = resources.contains {
-                        $0.resourceType == "AWS::EC2::NatGateway"
-                    }
-
                     print("\n⚠️  WARNING: Stack already exists!")
                     print("   Current configuration:")
-                    print("     Database: \(hasDatabase ? "YES" : "NO")")
-                    print("     NAT Gateway: \(hasNATGateway ? "YES" : "NO")")
+                    print("     Database: \(resources.hasDatabase ? "YES" : "NO")")
+                    print("     NAT Gateway: \(resources.hasNATGateway ? "YES" : "NO")")
                     print("\n   New configuration:")
                     print("     Database: \(withPostgres ? "YES" : "NO")")
                     print("     NAT Gateway: \(withNatGateway ? "YES" : "NO")")

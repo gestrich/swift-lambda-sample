@@ -1,4 +1,5 @@
 import Foundation
+import sdk_aws
 
 /// Detected infrastructure configuration from CloudFormation.
 /// Extends InfrastructureShape with additional detected properties.
@@ -18,5 +19,14 @@ public struct CDKInfrastructureConfiguration: Equatable, Sendable {
     public init(hasDatabase: Bool = false, hasNATGateway: Bool = false, hasVPC: Bool = false) {
         self.shape = InfrastructureShape(hasDatabase: hasDatabase, hasNATGateway: hasNATGateway)
         self.hasVPC = hasVPC
+    }
+
+    /// Initialize from CloudFormation stack resources
+    public init(resources: [CloudFormationStackResource]) {
+        self.init(
+            hasDatabase: resources.hasDatabase,
+            hasNATGateway: resources.hasNATGateway,
+            hasVPC: resources.hasVPC
+        )
     }
 }

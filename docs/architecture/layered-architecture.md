@@ -40,7 +40,8 @@ Entry points that handle I/O.
 - Executable targets (apps, CLI tools, Lambda handlers)
 - Platform-specific I/O (SwiftUI views, terminal output, Lambda encoding)
 - `@Observable` models live here when needed (e.g., app-mac for SwiftUI)
-- CLI commands can use workflows directly without `@Observable`
+- CLI commands are parallel to Mac models—both are app-layer constructs
+- Minimal business logic; focus on I/O and calling workflows
 
 ### Services (`service-*`)
 
@@ -99,6 +100,15 @@ public struct DeployWorkflow {
 ### @Observable Only in App Layer
 
 `@Observable` models exist only where UI binding is needed (app-mac). They consume workflow streams.
+
+### Minimal Logic in Models (MV Pattern)
+
+Models should contain minimal logic—their role is to monitor workflow streams and update state for the UI. Business logic belongs in:
+
+- **Services (Workflows)**: Orchestration, multi-step operations, app-specific logic
+- **SDKs (Clients)**: Reusable operations, external service interactions
+
+This keeps models thin and testable, with clear separation between state management and business logic.
 
 ```swift
 // app-mac model consumes workflow

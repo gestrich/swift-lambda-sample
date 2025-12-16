@@ -306,6 +306,25 @@ public struct CloudFormationStackResource: Sendable, Equatable {
     }
 }
 
+// MARK: - Resource Detection Helpers
+
+extension Array where Element == CloudFormationStackResource {
+    /// Whether the resources contain an RDS database
+    public var hasDatabase: Bool {
+        contains { $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS") }
+    }
+
+    /// Whether the resources contain a NAT Gateway
+    public var hasNATGateway: Bool {
+        contains { $0.resourceType == "AWS::EC2::NatGateway" }
+    }
+
+    /// Whether the resources contain a VPC
+    public var hasVPC: Bool {
+        contains { $0.resourceType == "AWS::EC2::VPC" }
+    }
+}
+
 // MARK: - Stack Events (Decodable for JSONOutputParser)
 
 /// Response from describe-stack-events

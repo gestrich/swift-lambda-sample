@@ -224,7 +224,7 @@ public struct DeployWorkflow: Sendable {
     private func detectConfiguration() async throws -> CDKInfrastructureConfiguration? {
         do {
             let resources = try await cfClient.describeStackResources(name: stackName)
-            return parseConfiguration(from: resources)
+            return CDKInfrastructureConfiguration(resources: resources)
         } catch let error as CloudFormationError {
             if case .commandFailed(_, _, let output) = error,
                output.contains("does not exist") {
@@ -232,21 +232,5 @@ public struct DeployWorkflow: Sendable {
             }
             throw error
         }
-    }
-
-    /// Parse infrastructure configuration from CloudFormation resources
-    private func parseConfiguration(from resources: [CloudFormationStackResource]) -> CDKInfrastructureConfiguration {
-        CDKInfrastructureConfiguration(
-            hasDatabase: resources.contains {
-                $0.logicalResourceId.contains("Database") &&
-                $0.resourceType.contains("RDS")
-            },
-            hasNATGateway: resources.contains {
-                $0.resourceType == "AWS::EC2::NatGateway"
-            },
-            hasVPC: resources.contains {
-                $0.resourceType == "AWS::EC2::VPC"
-            }
-        )
     }
 }
