@@ -357,14 +357,22 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 - Stack name defaults to `CDKStackConfiguration.defaultStackName` but can be overridden
 - Signature differs from original spec: takes `credentialProvider` directly rather than `awsConfig` since CLI already resolves credentials
 
-### Phase 2: DeployInitWorkflow
+### Phase 2: DeployInitWorkflow ✅ COMPLETED
 
-- [ ] Create `DeployInitWorkflow` in service-deploy
-- [ ] Move `checkDatabaseSafety` logic into workflow
-- [ ] Move `checkExistingConfiguration` logic into workflow
-- [ ] Move `initializeDatabase` logic into workflow
-- [ ] Move `verifyDeployment` logic into workflow
-- [ ] Update `DeployInitCommand` to use workflow (thin command)
+- [x] Create `DeployInitWorkflow` in service-deploy
+- [x] Move `checkDatabaseSafety` logic into workflow
+- [x] Move `checkExistingConfiguration` logic into workflow
+- [x] Move `initializeDatabase` logic into workflow
+- [x] Move `verifyDeployment` logic into workflow
+- [x] Update `DeployInitCommand` to use workflow (thin command)
+
+**Technical Notes:**
+- `DeployInitWorkflow` composes `DeployWorkflow` and `UpdateLambdaWorkflow` internally, yielding nested progress
+- Factory method follows Phase 1 pattern: `create()` returns `Components` struct with `workflow`, `cfClient`, `stackName`
+- CLI command reduced from ~270 lines to ~200 lines, with all business logic moved to workflow
+- Progress enum has six steps: `checkingSafety`, `checkingConfiguration`, `deployingInfrastructure`, `updatingLambda`, `initializingDatabase`, `verifyingDeployment`, `complete`
+- `ExistingConfiguration` type exposes detected stack state for UI display
+- Verification uses health endpoint (`/api/health`) rather than S3 upload test for faster feedback
 
 ### Phase 3: Configuration Validation
 
