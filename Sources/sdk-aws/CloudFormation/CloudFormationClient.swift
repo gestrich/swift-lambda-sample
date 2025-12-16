@@ -266,6 +266,84 @@ public actor CloudFormationClient {
             throw error
         }
     }
+
+    // MARK: - Deployment State Query
+
+    /// Query the deployment state of a CloudFormation stack.
+    /// Maps CloudFormation stack status to a generic DeploymentState.
+    /// - Parameter stackName: The stack name
+    /// - Returns: DeploymentState based on stack status
+    /// - Throws: DeploymentError.credentialExpired for auth issues, DeploymentError.unknown for other errors
+    public func queryDeploymentState(stackName: String) async throws -> DeploymentState {
+        publish(.querying(operation: "queryDeploymentState"))
+
+        do {
+            let stackStatus = try await getStackStatus(name: stackName)
+
+            switch stackStatus {
+            case StackStatus.createComplete, StackStatus.updateComplete:
+                let outputs = try await getStackOutputs(name: stackName)
+                publish(.ready(stackExists: true))
+                return .deployed(outputs: outputs)
+
+            case StackStatus.createInProgress,
+                 StackStatus.updateInProgress,
+                 StackStatus.updateCompleteCleanupInProgress:
+                let startTime = await getOperationStartTime(stackName: stackName)
+                publish(.ready(stackExists: true))
+                return .deploying(
+                    operation: "Updating",
+                    progress: DeploymentProgress(),
+                    startTime: startTime
+                )
+
+            case StackStatus.deleteInProgress:
+                let startTime = await getOperationStartTime(stackName: stackName)
+                publish(.ready(stackExists: true))
+                return .destroying(progress: DeploymentProgress(), startTime: startTime)
+
+            case StackStatus.createFailed,
+                 StackStatus.updateFailed,
+                 StackStatus.rollbackComplete,
+                 StackStatus.rollbackFailed,
+                 StackStatus.deleteFailed:
+                publish(.ready(stackExists: true))
+                return .failed(reason: stackStatus)
+
+            default:
+                let outputs = try await getStackOutputs(name: stackName)
+                publish(.ready(stackExists: true))
+                return .deployed(outputs: outputs)
+            }
+        } catch {
+            let errorMessage = error.localizedDescription
+
+            if DeploymentError.isCredentialError(errorMessage) {
+                publish(.failed(error: errorMessage))
+                throw DeploymentError.credentialExpired(message: errorMessage)
+            } else if DeploymentError.isStackNotFoundError(errorMessage) {
+                publish(.ready(stackExists: false))
+                return .notDeployed
+            } else {
+                publish(.failed(error: errorMessage))
+                throw DeploymentError.unknown(message: errorMessage)
+            }
+        }
+    }
+
+    /// Get the start time of the current in-progress operation from stack events
+    /// - Parameter stackName: The stack name
+    /// - Returns: The earliest IN_PROGRESS timestamp for the stack, or current date if not found
+    private func getOperationStartTime(stackName: String) async -> Date {
+        guard let events = try? await getStackEvents(name: stackName, limit: 50) else {
+            return Date()
+        }
+
+        return events
+            .filter { $0.logicalResourceId == stackName && $0.resourceStatus.contains("IN_PROGRESS") }
+            .map { $0.timestamp }
+            .min() ?? Date()
+    }
 }
 
 // MARK: - Errors

@@ -577,54 +577,25 @@ public class DeploymentService {
     // MARK: - Private: State Query
 
     private func queryCurrentState() async throws -> DeploymentState {
-        do {
-            let stackStatus = try await cloudFormationClient.getStackStatus(name: stackName)
+        let state = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
 
-            switch stackStatus {
-            case StackStatus.createComplete,
-                 StackStatus.updateComplete:
-                let config = try await detectConfiguration()
-                let outputs = try await getStackOutputs()
-                infrastructureConfiguration = config
-                stackOutputs = outputs
-                return .deployed(outputs: outputs.allOutputs)
+        switch state {
+        case .deployed(let outputs):
+            let config = try await detectConfiguration()
+            infrastructureConfiguration = config
 
-            case StackStatus.createInProgress,
-                 StackStatus.updateInProgress,
-                 StackStatus.updateCompleteCleanupInProgress:
-                let startTime = await getOperationStartTime() ?? Date()
-                return .deploying(operation: "Updating", progress: DeploymentProgress(), startTime: startTime)
+            let typedOutputs = CDKStackOutputs.from(outputs)
+            stackOutputs = typedOutputs
 
-            case StackStatus.deleteInProgress:
-                let startTime = await getOperationStartTime() ?? Date()
-                return .destroying(progress: DeploymentProgress(), startTime: startTime)
+            return state
 
-            case StackStatus.createFailed,
-                 StackStatus.updateFailed,
-                 StackStatus.rollbackComplete,
-                 StackStatus.rollbackFailed,
-                 StackStatus.deleteFailed:
-                return .failed(reason: stackStatus)
+        case .notDeployed:
+            infrastructureConfiguration = nil
+            stackOutputs = nil
+            return state
 
-            default:
-                let config = try await detectConfiguration()
-                let outputs = try await getStackOutputs()
-                infrastructureConfiguration = config
-                stackOutputs = outputs
-                return .deployed(outputs: outputs.allOutputs)
-            }
-        } catch {
-            let errorMessage = error.localizedDescription
-
-            if DeploymentError.isCredentialError(errorMessage) {
-                throw DeploymentError.credentialExpired(message: errorMessage)
-            } else if DeploymentError.isStackNotFoundError(errorMessage) {
-                infrastructureConfiguration = nil
-                stackOutputs = nil
-                return .notDeployed
-            } else {
-                throw DeploymentError.unknown(message: errorMessage)
-            }
+        default:
+            return state
         }
     }
 
@@ -635,15 +606,6 @@ public class DeploymentService {
 
     private func getStackEvents(limit: Int = 50) async throws -> [CloudFormationStackEvent] {
         try await cloudFormationClient.getStackEvents(name: stackName, limit: limit)
-    }
-
-    private func getOperationStartTime() async -> Date? {
-        guard let events = try? await getStackEvents() else { return nil }
-
-        return events
-            .filter { $0.logicalResourceId == stackName && $0.resourceStatus.contains("IN_PROGRESS") }
-            .map { $0.timestamp }
-            .min()
     }
 
     // MARK: - Private: Deploy/Destroy With Progress
