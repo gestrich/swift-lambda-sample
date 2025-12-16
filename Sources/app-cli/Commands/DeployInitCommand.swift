@@ -29,8 +29,6 @@ extension AWSCommand {
         @ArgumentParser.Flag(name: .long, help: "Skip git push")
         var skipPush: Bool = false
 
-        private static let stackName = "SwiftLambdaSampleStack"
-
         mutating func run() async throws {
             let awsConfig = try AWSAuthConfiguration.resolve(
                 profileName: awsProfile,
@@ -53,30 +51,28 @@ extension AWSCommand {
 
             let projectRoot = FileManager.default.currentDirectoryPath
             let cliClient = CLIClient()
-            let credentialProvider = awsConfig.makeCredentialProvider()
             let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-            let cdkClient = CDKClient(
+            let components = DeployWorkflow.create(
                 cdkDirectory: fullCdkPath,
-                credentialProvider: credentialProvider,
-                cliClient: cliClient
-            )
-            let cfClient = CloudFormationClient(
-                credentialProvider: credentialProvider,
+                credentialProvider: awsConfig.makeCredentialProvider(),
                 cliClient: cliClient
             )
 
             // Safety check: prevent accidental database deletion
-            try await checkDatabaseSafety(cfClient: cfClient)
+            try await checkDatabaseSafety(
+                cfClient: components.cfClient,
+                stackName: components.stackName
+            )
 
             // Check and warn about existing configuration
-            try await checkExistingConfiguration(cfClient: cfClient)
+            try await checkExistingConfiguration(
+                cfClient: components.cfClient,
+                stackName: components.stackName
+            )
 
             // Deploy infrastructure using workflow
-            let apiUrl = try await deployInfrastructure(
-                cdkClient: cdkClient,
-                cfClient: cfClient
-            )
+            let apiUrl = try await deployInfrastructure(components: components)
 
             // Update Lambda code via GitHub Actions
             try await updateLambdaCode(projectRoot: projectRoot, cliClient: cliClient, skipPush: skipPush)
@@ -92,12 +88,12 @@ extension AWSCommand {
             print("\n🎉 Deployment completed successfully!")
         }
 
-        private func checkDatabaseSafety(cfClient: CloudFormationClient) async throws {
+        private func checkDatabaseSafety(cfClient: CloudFormationClient, stackName: String) async throws {
             do {
-                let state = try await cfClient.queryState(stackName: Self.stackName)
+                let state = try await cfClient.queryState(stackName: stackName)
 
                 if case .deployed = state {
-                    let resources = try await cfClient.describeStackResources(name: Self.stackName)
+                    let resources = try await cfClient.describeStackResources(name: stackName)
                     let hasExistingDatabase = resources.contains {
                         $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS")
                     }
@@ -115,12 +111,12 @@ extension AWSCommand {
             }
         }
 
-        private func checkExistingConfiguration(cfClient: CloudFormationClient) async throws {
+        private func checkExistingConfiguration(cfClient: CloudFormationClient, stackName: String) async throws {
             do {
-                let state = try await cfClient.queryState(stackName: Self.stackName)
+                let state = try await cfClient.queryState(stackName: stackName)
 
                 if case .deployed = state {
-                    let resources = try await cfClient.describeStackResources(name: Self.stackName)
+                    let resources = try await cfClient.describeStackResources(name: stackName)
 
                     print("\n⚠️  WARNING: Stack already exists!")
                     print("   Current configuration:")
@@ -136,16 +132,7 @@ extension AWSCommand {
             }
         }
 
-        private func deployInfrastructure(
-            cdkClient: CDKClient,
-            cfClient: CloudFormationClient
-        ) async throws -> String {
-            let workflow = DeployWorkflow(
-                cdkClient: cdkClient,
-                cfClient: cfClient,
-                stackName: Self.stackName
-            )
-
+        private func deployInfrastructure(components: DeployWorkflow.Components) async throws -> String {
             let options = DeployWorkflow.Options(
                 withPostgres: withPostgres,
                 withNATGateway: withNatGateway
@@ -153,7 +140,7 @@ extension AWSCommand {
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in components.workflow.run(options: options) {
                 switch progress.step {
                 case .building:
                     print("🔨 Building CDK TypeScript...")

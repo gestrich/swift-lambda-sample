@@ -23,8 +23,6 @@ extension AWSCommand {
         @ArgumentParser.Flag(name: .long, help: "Skip confirmation prompt")
         var force: Bool = false
 
-        private static let stackName = "SwiftLambdaSampleStack"
-
         mutating func run() async throws {
             let awsConfig = try AWSAuthConfiguration.resolve(
                 profileName: awsProfile,
@@ -46,21 +44,15 @@ extension AWSCommand {
 
             let projectRoot = FileManager.default.currentDirectoryPath
             let cliClient = CLIClient()
-            let credentialProvider = awsConfig.makeCredentialProvider()
             let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-            let cdkClient = CDKClient(
+            let components = DestroyWorkflow.create(
                 cdkDirectory: fullCdkPath,
-                credentialProvider: credentialProvider,
-                cliClient: cliClient
-            )
-            let cfClient = CloudFormationClient(
-                credentialProvider: credentialProvider,
+                credentialProvider: awsConfig.makeCredentialProvider(),
                 cliClient: cliClient
             )
 
-            // Check if stack exists before attempting destroy
-            let currentState = try await cfClient.queryState(stackName: Self.stackName)
+            let currentState = try await components.cfClient.queryState(stackName: components.stackName)
 
             switch currentState {
             case .notDeployed:
@@ -87,15 +79,9 @@ extension AWSCommand {
                 throw DeployError.invalidConfiguration("Cannot tear down: \(message)")
             }
 
-            let workflow = DestroyWorkflow(
-                cdkClient: cdkClient,
-                cfClient: cfClient,
-                stackName: Self.stackName
-            )
-
             let options = DestroyWorkflow.Options(force: true)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in components.workflow.run(options: options) {
                 switch progress.step {
                 case .destroying:
                     if let detail = progress.detail {

@@ -19,6 +19,50 @@ public struct DeployWorkflow: Sendable {
         self.stackName = stackName
     }
 
+    /// Components needed for deployment operations.
+    /// Exposes the CloudFormation client for configuration detection before running the workflow.
+    public struct Components: Sendable {
+        public let workflow: DeployWorkflow
+        public let cfClient: CloudFormationClient
+        public let stackName: String
+    }
+
+    /// Creates a workflow and associated components by instantiating required clients.
+    /// - Parameters:
+    ///   - cdkDirectory: Full path to the CDK directory
+    ///   - credentialProvider: AWS credential provider for authentication
+    ///   - cliClient: CLI client for executing commands
+    ///   - stackName: CloudFormation stack name (defaults to CDKStackConfiguration.defaultStackName)
+    /// - Returns: Components containing the workflow and CloudFormation client
+    public static func create(
+        cdkDirectory: String,
+        credentialProvider: any AWSCredentialProvider,
+        cliClient: CLIClient,
+        stackName: String = CDKStackConfiguration.defaultStackName
+    ) -> Components {
+        let cdkClient = CDKClient(
+            cdkDirectory: cdkDirectory,
+            credentialProvider: credentialProvider,
+            cliClient: cliClient
+        )
+        let cfClient = CloudFormationClient(
+            credentialProvider: credentialProvider,
+            cliClient: cliClient
+        )
+
+        let workflow = DeployWorkflow(
+            cdkClient: cdkClient,
+            cfClient: cfClient,
+            stackName: stackName
+        )
+
+        return Components(
+            workflow: workflow,
+            cfClient: cfClient,
+            stackName: stackName
+        )
+    }
+
     /// Progress updates from the deploy workflow.
     ///
     /// This is the service-layer progress type that tracks workflow phases:

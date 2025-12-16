@@ -20,8 +20,6 @@ extension AWSCommand {
         @ArgumentParser.Option(name: .long, help: "CDK directory path")
         var cdkDirectory: String = "cdk"
 
-        private static let stackName = "SwiftLambdaSampleStack"
-
         mutating func run() async throws {
             let awsConfig = try AWSAuthConfiguration.resolve(
                 profileName: awsProfile,
@@ -36,31 +34,22 @@ extension AWSCommand {
 
             let projectRoot = FileManager.default.currentDirectoryPath
             let cliClient = CLIClient()
-            let credentialProvider = awsConfig.makeCredentialProvider()
             let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-            let cdkClient = CDKClient(
+            let components = DeployWorkflow.create(
                 cdkDirectory: fullCdkPath,
-                credentialProvider: credentialProvider,
-                cliClient: cliClient
-            )
-            let cfClient = CloudFormationClient(
-                credentialProvider: credentialProvider,
+                credentialProvider: awsConfig.makeCredentialProvider(),
                 cliClient: cliClient
             )
 
-            // Query current configuration to determine deploy options
-            let options = try await detectCurrentConfiguration(cfClient: cfClient)
-
-            let workflow = DeployWorkflow(
-                cdkClient: cdkClient,
-                cfClient: cfClient,
-                stackName: Self.stackName
+            let options = try await detectCurrentConfiguration(
+                cfClient: components.cfClient,
+                stackName: components.stackName
             )
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in components.workflow.run(options: options) {
                 switch progress.step {
                 case .building:
                     print("🔨 Building CDK TypeScript...")
@@ -98,12 +87,12 @@ extension AWSCommand {
             print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")
         }
 
-        private func detectCurrentConfiguration(cfClient: CloudFormationClient) async throws -> DeployWorkflow.Options {
+        private func detectCurrentConfiguration(cfClient: CloudFormationClient, stackName: String) async throws -> DeployWorkflow.Options {
             do {
-                let state = try await cfClient.queryState(stackName: Self.stackName)
+                let state = try await cfClient.queryState(stackName: stackName)
 
                 if case .deployed = state {
-                    let resources = try await cfClient.describeStackResources(name: Self.stackName)
+                    let resources = try await cfClient.describeStackResources(name: stackName)
 
                     print("\n📊 Detected existing stack configuration:")
                     print("   Database: \(resources.hasDatabase ? "YES" : "NO")")
