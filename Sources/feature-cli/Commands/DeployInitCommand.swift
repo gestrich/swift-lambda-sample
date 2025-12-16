@@ -1,6 +1,9 @@
 import Foundation
 import ArgumentParser
 import service_deploy
+import sdk_aws
+import sdk_cli
+import sdk_github
 
 extension AWSCommand {
     struct DeployInitCommand: AsyncParsableCommand {
@@ -9,23 +12,25 @@ extension AWSCommand {
             abstract: "Initial deployment - set infrastructure configuration"
         )
 
-        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        @ArgumentParser.Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
-        @Option(name: .long, help: "Use aws-vault for credential management")
+        @ArgumentParser.Option(name: .long, help: "Use aws-vault for credential management")
         var useAwsVault: Bool?
 
-        @Option(name: .long, help: "CDK directory path")
+        @ArgumentParser.Option(name: .long, help: "CDK directory path")
         var cdkDirectory: String = "cdk"
 
-        @Flag(name: .long, help: "Include PostgreSQL database (adds cost)")
+        @ArgumentParser.Flag(name: .long, help: "Include PostgreSQL database (adds cost)")
         var withPostgres: Bool = false
 
-        @Flag(name: .long, help: "Include NAT Gateway (adds cost)")
+        @ArgumentParser.Flag(name: .long, help: "Include NAT Gateway (adds cost)")
         var withNatGateway: Bool = false
 
-        @Flag(name: .long, help: "Skip git push")
+        @ArgumentParser.Flag(name: .long, help: "Skip git push")
         var skipPush: Bool = false
+
+        private static let stackName = "SwiftLambdaSampleStack"
 
         mutating func run() async throws {
             let awsConfig = try AWSAuthConfiguration.resolve(
@@ -48,56 +53,256 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            try await runDeployInit(
-                projectRoot: projectRoot,
-                awsConfig: awsConfig,
-                cdkDirectory: cdkDirectory,
-                withPostgres: withPostgres,
-                withNatGateway: withNatGateway,
-                skipPush: skipPush
-            )
-        }
+            let cliClient = CLIClient()
+            let credentialProvider = awsConfig.makeCredentialProvider()
+            let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-        @MainActor
-        private func runDeployInit(
-            projectRoot: String,
-            awsConfig: AWSAuthConfiguration,
-            cdkDirectory: String,
-            withPostgres: Bool,
-            withNatGateway: Bool,
-            skipPush: Bool
-        ) async throws {
-            let service = DeploymentService(
-                projectRoot: projectRoot,
-                awsConfig: awsConfig,
-                cdkDirectory: cdkDirectory
+            let cdkClient = CDKClient(
+                cdkDirectory: fullCdkPath,
+                credentialProvider: credentialProvider,
+                cliClient: cliClient
+            )
+            let cfClient = CloudFormationClient(
+                credentialProvider: credentialProvider,
+                cliClient: cliClient
             )
 
-            await service.refresh()
-            let currentState = service.deploymentState
+            // Safety check: prevent accidental database deletion
+            try await checkDatabaseSafety(cfClient: cfClient)
 
-            if case .deployed = currentState, let config = service.infrastructureConfiguration {
-                print("\n⚠️  WARNING: Stack already exists!")
-                print("   Current configuration:")
-                print("     Database: \(config.hasDatabase ? "YES" : "NO")")
-                print("     NAT Gateway: \(config.hasNATGateway ? "YES" : "NO")")
-                print("\n   New configuration:")
-                print("     Database: \(withPostgres ? "YES" : "NO")")
-                print("     NAT Gateway: \(withNatGateway ? "YES" : "NO")")
-                print("\n   Updating existing stack...\n")
+            // Check and warn about existing configuration
+            try await checkExistingConfiguration(cfClient: cfClient)
+
+            // Deploy infrastructure using workflow
+            let apiUrl = try await deployInfrastructure(
+                cdkClient: cdkClient,
+                cfClient: cfClient
+            )
+
+            // Update Lambda code via GitHub Actions
+            try await updateLambdaCode(projectRoot: projectRoot, cliClient: cliClient, skipPush: skipPush)
+
+            // Initialize database if Postgres is included
+            if withPostgres {
+                try await initializeDatabase(apiUrl: apiUrl, cliClient: cliClient)
             }
 
-            let options = DeploymentService.DeployOptions(
+            // Verify deployment
+            try await verifyDeployment(apiUrl: apiUrl, cliClient: cliClient)
+
+            print("\n🎉 Deployment completed successfully!")
+        }
+
+        private func checkDatabaseSafety(cfClient: CloudFormationClient) async throws {
+            do {
+                let state = try await cfClient.queryStateOnce(stackName: Self.stackName)
+
+                if case .deployed = state {
+                    let resources = try await cfClient.describeStackResources(name: Self.stackName)
+                    let hasExistingDatabase = resources.contains {
+                        $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS")
+                    }
+
+                    if hasExistingDatabase && !withPostgres {
+                        throw DeployError.invalidConfiguration(
+                            "Cannot remove database with deploy-init. Use 'tear-down' first if you want to remove the database."
+                        )
+                    }
+                }
+            } catch let error as DeployError {
+                throw error
+            } catch {
+                // Stack doesn't exist or other error - safe to proceed
+            }
+        }
+
+        private func checkExistingConfiguration(cfClient: CloudFormationClient) async throws {
+            do {
+                let state = try await cfClient.queryStateOnce(stackName: Self.stackName)
+
+                if case .deployed = state {
+                    let resources = try await cfClient.describeStackResources(name: Self.stackName)
+
+                    let hasDatabase = resources.contains {
+                        $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS")
+                    }
+                    let hasNATGateway = resources.contains {
+                        $0.resourceType == "AWS::EC2::NatGateway"
+                    }
+
+                    print("\n⚠️  WARNING: Stack already exists!")
+                    print("   Current configuration:")
+                    print("     Database: \(hasDatabase ? "YES" : "NO")")
+                    print("     NAT Gateway: \(hasNATGateway ? "YES" : "NO")")
+                    print("\n   New configuration:")
+                    print("     Database: \(withPostgres ? "YES" : "NO")")
+                    print("     NAT Gateway: \(withNatGateway ? "YES" : "NO")")
+                    print("\n   Updating existing stack...\n")
+                }
+            } catch {
+                // Stack doesn't exist - that's fine for deploy-init
+            }
+        }
+
+        private func deployInfrastructure(
+            cdkClient: CDKClient,
+            cfClient: CloudFormationClient
+        ) async throws -> String {
+            let workflow = DeployWorkflow(
+                cdkClient: cdkClient,
+                cfClient: cfClient,
+                stackName: Self.stackName
+            )
+
+            let options = DeployWorkflow.Options(
                 withPostgres: withPostgres,
                 withNATGateway: withNatGateway
             )
 
-            try await service.deployInit(
-                options: options,
-                skipPush: skipPush
-            )
+            var finalOutputs: CDKStackOutputs?
 
-            print("\n🎉 Deployment completed successfully!")
+            for try await progress in workflow.run(options: options) {
+                switch progress.step {
+                case .building:
+                    print("🔨 Building CDK TypeScript...")
+
+                case .deploying:
+                    if case .cdk(let deployProgress) = progress.detail {
+                        printDeployProgress(deployProgress)
+                    }
+
+                case .monitoring:
+                    if case .cdk(let deployProgress) = progress.detail {
+                        printDeployProgress(deployProgress)
+                    } else {
+                        print("☁️  Monitoring CloudFormation...")
+                    }
+
+                case .complete:
+                    if case .outputs(let outputs, _) = progress.detail {
+                        finalOutputs = outputs
+                    }
+                }
+            }
+
+            guard let outputs = finalOutputs, let apiUrl = outputs.apiGatewayUrl else {
+                throw DeployError.deploymentFailed(reason: "Could not find ApiGatewayUrl in stack outputs")
+            }
+
+            print("\n📋 Stack Outputs:")
+            for (key, value) in outputs.allOutputs.sorted(by: { $0.key < $1.key }) {
+                print("  \(key): \(value)")
+            }
+            print("\n✅ CDK deployment completed successfully")
+
+            return apiUrl
+        }
+
+        private func updateLambdaCode(projectRoot: String, cliClient: CLIClient, skipPush: Bool) async throws {
+            guard let githubConfig = GitHubConfiguration.loadConfig() else {
+                throw DeployError.configurationMissing(
+                    file: "~/.swiftSampleDemo/github-config.json",
+                    hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
+                )
+            }
+
+            let githubClient = makeGitHubActionsClient(
+                repoPath: projectRoot,
+                config: githubConfig,
+                cliClient: cliClient
+            )
+            let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
+
+            print("\n📦 Updating Lambda code...")
+
+            if !skipPush {
+                let hasCommitsToPush = try await gitClient.hasCommitsToPush()
+
+                if hasCommitsToPush {
+                    print("   Pushing commits...")
+                    let beforeRunId = try await githubClient.getLatestRunId()
+                    try await gitClient.push()
+
+                    print("   Waiting for GitHub Actions workflow...")
+                    try await githubClient.waitForNewWorkflowCompletion(
+                        afterRunId: beforeRunId,
+                        timeoutMinutes: 10
+                    )
+                } else {
+                    print("   ✅ No commits to push")
+                    print("   🔄 Triggering workflow to redeploy current code...")
+                    try await githubClient.triggerWorkflowAndWait(
+                        workflowName: "Dev Deploy",
+                        timeoutMinutes: 10
+                    )
+                }
+            } else {
+                print("   ⏭️  Skipping git push (--skip-push enabled)")
+                print("   🔄 Triggering workflow...")
+                try await githubClient.triggerWorkflowAndWait(
+                    workflowName: "Dev Deploy",
+                    timeoutMinutes: 10
+                )
+            }
+
+            print("   ✅ Lambda code updated")
+        }
+
+        private func initializeDatabase(apiUrl: String, cliClient: CLIClient) async throws {
+            print("\n🗄️  Initializing database...")
+            print("   → POST \(apiUrl)api/database")
+
+            let curlCommand = Curl.Request.post(url: "\(apiUrl)api/database", silent: true)
+            let result = try await cliClient.executeForResult(curlCommand, printCommand: false)
+
+            if !result.isSuccess {
+                let errorOutput = result.stderr.isEmpty ? result.stdout : result.stderr
+                throw DeployError.commandFailed(
+                    command: "curl POST /api/database",
+                    exitCode: result.exitCode,
+                    output: errorOutput
+                )
+            }
+
+            let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("   Response: \(response)")
+
+            if !response.contains("Database Initialized") {
+                throw DeployError.deploymentFailed(reason: "Unexpected database init response: \(response)")
+            }
+
+            print("   ✓ Database initialized successfully")
+        }
+
+        private func verifyDeployment(apiUrl: String, cliClient: CLIClient) async throws {
+            print("\n🧪 Verifying deployment...")
+            print("   Testing health endpoint...")
+            print("   → GET \(apiUrl)api/health")
+
+            let healthCommand = Curl.Request.get(url: "\(apiUrl)api/health", silent: true)
+            let testResult = try await cliClient.executeForResult(healthCommand, printCommand: false)
+
+            if !testResult.isSuccess {
+                let errorOutput = testResult.stderr.isEmpty ? testResult.stdout : testResult.stderr
+                throw DeployError.testFailed(message: "Health check failed: \(errorOutput)")
+            }
+
+            let healthResponse = testResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("   Response: \(healthResponse)")
+
+            if healthResponse.contains("error") || healthResponse.contains("Error") {
+                throw DeployError.testFailed(message: "Health check returned error: \(healthResponse)")
+            }
+
+            print("   ✅ Health check passed")
+        }
+
+        private func printDeployProgress(_ progress: DeploymentProgress) {
+            let completed = progress.completedCount
+            let total = progress.resources.count
+            if total > 0 {
+                print("☁️  Deploying resources: \(completed)/\(total)")
+            }
         }
     }
 }

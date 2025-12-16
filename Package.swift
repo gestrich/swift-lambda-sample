@@ -59,6 +59,9 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "service-deploy"),
+                .target(name: "sdk-aws"),
+                .target(name: "sdk-cli"),
+                .target(name: "sdk-github"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

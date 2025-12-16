@@ -246,14 +246,17 @@ public class DeploymentModel {
 
 ---
 
-## Phase 6: Update CLI to Use Workflows Directly
+## Phase 6: Update CLI to Use Workflows Directly ✅
+
+**Status:** COMPLETED
 
 **Goal:** CLI commands consume workflows without DeploymentService.
 
 **Files:**
-- Modify: `Sources/feature-cli/Commands/DeployCommand.swift`
-- Modify: `Sources/feature-cli/Commands/TearDownCommand.swift`
-- Modify: `Sources/feature-cli/Commands/DeployInitCommand.swift`
+- Modified: `Sources/feature-cli/Commands/DeployCommand.swift`
+- Modified: `Sources/feature-cli/Commands/TearDownCommand.swift`
+- Modified: `Sources/feature-cli/Commands/DeployInitCommand.swift`
+- Modified: `Package.swift` (added sdk-aws, sdk-cli, sdk-github dependencies to feature-cli)
 
 **Pattern:**
 ```swift
@@ -277,7 +280,16 @@ func run() async throws {
 }
 ```
 
-**Verification:** CLI works without @MainActor requirement.
+**Verification:** Build succeeds. CLI commands no longer require @MainActor.
+
+**Technical Notes:**
+- All three commands (`deploy`, `deploy-init`, `tear-down`) now create CDKClient and CloudFormationClient directly
+- Removed @MainActor requirement from command functions (no longer needed since we don't use DeploymentService)
+- Added explicit `ArgumentParser.Option` and `ArgumentParser.Flag` qualifiers to avoid shadowing by sdk-cli's `@Option`/`@Flag` macros
+- `DeployCommand` detects existing configuration via `cfClient.queryStateOnce()` and `cfClient.describeStackResources()`
+- `TearDownCommand` checks stack state before attempting destroy, handles edge cases (already destroying, failed state)
+- `DeployInitCommand` includes safety check for database deletion and integrates GitHub Actions workflow for Lambda code updates
+- Lambda code update and verification remain using direct SDK clients (GitClient, GitHubActionsClient, CLIClient) since those would be separate workflows
 
 ---
 

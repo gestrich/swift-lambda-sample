@@ -1,6 +1,8 @@
 import Foundation
 import ArgumentParser
 import service_deploy
+import sdk_aws
+import sdk_cli
 
 extension AWSCommand {
     struct TearDownCommand: AsyncParsableCommand {
@@ -9,17 +11,19 @@ extension AWSCommand {
             abstract: "Destroy the CDK deployment"
         )
 
-        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        @ArgumentParser.Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
-        @Option(name: .long, help: "Use aws-vault for credential management")
+        @ArgumentParser.Option(name: .long, help: "Use aws-vault for credential management")
         var useAwsVault: Bool?
 
-        @Option(name: .long, help: "CDK directory path")
+        @ArgumentParser.Option(name: .long, help: "CDK directory path")
         var cdkDirectory: String = "cdk"
 
-        @Flag(name: .long, help: "Skip confirmation prompt")
+        @ArgumentParser.Flag(name: .long, help: "Skip confirmation prompt")
         var force: Bool = false
+
+        private static let stackName = "SwiftLambdaSampleStack"
 
         mutating func run() async throws {
             let awsConfig = try AWSAuthConfiguration.resolve(
@@ -41,36 +45,79 @@ extension AWSCommand {
             }
 
             let projectRoot = FileManager.default.currentDirectoryPath
-            try await runTearDown(projectRoot: projectRoot, awsConfig: awsConfig, cdkDirectory: cdkDirectory)
-        }
+            let cliClient = CLIClient()
+            let credentialProvider = awsConfig.makeCredentialProvider()
+            let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-        @MainActor
-        private func runTearDown(projectRoot: String, awsConfig: AWSAuthConfiguration, cdkDirectory: String) async throws {
-            let service = DeploymentService(
-                projectRoot: projectRoot,
-                awsConfig: awsConfig,
-                cdkDirectory: cdkDirectory
+            let cdkClient = CDKClient(
+                cdkDirectory: fullCdkPath,
+                credentialProvider: credentialProvider,
+                cliClient: cliClient
+            )
+            let cfClient = CloudFormationClient(
+                credentialProvider: credentialProvider,
+                cliClient: cliClient
             )
 
-            await service.refresh()
+            // Check if stack exists before attempting destroy
+            let currentState = try await cfClient.queryStateOnce(stackName: Self.stackName)
 
-            let currentState = service.deploymentState
-            guard case .deployed = currentState else {
-                if case .notDeployed = currentState {
-                    print("ℹ️  Stack is not deployed. Nothing to tear down.")
-                    return
-                }
+            switch currentState {
+            case .notDeployed:
+                print("ℹ️  Stack is not deployed. Nothing to tear down.")
+                return
+
+            case .deployed:
+                break
+
+            case .destroying:
+                print("⚠️  Stack is already being destroyed. Monitoring progress...")
+
+            case .deploying:
+                throw DeployError.invalidConfiguration("Cannot tear down: deployment is in progress")
+
+            case .failed(let reason):
+                print("⚠️  Stack is in failed state: \(reason)")
+                print("   Attempting to destroy anyway...")
+
+            case .loading, .unknown:
                 throw DeployError.invalidConfiguration("Cannot tear down: stack is in state \(currentState)")
+
+            case .credentialExpired(let message):
+                throw DeployError.invalidConfiguration("Cannot tear down: \(message)")
             }
 
-            await service.destroy()
+            let workflow = DestroyWorkflow(
+                cdkClient: cdkClient,
+                cfClient: cfClient,
+                stackName: Self.stackName
+            )
 
-            let finalState = service.deploymentState
-            if case .failed(let reason) = finalState {
-                throw DeployError.deploymentFailed(reason: reason)
+            let options = DestroyWorkflow.Options(force: true)
+
+            for try await progress in workflow.run(options: options) {
+                switch progress.step {
+                case .destroying:
+                    if let detail = progress.detail {
+                        printDestroyProgress(detail)
+                    } else {
+                        print("🗑️  Destroying resources...")
+                    }
+
+                case .complete:
+                    break
+                }
             }
 
             print("\n🎉 Tear down completed successfully!")
+        }
+
+        private func printDestroyProgress(_ progress: DeploymentProgress) {
+            let completed = progress.completedCount
+            let total = progress.resources.count
+            if total > 0 {
+                print("🗑️  Destroying resources: \(completed)/\(total)")
+            }
         }
     }
 }

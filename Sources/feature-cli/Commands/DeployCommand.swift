@@ -1,6 +1,8 @@
 import Foundation
 import ArgumentParser
 import service_deploy
+import sdk_aws
+import sdk_cli
 
 extension AWSCommand {
     struct DeployCommand: AsyncParsableCommand {
@@ -9,14 +11,16 @@ extension AWSCommand {
             abstract: "Deploy/update CDK infrastructure (maintains current configuration)"
         )
 
-        @Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
+        @ArgumentParser.Option(name: .long, help: AWSAuthConfiguration.profileOptionHelp)
         var awsProfile: String?
 
-        @Option(name: .long, help: "Use aws-vault for credential management")
+        @ArgumentParser.Option(name: .long, help: "Use aws-vault for credential management")
         var useAwsVault: Bool?
 
-        @Option(name: .long, help: "CDK directory path")
+        @ArgumentParser.Option(name: .long, help: "CDK directory path")
         var cdkDirectory: String = "cdk"
+
+        private static let stackName = "SwiftLambdaSampleStack"
 
         mutating func run() async throws {
             let awsConfig = try AWSAuthConfiguration.resolve(
@@ -31,40 +35,56 @@ extension AWSCommand {
             print("\n📦 Starting CDK deployment...")
 
             let projectRoot = FileManager.default.currentDirectoryPath
+            let cliClient = CLIClient()
+            let credentialProvider = awsConfig.makeCredentialProvider()
+            let fullCdkPath = "\(projectRoot)/\(cdkDirectory)"
 
-            try await runDeployment(projectRoot: projectRoot, awsConfig: awsConfig, cdkDirectory: cdkDirectory)
-        }
-
-        @MainActor
-        private func runDeployment(projectRoot: String, awsConfig: AWSAuthConfiguration, cdkDirectory: String) async throws {
-            let service = DeploymentService(
-                projectRoot: projectRoot,
-                awsConfig: awsConfig,
-                cdkDirectory: cdkDirectory
+            let cdkClient = CDKClient(
+                cdkDirectory: fullCdkPath,
+                credentialProvider: credentialProvider,
+                cliClient: cliClient
+            )
+            let cfClient = CloudFormationClient(
+                credentialProvider: credentialProvider,
+                cliClient: cliClient
             )
 
-            await service.refresh()
-            let currentState = service.deploymentState
+            // Query current configuration to determine deploy options
+            let options = try await detectCurrentConfiguration(cfClient: cfClient)
 
-            if case .deployed = currentState, let config = service.infrastructureConfiguration {
-                print("\n📊 Detected existing stack configuration:")
-                print("   Database: \(config.hasDatabase ? "YES" : "NO")")
-                print("   NAT Gateway: \(config.hasNATGateway ? "YES" : "NO")")
-                print("   → Maintaining current configuration\n")
-            } else if case .notDeployed = currentState {
-                print("\n⚠️  No existing stack detected")
-                print("   → Using minimal configuration (no database, no NAT)")
-                print("   → Use 'deploy-init' to set initial configuration\n")
+            let workflow = DeployWorkflow(
+                cdkClient: cdkClient,
+                cfClient: cfClient,
+                stackName: Self.stackName
+            )
+
+            var finalOutputs: CDKStackOutputs?
+
+            for try await progress in workflow.run(options: options) {
+                switch progress.step {
+                case .building:
+                    print("🔨 Building CDK TypeScript...")
+
+                case .deploying:
+                    if case .cdk(let deployProgress) = progress.detail {
+                        printDeployProgress(deployProgress)
+                    }
+
+                case .monitoring:
+                    if case .cdk(let deployProgress) = progress.detail {
+                        printDeployProgress(deployProgress)
+                    } else {
+                        print("☁️  Monitoring CloudFormation...")
+                    }
+
+                case .complete:
+                    if case .outputs(let outputs, _) = progress.detail {
+                        finalOutputs = outputs
+                    }
+                }
             }
 
-            await service.updateInfrastructure()
-
-            let finalState = service.deploymentState
-            if case .failed(let reason) = finalState {
-                throw DeployError.deploymentFailed(reason: reason)
-            }
-
-            if case .deployed = finalState, let outputs = service.stackOutputs {
+            if let outputs = finalOutputs {
                 print("\n📋 Stack Outputs:")
                 for (key, value) in outputs.allOutputs.sorted(by: { $0.key < $1.key }) {
                     print("  \(key): \(value)")
@@ -76,6 +96,49 @@ extension AWSCommand {
 
             print("\n✅ Infrastructure deployment completed successfully!")
             print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")
+        }
+
+        private func detectCurrentConfiguration(cfClient: CloudFormationClient) async throws -> DeployWorkflow.Options {
+            do {
+                let state = try await cfClient.queryStateOnce(stackName: Self.stackName)
+
+                if case .deployed = state {
+                    let resources = try await cfClient.describeStackResources(name: Self.stackName)
+
+                    let hasDatabase = resources.contains {
+                        $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS")
+                    }
+                    let hasNATGateway = resources.contains {
+                        $0.resourceType == "AWS::EC2::NatGateway"
+                    }
+
+                    print("\n📊 Detected existing stack configuration:")
+                    print("   Database: \(hasDatabase ? "YES" : "NO")")
+                    print("   NAT Gateway: \(hasNATGateway ? "YES" : "NO")")
+                    print("   → Maintaining current configuration\n")
+
+                    return DeployWorkflow.Options(
+                        withPostgres: hasDatabase,
+                        withNATGateway: hasNATGateway
+                    )
+                }
+            } catch {
+                // Stack doesn't exist or error - use minimal config
+            }
+
+            print("\n⚠️  No existing stack detected")
+            print("   → Using minimal configuration (no database, no NAT)")
+            print("   → Use 'deploy-init' to set initial configuration\n")
+
+            return .minimal
+        }
+
+        private func printDeployProgress(_ progress: DeploymentProgress) {
+            let completed = progress.completedCount
+            let total = progress.resources.count
+            if total > 0 {
+                print("☁️  Deploying resources: \(completed)/\(total)")
+            }
         }
     }
 }
