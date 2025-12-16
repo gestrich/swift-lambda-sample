@@ -293,17 +293,33 @@ func run() async throws {
 
 ---
 
-## Phase 7: Update app-mac Views to Use DeploymentModel
+## Phase 7: Update app-mac Views to Use DeploymentModel ✅
+
+**Status:** COMPLETED
+
+**Goal:** Update Mac app views to use the new workflow-based DeploymentModel.
 
 **Files:**
-- Modify: `Sources/feature-mac/Models/AppModel.swift`
-- Modify: `Sources/feature-mac/RemoteService/RemoteServiceView.swift`
-- Modify: `Sources/feature-mac/RemoteService/CDKInfrastructureSectionView.swift`
+- Modified: `Sources/feature-mac/Models/AppModel.swift`
+- Modified: `Sources/feature-mac/RemoteService/RemoteServiceView.swift`
+- Modified: `Sources/feature-mac/RemoteService/CDKInfrastructureSectionView.swift`
+- Modified: `Sources/feature-mac/Models/DeploymentModel.swift` (property name alignment)
 
 **Changes:**
 1. AppModel creates `DeploymentModel` instead of `DeploymentService`
 2. Views observe `DeploymentModel` properties
 3. Progress displayed from `activeWorkflow`
+4. `ConnectionMode.remote` now holds `DeploymentModel` instead of `DeploymentService`
+
+**Verification:** Build succeeds, views compile with correct types.
+
+**Technical Notes:**
+- Renamed `DeploymentModel.state` to `deploymentState` for API compatibility with `DeploymentService`
+- Renamed `DeploymentModel.infrastructureConfig` to `infrastructureConfiguration` for API compatibility
+- Both `DeploymentModel` and `DeploymentService` now share the same property interface, enabling gradual migration
+- Views use `@Bindable var service: DeploymentModel` (same pattern as before with DeploymentService)
+- `RemoteServiceView` and `CDKInfrastructureSectionView` work unchanged except for type declaration
+- Mac app now uses workflow-based architecture for deploy/destroy operations
 
 ---
 

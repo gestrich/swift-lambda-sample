@@ -43,7 +43,7 @@ struct CDKInfrastructureLoadingView: View {
 /// View for the CDK Infrastructure section in Remote mode
 /// Shows stack status, configuration, outputs, and deploy/destroy actions
 struct CDKInfrastructureSectionView: View {
-    @Bindable var service: DeploymentService
+    @Bindable var service: DeploymentModel
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?

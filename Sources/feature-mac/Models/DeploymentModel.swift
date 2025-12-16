@@ -17,13 +17,13 @@ public class DeploymentModel {
     // MARK: - Stable State
 
     /// High-level deployment state (derived from SDK states + CloudFormation queries)
-    public private(set) var state: CloudFormationState = .unknown
+    public private(set) var deploymentState: CloudFormationState = .unknown
 
     /// Parsed stack outputs
     public private(set) var stackOutputs: CDKStackOutputs?
 
     /// Detected infrastructure configuration from CloudFormation
-    public private(set) var infrastructureConfig: CDKInfrastructureConfiguration?
+    public private(set) var infrastructureConfiguration: CDKInfrastructureConfiguration?
 
     // MARK: - Transient Workflow State
 
@@ -89,12 +89,12 @@ public class DeploymentModel {
 
     /// Whether a deploy operation can be started
     public var canDeploy: Bool {
-        isIdle && state.canDeploy
+        isIdle && deploymentState.canDeploy
     }
 
     /// Whether a destroy operation can be started
     public var canDestroy: Bool {
-        isIdle && state.canDestroy
+        isIdle && deploymentState.canDestroy
     }
 
     /// Whether Lambda code can be updated (via GitHub Actions)
@@ -134,20 +134,20 @@ public class DeploymentModel {
 
     /// Whether infrastructure is deployed
     public var isDeployed: Bool {
-        if case .deployed = state { return true }
+        if case .deployed = deploymentState { return true }
         return false
     }
 
     /// Whether credentials have expired
     public var isCredentialExpired: Bool {
-        if case .credentialExpired = state { return true }
+        if case .credentialExpired = deploymentState { return true }
         return false
     }
 
     /// Error message if in failed state
     public var errorMessage: String? {
-        if case .failed(let reason) = state { return reason }
-        if case .credentialExpired(let message) = state { return message }
+        if case .failed(let reason) = deploymentState { return reason }
+        if case .credentialExpired(let message) = deploymentState { return message }
         return nil
     }
 
@@ -218,22 +218,22 @@ public class DeploymentModel {
     public func refresh() async {
         guard isIdle else { return }
 
-        state = .loading
+        deploymentState = .loading
 
         do {
             let queriedState = try await cfClient.queryStateOnce(stackName: stackName)
-            state = queriedState
+            deploymentState = queriedState
 
             // Update app-specific state based on deployment state
             try await updateAppSpecificState()
         } catch let error as DeploymentError {
             if case .credentialExpired(let message) = error {
-                state = .credentialExpired(message: message)
+                deploymentState = .credentialExpired(message: message)
             } else {
-                state = .failed(reason: error.localizedDescription)
+                deploymentState = .failed(reason: error.localizedDescription)
             }
         } catch {
-            state = .failed(reason: error.localizedDescription)
+            deploymentState = .failed(reason: error.localizedDescription)
         }
     }
 
@@ -292,31 +292,31 @@ public class DeploymentModel {
                 // Update state based on workflow progress
                 switch progress.step {
                 case .building:
-                    state = .deploying(operation: "Building", progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
+                    deploymentState = .deploying(operation: "Building", progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
 
                 case .deploying:
                     if case .cdk(let deployProgress) = progress.detail {
-                        state = .deploying(operation: "Deploying", progress: deployProgress, startTime: operationStartTime ?? Date())
+                        deploymentState = .deploying(operation: "Deploying", progress: deployProgress, startTime: operationStartTime ?? Date())
                     }
 
                 case .monitoring:
                     if case .cdk(let deployProgress) = progress.detail {
-                        state = .deploying(operation: "Monitoring", progress: deployProgress, startTime: operationStartTime ?? Date())
+                        deploymentState = .deploying(operation: "Monitoring", progress: deployProgress, startTime: operationStartTime ?? Date())
                     }
 
                 case .complete:
                     if case .outputs(let outputs, let config) = progress.detail {
                         stackOutputs = outputs
-                        infrastructureConfig = config
+                        infrastructureConfiguration = config
                         if let outputs = outputs {
-                            state = .deployed(outputs: outputs.allOutputs)
+                            deploymentState = .deployed(outputs: outputs.allOutputs)
                         }
                     }
                 }
             }
         } catch {
             lastError = error
-            state = .failed(reason: error.localizedDescription)
+            deploymentState = .failed(reason: error.localizedDescription)
         }
 
         activeWorkflow = nil
@@ -325,8 +325,8 @@ public class DeploymentModel {
 
     /// Update infrastructure maintaining current configuration
     public func updateInfrastructure(output: CLIOutputStream? = nil) async {
-        let hasDatabase = infrastructureConfig?.hasDatabase ?? false
-        let hasNATGateway = infrastructureConfig?.hasNATGateway ?? false
+        let hasDatabase = infrastructureConfiguration?.hasDatabase ?? false
+        let hasNATGateway = infrastructureConfiguration?.hasNATGateway ?? false
 
         let options = DeployOptions(withPostgres: hasDatabase, withNATGateway: hasNATGateway)
         await deploy(options: options, output: output)
@@ -355,20 +355,20 @@ public class DeploymentModel {
                 switch progress.step {
                 case .destroying:
                     if let deployProgress = progress.detail {
-                        state = .destroying(progress: deployProgress, startTime: operationStartTime ?? Date())
+                        deploymentState = .destroying(progress: deployProgress, startTime: operationStartTime ?? Date())
                     } else {
-                        state = .destroying(progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
+                        deploymentState = .destroying(progress: DeploymentProgress(), startTime: operationStartTime ?? Date())
                     }
 
                 case .complete:
-                    state = .notDeployed
+                    deploymentState = .notDeployed
                     stackOutputs = nil
-                    infrastructureConfig = nil
+                    infrastructureConfiguration = nil
                 }
             }
         } catch {
             lastError = error
-            state = .failed(reason: error.localizedDescription)
+            deploymentState = .failed(reason: error.localizedDescription)
         }
 
         activeWorkflow = nil
@@ -417,15 +417,15 @@ public class DeploymentModel {
 
     // MARK: - Private: App-Specific State
 
-    /// Update app-specific state (infrastructureConfig, stackOutputs) based on deployment state.
+    /// Update app-specific state (infrastructureConfiguration, stackOutputs) based on deployment state.
     private func updateAppSpecificState() async throws {
-        switch state {
+        switch deploymentState {
         case .deployed(let outputs):
-            infrastructureConfig = try await detectConfiguration()
+            infrastructureConfiguration = try await detectConfiguration()
             stackOutputs = CDKStackOutputs.from(outputs)
 
         case .notDeployed:
-            infrastructureConfig = nil
+            infrastructureConfiguration = nil
             stackOutputs = nil
 
         default:

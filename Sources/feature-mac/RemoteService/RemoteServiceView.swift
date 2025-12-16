@@ -4,9 +4,9 @@ import service_deploy
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management
-/// Connects directly to DeploymentService without going through a separate model layer
+/// Connects directly to DeploymentModel without going through a separate model layer
 struct RemoteServiceView: View {
-    @State var service: DeploymentService
+    @State var service: DeploymentModel
 
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
@@ -186,7 +186,7 @@ struct RemoteServiceView: View {
 // MARK: - Preview
 
 #Preview {
-    let service = DeploymentService(projectRoot: FileManager.default.currentDirectoryPath)
+    let service = DeploymentModel(projectRoot: FileManager.default.currentDirectoryPath)
     return RemoteServiceView(service: service)
         .padding()
         .frame(width: 500)

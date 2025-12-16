@@ -1,6 +1,6 @@
-import sdk_client
-import sdk_cli
 import Foundation
+import sdk_cli
+import sdk_client
 import service_deploy
 
 /// Top-level model that creates and holds all services.
@@ -11,7 +11,7 @@ class AppModel {
     // MARK: - Services (Eager Initialization)
 
     /// All services are created at app startup. The active mode determines which is in use.
-    let remoteService: DeploymentService
+    let remoteService: DeploymentModel
     let xcodeLocalService: XcodeLocalModel
     let linuxLocalService: LinuxLocalModel
 
@@ -51,7 +51,7 @@ class AppModel {
         let projectDirectory = Self.resolveProjectDirectory()
 
         // Create all services eagerly at startup
-        let remote = DeploymentService(projectRoot: projectDirectory)
+        let remote = DeploymentModel(projectRoot: projectDirectory)
         let xcode = XcodeLocalModel(workingDirectory: projectDirectory)
         let linux = LinuxLocalModel(workingDirectory: projectDirectory)
 
@@ -178,7 +178,7 @@ class AppModel {
 /// Connection mode for the API - simple enum holding service references
 @MainActor
 enum ConnectionMode {
-    case remote(DeploymentService)
+    case remote(DeploymentModel)
     case localXcode(XcodeLocalModel)
     case localLinux(LinuxLocalModel)
 
