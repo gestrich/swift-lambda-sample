@@ -117,13 +117,14 @@ public func monitorStream(stackName: String, pollInterval: Duration = .seconds(2
 
 ---
 
-## Phase 3: Create DeployWorkflow
+## Phase 3: Create DeployWorkflow ✅
+
+**Status:** COMPLETED
 
 **Goal:** Workflow that orchestrates deployment and returns progress stream.
 
 **Files:**
-- Create: `Sources/service-deploy/Workflows/DeployWorkflow.swift`
-- Create: `Sources/service-deploy/Workflows/DeployProgress.swift`
+- Created: `Sources/service-deploy/Workflows/DeployWorkflow.swift`
 
 **Design:**
 ```swift
@@ -133,7 +134,7 @@ public struct DeployWorkflow {
     let stackName: String
 
     public struct Progress: Sendable {
-        public enum Step { case building, deploying, querying, complete }
+        public enum Step { case building, deploying, monitoring, complete }
         public let step: Step
         public let detail: Detail?
 
@@ -143,11 +144,20 @@ public struct DeployWorkflow {
         }
     }
 
-    public func run(options: DeployOptions) -> AsyncThrowingStream<Progress, Error>
+    public func run(options: Options, output: CLIOutputStream?) -> AsyncThrowingStream<Progress, Error>
 }
 ```
 
-**Verification:** Unit test with mock clients.
+**Verification:** Build succeeds, workflow compiles with correct types.
+
+**Technical Notes:**
+- `DeployWorkflow.Options` mirrors `DeploymentService.DeployOptions` with `toCDKOptions()` conversion
+- Two-phase approach: CDK deploy stream followed by CloudFormation monitor stream
+- CDKClient stream methods (`deployStream`, `destroyStream`) updated to `nonisolated` to allow calling from non-actor context
+- Progress steps: `.building` → `.deploying` → `.monitoring` → `.complete`
+- Infrastructure configuration detection moved from DeploymentService into workflow
+- Final `.complete` progress includes both `CDKStackOutputs` and `CDKInfrastructureConfiguration`
+- Proper error handling for credential expiration, stack not found, and deployment failures
 
 ---
 

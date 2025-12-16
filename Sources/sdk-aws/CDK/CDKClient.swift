@@ -356,7 +356,7 @@ public actor CDKClient {
     ///   - options: Deployment options
     ///   - output: Optional client-owned stream to receive raw CLI output
     /// - Returns: AsyncThrowingStream that yields CDKProgress updates
-    public func deployStream(
+    public nonisolated func deployStream(
         options: DeployOptions = DeployOptions(),
         output: CLIOutputStream? = nil
     ) -> AsyncThrowingStream<CDKProgress, Error> {
@@ -457,7 +457,7 @@ public actor CDKClient {
     ///   - options: Destroy options
     ///   - output: Optional client-owned stream to receive raw CLI output
     /// - Returns: AsyncThrowingStream that yields CDKProgress updates
-    public func destroyStream(
+    public nonisolated func destroyStream(
         options: DestroyOptions = DestroyOptions(),
         output: CLIOutputStream? = nil
     ) -> AsyncThrowingStream<CDKProgress, Error> {
