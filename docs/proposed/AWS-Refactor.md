@@ -169,19 +169,48 @@ actor CDKClient {
 
 ---
 
-### [ ] Phase 3: Create @Observable DeploymentService
+### [x] Phase 3: Create @Observable DeploymentService ✅
 
 **Goal**: Create a proper `@Observable` service that orchestrates SDKs, replacing the current actor-based `RemoteDeploymentService`.
 
+**Status**: COMPLETED
+
 **Tasks**:
-- [ ] Create `DeploymentService` as `@MainActor @Observable class`
-- [ ] Inject SDK clients: `CDKClient`, `CloudFormationClient`, `GitHubActionsClient`
-- [ ] Observe SDK states via `for await` loops
-- [ ] Expose cross-SDK derived state (e.g., `canDeploy`, `overallState`)
-- [ ] Implement action methods that delegate to SDKs
-- [ ] Move app-specific configuration logic from `SwiftLambdaCDKService`
-- [ ] Move infrastructure detection logic from `SwiftLambdaInfrastructureService`
-- [ ] Keep `RemoteDeploymentOrchestrator` for CLI-only stateless operations (or merge)
+- [x] Create `DeploymentService` as `@MainActor @Observable class`
+- [x] Inject SDK clients: `CDKClient`, `CloudFormationClient`, `GitHubActionsClient`
+- [x] Observe SDK states via `for await` loops
+- [x] Expose cross-SDK derived state (e.g., `canDeploy`, `overallState`)
+- [x] Implement action methods that delegate to SDKs
+- [x] Move app-specific configuration logic from `SwiftLambdaCDKService`
+- [x] Move infrastructure detection logic from `SwiftLambdaInfrastructureService`
+- [x] Keep `RemoteDeploymentOrchestrator` for CLI-only stateless operations (or merge)
+
+**File Created**:
+```
+service-deploy/
+└── DeploymentService.swift    # @MainActor @Observable service
+```
+
+**Technical Notes**:
+- `DeploymentService` is `@MainActor @Observable` class per layered-architecture.md
+- Observes SDK states via `async let` parallel observation tasks:
+  ```swift
+  private func startObservingSDKStates() async {
+      async let cdk: Void = observeCDK()
+      async let cf: Void = observeCloudFormation()
+      async let gh: Void = observeGitHub()
+      _ = await (cdk, cf, gh)
+  }
+  ```
+- Each SDK observation uses `for await` loop to update `@Observable` properties
+- App-specific `DeployOptions` with postgres/NAT Gateway flags (from `SwiftLambdaCDKService`)
+- Infrastructure detection logic (from `SwiftLambdaInfrastructureService`) now inline
+- Cross-SDK derived state: `canDeploy`, `canDestroy`, `canUpdateLambda`, `isOperationInProgress`
+- Convenience properties: `apiGatewayUrl`, `lambdaFunctionName`, `bucketName`, `isDeployed`, `errorMessage`
+- Two initializers: full (explicit config) and convenience (loads config from disk)
+- Progress tracking via `CDKOutputParser` and `CDKProgressAccumulator`
+- Existing `RemoteDeploymentService` (actor) and `RemoteDeploymentOrchestrator` kept for backwards compatibility
+- Phase 4 will update feature-mac to use `DeploymentService` directly, eliminating `RemoteModel`
 
 **DeploymentService Structure**:
 ```swift
