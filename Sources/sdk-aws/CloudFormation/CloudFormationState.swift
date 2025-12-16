@@ -1,9 +1,9 @@
 import Foundation
 
-/// Generic deployment state for CloudFormation stacks.
-/// This enum represents the high-level state of a CloudFormation deployment
+/// State of a CloudFormation stack.
+/// This enum represents the high-level state of a CloudFormation stack
 /// without any app-specific configuration knowledge.
-public enum DeploymentState: Sendable, Equatable {
+public enum CloudFormationState: Sendable, Equatable {
     case unknown
     case loading
     case notDeployed

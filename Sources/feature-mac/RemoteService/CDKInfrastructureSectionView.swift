@@ -61,7 +61,7 @@ struct CDKInfrastructureSectionView: View {
     // Expand/collapse state for error details
     @State private var showErrorDetails = false
 
-    private var state: DeploymentState {
+    private var state: CloudFormationState {
         service.deploymentState
     }
 

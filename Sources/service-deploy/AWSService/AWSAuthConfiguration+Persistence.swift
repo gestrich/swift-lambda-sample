@@ -16,7 +16,7 @@ import sdk_aws
 @_exported import enum sdk_aws.CloudWatchLogsProgress
 
 // CloudFormation state types used by views
-@_exported import enum sdk_aws.DeploymentState
+@_exported import enum sdk_aws.CloudFormationState
 @_exported import struct sdk_aws.DeploymentProgress
 @_exported import struct sdk_aws.ResourceProgress
 @_exported import enum sdk_aws.ResourceStatus

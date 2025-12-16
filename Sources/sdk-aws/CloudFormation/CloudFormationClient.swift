@@ -10,10 +10,10 @@ public actor CloudFormationClient {
     // MARK: - State Management
 
     /// Current deployment state
-    private var currentState: DeploymentState = .unknown
+    private var currentState: CloudFormationState = .unknown
 
     /// Continuations for state stream subscribers
-    private var continuations: [UUID: AsyncStream<DeploymentState>.Continuation] = [:]
+    private var continuations: [UUID: AsyncStream<CloudFormationState>.Continuation] = [:]
 
     /// Task for monitoring in-progress operations
     private var monitorTask: Task<Void, Never>?
@@ -29,8 +29,8 @@ public actor CloudFormationClient {
     // MARK: - State Stream
 
     /// Subscribe to deployment state changes.
-    /// Returns an AsyncStream that yields DeploymentState updates.
-    public nonisolated func states() -> AsyncStream<DeploymentState> {
+    /// Returns an AsyncStream that yields CloudFormationState updates.
+    public nonisolated func states() -> AsyncStream<CloudFormationState> {
         AsyncStream { continuation in
             let id = UUID()
 
@@ -45,12 +45,12 @@ public actor CloudFormationClient {
     }
 
     /// Get the current deployment state
-    public func getState() -> DeploymentState {
+    public func getState() -> CloudFormationState {
         currentState
     }
 
     /// Add a continuation to track
-    private func addContinuation(id: UUID, continuation: AsyncStream<DeploymentState>.Continuation) {
+    private func addContinuation(id: UUID, continuation: AsyncStream<CloudFormationState>.Continuation) {
         continuations[id] = continuation
         continuation.yield(currentState)
     }
@@ -61,7 +61,7 @@ public actor CloudFormationClient {
     }
 
     /// Publish a deployment state change to all subscribers
-    private func publish(_ state: DeploymentState) {
+    private func publish(_ state: CloudFormationState) {
         currentState = state
         for continuation in continuations.values {
             continuation.yield(state)
@@ -252,17 +252,17 @@ public actor CloudFormationClient {
     // MARK: - Deployment State Query
 
     /// Query the deployment state of a CloudFormation stack.
-    /// Maps CloudFormation stack status to a generic DeploymentState and publishes it.
+    /// Maps CloudFormation stack status to a generic CloudFormationState and publishes it.
     /// - Parameter stackName: The stack name
-    /// - Returns: DeploymentState based on stack status
+    /// - Returns: CloudFormationState based on stack status
     /// - Throws: DeploymentError.credentialExpired for auth issues, DeploymentError.unknown for other errors
-    public func queryDeploymentState(stackName: String) async throws -> DeploymentState {
+    public func queryState(stackName: String) async throws -> CloudFormationState {
         publish(.loading)
 
         do {
             let stackStatus = try await getStackStatus(name: stackName)
 
-            let state: DeploymentState
+            let state: CloudFormationState
             switch stackStatus {
             case StackStatus.createComplete, StackStatus.updateComplete:
                 let outputs = try await getStackOutputs(name: stackName)
@@ -300,15 +300,15 @@ public actor CloudFormationClient {
             let errorMessage = error.localizedDescription
 
             if DeploymentError.isCredentialError(errorMessage) {
-                let state = DeploymentState.credentialExpired(message: errorMessage)
+                let state = CloudFormationState.credentialExpired(message: errorMessage)
                 publish(state)
                 throw DeploymentError.credentialExpired(message: errorMessage)
             } else if DeploymentError.isStackNotFoundError(errorMessage) {
-                let state = DeploymentState.notDeployed
+                let state = CloudFormationState.notDeployed
                 publish(state)
                 return state
             } else {
-                let state = DeploymentState.failed(reason: errorMessage)
+                let state = CloudFormationState.failed(reason: errorMessage)
                 publish(state)
                 throw DeploymentError.unknown(message: errorMessage)
             }
@@ -369,7 +369,7 @@ public actor CloudFormationClient {
                 // Check if complete
                 let status = try await getStackStatus(name: stackName)
                 if !StackStatus.isInProgress(status) {
-                    _ = try await queryDeploymentState(stackName: stackName)
+                    _ = try await queryState(stackName: stackName)
                     monitorTask = nil
                     return
                 }

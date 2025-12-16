@@ -1,12 +1,11 @@
-import sdk_cli
-import sdk_aws
-import sdk_github
-import sdk_client
 import Foundation
+import sdk_aws
+import sdk_cli
+import sdk_client
+import sdk_github
 
 /// Observable service for remote AWS deployments.
 /// Per layered-architecture.md, this is the @Observable service that orchestrates SDK clients.
-/// Services ARE models—no separate model layer needed.
 ///
 /// This service:
 /// - Observes SDK states via `for await` loops (CDKClient, CloudFormationClient, GitHubActionsClient)
@@ -26,7 +25,7 @@ public class DeploymentService {
     // MARK: - App-Specific State
 
     /// High-level deployment state (derived from SDK states + CloudFormation queries)
-    public private(set) var deploymentState: DeploymentState = .unknown
+    public private(set) var deploymentState: CloudFormationState = .unknown
 
     /// Detected infrastructure configuration from CloudFormation
     public private(set) var infrastructureConfiguration: CDKInfrastructureConfiguration?
@@ -205,7 +204,7 @@ public class DeploymentService {
 
     private func startObservingSDKStates() async {
         async let cdk: Void = observeCDKState()
-        async let cf: Void = observeCloudFormationDeploymentState()
+        async let cf: Void = observeCloudFormationCloudFormationState()
         async let gh: Void = observeGitHubState()
         _ = await (cdk, cf, gh)
     }
@@ -216,7 +215,7 @@ public class DeploymentService {
         }
     }
 
-    private func observeCloudFormationDeploymentState() async {
+    private func observeCloudFormationCloudFormationState() async {
         for await state in cloudFormationClient.states() {
             self.deploymentState = state
             self.progress = state.progress
@@ -241,8 +240,8 @@ public class DeploymentService {
         guard !deploymentState.isBusy else { return }
 
         do {
-            // queryDeploymentState publishes to states() which observer handles
-            let state = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
+            // queryState publishes to states() which observer handles
+            let state = try await cloudFormationClient.queryState(stackName: stackName)
 
             // Update app-specific state (infrastructureConfiguration, stackOutputs)
             try await updateAppSpecificState()
@@ -325,7 +324,7 @@ public class DeploymentService {
             )
 
             // Query final state (publishes via observer) and update app-specific state
-            _ = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
+            _ = try await cloudFormationClient.queryState(stackName: stackName)
             try await updateAppSpecificState()
             operationStartTime = nil
         } catch {
@@ -392,7 +391,7 @@ public class DeploymentService {
             await executeDestroyWithProgress(output: output, startTime: startTime)
 
             // Query final state (publishes via observer) and update app-specific state
-            _ = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
+            _ = try await cloudFormationClient.queryState(stackName: stackName)
             try await updateAppSpecificState()
             operationStartTime = nil
         } catch {
@@ -445,7 +444,7 @@ public class DeploymentService {
 
     /// Comprehensive status snapshot for CLI display
     public struct ComprehensiveStatus: Sendable {
-        public let deploymentState: DeploymentState
+        public let deploymentState: CloudFormationState
         public let gitStatus: GitStatusInfo
         public let githubStatus: GitHubStatusInfo?
         public let stackOutputs: [String: String]
