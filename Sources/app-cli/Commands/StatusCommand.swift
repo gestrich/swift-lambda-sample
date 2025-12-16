@@ -3,7 +3,6 @@ import Foundation
 import service_deploy
 import sdk_aws
 import sdk_cli
-import sdk_github
 
 extension AWSCommand {
     struct StatusCommand: AsyncParsableCommand {
@@ -30,76 +29,79 @@ extension AWSCommand {
             let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
             let credentialProvider = awsConfig.makeCredentialProvider()
 
-            let cfClient = CloudFormationClient(
+            let components = StatusWorkflow.create(
+                projectRoot: projectRoot,
                 credentialProvider: credentialProvider,
                 cliClient: cliClient
             )
-            let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
-            let githubConfig = GitHubConfiguration.loadConfig()?.toSDKConfiguration()
-            let githubClient = githubConfig.map {
-                GitHubActionsClient(repoPath: projectRoot, config: $0, cliClient: cliClient)
+
+            for try await progress in components.workflow.run() {
+                printProgress(progress)
             }
+        }
 
-            // Git status
-            let hasUncommitted = try await gitClient.hasUncommittedChanges()
-            let hasCommitsToPush = try await gitClient.hasCommitsToPush()
-            let currentBranch = try await gitClient.getCurrentBranch()
+        private func printProgress(_ progress: StatusWorkflow.Progress) {
+            guard let detail = progress.detail else { return }
 
-            print("📝 Git Status:")
-            print("  Uncommitted changes: \(hasUncommitted ? "YES" : "NO")")
-            print("  Commits to push: \(hasCommitsToPush ? "YES" : "NO")")
-            print("  Current branch: \(currentBranch)")
+            switch detail {
+            case .gitStatus(let status):
+                print("📝 Git Status:")
+                print("  Uncommitted changes: \(status.hasUncommittedChanges ? "YES" : "NO")")
+                print("  Commits to push: \(status.hasUnpushedCommits ? "YES" : "NO")")
+                print("  Current branch: \(status.currentBranch)")
 
-            // GitHub Actions status
-            if let githubClient = githubClient {
-                do {
-                    let (status, conclusion) = try await githubClient.getLatestRunStatus()
-                    print("\n🔄 GitHub Actions:")
-                    print("  Repository: \(githubClient.repository)")
-                    print("  Branch: \(githubClient.branch)")
-                    print("  Latest workflow status: \(status)")
-                    if let conclusion = conclusion {
-                        print("  Conclusion: \(conclusion)")
-                    }
-                } catch {
-                    print("\n🔄 GitHub Actions: Unable to fetch status")
+            case .githubStatus(let status):
+                print("\n🔄 GitHub Actions:")
+                print("  Repository: \(status.repository)")
+                print("  Branch: \(status.branch)")
+                print("  Latest workflow status: \(status.latestRunStatus)")
+                if let conclusion = status.latestRunConclusion {
+                    print("  Conclusion: \(conclusion)")
                 }
-            } else {
+
+            case .githubNotConfigured:
                 print("\n🔄 GitHub Actions: Not configured")
                 print("  Create \(GitHubConfiguration.configPath) with:")
                 print("  {\"repository\": \"owner/repo\", \"branch\": \"dev\"}")
+
+            case .githubError:
+                print("\n🔄 GitHub Actions: Unable to fetch status")
+
+            case .stackStatus(let status):
+                print("\n☁️  CDK Stack:")
+                printStackStatus(status)
+
+            case .stackError(let message):
+                print("\n☁️  CDK Stack:")
+                print("  Unable to fetch stack status: \(message)")
+
+            case .status:
+                break
             }
+        }
 
-            // CDK Stack status
-            let stackName = CDKStackConfiguration.defaultStackName
-            do {
-                let state = try await cfClient.queryState(stackName: stackName)
-                print("\n☁️  CDK Stack:")
-
-                if case .deployed(let outputs) = state {
-                    if outputs.isEmpty {
-                        print("  Stack deployed but no outputs")
-                    } else {
-                        for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
-                            print("  \(key): \(value)")
-                        }
-                    }
-                } else if case .notDeployed = state {
-                    print("  Stack not deployed")
-                } else if case .credentialExpired(let message) = state {
-                    print("  ⚠️  Credentials expired: \(message)")
-                } else if case .failed(let reason) = state {
-                    print("  ❌ Stack in failed state: \(reason)")
-                } else if case .deploying = state {
-                    print("  🔄 Deployment in progress...")
-                } else if case .destroying = state {
-                    print("  🔄 Destroy in progress...")
+        private func printStackStatus(_ status: StatusWorkflow.StackStatus) {
+            switch status {
+            case .deployed(let outputs):
+                if outputs.isEmpty {
+                    print("  Stack deployed but no outputs")
                 } else {
-                    print("  State: \(state)")
+                    for (key, value) in outputs.sorted(by: { $0.key < $1.key }) {
+                        print("  \(key): \(value)")
+                    }
                 }
-            } catch {
-                print("\n☁️  CDK Stack:")
-                print("  Unable to fetch stack status: \(error.localizedDescription)")
+            case .notDeployed:
+                print("  Stack not deployed")
+            case .credentialExpired(let message):
+                print("  ⚠️  Credentials expired: \(message)")
+            case .failed(let reason):
+                print("  ❌ Stack in failed state: \(reason)")
+            case .deploying:
+                print("  🔄 Deployment in progress...")
+            case .destroying:
+                print("  🔄 Destroy in progress...")
+            case .unknown(let state):
+                print("  State: \(state)")
             }
         }
     }

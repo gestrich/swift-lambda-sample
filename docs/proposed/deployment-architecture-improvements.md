@@ -388,12 +388,21 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 - Preview uses `try!` since it's development-only and should fail fast if config is missing
 - App falls back to Xcode local mode if remote config is missing, providing a functional experience
 
-### Phase 4: StatusWorkflow
+### Phase 4: StatusWorkflow ✅ COMPLETED
 
-- [ ] Create `StatusWorkflow` in service-deploy
-- [ ] Define `GitStatus` and `GitHubStatus` types
-- [ ] Update `StatusCommand` to use workflow
-- [ ] Add status checking to Mac app using same workflow
+- [x] Create `StatusWorkflow` in service-deploy
+- [x] Define `GitStatus` and `GitHubStatus` types
+- [x] Update `StatusCommand` to use workflow
+- [ ] Add status checking to Mac app using same workflow (deferred - app already has its own status mechanisms)
+
+**Technical Notes:**
+- `StatusWorkflow` follows the same factory pattern: `create()` returns `Components` struct with `workflow`, `cfClient`, `stackName`
+- `GitStatus` is re-exported from `sdk-github` via typealias (already existed in `GitHubActionsClient.swift`)
+- `GitHubStatus` is a new simplified type containing repository, branch, status, and conclusion
+- `StackStatus` is a workflow-specific enum that converts from `CloudFormationState` for simpler consumption
+- Progress has four steps: `checkingGit`, `checkingGitHub`, `checkingStack`, `complete`
+- CLI command reduced from ~100 lines to ~100 lines but business logic is now in the service layer
+- GitHub config path hint preserved in CLI output for user guidance when not configured
 
 ### Phase 5: Thin DeploymentModel
 
@@ -415,8 +424,8 @@ While `CDKStackConfiguration.defaultStackName` exists, it's not used consistentl
 
 | Principle | Current | Target |
 |-----------|---------|--------|
-| CLI commands are thin (I/O only) | ⚠️ Partial | ✅ Full |
-| Workflows handle orchestration | ⚠️ Partial | ✅ Full |
+| CLI commands are thin (I/O only) | ✅ Full (Phase 4) | ✅ Full |
+| Workflows handle orchestration | ✅ Full (Phase 4) | ✅ Full |
 | Models observe streams | ⚠️ Partial | ✅ Full |
 | No default fallbacks | ✅ Full (Phase 3) | ✅ Full |
 | Consistent factory patterns | ✅ Full (Phase 1) | ✅ Full |
