@@ -348,6 +348,240 @@ public actor CDKClient {
         publish(.destroying(progress: progress, startTime: startTime))
     }
 
+    // MARK: - Stateless Stream Methods
+
+    /// Deploy CDK stack and return progress as an AsyncThrowingStream.
+    /// This method does not use internal state - it yields progress directly.
+    /// - Parameters:
+    ///   - options: Deployment options
+    ///   - output: Optional client-owned stream to receive raw CLI output
+    /// - Returns: AsyncThrowingStream that yields CDKProgress updates
+    public func deployStream(
+        options: DeployOptions = DeployOptions(),
+        output: CLIOutputStream? = nil
+    ) -> AsyncThrowingStream<CDKProgress, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    try await self.runDeployStream(
+                        options: options,
+                        output: output,
+                        continuation: continuation
+                    )
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Internal implementation for deployStream
+    private func runDeployStream(
+        options: DeployOptions,
+        output: CLIOutputStream?,
+        continuation: AsyncThrowingStream<CDKProgress, Error>.Continuation
+    ) async throws {
+        let nodeModulesPath = (cdkDirectory as NSString).appendingPathComponent("node_modules")
+        if !FileManager.default.fileExists(atPath: nodeModulesPath) {
+            continuation.yield(.installing)
+            try await installWithoutPublish(output: output)
+        }
+
+        continuation.yield(.building)
+        try await buildWithoutPublish(output: output)
+
+        continuation.yield(.deploying(DeploymentProgress()))
+
+        let contextArray = options.context.map { "\($0.key)=\($0.value)" }
+
+        let command = Cdk.Deploy(
+            profile: credentialProvider.profileName,
+            requireApproval: options.requireApproval ? "any" : "never",
+            context: contextArray
+        )
+
+        let (execCommand, arguments) = buildCommandLine(command)
+
+        let internalOutput = output ?? CLIOutputStream()
+        let parser = CDKOutputParser()
+        let accumulator = CDKProgressAccumulator()
+
+        let parsingTask = Task {
+            let stream = await internalOutput.makeStream()
+            for await item in stream {
+                guard !Task.isCancelled else { break }
+
+                let text: String
+                switch item {
+                case .stdout(_, let t), .stderr(_, let t):
+                    text = t
+                default:
+                    continue
+                }
+
+                for line in text.components(separatedBy: .newlines) {
+                    if let event = parser.parse(line) {
+                        accumulator.update(with: event)
+                        let newProgress = accumulator.snapshot().toDeploymentProgress()
+                        continuation.yield(.deploying(newProgress))
+                    }
+                }
+            }
+        }
+
+        let result = try await cliClient.execute(
+            command: execCommand,
+            arguments: arguments,
+            workingDirectory: cdkDirectory,
+            environment: credentialProvider.environment,
+            output: internalOutput
+        )
+
+        parsingTask.cancel()
+
+        guard result.isSuccess else {
+            throw CDKError.commandFailed(
+                command: "cdk deploy",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
+
+        continuation.yield(.deployed(outputs: [:]))
+        continuation.finish()
+    }
+
+    /// Destroy CDK stack and return progress as an AsyncThrowingStream.
+    /// This method does not use internal state - it yields progress directly.
+    /// - Parameters:
+    ///   - options: Destroy options
+    ///   - output: Optional client-owned stream to receive raw CLI output
+    /// - Returns: AsyncThrowingStream that yields CDKProgress updates
+    public func destroyStream(
+        options: DestroyOptions = DestroyOptions(),
+        output: CLIOutputStream? = nil
+    ) -> AsyncThrowingStream<CDKProgress, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    try await self.runDestroyStream(
+                        options: options,
+                        output: output,
+                        continuation: continuation
+                    )
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Internal implementation for destroyStream
+    private func runDestroyStream(
+        options: DestroyOptions,
+        output: CLIOutputStream?,
+        continuation: AsyncThrowingStream<CDKProgress, Error>.Continuation
+    ) async throws {
+        continuation.yield(.destroying(DeploymentProgress()))
+
+        let command = Cdk.Destroy(
+            profile: credentialProvider.profileName,
+            force: options.force
+        )
+
+        let (execCommand, arguments) = buildCommandLine(command)
+
+        let internalOutput = output ?? CLIOutputStream()
+        let parser = CDKOutputParser()
+        let accumulator = CDKProgressAccumulator()
+
+        let parsingTask = Task {
+            let stream = await internalOutput.makeStream()
+            for await item in stream {
+                guard !Task.isCancelled else { break }
+
+                let text: String
+                switch item {
+                case .stdout(_, let t), .stderr(_, let t):
+                    text = t
+                default:
+                    continue
+                }
+
+                for line in text.components(separatedBy: .newlines) {
+                    if let event = parser.parse(line) {
+                        accumulator.update(with: event)
+                        let newProgress = accumulator.snapshot().toDeploymentProgress()
+                        continuation.yield(.destroying(newProgress))
+                    }
+                }
+            }
+        }
+
+        let result = try await cliClient.execute(
+            command: execCommand,
+            arguments: arguments,
+            workingDirectory: cdkDirectory,
+            environment: credentialProvider.environment,
+            output: internalOutput
+        )
+
+        parsingTask.cancel()
+
+        guard result.isSuccess else {
+            throw CDKError.commandFailed(
+                command: "cdk destroy",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
+
+        continuation.yield(.destroyed)
+        continuation.finish()
+    }
+
+    /// Install CDK dependencies without publishing state
+    private func installWithoutPublish(output: CLIOutputStream? = nil) async throws {
+        let command = Npm.Install()
+        let (execCommand, arguments) = buildNpmCommandLine(command)
+
+        let result = try await cliClient.execute(
+            command: execCommand,
+            arguments: arguments,
+            workingDirectory: cdkDirectory,
+            output: output
+        )
+
+        guard result.isSuccess else {
+            throw CDKError.commandFailed(
+                command: "npm install",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
+    }
+
+    /// Build TypeScript CDK code without publishing state
+    private func buildWithoutPublish(output: CLIOutputStream? = nil) async throws {
+        let command = Npm.Run(script: "build")
+        let (execCommand, arguments) = buildNpmCommandLine(command)
+
+        let result = try await cliClient.execute(
+            command: execCommand,
+            arguments: arguments,
+            workingDirectory: cdkDirectory,
+            output: output
+        )
+
+        guard result.isSuccess else {
+            throw CDKError.commandFailed(
+                command: "npm run build",
+                exitCode: result.exitCode,
+                output: result.errorOutput
+            )
+        }
+    }
+
     /// Show differences between deployed stack and local code
     /// - Returns: Diff output string
     public func diff() async throws -> String {

@@ -41,7 +41,9 @@ sdk-aws
 
 ---
 
-## Phase 1: Add Stateless Stream Methods to CDKClient
+## Phase 1: Add Stateless Stream Methods to CDKClient ✅
+
+**Status:** COMPLETED
 
 **Goal:** Add new methods that return progress streams without internal state.
 
@@ -72,6 +74,13 @@ public func destroyStream(options: DestroyOptions, output: CLIOutputStream?) -> 
 These methods yield progress directly without using internal `publish()`.
 
 **Verification:** Existing code still works. New methods testable in isolation.
+
+**Technical Notes:**
+- Added `installWithoutPublish()` and `buildWithoutPublish()` private helpers to avoid duplicating install/build logic
+- Stream methods use `AsyncThrowingStream` with continuation pattern
+- Internal `runDeployStream` and `runDestroyStream` methods handle the actual work
+- Progress parsing reuses existing `CDKOutputParser` and `CDKProgressAccumulator`
+- Errors are propagated via `continuation.finish(throwing:)`
 
 ---
 
