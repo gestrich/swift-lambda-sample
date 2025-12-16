@@ -241,18 +241,11 @@ public class DeploymentService {
         guard !deploymentState.isBusy else { return }
 
         do {
-            // queryDeploymentState publishes to states() which we observe
+            // queryDeploymentState publishes to states() which observer handles
             let state = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
 
-            // Handle app-specific concerns
-            if case .deployed(let outputs) = state {
-                let config = try await detectConfiguration()
-                infrastructureConfiguration = config
-                stackOutputs = CDKStackOutputs.from(outputs)
-            } else if case .notDeployed = state {
-                infrastructureConfiguration = nil
-                stackOutputs = nil
-            }
+            // Update app-specific state (infrastructureConfiguration, stackOutputs)
+            try await updateAppSpecificState()
 
             // Start monitoring if operation in progress
             if state.isBusy {
@@ -331,8 +324,9 @@ public class DeploymentService {
                 startTime: startTime
             )
 
-            let finalState = try await queryCurrentState()
-            deploymentState = finalState
+            // Query final state (publishes via observer) and update app-specific state
+            _ = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
+            try await updateAppSpecificState()
             operationStartTime = nil
         } catch {
             deploymentState = .failed(reason: error.localizedDescription)
@@ -397,8 +391,9 @@ public class DeploymentService {
         do {
             await executeDestroyWithProgress(output: output, startTime: startTime)
 
-            let finalState = try await queryCurrentState()
-            deploymentState = finalState
+            // Query final state (publishes via observer) and update app-specific state
+            _ = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
+            try await updateAppSpecificState()
             operationStartTime = nil
         } catch {
             deploymentState = .failed(reason: error.localizedDescription)
@@ -585,34 +580,23 @@ public class DeploymentService {
         )
     }
 
-    // MARK: - Private: State Query
+    // MARK: - Private: App-Specific State
 
-    private func queryCurrentState() async throws -> DeploymentState {
-        let state = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
-
-        switch state {
+    /// Update app-specific state (infrastructureConfiguration, stackOutputs) based on deployment state.
+    /// Called after deploy/destroy completes or on refresh.
+    private func updateAppSpecificState() async throws {
+        switch deploymentState {
         case .deployed(let outputs):
-            let config = try await detectConfiguration()
-            infrastructureConfiguration = config
-
-            let typedOutputs = CDKStackOutputs.from(outputs)
-            stackOutputs = typedOutputs
-
-            return state
+            infrastructureConfiguration = try await detectConfiguration()
+            stackOutputs = CDKStackOutputs.from(outputs)
 
         case .notDeployed:
             infrastructureConfiguration = nil
             stackOutputs = nil
-            return state
 
         default:
-            return state
+            break
         }
-    }
-
-    private func getStackOutputs() async throws -> CDKStackOutputs {
-        let outputs = try await cloudFormationClient.getStackOutputs(name: stackName)
-        return CDKStackOutputs.from(outputs)
     }
 
     // MARK: - Private: Deploy/Destroy With Progress
