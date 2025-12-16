@@ -9,11 +9,14 @@ public actor CloudFormationClient {
 
     // MARK: - State Management
 
-    /// Current state of the CloudFormation client
-    private var currentState: State = .idle
+    /// Current deployment state
+    private var currentState: DeploymentState = .unknown
 
     /// Continuations for state stream subscribers
-    private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
+    private var continuations: [UUID: AsyncStream<DeploymentState>.Continuation] = [:]
+
+    /// Task for monitoring in-progress operations
+    private var monitorTask: Task<Void, Never>?
 
     public init(
         credentialProvider: AWSCredentialProvider,
@@ -25,9 +28,9 @@ public actor CloudFormationClient {
 
     // MARK: - State Stream
 
-    /// Subscribe to state changes
-    /// Returns an AsyncStream that yields state updates
-    public nonisolated func states() -> AsyncStream<State> {
+    /// Subscribe to deployment state changes.
+    /// Returns an AsyncStream that yields DeploymentState updates.
+    public nonisolated func states() -> AsyncStream<DeploymentState> {
         AsyncStream { continuation in
             let id = UUID()
 
@@ -41,13 +44,13 @@ public actor CloudFormationClient {
         }
     }
 
-    /// Get the current state (for synchronous queries)
-    public func getState() -> State {
+    /// Get the current deployment state
+    public func getState() -> DeploymentState {
         currentState
     }
 
     /// Add a continuation to track
-    private func addContinuation(id: UUID, continuation: AsyncStream<State>.Continuation) {
+    private func addContinuation(id: UUID, continuation: AsyncStream<DeploymentState>.Continuation) {
         continuations[id] = continuation
         continuation.yield(currentState)
     }
@@ -57,8 +60,8 @@ public actor CloudFormationClient {
         continuations.removeValue(forKey: id)
     }
 
-    /// Publish a state change to all subscribers
-    private func publish(_ state: State) {
+    /// Publish a deployment state change to all subscribers
+    private func publish(_ state: DeploymentState) {
         currentState = state
         for continuation in continuations.values {
             continuation.yield(state)
@@ -107,8 +110,6 @@ public actor CloudFormationClient {
     /// - Parameter name: The stack name
     /// - Returns: Stack information as a dictionary
     public func describeStack(name: String) async throws -> [String: Any] {
-        publish(.querying(operation: "describeStack"))
-
         let command = Aws.CloudFormation.DescribeStacks(
             stackName: name,
             profile: credentialProvider.profileName,
@@ -117,43 +118,29 @@ public actor CloudFormationClient {
 
         let (execCommand, arguments) = credentialProvider.buildCommandLine(command)
 
-        do {
-            let result = try await cliClient.execute(
-                command: execCommand,
-                arguments: arguments,
-                environment: credentialProvider.environment,
-                printCommand: false
+        let result = try await cliClient.execute(
+            command: execCommand,
+            arguments: arguments,
+            environment: credentialProvider.environment,
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw CloudFormationError.commandFailed(
+                command: "aws cloudformation describe-stacks",
+                exitCode: result.exitCode,
+                output: result.output
             )
-
-            guard result.isSuccess else {
-                let error = CloudFormationError.commandFailed(
-                    command: "aws cloudformation describe-stacks",
-                    exitCode: result.exitCode,
-                    output: result.output
-                )
-                publish(.failed(error: error.localizedDescription))
-                throw error
-            }
-
-            guard let data = result.stdout.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let stacks = json["Stacks"] as? [[String: Any]],
-                  let stack = stacks.first else {
-                let error = CloudFormationError.parseError("Failed to parse CloudFormation stack")
-                publish(.failed(error: error.localizedDescription))
-                throw error
-            }
-
-            publish(.ready(stackExists: true))
-            return stack
-        } catch {
-            if case .failed = currentState {
-                // Already published failure
-            } else {
-                publish(.failed(error: error.localizedDescription))
-            }
-            throw error
         }
+
+        guard let data = result.stdout.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let stacks = json["Stacks"] as? [[String: Any]],
+              let stack = stacks.first else {
+            throw CloudFormationError.parseError("Failed to parse CloudFormation stack")
+        }
+
+        return stack
     }
 
     /// Get stack status
@@ -250,19 +237,14 @@ public actor CloudFormationClient {
     /// - Parameter name: The stack name
     /// - Returns: True if the stack exists
     public func stackExists(name: String) async throws -> Bool {
-        publish(.querying(operation: "stackExists"))
-
         do {
             _ = try await describeStack(name: name)
-            publish(.ready(stackExists: true))
             return true
         } catch let error as CloudFormationError {
             if case .commandFailed(_, _, let output) = error,
                output.contains("does not exist") {
-                publish(.ready(stackExists: false))
                 return false
             }
-            publish(.failed(error: error.localizedDescription))
             throw error
         }
     }
@@ -270,28 +252,27 @@ public actor CloudFormationClient {
     // MARK: - Deployment State Query
 
     /// Query the deployment state of a CloudFormation stack.
-    /// Maps CloudFormation stack status to a generic DeploymentState.
+    /// Maps CloudFormation stack status to a generic DeploymentState and publishes it.
     /// - Parameter stackName: The stack name
     /// - Returns: DeploymentState based on stack status
     /// - Throws: DeploymentError.credentialExpired for auth issues, DeploymentError.unknown for other errors
     public func queryDeploymentState(stackName: String) async throws -> DeploymentState {
-        publish(.querying(operation: "queryDeploymentState"))
+        publish(.loading)
 
         do {
             let stackStatus = try await getStackStatus(name: stackName)
 
+            let state: DeploymentState
             switch stackStatus {
             case StackStatus.createComplete, StackStatus.updateComplete:
                 let outputs = try await getStackOutputs(name: stackName)
-                publish(.ready(stackExists: true))
-                return .deployed(outputs: outputs)
+                state = .deployed(outputs: outputs)
 
             case StackStatus.createInProgress,
                  StackStatus.updateInProgress,
                  StackStatus.updateCompleteCleanupInProgress:
                 let startTime = await getOperationStartTime(stackName: stackName)
-                publish(.ready(stackExists: true))
-                return .deploying(
+                state = .deploying(
                     operation: "Updating",
                     progress: DeploymentProgress(),
                     startTime: startTime
@@ -299,36 +280,111 @@ public actor CloudFormationClient {
 
             case StackStatus.deleteInProgress:
                 let startTime = await getOperationStartTime(stackName: stackName)
-                publish(.ready(stackExists: true))
-                return .destroying(progress: DeploymentProgress(), startTime: startTime)
+                state = .destroying(progress: DeploymentProgress(), startTime: startTime)
 
             case StackStatus.createFailed,
                  StackStatus.updateFailed,
                  StackStatus.rollbackComplete,
                  StackStatus.rollbackFailed,
                  StackStatus.deleteFailed:
-                publish(.ready(stackExists: true))
-                return .failed(reason: stackStatus)
+                state = .failed(reason: stackStatus)
 
             default:
                 let outputs = try await getStackOutputs(name: stackName)
-                publish(.ready(stackExists: true))
-                return .deployed(outputs: outputs)
+                state = .deployed(outputs: outputs)
             }
+
+            publish(state)
+            return state
         } catch {
             let errorMessage = error.localizedDescription
 
             if DeploymentError.isCredentialError(errorMessage) {
-                publish(.failed(error: errorMessage))
+                let state = DeploymentState.credentialExpired(message: errorMessage)
+                publish(state)
                 throw DeploymentError.credentialExpired(message: errorMessage)
             } else if DeploymentError.isStackNotFoundError(errorMessage) {
-                publish(.ready(stackExists: false))
-                return .notDeployed
+                let state = DeploymentState.notDeployed
+                publish(state)
+                return state
             } else {
-                publish(.failed(error: errorMessage))
+                let state = DeploymentState.failed(reason: errorMessage)
+                publish(state)
                 throw DeploymentError.unknown(message: errorMessage)
             }
         }
+    }
+
+    // MARK: - Monitoring
+
+    /// Start monitoring an in-progress operation.
+    /// Publishes state updates via states() as progress changes.
+    /// Monitoring stops automatically when the operation completes.
+    /// - Parameter stackName: The stack name to monitor
+    public func startMonitoring(stackName: String) {
+        guard monitorTask == nil else { return }
+
+        monitorTask = Task {
+            await runMonitorLoop(stackName: stackName)
+        }
+    }
+
+    /// Stop monitoring the current operation
+    public func stopMonitoring() {
+        monitorTask?.cancel()
+        monitorTask = nil
+    }
+
+    /// Whether monitoring is currently active
+    public var isMonitoring: Bool {
+        monitorTask != nil
+    }
+
+    private func runMonitorLoop(stackName: String) async {
+        var pollCount = 0
+        let startTime = currentState.operationStartTime ?? Date()
+        let operation = currentState.operationName ?? "Updating"
+
+        while !Task.isCancelled {
+            pollCount += 1
+
+            do {
+                let events = try await getStackEvents(name: stackName, limit: 50)
+                let newProgress = DeploymentProgress.from(
+                    events: events,
+                    since: nil,
+                    pollCount: pollCount
+                )
+
+                // Publish updated state with new progress
+                switch currentState {
+                case .deploying:
+                    publish(.deploying(operation: operation, progress: newProgress, startTime: startTime))
+                case .destroying:
+                    publish(.destroying(progress: newProgress, startTime: startTime))
+                default:
+                    break
+                }
+
+                // Check if complete
+                let status = try await getStackStatus(name: stackName)
+                if !StackStatus.isInProgress(status) {
+                    _ = try await queryDeploymentState(stackName: stackName)
+                    monitorTask = nil
+                    return
+                }
+            } catch {
+                // Continue polling on transient errors
+            }
+
+            do {
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                break
+            }
+        }
+
+        monitorTask = nil
     }
 
     /// Get the start time of the current in-progress operation from stack events
@@ -368,45 +424,3 @@ public enum CloudFormationError: LocalizedError {
     }
 }
 
-// MARK: - CloudFormationClient State
-
-extension CloudFormationClient {
-    /// State of the CloudFormation client operations
-    public enum State: Sendable, Equatable {
-        /// No operation in progress
-        case idle
-
-        /// Querying CloudFormation (describe stacks, get outputs, etc.)
-        case querying(operation: String)
-
-        /// Successfully retrieved stack data
-        case ready(stackExists: Bool)
-
-        /// Operation failed
-        case failed(error: String)
-
-        /// Whether an operation is currently in progress
-        public var isBusy: Bool {
-            switch self {
-            case .idle, .ready, .failed:
-                return false
-            case .querying:
-                return true
-            }
-        }
-
-        /// Human-readable description of the current state
-        public var description: String {
-            switch self {
-            case .idle:
-                return "Idle"
-            case .querying(let operation):
-                return "Querying: \(operation)..."
-            case .ready(let stackExists):
-                return stackExists ? "Stack ready" : "No stack found"
-            case .failed(let error):
-                return "Failed: \(error)"
-            }
-        }
-    }
-}

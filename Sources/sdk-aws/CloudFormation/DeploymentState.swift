@@ -64,6 +64,13 @@ public enum DeploymentState: Sendable, Equatable {
             return nil
         }
     }
+
+    public var operationName: String? {
+        if case .deploying(let operation, _, _) = self {
+            return operation
+        }
+        return nil
+    }
 }
 
 /// CloudFormation stack status values.

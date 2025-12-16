@@ -20,9 +20,6 @@ public class DeploymentService {
     /// CDK client state (from sdk-aws)
     public private(set) var cdkState: CDKClient.State = .idle
 
-    /// CloudFormation client state (from sdk-aws)
-    public private(set) var cloudFormationState: CloudFormationClient.State = .idle
-
     /// GitHub Actions client state (from sdk-github)
     public private(set) var githubState: GitHubActionsClient.State = .idle
 
@@ -73,7 +70,7 @@ public class DeploymentService {
 
     /// Whether any SDK operation is currently in progress
     public var isOperationInProgress: Bool {
-        cdkState.isBusy || cloudFormationState.isBusy || githubState.isBusy || deploymentState.isBusy
+        cdkState.isBusy || githubState.isBusy || deploymentState.isBusy
     }
 
     /// Whether a deploy operation can be started
@@ -208,7 +205,7 @@ public class DeploymentService {
 
     private func startObservingSDKStates() async {
         async let cdk: Void = observeCDKState()
-        async let cf: Void = observeCloudFormationState()
+        async let cf: Void = observeCloudFormationDeploymentState()
         async let gh: Void = observeGitHubState()
         _ = await (cdk, cf, gh)
     }
@@ -219,9 +216,14 @@ public class DeploymentService {
         }
     }
 
-    private func observeCloudFormationState() async {
+    private func observeCloudFormationDeploymentState() async {
         for await state in cloudFormationClient.states() {
-            self.cloudFormationState = state
+            self.deploymentState = state
+            self.progress = state.progress
+
+            if !state.isBusy {
+                self.operationStartTime = nil
+            }
         }
     }
 
@@ -238,14 +240,23 @@ public class DeploymentService {
     public func refresh() async {
         guard !deploymentState.isBusy else { return }
 
-        deploymentState = .loading
-
         do {
-            let newState = try await queryCurrentState()
-            deploymentState = newState
+            // queryDeploymentState publishes to states() which we observe
+            let state = try await cloudFormationClient.queryDeploymentState(stackName: stackName)
 
-            if newState.isBusy {
-                await monitorExistingOperation()
+            // Handle app-specific concerns
+            if case .deployed(let outputs) = state {
+                let config = try await detectConfiguration()
+                infrastructureConfiguration = config
+                stackOutputs = CDKStackOutputs.from(outputs)
+            } else if case .notDeployed = state {
+                infrastructureConfiguration = nil
+                stackOutputs = nil
+            }
+
+            // Start monitoring if operation in progress
+            if state.isBusy {
+                await cloudFormationClient.startMonitoring(stackName: stackName)
             }
         } catch let error as DeploymentError {
             if case .credentialExpired(let message) = error {
@@ -604,10 +615,6 @@ public class DeploymentService {
         return CDKStackOutputs.from(outputs)
     }
 
-    private func getStackEvents(limit: Int = 50) async throws -> [CloudFormationStackEvent] {
-        try await cloudFormationClient.getStackEvents(name: stackName, limit: limit)
-    }
-
     // MARK: - Private: Deploy/Destroy With Progress
 
     private func executeDeployWithProgress(
@@ -705,48 +712,6 @@ public class DeploymentService {
         }
 
         parsingTask?.cancel()
-    }
-
-    private func monitorExistingOperation() async {
-        var pollCount = 0
-        let startTime = operationStartTime ?? Date()
-
-        while !Task.isCancelled {
-            pollCount += 1
-
-            do {
-                let events = try await getStackEvents()
-                let newProgress = DeploymentProgress.from(
-                    events: events,
-                    since: nil,
-                    pollCount: pollCount
-                )
-                progress = newProgress
-
-                if case .deploying(let op, _, _) = deploymentState {
-                    deploymentState = .deploying(operation: op, progress: newProgress, startTime: startTime)
-                } else if case .destroying = deploymentState {
-                    deploymentState = .destroying(progress: newProgress, startTime: startTime)
-                }
-
-                let status = try await cloudFormationClient.getStackStatus(name: stackName)
-
-                if !StackStatus.isInProgress(status) {
-                    let finalState = try await queryCurrentState()
-                    deploymentState = finalState
-                    operationStartTime = nil
-                    return
-                }
-            } catch {
-                // Continue polling
-            }
-
-            do {
-                try await Task.sleep(for: .seconds(2))
-            } catch {
-                break
-            }
-        }
     }
 
     // MARK: - Private: Database Initialization
