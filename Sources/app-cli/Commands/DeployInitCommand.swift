@@ -1,9 +1,8 @@
-import Foundation
 import ArgumentParser
-import service_deploy
+import Foundation
 import sdk_aws
 import sdk_cli
-import sdk_github
+import service_deploy
 
 extension AWSCommand {
     struct DeployInitCommand: AsyncParsableCommand {
@@ -192,23 +191,9 @@ extension AWSCommand {
         }
 
         private func updateLambdaCode(projectRoot: String, cliClient: CLIClient, skipPush: Bool) async throws {
-            guard let githubConfig = GitHubConfiguration.loadConfig() else {
-                throw DeployError.configurationMissing(
-                    file: "~/.swiftSampleDemo/github-config.json",
-                    hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
-                )
-            }
-
-            let githubClient = makeGitHubActionsClient(
-                repoPath: projectRoot,
-                config: githubConfig,
+            let workflow = try UpdateLambdaWorkflow.create(
+                projectRoot: projectRoot,
                 cliClient: cliClient
-            )
-            let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
-
-            let workflow = UpdateLambdaWorkflow(
-                gitClient: gitClient,
-                githubClient: githubClient
             )
 
             print("\n📦 Updating Lambda code...")

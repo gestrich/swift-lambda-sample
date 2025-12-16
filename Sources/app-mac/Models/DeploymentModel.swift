@@ -34,6 +34,7 @@ public class DeploymentModel {
     public enum ActiveWorkflow {
         case deploy(DeployWorkflow.Progress)
         case destroy(DestroyWorkflow.Progress)
+        case updateLambda(UpdateLambdaWorkflow.Progress)
 
         public var isDeploying: Bool {
             if case .deploy = self { return true }
@@ -42,6 +43,11 @@ public class DeploymentModel {
 
         public var isDestroying: Bool {
             if case .destroy = self { return true }
+            return false
+        }
+
+        public var isUpdatingLambda: Bool {
+            if case .updateLambda = self { return true }
             return false
         }
     }
@@ -344,23 +350,18 @@ public class DeploymentModel {
 
     /// Update Lambda code via GitHub Actions
     public func updateLambdaCode(skipPush: Bool = false) async throws {
-        guard let githubClient = githubClient else {
-            throw DeployError.configurationMissing(
-                file: "~/.swiftSampleDemo/github-config.json",
-                hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
-            )
-        }
-
-        let workflow = UpdateLambdaWorkflow(
-            gitClient: gitClient,
-            githubClient: githubClient
+        let workflow = try UpdateLambdaWorkflow.create(
+            projectRoot: projectRoot,
+            cliClient: cliClient
         )
 
         let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
         for try await progress in workflow.run(options: options) {
-            _ = progress
+            activeWorkflow = .updateLambda(progress)
         }
+
+        activeWorkflow = nil
     }
 
     // MARK: - Private: App-Specific State

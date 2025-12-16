@@ -16,6 +16,35 @@ public struct UpdateLambdaWorkflow: Sendable {
         self.githubClient = githubClient
     }
 
+    /// Creates a workflow by loading GitHub configuration from disk.
+    /// - Parameters:
+    ///   - projectRoot: Root directory of the project
+    ///   - cliClient: CLI client for executing commands
+    /// - Throws: `DeployError.configurationMissing` if GitHub config file doesn't exist
+    public static func create(
+        projectRoot: String,
+        cliClient: CLIClient
+    ) throws -> UpdateLambdaWorkflow {
+        guard let githubConfig = GitHubConfiguration.loadConfig() else {
+            throw DeployError.configurationMissing(
+                file: GitHubConfiguration.configPath,
+                hint: "Create with: {\"repository\": \"owner/repo\", \"branch\": \"dev\"}"
+            )
+        }
+
+        let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
+        let githubClient = GitHubActionsClient(
+            repoPath: projectRoot,
+            config: githubConfig.toSDKConfiguration(),
+            cliClient: cliClient
+        )
+
+        return UpdateLambdaWorkflow(
+            gitClient: gitClient,
+            githubClient: githubClient
+        )
+    }
+
     /// Progress updates from the update lambda workflow.
     public struct Progress: Sendable {
         public let step: Step
