@@ -95,29 +95,29 @@ This project follows a **four-layer architecture** (App-Workflow-Service-SDK) wh
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                          APP                                 │
-│          app-lambda  ·  app-mac  ·  app-cli                  │
+│                          APP (a-)                            │
+│       a-app-lambda  ·  a-app-mac  ·  a-app-cli               │
 │   Entry points, I/O, @Observable models (where needed)       │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       WORKFLOW                               │
-│       workflows-deploy-remote  ·  workflows-setup            │
+│                       WORKFLOW (b-)                          │
+│     b-workflow-deploy-remote  ·  b-workflow-setup            │
 │   Multi-step orchestration returning AsyncThrowingStream     │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                        SERVICE                               │
-│  service-deploy-remote · service-deploy-local · service-storage │
+│                        SERVICE (c-)                          │
+│  c-service-deploy-remote · c-service-deploy-local · c-service-storage │
 │   Models, configuration, auth, stateful utilities            │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                          SDK                                 │
-│      sdk-aws  ·  sdk-github  ·  sdk-cli  ·  sdk-client       │
+│                          SDK (d-)                            │
+│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli  ·  d-sdk-client │
 │   Reusable utilities, not app-specific                       │
 │   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘
@@ -131,32 +131,34 @@ This project follows a **four-layer architecture** (App-Workflow-Service-SDK) wh
 
 ### Source Code Structure
 
+Targets use layer prefixes (`a-`, `b-`, `c-`, `d-`) so alphabetical sorting matches architectural hierarchy:
+
 ```
 Sources/
-├── app-lambda/           # AWS Lambda handler (entry point)
-├── app-mac/              # Mac app (SwiftUI views, @Observable models)
-├── app-cli/              # CLI tool (SwiftDeploy commands)
-├── workflows-deploy-remote/  # AWS deployment workflows
+├── a-app-cli/            # CLI tool (SwiftDeploy commands)
+├── a-app-lambda/         # AWS Lambda handler (entry point)
+├── a-app-mac/            # Mac app (SwiftUI views, @Observable models)
+├── b-workflow-deploy-remote/  # AWS deployment workflows
 │   ├── DeployWorkflow.swift
 │   ├── DeployInitWorkflow.swift
 │   ├── DestroyWorkflow.swift
 │   ├── UpdateLambdaWorkflow.swift
 │   └── ...
-├── workflows-setup/      # Setup and dependency workflows
+├── b-workflow-setup/     # Setup and dependency workflows
 │   ├── DependencyStatusWorkflow.swift
 │   ├── DependencyInstallWorkflow.swift
 │   └── ...
-├── service-deploy-remote/    # AWS deployment models & config
+├── c-service-deploy-remote/  # AWS deployment models & config
 │   ├── Models/               # App-specific models
 │   ├── AWSService/           # AWS auth config persistence
 │   └── GitHubService/        # GitHub config persistence
-├── service-deploy-local/     # Local development services
-├── service-storage/          # Local file storage service
-├── sdk-aws/                  # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
-├── sdk-github/               # GitHub SDKs (Actions, Git)
-├── sdk-cli/                  # CLI utilities (process execution, streams)
-├── sdk-cli-macros/           # Swift macros for CLI
-└── sdk-client/               # HTTP client utilities
+├── c-service-deploy-local/   # Local development services
+├── c-service-storage/        # Local file storage service
+├── d-sdk-aws/            # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
+├── d-sdk-cli/            # CLI utilities (process execution, streams)
+├── d-sdk-cli-macros/     # Swift macros for CLI
+├── d-sdk-client/         # HTTP client utilities
+└── d-sdk-github/         # GitHub SDKs (Actions, Git)
 ```
 
 ### Nested CDK Directory

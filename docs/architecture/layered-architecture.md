@@ -8,32 +8,32 @@ The project uses a four-layer architecture where dependencies flow downward:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                          APP                                 │
-│          app-lambda  ·  app-mac  ·  app-cli                  │
+│                          APP (a-)                            │
+│       a-app-lambda  ·  a-app-mac  ·  a-app-cli               │
 │                                                              │
 │   Entry points, I/O, @Observable models (where needed)       │
 └────────────────────────┬────────────────────────────────────┘
                          │ uses
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       WORKFLOW                               │
-│       workflows-deploy-remote  ·  workflows-setup            │
+│                       WORKFLOW (b-)                          │
+│     b-workflow-deploy-remote  ·  b-workflow-setup            │
 │                                                              │
 │   Multi-step orchestration returning AsyncThrowingStream     │
 └────────────────────────┬────────────────────────────────────┘
                          │ uses
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       SERVICE                                │
-│  service-deploy-remote · service-deploy-local · service-storage │
+│                       SERVICE (c-)                           │
+│  c-service-deploy-remote · c-service-deploy-local · c-service-storage │
 │                                                              │
 │   Models, configuration, auth, stateful utilities            │
 └────────────────────────┬────────────────────────────────────┘
                          │ uses
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                         SDK                                  │
-│        sdk-aws  ·  sdk-github  ·  sdk-cli  ·  sdk-client     │
+│                         SDK (d-)                             │
+│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli  ·  d-sdk-client │
 │                                                              │
 │   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘
@@ -41,7 +41,7 @@ The project uses a four-layer architecture where dependencies flow downward:
 
 ## Layer Definitions
 
-### Apps (`app-*`)
+### Apps (`a-app-*`)
 
 Entry points that handle I/O.
 
@@ -51,7 +51,7 @@ Entry points that handle I/O.
 - CLI commands are parallel to Mac models—both are app-layer constructs
 - Minimal business logic; focus on I/O and calling workflows
 
-### Workflows (`workflows-*`)
+### Workflows (`b-workflow-*`)
 
 Multi-step orchestration operations.
 
@@ -61,7 +61,7 @@ Multi-step orchestration operations.
 - **Not** `@Observable`—that belongs in the app layer
 - Depend on services and SDKs, but never vice versa
 
-### Services (`service-*`)
+### Services (`c-service-*`)
 
 Models, configuration, and stateful utilities.
 
@@ -70,7 +70,7 @@ Models, configuration, and stateful utilities.
 - Stateful utilities that don't orchestrate multi-step operations
 - Provide types and utilities used by workflows
 
-### SDKs (`sdk-*`)
+### SDKs (`d-sdk-*`)
 
 Stateless reusable utilities.
 
@@ -82,51 +82,61 @@ Stateless reusable utilities.
 
 ## Target Naming
 
-Name targets from broad to specific:
+Targets use a letter prefix (`a-`, `b-`, `c-`, `d-`) followed by layer and specificity:
 
 ```
-<layer>-<area>-<specific>
+<letter>-<layer>-<area>[-<specific>]
 ```
 
-This mirrors date formatting (`2025-01-15` = year-month-day) where ordering from most general to most specific enables natural alphabetical sorting and grouping.
+The letter prefix ensures alphabetical sorting matches the architectural hierarchy (top to bottom):
+
+| Prefix | Layer | Position |
+|--------|-------|----------|
+| `a-` | App | Top (entry points) |
+| `b-` | Workflow | Second |
+| `c-` | Service | Third |
+| `d-` | SDK | Bottom (reusable) |
 
 **Examples:**
 
-| Target | Layer | Area | Specific |
-|--------|-------|------|----------|
-| `sdk-cli` | sdk | cli | - |
-| `sdk-cli-docker` | sdk | cli | docker |
-| `sdk-cli-macros` | sdk | cli | macros |
-| `sdk-aws` | sdk | aws | - |
-| `sdk-github` | sdk | github | - |
-| `service-deploy-remote` | service | deploy | remote |
-| `service-deploy-local` | service | deploy | local |
-| `service-storage` | service | storage | - |
-| `workflows-deploy-remote` | workflows | deploy | remote |
-| `workflows-setup` | workflows | setup | - |
-| `app-mac` | app | mac | - |
-| `app-cli` | app | cli | - |
-| `app-lambda` | app | lambda | - |
+| Target | Letter | Layer | Area | Specific |
+|--------|--------|-------|------|----------|
+| `d-sdk-cli` | d | sdk | cli | - |
+| `d-sdk-cli-docker` | d | sdk | cli | docker |
+| `d-sdk-cli-macros` | d | sdk | cli | macros |
+| `d-sdk-aws` | d | sdk | aws | - |
+| `d-sdk-github` | d | sdk | github | - |
+| `c-service-deploy-remote` | c | service | deploy | remote |
+| `c-service-deploy-local` | c | service | deploy | local |
+| `c-service-storage` | c | service | storage | - |
+| `b-workflow-deploy-remote` | b | workflow | deploy | remote |
+| `b-workflow-setup` | b | workflow | setup | - |
+| `a-app-mac` | a | app | mac | - |
+| `a-app-cli` | a | app | cli | - |
+| `a-app-lambda` | a | app | lambda | - |
 
 **Benefits:**
 
-1. **Natural sorting**: Related targets group together alphabetically
+1. **Architectural sorting**: `ls Sources/` shows targets in dependency order (top to bottom)
    ```
-   sdk-aws
-   sdk-cli
-   sdk-cli-docker
-   sdk-cli-macros
-   sdk-github
-   service-deploy-local
-   service-deploy-remote
-   service-storage
-   workflows-deploy-remote
-   workflows-setup
+   a-app-cli
+   a-app-lambda
+   a-app-mac
+   b-workflow-deploy-remote
+   b-workflow-setup
+   c-service-deploy-local
+   c-service-deploy-remote
+   c-service-storage
+   d-sdk-aws
+   d-sdk-cli
+   d-sdk-cli-docker
+   d-sdk-cli-macros
+   d-sdk-github
    ```
 
 2. **Layer visibility**: The prefix immediately identifies which architectural layer a target belongs to
 
-3. **Discoverability**: Finding all CLI-related SDKs is easy—look for `sdk-cli-*`
+3. **Discoverability**: Finding all CLI-related SDKs is easy—look for `d-sdk-cli-*`
 
 ## Key Principles
 
