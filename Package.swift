@@ -192,14 +192,18 @@ let package = Package(
             dependencies: []
         ),
         .testTarget(
-            name: "service-deploy-remote-tests",
+            name: "c-service-deploy-remote-tests",
             dependencies: [
                 .target(name: "c-service-deploy-remote"),
+                .target(name: "c-service-deploy-local"),
+                .target(name: "c-service-lambda-build"),
                 .target(name: "d-sdk-github"),
+                .target(name: "d-sdk-cli-docker"),
+                .target(name: "d-sdk-cli-node"),
             ]
         ),
         .testTarget(
-            name: "sdk-cli-tests",
+            name: "d-sdk-cli-tests",
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-macros"),

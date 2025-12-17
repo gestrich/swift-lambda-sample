@@ -176,12 +176,24 @@ Rename from the bottom of the dependency graph up to avoid broken intermediate s
 - Product now targets `a-app-lambda` internal target
 - No import statements needed updating (app targets are executables at top of dependency graph)
 
-### Phase 5: Rename Test Targets
+### Phase 5: Rename Test Targets ✅ COMPLETED
 
 1. Rename `Tests/sdk-cli-tests` → `Tests/d-sdk-cli-tests`
 2. Rename `Tests/service-deploy-remote-tests` → `Tests/c-service-deploy-remote-tests`
 3. Update `Package.swift` test target names and dependencies
 4. Run tests: `swift test`
+
+**Technical Notes:**
+- Renamed 2 test directories: `sdk-cli-tests` → `d-sdk-cli-tests`, `service-deploy-remote-tests` → `c-service-deploy-remote-tests`
+- Updated test target names in Package.swift
+- Fixed test imports that were missing after earlier phases:
+  - Added `import d_sdk_cli_docker` to DockerTests.swift (changed to `@testable import` for internal initializers)
+  - Added `import d_sdk_cli_node` to NpmTests.swift
+  - Added `import c_service_lambda_build` to SwiftCLITests.swift and BuildScriptTests.swift
+  - Added `@testable import c_service_deploy_local` to LinuxDeployTests.swift
+- Added missing test target dependencies in Package.swift:
+  - `d-sdk-cli-docker`, `d-sdk-cli-node`, `c-service-lambda-build`, `c-service-deploy-local`
+- All 364 unit tests pass; 1 integration test (`LinuxDeployTests`) has a pre-existing S3 endpoint issue unrelated to renaming
 
 ### Phase 6: Update Documentation
 

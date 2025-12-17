@@ -1,4 +1,5 @@
 import d_sdk_cli
+@testable import d_sdk_cli_docker
 @testable import c_service_deploy_remote
 import Testing
 
