@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import d_sdk_client
+import c_service_client
 
 public actor DynamoDBDataStoreProduction: DynamoDBDataStoreInterface, Sendable {
 

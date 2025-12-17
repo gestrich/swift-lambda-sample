@@ -9,7 +9,7 @@
 import Foundation
 import d_sdk_aws
 import d_sdk_cli
-import d_sdk_client
+import c_service_client
 @testable import c_service_deploy_remote
 import Testing
 

@@ -1,7 +1,7 @@
 import Foundation
 import d_sdk_aws
 import d_sdk_cli
-import d_sdk_client
+import c_service_client
 import d_sdk_github
 import c_service_deploy_remote
 import b_workflow_deploy_remote

@@ -80,7 +80,7 @@ let package = Package(
             name: "c-service-deploy-core",
             dependencies: [
                 .target(name: "d-sdk-cli"),
-                .target(name: "d-sdk-client"),
+                .target(name: "c-service-client"),
             ]
         ),
         .target(
@@ -88,7 +88,7 @@ let package = Package(
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-docker"),
-                .target(name: "d-sdk-client"),
+                .target(name: "c-service-client"),
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "c-service-deploy-core"),
@@ -157,7 +157,7 @@ let package = Package(
         .target(
             name: "c-service-deploy-remote",
             dependencies: [
-                .target(name: "d-sdk-client"),
+                .target(name: "c-service-client"),
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "d-sdk-cli"),
@@ -177,13 +177,13 @@ let package = Package(
                 .product(name: "SotoS3", package: "soto"),
                 .product(name: "SotoSecretsManager", package: "soto"),
                 .product(name: "SotoDynamoDB", package: "soto"),
-                .target(name: "d-sdk-client")
+                .target(name: "c-service-client")
             ]
         ),
         .executableTarget(
             name: "a-app-mac",
             dependencies: [
-                .target(name: "d-sdk-client"),
+                .target(name: "c-service-client"),
                 .target(name: "b-workflow-deploy-remote"),
                 .target(name: "b-workflow-deploy-local-xcode"),
                 .target(name: "b-workflow-deploy-local-linux"),
@@ -206,7 +206,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "d-sdk-client",
+            name: "c-service-client",
             dependencies: []
         ),
         .testTarget(

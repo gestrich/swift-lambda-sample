@@ -1,6 +1,6 @@
 import Foundation
 import d_sdk_cli
-import d_sdk_client
+import c_service_client
 import c_service_deploy_remote
 import c_service_deploy_core
 import c_service_storage

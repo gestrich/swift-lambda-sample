@@ -82,7 +82,7 @@ The letter prefix indicates architectural depth (a = top, d = bottom).
 | `sdk-cli-docker` | `d-sdk-cli-docker` |
 | `sdk-cli-macros` | `d-sdk-cli-macros` |
 | `sdk-cli-node` | `d-sdk-cli-node` |
-| `sdk-client` | `d-sdk-client` |
+| `sdk-client` | `c-service-client` |
 | `sdk-github` | `d-sdk-github` |
 
 ### Tests
@@ -106,6 +106,7 @@ c-service-deploy-core
 c-service-deploy-local
 c-service-deploy-remote
 c-service-lambda-build
+c-service-client
 c-service-setup
 c-service-storage
 d-sdk-aws
@@ -114,7 +115,6 @@ d-sdk-cli-brew
 d-sdk-cli-docker
 d-sdk-cli-macros
 d-sdk-cli-node
-d-sdk-client
 d-sdk-github
 ```
 

@@ -25,7 +25,7 @@ The project uses a four-layer architecture where dependencies flow downward:
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                       SERVICE (c-)                           │
-│  c-service-deploy-remote · c-service-deploy-local · c-service-storage │
+│  c-service-deploy-remote · c-service-deploy-local · c-service-client │
 │                                                              │
 │   Models, configuration, auth, stateful utilities            │
 └────────────────────────┬────────────────────────────────────┘
@@ -33,7 +33,7 @@ The project uses a four-layer architecture where dependencies flow downward:
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         SDK (d-)                             │
-│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli  ·  d-sdk-client │
+│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli                  │
 │                                                              │
 │   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘

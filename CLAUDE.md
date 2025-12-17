@@ -110,14 +110,14 @@ This project follows a **four-layer architecture** (App-Workflow-Service-SDK) wh
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        SERVICE (c-)                          │
-│  c-service-deploy-remote · c-service-deploy-local · c-service-storage │
+│  c-service-deploy-remote · c-service-deploy-local · c-service-client │
 │   Models, configuration, auth, stateful utilities            │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                          SDK (d-)                            │
-│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli  ·  d-sdk-client │
+│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli                  │
 │   Reusable utilities, not app-specific                       │
 │   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘
@@ -153,11 +153,11 @@ Sources/
 │   ├── AWSService/           # AWS auth config persistence
 │   └── GitHubService/        # GitHub config persistence
 ├── c-service-deploy-local/   # Local development services
+├── c-service-client/         # HTTP client utilities
 ├── c-service-storage/        # Local file storage service
 ├── d-sdk-aws/            # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
 ├── d-sdk-cli/            # CLI utilities (process execution, streams)
 ├── d-sdk-cli-macros/     # Swift macros for CLI
-├── d-sdk-client/         # HTTP client utilities
 └── d-sdk-github/         # GitHub SDKs (Actions, Git)
 ```
 

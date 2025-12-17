@@ -1,6 +1,6 @@
 import d_sdk_cli
 import d_sdk_cli_docker
-import d_sdk_client
+import c_service_client
 import c_service_lambda_build
 import Foundation
 import c_service_storage
