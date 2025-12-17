@@ -2,7 +2,7 @@ import CLISDK
 import DockerCLISDK
 import MinioSDK
 import PostgreSQLSDK
-import d_sdk_dynamodb
+import DynamoDBSDK
 import c_service_client
 import c_service_lambda_build
 import Foundation

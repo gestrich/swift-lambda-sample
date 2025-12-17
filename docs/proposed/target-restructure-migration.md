@@ -170,12 +170,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DynamoDBSDK** (depends on DockerCLISDK)
-  - [ ] Move `d-sdk-dynamodb/` to `sdks/DynamoDBSDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to DockerCLISDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DynamoDBSDK** (depends on DockerCLISDK) ✅
+  - [x] Move `d-sdk-dynamodb/` to `sdks/DynamoDBSDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to DockerCLISDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **CLISDKTests**
   - [ ] Move `Tests/d-sdk-cli-tests/` to `Tests/CLISDKTests/`
@@ -519,3 +519,19 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `PostgreSQLSDK` becomes module name `PostgreSQLSDK` directly (PascalCase, no hyphens)
+
+### DynamoDBSDK Migration (Phase 1.10)
+
+**Key changes:**
+- Moved `Sources/d-sdk-dynamodb/` → `Sources/sdks/DynamoDBSDK/`
+- Updated Package.swift: renamed target from `d-sdk-dynamodb` to `DynamoDBSDK` with explicit path
+- Updated dependency reference in `c-service-deploy-local` from `.target(name: "d-sdk-dynamodb")` to `.target(name: "DynamoDBSDK")`
+- Updated all imports from `import d_sdk_dynamodb` to `import DynamoDBSDK` (3 files affected)
+
+**Files updated:**
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/EnvironmentVariables.swift`
+
+**Module name behavior:**
+- `DynamoDBSDK` becomes module name `DynamoDBSDK` directly (PascalCase, no hyphens)

@@ -8,7 +8,7 @@
 import Foundation
 import MinioSDK
 import PostgreSQLSDK
-import d_sdk_dynamodb
+import DynamoDBSDK
 
 /// Execution context for Lambda - determines how to connect to services
 enum LambdaExecutionContext {
