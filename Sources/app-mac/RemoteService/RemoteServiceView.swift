@@ -61,7 +61,7 @@ struct RemoteServiceView: View {
         // Create GitHubCIModel if GitHub config is available
         if let githubConfig = GitHubConfiguration.loadConfig() {
             self.githubCIModel = GitHubCIModel(
-                repoPath: service.projectRoot,
+                projectRoot: service.projectRoot,
                 config: githubConfig,
                 cliClient: service.cliClient
             )

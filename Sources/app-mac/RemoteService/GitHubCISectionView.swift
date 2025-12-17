@@ -54,8 +54,8 @@ struct GitHubCISectionView: View {
     @State private var currentTime = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    private var ciStatus: GitHubCIStatus {
-        model.ciStatus
+    private var modelState: GitHubCIModel.ModelState {
+        model.state
     }
 
     var body: some View {
@@ -69,12 +69,12 @@ struct GitHubCISectionView: View {
 
                 // Refresh button
                 Button {
-                    Task { await model.refreshStatus() }
+                    Task { await model.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .disabled(ciStatus.status.isDeploying)
+                .disabled(modelState.isDeploying)
                 .help("Refresh status")
             }
 
@@ -84,12 +84,12 @@ struct GitHubCISectionView: View {
                 statusRow
 
                 // Git status
-                if !ciStatus.currentBranch.isEmpty {
+                if !modelState.currentBranch.isEmpty {
                     gitStatusRow
                 }
 
                 // Job/Step progress during deployment
-                if ciStatus.status.isDeploying, let detail = ciStatus.runDetail {
+                if modelState.isDeploying, let detail = modelState.runDetail {
                     jobStepsView(detail: detail)
                 }
 
@@ -101,9 +101,12 @@ struct GitHubCISectionView: View {
             .cornerRadius(8)
         }
         .onReceive(timer) { time in
-            if ciStatus.status.isDeploying {
+            if modelState.isDeploying {
                 currentTime = time
             }
+        }
+        .task {
+            await model.refresh()
         }
     }
 
@@ -144,7 +147,9 @@ struct GitHubCISectionView: View {
             Spacer()
 
             // Last run info
-            if case .idle(let lastRun) = ciStatus.status, let run = lastRun {
+            if case .ready(let snapshot) = modelState,
+               case .idle(let lastRun) = snapshot.status,
+               let run = lastRun {
                 Text(run.relativeTime)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -162,13 +167,24 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var statusIcon: some View {
-        switch ciStatus.status {
-        case .unknown:
+        switch modelState {
+        case .uninitialized:
             Image(systemName: "questionmark.circle")
                 .foregroundColor(.secondary)
         case .loading:
             ProgressView()
                 .scaleEffect(0.7)
+        case .ready(let snapshot):
+            snapshotIcon(for: snapshot)
+        case .operating:
+            ProgressView()
+                .scaleEffect(0.7)
+        }
+    }
+
+    @ViewBuilder
+    private func snapshotIcon(for snapshot: GitHubCIWorkflow.Snapshot) -> some View {
+        switch snapshot.status {
         case .idle(let lastRun):
             if let run = lastRun {
                 if run.isInProgress {
@@ -188,9 +204,6 @@ struct GitHubCISectionView: View {
                 Image(systemName: "circle")
                     .foregroundColor(.secondary)
             }
-        case .deploying:
-            ProgressView()
-                .scaleEffect(0.7)
         case .success:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(.green)
@@ -202,8 +215,8 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var statusText: some View {
-        switch ciStatus.status {
-        case .unknown:
+        switch modelState {
+        case .uninitialized:
             Text("Unknown")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -211,6 +224,40 @@ struct GitHubCISectionView: View {
             Text("Loading...")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+        case .ready(let snapshot):
+            snapshotText(for: snapshot)
+        case .operating:
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("Deploying...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    if let detail = modelState.runDetail {
+                        Text("#\(detail.number)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    if let createdAt = modelState.runDetail?.createdAt,
+                       let elapsed = elapsedTimeString(from: createdAt) {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                if let detail = modelState.runDetail {
+                    Text(detail.displayTitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func snapshotText(for snapshot: GitHubCIWorkflow.Snapshot) -> some View {
+        switch snapshot.status {
         case .idle(let lastRun):
             if let run = lastRun {
                 VStack(alignment: .leading, spacing: 2) {
@@ -227,32 +274,6 @@ struct GitHubCISectionView: View {
                 Text("No runs")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-            }
-        case .deploying:
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text("Deploying...")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.blue)
-                    if let detail = ciStatus.runDetail {
-                        Text("#\(detail.number)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    if let createdAt = ciStatus.runDetail?.createdAt,
-                       let elapsed = elapsedTimeString(from: createdAt) {
-                        Text(elapsed)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                if let detail = ciStatus.runDetail {
-                    Text(detail.displayTitle)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
             }
         case .success:
             Text("Success")
@@ -305,7 +326,7 @@ struct GitHubCISectionView: View {
             HStack(spacing: 4) {
                 Image(systemName: "link")
                     .font(.caption)
-                Text(model.config.repository)
+                Text(model.repository)
                     .font(.caption)
                     .textSelection(.enabled)
             }
@@ -316,13 +337,13 @@ struct GitHubCISectionView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.triangle.branch")
                         .font(.caption)
-                    Text(ciStatus.currentBranch)
+                    Text(modelState.currentBranch)
                         .font(.caption)
                 }
                 .foregroundColor(.secondary)
 
                 // Uncommitted changes indicator
-                if ciStatus.hasUncommittedChanges {
+                if modelState.hasUncommittedChanges {
                     HStack(spacing: 4) {
                         Image(systemName: "pencil.circle.fill")
                             .font(.caption)
@@ -333,7 +354,7 @@ struct GitHubCISectionView: View {
                 }
 
                 // Unpushed commits indicator
-                if ciStatus.hasUnpushedCommits {
+                if modelState.hasUnpushedCommits {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.caption)
@@ -440,13 +461,13 @@ struct GitHubCISectionView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        OperationOutputSection { stream, showOutput in
+        OperationOutputSection { _, showOutput in
             HStack(spacing: 12) {
                 // Push & Deploy button
                 Button {
                     showOutput()
                     Task {
-                        try? await model.pushAndDeploy(output: stream)
+                        await model.pushAndDeploy()
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -455,12 +476,12 @@ struct GitHubCISectionView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!ciStatus.status.canDeploy)
+                .disabled(!modelState.canDeploy)
 
                 // View Logs button
-                if let runId = ciStatus.status.runId {
+                if let runId = modelState.runId {
                     Button {
-                        Task { try? await model.viewWorkflowLogs(runId: runId) }
+                        model.viewWorkflowLogs(runId: runId)
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "doc.text")
@@ -474,7 +495,7 @@ struct GitHubCISectionView: View {
     }
 
     private var buttonLabel: String {
-        if ciStatus.hasUnpushedCommits {
+        if modelState.hasUnpushedCommits {
             return "Push & Deploy"
         } else {
             return "Trigger Deploy"

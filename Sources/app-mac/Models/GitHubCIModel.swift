@@ -1,152 +1,253 @@
+import AppKit
 import sdk_cli
 import sdk_github
 import Foundation
 import Observation
 import service_deploy
 
-/// Observable model for GitHub CI operations
-/// Holds UI state and delegates operations to GitHubActionsClient
+/// Observable model for GitHub CI operations.
+/// This is a thin model that uses GitHubCIWorkflow and maintains observable state.
+///
+/// Per the layered architecture:
+/// - App layer (this model): @Observable state + UI coordination
+/// - Service layer (workflow): Multi-step orchestration, returns AsyncThrowingStream
+/// - SDK layer (clients): Stateless execute/query operations
 @MainActor
 @Observable
 public final class GitHubCIModel {
-    // MARK: - State (source of truth)
+    // MARK: - Unified State Machine
 
-    public private(set) var ciStatus = GitHubCIStatus()
+    /// Single source of truth for all model state
+    public private(set) var state: ModelState = .uninitialized
 
     // MARK: - Configuration
 
-    public let config: GitHubConfiguration
+    public let repository: String
+    public let branch: String
 
-    // MARK: - Private Services
+    // MARK: - Private
 
-    private let actionsService: GitHubActionsClient
+    private let workflow: GitHubCIWorkflow
 
     // MARK: - Init
 
-    public init(repoPath: String, config: GitHubConfiguration, cliClient: CLIClient) {
-        self.config = config
-        self.actionsService = GitHubActionsClient(
-            repoPath: repoPath,
-            config: config.toSDKConfiguration(),
-            cliClient: cliClient
-        )
-
-        // Fetch status from GitHub immediately on init
-        Task {
-            await self.refreshStatus()
-        }
+    /// Initialize with a workflow and configuration.
+    /// Note: Does NOT automatically refresh status. Call `refresh()` explicitly after init.
+    public init(workflow: GitHubCIWorkflow, repository: String, branch: String) {
+        self.workflow = workflow
+        self.repository = repository
+        self.branch = branch
     }
 
-    // MARK: - UI State Operations
+    /// Convenience initializer that creates the workflow from configuration.
+    public convenience init(projectRoot: String, config: GitHubConfiguration, cliClient: CLIClient) {
+        let ghClient = GitHubCLIClient(repository: config.repository, cliClient: cliClient)
+        let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
 
-    /// Refresh GitHub CI status including git state and latest workflow run.
-    /// If an in-progress run is detected, automatically starts monitoring it.
-    public func refreshStatus() async {
-        guard !ciStatus.status.isDeploying else { return }
+        let workflow = GitHubCIWorkflow(
+            ghClient: ghClient,
+            gitClient: gitClient,
+            repository: config.repository,
+            branch: config.branch,
+            workflowName: config.workflowName
+        )
 
-        ciStatus.status = .loading
+        self.init(
+            workflow: workflow,
+            repository: config.repository,
+            branch: config.branch
+        )
+    }
+
+    // MARK: - Derived State (Convenience Accessors)
+
+    public var isIdle: Bool { state.isIdle }
+    public var canDeploy: Bool { state.canDeploy }
+
+    // MARK: - Refresh Operations
+
+    /// Refresh status from GitHub.
+    /// If an operation is in progress, automatically starts monitoring it.
+    public func refresh() async {
+        guard state.isIdle else { return }
+
+        let prior = state.snapshot
+        state = .loading(prior: prior)
 
         do {
-            let snapshot = try await actionsService.getFullStatus()
+            let statusSnapshot = try await workflow.getStatus()
 
-            ciStatus.hasUnpushedCommits = snapshot.gitStatus.hasUnpushedCommits
-            ciStatus.hasUncommittedChanges = snapshot.gitStatus.hasUncommittedChanges
-            ciStatus.currentBranch = snapshot.gitStatus.currentBranch
-
-            if let inProgressId = snapshot.inProgressRunId {
-                ciStatus.status = .deploying(runId: inProgressId)
-                Task { await monitorWorkflowRun(runId: inProgressId) }
+            // Check if a workflow run is in progress and resume monitoring
+            if let inProgressId = statusSnapshot.inProgressRunId {
+                await monitorRun(runId: inProgressId, timeoutMinutes: 20)
             } else {
-                ciStatus.status = .idle(lastRun: snapshot.latestRun)
+                state = .ready(GitHubCIWorkflow.Snapshot.idle(
+                    lastRun: statusSnapshot.latestRun,
+                    gitStatus: statusSnapshot.gitStatus
+                ))
             }
         } catch {
             print("Failed to refresh GitHub CI status: \(error)")
-            ciStatus.status = .idle(lastRun: nil)
+            state = .ready(GitHubCIWorkflow.Snapshot.failed(
+                runId: "",
+                reason: error.localizedDescription,
+                gitStatus: prior?.gitStatus ?? .empty
+            ))
         }
     }
 
-    /// Push commits and deploy via GitHub Actions with polling progress
-    public func pushAndDeploy(output: CLIOutputStream? = nil) async throws {
-        ciStatus.runDetail = nil
+    // MARK: - Deploy Operations
+
+    /// Push commits and deploy via GitHub Actions.
+    public func pushAndDeploy(timeoutMinutes: Int = 20) async {
+        guard state.canDeploy else { return }
+
+        let prior = state.snapshot
 
         do {
-            ciStatus.status = .deploying(runId: "pending")
-
-            let runId = try await actionsService.pushAndTriggerWorkflow(output: output)
-
-            ciStatus.status = .deploying(runId: runId)
-
-            await monitorWorkflowRun(runId: runId)
+            for try await workflowState in workflow.pushAndDeploy(timeoutMinutes: timeoutMinutes) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
         } catch {
-            ciStatus.status = .failed(runId: "", reason: error.localizedDescription)
-            throw error
+            state = .ready(GitHubCIWorkflow.Snapshot.failed(
+                runId: "",
+                reason: error.localizedDescription,
+                gitStatus: prior?.gitStatus ?? .empty
+            ))
         }
     }
 
-    /// Open workflow logs in browser
-    public func viewWorkflowLogs(runId: String) async throws {
-        try await actionsService.openWorkflowLogs(runId: runId)
+    /// Monitor an existing workflow run.
+    public func monitorRun(runId: String, timeoutMinutes: Int) async {
+        let prior = state.snapshot
+
+        do {
+            for try await workflowState in workflow.monitorRun(runId: runId, timeoutMinutes: timeoutMinutes) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = .ready(GitHubCIWorkflow.Snapshot.failed(
+                runId: runId,
+                reason: error.localizedDescription,
+                gitStatus: prior?.gitStatus ?? .empty
+            ))
+        }
     }
 
-    // MARK: - Private Helpers
+    /// Open workflow logs in browser.
+    public func viewWorkflowLogs(runId: String) {
+        let url = "https://github.com/\(repository)/actions/runs/\(runId)"
+        if let nsURL = URL(string: url) {
+            NSWorkspace.shared.open(nsURL)
+        }
+    }
 
-    private func monitorWorkflowRun(runId: String) async {
-        for await progress in actionsService.monitorWorkflowRun(runId: runId) {
-            switch progress {
-            case .inProgress(let detail):
-                ciStatus.runDetail = detail
-            case .success(let runId):
-                ciStatus.status = .success(runId: runId)
-                ciStatus.runDetail = nil
-            case .failed(let reason):
-                ciStatus.status = .failed(runId: runId, reason: reason)
-                ciStatus.runDetail = nil
+    // MARK: - Nested Types
+
+    /// Unified state machine for the GitHub CI model.
+    /// Uses service-layer types (GitHubCIWorkflow.State, Snapshot) for actual state,
+    /// while ModelState handles app-layer concerns (loading, prior preservation).
+    public enum ModelState: Equatable {
+        case uninitialized
+        case loading(prior: GitHubCIWorkflow.Snapshot?)
+        case ready(GitHubCIWorkflow.Snapshot)
+        case operating(GitHubCIWorkflow.State, prior: GitHubCIWorkflow.Snapshot?)
+
+        // MARK: - Convenience Initializer
+
+        /// Construct ModelState from a workflow state plus app-layer prior.
+        /// This is the key integration point between workflows and the model.
+        public init(from workflowState: GitHubCIWorkflow.State, prior: GitHubCIWorkflow.Snapshot?) {
+            if let snapshot = workflowState.completedSnapshot {
+                self = .ready(snapshot)
+            } else {
+                self = .operating(workflowState, prior: prior)
             }
         }
-    }
-}
 
-/// State for GitHub CI workflow tracking
-public struct GitHubCIStatus: Equatable {
-    public enum RunStatus: Equatable {
-        case unknown
-        case loading
-        case idle(lastRun: WorkflowRunInfo?)
-        case deploying(runId: String)
-        case success(runId: String)
-        case failed(runId: String, reason: String)
+        // MARK: - Convenience Accessors
 
-        public var isDeploying: Bool {
-            if case .deploying = self { return true }
-            return false
+        public var snapshot: GitHubCIWorkflow.Snapshot? {
+            switch self {
+            case .uninitialized: return nil
+            case .loading(let prior): return prior
+            case .ready(let snapshot): return snapshot
+            case .operating(_, let prior): return prior
+            }
+        }
+
+        public var workflowState: GitHubCIWorkflow.State? {
+            if case .operating(let state, _) = self { return state }
+            return nil
+        }
+
+        public var isIdle: Bool {
+            switch self {
+            case .uninitialized, .ready: return true
+            case .loading, .operating: return false
+            }
         }
 
         public var canDeploy: Bool {
             switch self {
-            case .loading, .deploying:
-                return false
-            default:
-                return true
+            case .ready(let snapshot): return snapshot.canDeploy
+            case .uninitialized: return true
+            case .loading, .operating: return false
             }
         }
 
+        /// Run detail from workflow state (for UI during monitoring)
+        public var runDetail: GitHubRunDetail? {
+            guard case .operating(let workflowState, _) = self,
+                  case .deploying(let progress) = workflowState else {
+                return nil
+            }
+            return progress.runDetail
+        }
+
+        /// Operation start time (for elapsed time display)
+        public var operationStartTime: Date? {
+            workflowState?.startTime
+        }
+
+        /// Whether currently deploying
+        public var isDeploying: Bool {
+            if case .operating = self { return true }
+            return false
+        }
+
+        /// Current run ID (from various states)
         public var runId: String? {
             switch self {
-            case .deploying(let id), .success(let id), .failed(let id, _):
-                return id
-            case .idle(let lastRun):
-                return lastRun?.id
-            default:
+            case .uninitialized, .loading:
+                return nil
+            case .ready(let snapshot):
+                return snapshot.runId
+            case .operating(let workflowState, _):
+                if case .deploying(let progress) = workflowState,
+                   case .monitoring(let runId) = progress.step {
+                    return runId
+                }
                 return nil
             }
         }
+
+        // MARK: - Git Status Accessors
+
+        public var gitStatus: GitHubCIWorkflow.GitStatus {
+            snapshot?.gitStatus ?? .empty
+        }
+
+        public var hasUnpushedCommits: Bool {
+            gitStatus.hasUnpushedCommits
+        }
+
+        public var hasUncommittedChanges: Bool {
+            gitStatus.hasUncommittedChanges
+        }
+
+        public var currentBranch: String {
+            gitStatus.currentBranch
+        }
     }
-
-    public var status: RunStatus = .unknown
-    public var runDetail: GitHubRunDetail?
-    public var hasUnpushedCommits: Bool = false
-    public var hasUncommittedChanges: Bool = false
-    public var currentBranch: String = ""
-
-    public init() {}
 }

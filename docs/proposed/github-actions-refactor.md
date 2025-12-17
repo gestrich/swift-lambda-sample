@@ -796,11 +796,28 @@ public final class GitHubCIModel {
   - Added `import sdk_github` to import SDK types directly (for `WorkflowRunInfo`, `GitHubRunDetail`, `GitHubJob`, `GitHubStep`)
 - `UpdateLambdaWorkflow.swift` and `StatusWorkflow.swift` already imported `sdk_github` directly and required no changes
 
-### [ ] Phase 3: Refactor GitHubCIModel (app-mac)
-- [ ] Create `ModelState` enum with `init(from:prior:)`
-- [ ] Remove async work from init
-- [ ] Operations use: `state = ModelState(from: workflowState, prior: prior)`
-- [ ] No switch statements on workflow state
+### [x] Phase 3: Refactor GitHubCIModel (app-mac)
+- [x] Create `ModelState` enum with `init(from:prior:)`
+- [x] Remove async work from init
+- [x] Operations use: `state = ModelState(from: workflowState, prior: prior)`
+- [x] No switch statements on workflow state
+
+**Technical Notes (Phase 3):**
+- Completely rewrote `Sources/app-mac/Models/GitHubCIModel.swift`:
+  - Replaced `GitHubCIStatus` struct with `ModelState` enum
+  - `ModelState` has four cases: `.uninitialized`, `.loading(prior:)`, `.ready(Snapshot)`, `.operating(State, prior:)`
+  - Added `ModelState.init(from:prior:)` for trivial conversion from workflow state
+  - Operations now simply iterate workflow stream and assign: `state = ModelState(from: workflowState, prior: prior)`
+  - Removed async work from init (no more `Task { await refreshStatus() }` in initializer)
+  - Added convenience accessors on `ModelState` for `gitStatus`, `hasUnpushedCommits`, `hasUncommittedChanges`, `currentBranch`, `runDetail`, `runId`, `isDeploying`, `canDeploy`
+- Changed `pushAndDeploy` signature to remove `CLIOutputStream` parameter (not used with new workflow)
+- Changed `viewWorkflowLogs` from async to sync (just opens URL in browser)
+- Updated `Sources/app-mac/RemoteService/GitHubCISectionView.swift`:
+  - Updated to use `model.state` instead of `model.ciStatus`
+  - Added `.task { await model.refresh() }` modifier since init no longer auto-refreshes
+  - Updated all switch statements to match new `ModelState` and `Snapshot.Status` patterns
+- Updated `Sources/app-mac/RemoteService/RemoteServiceView.swift`:
+  - Fixed argument label from `repoPath:` to `projectRoot:`
 
 ### [ ] Phase 4: Update UpdateLambdaWorkflow (service-deploy)
 - [ ] Use GitHubCLIClient and GitClient directly (already stateless)
@@ -815,12 +832,7 @@ public final class GitHubCIModel {
 - [ ] Keep GitHubCLIClient and GitClient (already stateless)
 - [ ] Keep data models (GitHubWorkflowRun, GitHubRunDetail, etc.)
 
-### [ ] Phase 7: Update GitHubCISectionView (app-mac)
-- [ ] Update to use new model state enum
-- [ ] Update model initialization
-
-### [ ] Phase 8: Update dependent code
-- [ ] `RemoteServiceView.swift` - Update model creation
+### [ ] Phase 7: Update dependent code
 - [ ] Any tests that reference removed types
 
 ## Files Affected
