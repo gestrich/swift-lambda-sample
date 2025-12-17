@@ -3,6 +3,7 @@ import sdk_cli
 import Foundation
 import Observation
 import service_deploy_remote
+import workflows_deploy_remote
 
 /// Observable model for CloudWatch logs viewing.
 /// Holds UI state and delegates operations to CloudWatchLogsWorkflow.

@@ -4,6 +4,7 @@ import sdk_cli
 import sdk_client
 import sdk_github
 import service_deploy_remote
+import workflows_deploy_remote
 import service_deploy_core
 
 /// Observable model for remote AWS deployments in the app layer.

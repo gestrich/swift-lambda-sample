@@ -92,7 +92,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "service-setup",
+            name: "workflows-setup",
             dependencies: [
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-cli-brew"),
@@ -122,6 +122,7 @@ let package = Package(
             name: "app-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .target(name: "workflows-deploy-remote"),
                 .target(name: "service-deploy-remote"),
                 .target(name: "service-deploy-local"),
                 .target(name: "service-deploy-core"),
@@ -163,12 +164,13 @@ let package = Package(
             name: "app-mac",
             dependencies: [
                 .target(name: "sdk-client"),
+                .target(name: "workflows-deploy-remote"),
+                .target(name: "workflows-setup"),
                 .target(name: "service-deploy-remote"),
                 .target(name: "service-deploy-local"),
                 .target(name: "service-deploy-core"),
                 .target(name: "service-lambda-build"),
                 .target(name: "service-storage"),
-                .target(name: "service-setup"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-cli-brew"),
                 .target(name: "sdk-cli-node"),

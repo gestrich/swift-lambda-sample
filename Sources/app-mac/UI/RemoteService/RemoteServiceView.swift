@@ -2,6 +2,7 @@ import AppKit
 import sdk_aws
 import sdk_cli
 import service_deploy_remote
+import workflows_deploy_remote
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management

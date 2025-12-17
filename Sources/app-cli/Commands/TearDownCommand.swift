@@ -1,6 +1,7 @@
 import ArgumentParser
 import sdk_aws
 import service_deploy_remote
+import workflows_deploy_remote
 import service_deploy_core
 
 extension AWSCommand {
