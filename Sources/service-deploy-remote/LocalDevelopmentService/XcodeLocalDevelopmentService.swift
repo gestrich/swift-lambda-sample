@@ -1,6 +1,7 @@
 import sdk_cli
 import sdk_cli_docker
 import sdk_client
+import service_lambda_build
 import Foundation
 import service_storage
 

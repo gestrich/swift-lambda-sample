@@ -5,6 +5,7 @@ import Foundation
 /// The build script compiles Swift Lambda for AWS (linux/amd64) using Docker
 @CLIProgram("./build.sh")
 public struct BuildScript {
+    public init() {}
 
     /// Build Lambda for Linux (Docker-based)
     /// Example: ./build.sh app-lambda linux/amd64 $GITHUB_TOKEN

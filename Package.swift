@@ -84,6 +84,12 @@ let package = Package(
                 .target(name: "sdk-github"),
             ]
         ),
+        .target(
+            name: "service-lambda-build",
+            dependencies: [
+                .target(name: "sdk-cli"),
+            ]
+        ),
         .executableTarget(
             name: "app-cli",
             dependencies: [
@@ -102,6 +108,7 @@ let package = Package(
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-storage"),
+                .target(name: "service-lambda-build"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-cli-docker"),
                 .target(name: "sdk-aws"),
@@ -126,6 +133,7 @@ let package = Package(
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy-remote"),
+                .target(name: "service-lambda-build"),
                 .target(name: "service-storage"),
                 .target(name: "service-setup"),
                 .target(name: "sdk-cli"),

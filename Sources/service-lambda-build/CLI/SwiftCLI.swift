@@ -4,15 +4,19 @@ import Foundation
 /// Swift CLI program definition using macro-based API
 @CLIProgram("swift")
 public struct SwiftCLI {
+    public init() {}
 
     // MARK: - Package Commands
 
     @CLICommand
     public struct Package {
+        public init() {}
+
         /// Swift package clean command
         /// Example: swift package clean
         @CLICommand
         public struct Clean {
+            public init() {}
         }
     }
 

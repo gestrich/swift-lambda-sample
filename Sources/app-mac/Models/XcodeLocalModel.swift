@@ -4,6 +4,7 @@ import Combine
 import Foundation
 import service_storage
 import service_deploy_remote
+import service_lambda_build
 
 /// Observable model for native macOS Xcode development workflow
 /// Holds UI state and delegates operations to XcodeLocalDevelopmentService

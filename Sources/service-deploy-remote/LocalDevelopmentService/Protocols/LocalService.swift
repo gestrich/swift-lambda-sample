@@ -1,4 +1,5 @@
 import sdk_cli
+import service_lambda_build
 import Foundation
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
