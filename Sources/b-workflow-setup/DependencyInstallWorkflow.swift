@@ -1,6 +1,6 @@
 import Foundation
 import CLISDK
-import d_sdk_cli_brew
+import BrewCLISDK
 import c_service_setup
 
 /// Workflow that installs a specific dependency

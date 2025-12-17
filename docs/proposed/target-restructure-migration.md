@@ -128,12 +128,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **BrewCLISDK** (depends on CLISDK)
-  - [ ] Move `d-sdk-cli-brew/` to `sdks/BrewCLISDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to CLISDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **BrewCLISDK** (depends on CLISDK) ✅
+  - [x] Move `d-sdk-cli-brew/` to `sdks/BrewCLISDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to CLISDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **NodeCLISDK** (depends on CLISDK)
   - [ ] Move `d-sdk-cli-node/` to `sdks/NodeCLISDK/`
@@ -392,3 +392,18 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DockerCLISDK` becomes module name `DockerCLISDK` directly (PascalCase, no hyphens)
+
+### BrewCLISDK Migration (Phase 1.4)
+
+**Key changes:**
+- Moved `Sources/d-sdk-cli-brew/` → `Sources/sdks/BrewCLISDK/`
+- Updated Package.swift: renamed target from `d-sdk-cli-brew` to `BrewCLISDK` with explicit path
+- Updated all dependency references from `.target(name: "d-sdk-cli-brew")` to `.target(name: "BrewCLISDK")` (2 references in Package.swift)
+- Updated all imports from `import d_sdk_cli_brew` to `import BrewCLISDK` (2 files affected)
+
+**Files updated:**
+- `Sources/b-workflow-setup/DependencyStatusWorkflow.swift`
+- `Sources/b-workflow-setup/DependencyInstallWorkflow.swift`
+
+**Module name behavior:**
+- `BrewCLISDK` becomes module name `BrewCLISDK` directly (PascalCase, no hyphens)

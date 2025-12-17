@@ -84,10 +84,11 @@ let package = Package(
             ]
         ),
         .target(
-            name: "d-sdk-cli-brew",
+            name: "BrewCLISDK",
             dependencies: [
                 .target(name: "CLISDK"),
-            ]
+            ],
+            path: "Sources/sdks/BrewCLISDK"
         ),
         .target(
             name: "d-sdk-cli-node",
@@ -126,7 +127,7 @@ let package = Package(
             name: "b-workflow-setup",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-cli-brew"),
+                .target(name: "BrewCLISDK"),
                 .target(name: "d-sdk-cli-node"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),
@@ -223,7 +224,7 @@ let package = Package(
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-setup"),
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-cli-brew"),
+                .target(name: "BrewCLISDK"),
                 .target(name: "d-sdk-cli-node"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),

@@ -1,5 +1,5 @@
 import CLISDK
-import d_sdk_cli_brew
+import BrewCLISDK
 import d_sdk_cli_node
 import DockerCLISDK
 import d_sdk_aws
