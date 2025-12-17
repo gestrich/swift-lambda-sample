@@ -648,7 +648,8 @@ Sources/b-workflow-deploy-local-xcode/
 ├── XcodeStartAllWorkflow.swift
 ├── XcodeStopAllWorkflow.swift
 ├── XcodeTestWorkflow.swift
-└── XcodeCopyConfigWorkflow.swift
+├── XcodeCopyConfigWorkflow.swift
+└── XcodeStatusWorkflow.swift
 
 Sources/b-workflow-deploy-local-linux/
 ├── LinuxBuildWorkflow.swift
@@ -661,7 +662,8 @@ Sources/b-workflow-deploy-local-linux/
 ├── LinuxTestWorkflow.swift
 ├── LinuxCopyConfigWorkflow.swift
 ├── LinuxSetupNetworkWorkflow.swift
-└── LinuxRunInteractiveWorkflow.swift
+├── LinuxRunInteractiveWorkflow.swift
+└── LinuxStatusWorkflow.swift
 ```
 
 ## Package.swift Updates
@@ -721,7 +723,7 @@ public enum LocalServiceType: Sendable, Hashable {
 
 1. **LocalServiceType enum** - Added to `c-service-deploy-local/LocalServiceType.swift`
 
-2. **b-workflow-deploy-local-xcode target** - 10 workflows:
+2. **b-workflow-deploy-local-xcode target** - 10 workflows (9 original + 1 status):
    - `XcodeBuildWorkflow` - Native macOS build
    - `XcodeStartLambdaWorkflow` - Start Lambda as native process
    - `XcodeStopLambdaWorkflow` - Stop Lambda process
@@ -733,7 +735,7 @@ public enum LocalServiceType: Sendable, Hashable {
    - `XcodeCopyConfigWorkflow` - Copy config to ~/.swiftSampleDemo/
    - `XcodeStatusWorkflow` - Check status of all services
 
-3. **b-workflow-deploy-local-linux target** - 12 workflows:
+3. **b-workflow-deploy-local-linux target** - 12 workflows (11 original + 1 status):
    - `LinuxBuildWorkflow` - Docker-based Linux build
    - `LinuxStartLambdaWorkflow` - Start Lambda container
    - `LinuxStopLambdaWorkflow` - Stop Lambda container
