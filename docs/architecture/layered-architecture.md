@@ -4,7 +4,7 @@ This document defines the layered architecture for organizing Swift targets acro
 
 ## Overview
 
-The project uses a three-layer architecture where dependencies flow downward:
+The project uses a four-layer architecture where dependencies flow downward:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -16,10 +16,18 @@ The project uses a three-layer architecture where dependencies flow downward:
                          │ uses
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       SERVICE                                │
-│              service-deploy-remote  ·  service-storage              │
+│                       WORKFLOW                               │
+│       workflows-deploy-remote  ·  workflows-setup            │
 │                                                              │
-│   Workflows returning AsyncThrowingStream                    │
+│   Multi-step orchestration returning AsyncThrowingStream     │
+└────────────────────────┬────────────────────────────────────┘
+                         │ uses
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       SERVICE                                │
+│  service-deploy-remote · service-deploy-local · service-storage │
+│                                                              │
+│   Models, configuration, auth, stateful utilities            │
 └────────────────────────┬────────────────────────────────────┘
                          │ uses
                          ▼
@@ -43,14 +51,24 @@ Entry points that handle I/O.
 - CLI commands are parallel to Mac models—both are app-layer constructs
 - Minimal business logic; focus on I/O and calling workflows
 
-### Services (`service-*`)
+### Workflows (`workflows-*`)
 
-Workflows that orchestrate multi-step operations.
+Multi-step orchestration operations.
 
 - Workflows are structs returning `AsyncThrowingStream<Progress, Error>`
-- Coordinate multiple SDK clients
-- App-specific business logic
+- Coordinate multiple SDK clients and services
+- App-specific business logic and orchestration
 - **Not** `@Observable`—that belongs in the app layer
+- Depend on services and SDKs, but never vice versa
+
+### Services (`service-*`)
+
+Models, configuration, and stateful utilities.
+
+- App-specific models and types
+- Configuration persistence (AWS auth, GitHub config)
+- Stateful utilities that don't orchestrate multi-step operations
+- Provide types and utilities used by workflows
 
 ### SDKs (`sdk-*`)
 
@@ -82,7 +100,10 @@ This mirrors date formatting (`2025-01-15` = year-month-day) where ordering from
 | `sdk-aws` | sdk | aws | - |
 | `sdk-github` | sdk | github | - |
 | `service-deploy-remote` | service | deploy | remote |
+| `service-deploy-local` | service | deploy | local |
 | `service-storage` | service | storage | - |
+| `workflows-deploy-remote` | workflows | deploy | remote |
+| `workflows-setup` | workflows | setup | - |
 | `app-mac` | app | mac | - |
 | `app-cli` | app | cli | - |
 | `app-lambda` | app | lambda | - |
@@ -91,11 +112,16 @@ This mirrors date formatting (`2025-01-15` = year-month-day) where ordering from
 
 1. **Natural sorting**: Related targets group together alphabetically
    ```
+   sdk-aws
    sdk-cli
    sdk-cli-docker
    sdk-cli-macros
-   sdk-aws
    sdk-github
+   service-deploy-local
+   service-deploy-remote
+   service-storage
+   workflows-deploy-remote
+   workflows-setup
    ```
 
 2. **Layer visibility**: The prefix immediately identifies which architectural layer a target belongs to
@@ -309,15 +335,18 @@ struct DeployCommand: AsyncParsableCommand {
 
 ## Dependency Rules
 
-1. **Apps** depend on Services and SDKs
-2. **Services** depend on other Services and SDKs
-3. **SDKs** depend only on other SDKs or external packages
-4. Never depend upward
+1. **Apps** depend on Workflows, Services, and SDKs
+2. **Workflows** depend on Services and SDKs
+3. **Services** depend on other Services and SDKs
+4. **SDKs** depend only on other SDKs or external packages
+5. Never depend upward
 
 ## When to Create a New Target
 
 **SDK**: Reusable, no app-specific logic, wraps external tool/service
 
-**Service**: Orchestrates multiple SDKs, app-specific workflow
+**Workflow**: Multi-step orchestration, coordinates SDKs and services, returns `AsyncThrowingStream`
+
+**Service**: Models, configuration, stateful utilities that don't orchestrate
 
 **App**: Entry point, UI, platform-specific I/O

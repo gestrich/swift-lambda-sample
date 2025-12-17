@@ -91,21 +91,27 @@ let dataDir = storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
 
 ### Layered Architecture
 
-This project follows a **Feature-Service-SDK** layered architecture where dependencies flow downward:
+This project follows a **four-layer architecture** (App-Workflow-Service-SDK) where dependencies flow downward:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        FEATURE                               │
-│   feature-lambda  ·  feature-mac  ·  feature-cli             │
-│   Entry points, handle I/O (Lambda, SwiftUI, CLI)            │
+│                          APP                                 │
+│          app-lambda  ·  app-mac  ·  app-cli                  │
+│   Entry points, I/O, @Observable models (where needed)       │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ uses
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       WORKFLOW                               │
+│       workflows-deploy-remote  ·  workflows-setup            │
+│   Multi-step orchestration returning AsyncThrowingStream     │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        SERVICE                               │
-│             service-deploy-remote  ·  service-storage               │
-│   @Observable services (services ARE the models)             │
-│   App-specific, orchestrates SDKs                            │
+│  service-deploy-remote · service-deploy-local · service-storage │
+│   Models, configuration, auth, stateful utilities            │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
@@ -113,38 +119,44 @@ This project follows a **Feature-Service-SDK** layered architecture where depend
 │                          SDK                                 │
 │      sdk-aws  ·  sdk-github  ·  sdk-cli  ·  sdk-client       │
 │   Reusable utilities, not app-specific                       │
-│   Stateful SDKs publish via AsyncStream                      │
+│   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Key Principles:**
-- **Services ARE models** — No separate model layer. Views observe services directly.
-- **Features only handle I/O** — Entry points, SwiftUI views, CLI argument parsing.
+- **Apps handle I/O** — Entry points, SwiftUI views, CLI argument parsing.
+- **Workflows orchestrate** — Multi-step operations returning `AsyncThrowingStream`.
+- **Services provide models** — Configuration, auth, types used by workflows.
 - **SDKs are reusable** — Could be extracted to separate packages.
 
 ### Source Code Structure
 
 ```
 Sources/
-├── feature-lambda/       # AWS Lambda handler (entry point)
-├── feature-mac/          # Mac app (SwiftUI views)
-├── feature-cli/          # CLI tool (SwiftDeploy commands)
-├── service-deploy-remote/       # AWS deployment service (@Observable)
-│   ├── DeploymentService.swift      # Main service, orchestrates SDKs
-│   ├── Models/                      # App-specific models
-│   ├── AWSService/                  # AWS auth config persistence
-│   ├── GitHubService/               # GitHub config persistence
-│   ├── DockerService/               # Docker operations
-│   ├── LambdaService/               # Lambda build service
-│   ├── LocalDevelopmentService/     # Local dev services
-│   ├── ToolsService/                # CLI tool wrappers
-│   └── Core/                        # Shared errors
-├── service-storage/      # Local file storage service
-├── sdk-aws/              # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
-├── sdk-github/           # GitHub SDKs (Actions, Git)
-├── sdk-cli/              # CLI utilities (process execution, streams)
-├── sdk-cli-macros/       # Swift macros for CLI
-└── sdk-client/           # HTTP client utilities
+├── app-lambda/           # AWS Lambda handler (entry point)
+├── app-mac/              # Mac app (SwiftUI views, @Observable models)
+├── app-cli/              # CLI tool (SwiftDeploy commands)
+├── workflows-deploy-remote/  # AWS deployment workflows
+│   ├── DeployWorkflow.swift
+│   ├── DeployInitWorkflow.swift
+│   ├── DestroyWorkflow.swift
+│   ├── UpdateLambdaWorkflow.swift
+│   └── ...
+├── workflows-setup/      # Setup and dependency workflows
+│   ├── DependencyStatusWorkflow.swift
+│   ├── DependencyInstallWorkflow.swift
+│   └── ...
+├── service-deploy-remote/    # AWS deployment models & config
+│   ├── Models/               # App-specific models
+│   ├── AWSService/           # AWS auth config persistence
+│   └── GitHubService/        # GitHub config persistence
+├── service-deploy-local/     # Local development services
+├── service-storage/          # Local file storage service
+├── sdk-aws/                  # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
+├── sdk-github/               # GitHub SDKs (Actions, Git)
+├── sdk-cli/                  # CLI utilities (process execution, streams)
+├── sdk-cli-macros/           # Swift macros for CLI
+└── sdk-client/               # HTTP client utilities
 ```
 
 ### Nested CDK Directory

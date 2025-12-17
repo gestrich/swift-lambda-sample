@@ -1,7 +1,7 @@
 # Extract Workflows to Dedicated Targets
 
 **Date:** 2025-12-17
-**Status:** In Progress (Phases 1-3 Complete, Phase 4 Partially Complete)
+**Status:** Complete (All Phases Done)
 
 ## Goal
 
@@ -247,9 +247,11 @@ swift build --target app-cli
 swift build --target app-mac
 ```
 
-### 4.4 Partial Completion Notes ✅
+### 4.4 Completion Notes ✅
 
 **Completed:** 2025-12-17 (during Phase 2)
+
+**Note:** Phase 4.1 listed `LogsCommand.swift` but this file does not exist in the codebase - the spec was inaccurate.
 
 These changes were required during Phase 2 to enable successful build:
 
@@ -292,6 +294,34 @@ These changes were required during Phase 2 to enable successful build:
 
 - Update project structure section
 - Update architecture diagram to show 4 layers
+
+### 5.3 Verification
+
+```bash
+swift build
+```
+
+### 5.4 Completion Notes ✅
+
+**Completed:** 2025-12-17
+
+**docs/architecture/layered-architecture.md updates:**
+- Changed "three-layer" to "four-layer" architecture
+- Added WORKFLOW layer to architecture diagram between APP and SERVICE
+- Added new "Workflows (`workflows-*`)" section in Layer Definitions
+- Updated SERVICE layer description (now models/config, not workflows)
+- Added `workflows-deploy-remote` and `workflows-setup` to target naming examples
+- Updated sorting example to include workflow targets
+- Updated Dependency Rules to include Workflows layer
+- Updated "When to Create a New Target" to include Workflow guidance
+
+**CLAUDE.md updates:**
+- Changed "Feature-Service-SDK" to "four-layer architecture (App-Workflow-Service-SDK)"
+- Updated architecture diagram with WORKFLOW layer
+- Updated Key Principles to reflect new layer responsibilities
+- Updated Source Code Structure to show `workflows-*` directories
+
+**Build verification passed:** `swift build`
 
 ---
 
