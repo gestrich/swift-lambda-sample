@@ -11,7 +11,7 @@ let package = Package(
     products: [
         .executable(
             name: "app-lambda",
-            targets: ["app-lambda"]
+            targets: ["a-app-lambda"]
         )
     ],
     dependencies: [
@@ -123,7 +123,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "app-cli",
+            name: "a-app-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "b-workflow-deploy-remote"),
@@ -152,7 +152,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "app-lambda",
+            name: "a-app-lambda",
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
@@ -165,7 +165,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "app-mac",
+            name: "a-app-mac",
             dependencies: [
                 .target(name: "d-sdk-client"),
                 .target(name: "b-workflow-deploy-remote"),

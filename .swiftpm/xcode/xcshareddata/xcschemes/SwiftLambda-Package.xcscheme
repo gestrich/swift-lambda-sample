@@ -105,6 +105,20 @@
                ReferencedContainer = "container:">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "a-app-mac"
+               BuildableName = "a-app-mac"
+               BlueprintName = "a-app-mac"
+               ReferencedContainer = "container:">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -190,9 +204,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "app-mac"
-            BuildableName = "app-mac"
-            BlueprintName = "app-mac"
+            BlueprintIdentifier = "a-app-mac"
+            BuildableName = "a-app-mac"
+            BlueprintName = "a-app-mac"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -216,9 +230,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "app-mac"
-            BuildableName = "app-mac"
-            BlueprintName = "app-mac"
+            BlueprintIdentifier = "a-app-mac"
+            BuildableName = "a-app-mac"
+            BlueprintName = "a-app-mac"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
