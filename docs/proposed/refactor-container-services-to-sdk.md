@@ -13,9 +13,9 @@ Move PostgreSQLLocalService, MinIOService, and DynamoDBLocalService from `c-serv
 
 ## Implementation Steps
 
-### Phase 1: Create New SDK Clients
+### Phase 1: Create New SDK Clients ✅
 
-- [ ] Create `Sources/d-sdk-cli-docker/PostgreSQLClient.swift`
+- [x] Create `Sources/d-sdk-cli-docker/PostgreSQLClient.swift`
   - Convert from `actor` to `public struct PostgreSQLClient: Sendable`
   - Change init: `storageService: LocalStorageService` → `dataDirectory: String`
   - Remove `import c_service_storage`
@@ -24,12 +24,18 @@ Move PostgreSQLLocalService, MinIOService, and DynamoDBLocalService from `c-serv
   - Replace `storageService.dataDirectory(for:)` with `dataDirectory`
   - Replace `storageService.ensureDataDirectoryExists(for:)` with inline FileManager code
 
-- [ ] Create `Sources/d-sdk-cli-docker/MinIOClient.swift`
+- [x] Create `Sources/d-sdk-cli-docker/MinIOClient.swift`
   - Same changes as PostgreSQLClient
   - Keep `networkName` parameter (used for bucket creation)
 
-- [ ] Create `Sources/d-sdk-cli-docker/DynamoDBClient.swift`
+- [x] Create `Sources/d-sdk-cli-docker/DynamoDBClient.swift`
   - Same changes as PostgreSQLClient
+
+**Technical Notes (Phase 1):**
+- All three clients are now `public struct ... : Sendable` instead of `actor`
+- Config enum properties changed from `var` to `public var` for external access
+- Directory creation uses inline `FileManager.default.createDirectory(atPath:withIntermediateDirectories:)`
+- Old service files in `c-service-deploy-local` remain unchanged for now (will be deleted in Phase 4)
 
 ### Phase 2: Create Storage Keys File
 
