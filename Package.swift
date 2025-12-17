@@ -81,6 +81,17 @@ let package = Package(
             ]
         ),
         .target(
+            name: "service-deploy-local",
+            dependencies: [
+                .target(name: "sdk-cli"),
+                .target(name: "sdk-cli-docker"),
+                .target(name: "sdk-client"),
+                .target(name: "service-storage"),
+                .target(name: "service-lambda-build"),
+                .target(name: "service-deploy-core"),
+            ]
+        ),
+        .target(
             name: "service-setup",
             dependencies: [
                 .target(name: "sdk-cli"),
