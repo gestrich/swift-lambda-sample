@@ -135,12 +135,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **NodeCLISDK** (depends on CLISDK)
-  - [ ] Move `d-sdk-cli-node/` to `sdks/NodeCLISDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to CLISDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **NodeCLISDK** (depends on CLISDK) ✅
+  - [x] Move `d-sdk-cli-node/` to `sdks/NodeCLISDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to CLISDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **AWSSDK** (depends on CLISDK, NodeCLISDK)
   - [ ] Move `d-sdk-aws/` to `sdks/AWSSDK/`
@@ -407,3 +407,19 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `BrewCLISDK` becomes module name `BrewCLISDK` directly (PascalCase, no hyphens)
+
+### NodeCLISDK Migration (Phase 1.5)
+
+**Key changes:**
+- Moved `Sources/d-sdk-cli-node/` → `Sources/sdks/NodeCLISDK/`
+- Updated Package.swift: renamed target from `d-sdk-cli-node` to `NodeCLISDK` with explicit path
+- Updated all dependency references from `.target(name: "d-sdk-cli-node")` to `.target(name: "NodeCLISDK")` (5 references in Package.swift: d-sdk-aws, b-workflow-setup, a-app-mac, c-service-deploy-remote-tests)
+- Updated all imports from `import d_sdk_cli_node` to `import NodeCLISDK` (3 files affected)
+
+**Files updated:**
+- `Sources/b-workflow-setup/DependencyStatusWorkflow.swift`
+- `Sources/d-sdk-aws/CDK/CDKClient.swift`
+- `Tests/c-service-deploy-remote-tests/NpmTests.swift`
+
+**Module name behavior:**
+- `NodeCLISDK` becomes module name `NodeCLISDK` directly (PascalCase, no hyphens)

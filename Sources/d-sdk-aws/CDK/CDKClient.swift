@@ -1,5 +1,5 @@
 import CLISDK
-import d_sdk_cli_node
+import NodeCLISDK
 import Foundation
 
 /// Generic client for interacting with AWS CDK CLI

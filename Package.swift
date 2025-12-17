@@ -49,7 +49,7 @@ let package = Package(
             name: "d-sdk-aws",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-cli-node"),
+                .target(name: "NodeCLISDK"),
             ]
         ),
         .target(
@@ -91,10 +91,11 @@ let package = Package(
             path: "Sources/sdks/BrewCLISDK"
         ),
         .target(
-            name: "d-sdk-cli-node",
+            name: "NodeCLISDK",
             dependencies: [
                 .target(name: "CLISDK"),
-            ]
+            ],
+            path: "Sources/sdks/NodeCLISDK"
         ),
         .target(
             name: "c-service-storage"
@@ -128,7 +129,7 @@ let package = Package(
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "BrewCLISDK"),
-                .target(name: "d-sdk-cli-node"),
+                .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
@@ -225,7 +226,7 @@ let package = Package(
                 .target(name: "c-service-setup"),
                 .target(name: "CLISDK"),
                 .target(name: "BrewCLISDK"),
-                .target(name: "d-sdk-cli-node"),
+                .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
@@ -246,7 +247,7 @@ let package = Package(
                 .target(name: "c-service-lambda-build"),
                 .target(name: "d-sdk-github"),
                 .target(name: "DockerCLISDK"),
-                .target(name: "d-sdk-cli-node"),
+                .target(name: "NodeCLISDK"),
             ]
         ),
         .testTarget(
