@@ -256,12 +256,13 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "d-sdk-cli-tests",
+            name: "CLISDKTests",
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "CLIMacrosSDK"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
-            ]
+            ],
+            path: "Tests/CLISDKTests"
         )
     ]
 )

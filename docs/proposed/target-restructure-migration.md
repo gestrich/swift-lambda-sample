@@ -177,11 +177,11 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **CLISDKTests**
-  - [ ] Move `Tests/d-sdk-cli-tests/` to `Tests/CLISDKTests/`
-  - [ ] Update Package.swift test target name and path
-  - [ ] Update dependency references
-  - [ ] Verify tests pass
+- [x] **CLISDKTests** ✅
+  - [x] Move `Tests/d-sdk-cli-tests/` to `Tests/CLISDKTests/`
+  - [x] Update Package.swift test target name and path
+  - [x] Update dependency references
+  - [x] Verify tests pass
 
 ### Phase 2: Services
 
@@ -535,3 +535,21 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DynamoDBSDK` becomes module name `DynamoDBSDK` directly (PascalCase, no hyphens)
+
+### CLISDKTests Migration (Phase 1.11)
+
+**Key changes:**
+- Moved `Tests/d-sdk-cli-tests/` → `Tests/CLISDKTests/`
+- Updated Package.swift: renamed test target from `d-sdk-cli-tests` to `CLISDKTests` with explicit path
+- Dependencies already referenced new target names (`CLISDK`, `CLIMacrosSDK`) from previous migrations
+- No import statement changes needed (test files already used `import CLISDK`)
+
+**Test files migrated:**
+- `SdkCliTests.swift` - Core CLI component tests (Git commands, parsers)
+- `StandardCommandTests.swift` - Standard Unix command tests (Id, Kill, Lsof, Sh, Open, Rm, Which)
+- `CLIOutputStreamTests.swift` - CLI output stream and subscriber tests
+
+**Test verification:**
+- All 104 tests pass across 12 test suites
+
+**Note:** This completes Phase 1 (SDKs). All SDK targets and their tests have been migrated to the new `sdks/` folder structure with PascalCase naming.
