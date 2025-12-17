@@ -60,17 +60,60 @@ Stateless reusable utilities.
 - **Stateless**—no internal state management
 - Operations return `AsyncThrowingStream` for progress or values for one-shot queries
 - Can be extracted to separate packages
+- **Use `Sendable` structs** for clients, not actors or classes—no mutable state means no need for isolation
+
+## Target Naming
+
+Name targets from broad to specific:
+
+```
+<layer>-<area>-<specific>
+```
+
+This mirrors date formatting (`2025-01-15` = year-month-day) where ordering from most general to most specific enables natural alphabetical sorting and grouping.
+
+**Examples:**
+
+| Target | Layer | Area | Specific |
+|--------|-------|------|----------|
+| `sdk-cli` | sdk | cli | - |
+| `sdk-cli-docker` | sdk | cli | docker |
+| `sdk-cli-macros` | sdk | cli | macros |
+| `sdk-aws` | sdk | aws | - |
+| `sdk-github` | sdk | github | - |
+| `service-deploy-remote` | service | deploy | remote |
+| `service-storage` | service | storage | - |
+| `app-mac` | app | mac | - |
+| `app-cli` | app | cli | - |
+| `app-lambda` | app | lambda | - |
+
+**Benefits:**
+
+1. **Natural sorting**: Related targets group together alphabetically
+   ```
+   sdk-cli
+   sdk-cli-docker
+   sdk-cli-macros
+   sdk-aws
+   sdk-github
+   ```
+
+2. **Layer visibility**: The prefix immediately identifies which architectural layer a target belongs to
+
+3. **Discoverability**: Finding all CLI-related SDKs is easy—look for `sdk-cli-*`
 
 ## Key Principles
 
 ### Stateless SDKs
 
-SDK clients don't maintain internal state. Each method call is independent.
+SDK clients don't maintain internal state. Each method call is independent. Use `Sendable` structs—no mutable state means no need for actor isolation.
 
 ```swift
-public actor CDKClient {
+public struct CDKClient: Sendable {
+    private let cliClient: CLIClient
+
     // Returns stream—no internal state tracking
-    public nonisolated func deployStream(options: DeployOptions) -> AsyncThrowingStream<CDKProgress, Error>
+    public func deployStream(options: DeployOptions) -> AsyncThrowingStream<CDKProgress, Error>
 
     // Returns value directly
     public func getStackOutputs(stackName: String) async throws -> [String: String]
