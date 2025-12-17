@@ -6,6 +6,7 @@ import c_service_storage
 import c_service_deploy_local
 import c_service_deploy_core
 import c_service_lambda_build
+import b_workflow_deploy_local_xcode
 
 /// Observable model for native macOS Xcode development workflow
 /// Holds UI state and delegates operations to XcodeLocalDevelopmentService
@@ -138,7 +139,11 @@ public class XcodeLocalModel: LocalService {
         buildState.startBuild()
 
         do {
-            try await developmentService.build(clean: clean, output: output)
+            let workflow = XcodeBuildWorkflow(service: developmentService)
+            let options = XcodeBuildWorkflow.Options(clean: clean)
+            for try await _ in workflow.run(options: options) {
+                // Workflow progress is consumed; UI updates via buildState
+            }
             buildState.markSuccess()
         } catch {
             buildState.markFailed(exitCode: 1)
@@ -173,7 +178,10 @@ public class XcodeLocalModel: LocalService {
         lambdaState.startLambda()
 
         do {
-            try await developmentService.startLambda(output: output)
+            let workflow = XcodeStartLambdaWorkflow(service: developmentService)
+            for try await _ in workflow.run() {
+                // Workflow progress is consumed; UI updates via lambdaState
+            }
             lambdaState.markRunning()
         } catch {
             lambdaState.markFailed(reason: error.localizedDescription)
@@ -185,7 +193,10 @@ public class XcodeLocalModel: LocalService {
         lambdaState.beginStop()
 
         do {
-            try await developmentService.stopLambda(output: output)
+            let workflow = XcodeStopLambdaWorkflow(service: developmentService)
+            for try await _ in workflow.run() {
+                // Workflow progress is consumed; UI updates via lambdaState
+            }
             lambdaState.markStopped()
         } catch {
             lambdaState.markFailed(reason: error.localizedDescription)
@@ -199,7 +210,10 @@ public class XcodeLocalModel: LocalService {
 
         statusSubject.send(.starting)
 
-        try await developmentService.startWithServices(output: output)
+        let workflow = XcodeStartAllWorkflow(service: developmentService)
+        for try await _ in workflow.run() {
+            // Workflow progress is consumed; UI updates via statusSubject
+        }
         lambdaState.markRunning()
 
         refreshStatus()
@@ -211,7 +225,10 @@ public class XcodeLocalModel: LocalService {
 
         statusSubject.send(.stopping)
 
-        try await developmentService.stopWithServices(output: output)
+        let workflow = XcodeStopAllWorkflow(service: developmentService)
+        for try await _ in workflow.run() {
+            // Workflow progress is consumed; UI updates via statusSubject
+        }
         lambdaState.markStopped()
 
         refreshStatus()

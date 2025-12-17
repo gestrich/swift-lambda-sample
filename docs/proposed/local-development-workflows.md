@@ -790,7 +790,42 @@ public enum LocalServiceType: Sendable, Hashable {
 - Testable workflow logic separate from I/O
 - Structured progress events enable rich UI updates
 
+### Phase 3: Mac App Workflow Integration (Completed)
+
+**Date:** Phase completed
+
+**What was implemented:**
+
+1. **Package.swift dependencies** - Added `b-workflow-deploy-local-xcode` and `b-workflow-deploy-local-linux` to `a-app-mac` target
+
+2. **XcodeLocalModel.swift refactored** - Key methods now use workflows:
+   - `build()` → `XcodeBuildWorkflow`
+   - `startLambda()` → `XcodeStartLambdaWorkflow`
+   - `stopLambda()` → `XcodeStopLambdaWorkflow`
+   - `startWithServices()` → `XcodeStartAllWorkflow`
+   - `stopWithServices()` → `XcodeStopAllWorkflow`
+
+3. **LinuxLocalModel.swift refactored** - Key methods now use workflows:
+   - `build()` → `LinuxBuildWorkflow`
+   - `startLambda()` → `LinuxStartLambdaWorkflow`
+   - `stopLambda()` → `LinuxStopLambdaWorkflow`
+   - `startWithServices()` → `LinuxStartAllWorkflow`
+   - `stopWithServices()` → `LinuxStopAllWorkflow`
+   - `setupDockerNetwork()` → `LinuxSetupNetworkWorkflow`
+   - `runInteractive()` → `LinuxRunInteractiveWorkflow`
+
+**Technical Notes:**
+
+- Mac app models consume workflow progress streams but don't forward CLI output; UI updates happen via existing state objects (`buildState`, `lambdaState`, `statusSubject`)
+- The `output: CLIOutputStream?` parameter is preserved in method signatures for API compatibility but is not actively used when workflows handle their own CLI output internally
+- Service management methods (e.g., `startS3()`, `stopDatabase()`) still use direct service calls since they're simple operations without complex orchestration needs
+
+**Benefits:**
+- Consistent orchestration logic between CLI and Mac app
+- Workflows handle all the sequencing (services → network → Lambda)
+- Future UI enhancements can subscribe to workflow Progress events for richer feedback
+
 ### Next Steps
 
-- Update `a-app-mac` to use the new workflow targets
 - Consider adding XcodeStatusWorkflow and LinuxStatusWorkflow for completeness
+- Consider exposing workflow Progress streams to Mac app UI for detailed step-by-step feedback

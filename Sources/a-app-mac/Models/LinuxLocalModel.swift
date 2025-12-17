@@ -6,6 +6,7 @@ import c_service_storage
 import c_service_deploy_local
 import c_service_deploy_core
 import c_service_lambda_build
+import b_workflow_deploy_local_linux
 
 /// Observable model for Linux container development workflow
 /// Holds UI state and delegates operations to LinuxLocalDevelopmentService
@@ -137,7 +138,11 @@ public class LinuxLocalModel: LocalService {
         buildState.startBuild()
 
         do {
-            try await developmentService.build(clean: clean, output: output)
+            let workflow = LinuxBuildWorkflow(service: developmentService)
+            let options = LinuxBuildWorkflow.Options(clean: clean)
+            for try await _ in workflow.run(options: options) {
+                // Workflow progress is consumed; UI updates via buildState
+            }
             buildState.markSuccess()
         } catch {
             buildState.markFailed(exitCode: 1)
@@ -166,7 +171,10 @@ public class LinuxLocalModel: LocalService {
         lambdaState.startLambda()
 
         do {
-            try await developmentService.startLambda(output: output)
+            let workflow = LinuxStartLambdaWorkflow(service: developmentService)
+            for try await _ in workflow.run() {
+                // Workflow progress is consumed; UI updates via lambdaState
+            }
             lambdaState.markRunning()
         } catch {
             lambdaState.markFailed(reason: error.localizedDescription)
@@ -178,7 +186,10 @@ public class LinuxLocalModel: LocalService {
         lambdaState.beginStop()
 
         do {
-            try await developmentService.stopLambda(output: output)
+            let workflow = LinuxStopLambdaWorkflow(service: developmentService)
+            for try await _ in workflow.run() {
+                // Workflow progress is consumed; UI updates via lambdaState
+            }
             lambdaState.markStopped()
         } catch {
             lambdaState.markFailed(reason: error.localizedDescription)
@@ -192,7 +203,10 @@ public class LinuxLocalModel: LocalService {
 
         statusSubject.send(.starting)
 
-        try await developmentService.startWithServices(output: output)
+        let workflow = LinuxStartAllWorkflow(service: developmentService)
+        for try await _ in workflow.run() {
+            // Workflow progress is consumed; UI updates via statusSubject
+        }
         lambdaState.markRunning()
 
         refreshStatus()
@@ -204,7 +218,10 @@ public class LinuxLocalModel: LocalService {
 
         statusSubject.send(.stopping)
 
-        try await developmentService.stopWithServices(output: output)
+        let workflow = LinuxStopAllWorkflow(service: developmentService)
+        for try await _ in workflow.run() {
+            // Workflow progress is consumed; UI updates via statusSubject
+        }
         lambdaState.markStopped()
 
         refreshStatus()
@@ -284,11 +301,17 @@ public class LinuxLocalModel: LocalService {
 
     /// Setup Docker network for Lambda container
     public func setupDockerNetwork() async throws {
-        try await developmentService.setupDockerNetwork()
+        let workflow = LinuxSetupNetworkWorkflow(service: developmentService)
+        for try await _ in workflow.run() {
+            // Consume progress - could be extended to report to UI
+        }
     }
 
     /// Run Lambda in interactive container
     public func runInteractive() async throws {
-        try await developmentService.runInteractive()
+        let workflow = LinuxRunInteractiveWorkflow(service: developmentService)
+        for try await _ in workflow.run() {
+            // Consume progress - could be extended to report to UI
+        }
     }
 }

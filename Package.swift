@@ -185,6 +185,8 @@ let package = Package(
             dependencies: [
                 .target(name: "d-sdk-client"),
                 .target(name: "b-workflow-deploy-remote"),
+                .target(name: "b-workflow-deploy-local-xcode"),
+                .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "b-workflow-setup"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
