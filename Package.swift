@@ -14,8 +14,8 @@ let package = Package(
             targets: ["LambdaApp"]
         ),
         .executable(
-            name: "app-cli",
-            targets: ["a-app-cli"]
+            name: "CLIApp",
+            targets: ["CLIApp"]
         )
     ],
     dependencies: [
@@ -179,7 +179,7 @@ let package = Package(
             path: "Sources/features/DeployLocalLinuxFeature"
         ),
         .executableTarget(
-            name: "a-app-cli",
+            name: "CLIApp",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "DeployRemoteFeature"),
@@ -191,6 +191,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "GitHubSDK"),
             ],
+            path: "Sources/apps/CLIApp",
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]

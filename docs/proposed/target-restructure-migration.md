@@ -277,15 +277,15 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
     - [x] Documentation referencing the old target name
   - [x] Verify build succeeds
 
-- [ ] **CLIApp**
-  - [ ] Move `a-app-cli/` to `apps/CLIApp/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Update product name if desired
-  - [ ] **Update hardcoded target name references:**
-    - [ ] `tools.sh` wrapper script (`swift run SwiftDeploy` or similar)
-    - [ ] Documentation (CLAUDE.md, README.md) referencing CLI commands
-  - [ ] Verify build succeeds
+- [x] **CLIApp** ✅
+  - [x] Move `a-app-cli/` to `apps/CLIApp/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Update product name (renamed from `app-cli` to `CLIApp`)
+  - [x] **Update hardcoded target name references:**
+    - [x] `tools.sh` wrapper script (updated `swift run app-cli` to `swift run CLIApp`)
+    - [ ] Documentation (CLAUDE.md, README.md) referencing CLI commands - deferred to Phase 5
+  - [x] Verify build succeeds
 
 - [ ] **MacApp**
   - [ ] Move `a-app-mac/` to `apps/MacApp/`
@@ -915,3 +915,24 @@ CLISDK ◄── CLIMacrosSDK
 - `LambdaApp` becomes module name `LambdaApp` directly (PascalCase, no hyphens)
 
 **Note:** This is the first app layer migration. The `apps/` folder now exists for subsequent app migrations (CLIApp, MacApp).
+
+### CLIApp Migration (Phase 4.2)
+
+**Key changes:**
+- Moved `Sources/a-app-cli/` → `Sources/apps/CLIApp/`
+- Updated Package.swift: renamed target from `a-app-cli` to `CLIApp` with explicit path
+- Updated Package.swift: renamed product from `app-cli` to `CLIApp`
+- Updated `tools.sh` wrapper script: `swift run app-cli` → `swift run CLIApp`
+
+**Product name change:**
+- Old: `app-cli` (product name) → `a-app-cli` (target name)
+- New: `CLIApp` (both product and target name)
+- This is a breaking change for any scripts referencing the old product name
+
+**Module name behavior:**
+- `CLIApp` becomes module name `CLIApp` directly (PascalCase, no hyphens)
+
+**Documentation updates deferred:**
+- CLAUDE.md and README.md contain many references to `swift run SwiftDeploy` which is the old alias for the CLI
+- These documentation updates are deferred to Phase 5 (Cleanup) since the functional `tools.sh` wrapper has been updated
+- The CLI itself works correctly with `swift run CLIApp` or `./tools.sh`
