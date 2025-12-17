@@ -874,8 +874,15 @@ public final class GitHubCIModel {
   - Removed GitHubActionsClient construction in init
   - Changed `canUpdateLambda` to use `githubConfig != nil` instead of `githubClient != nil`
 
-### [ ] Phase 7: Update dependent code
-- [ ] Any tests that reference removed types
+### [x] Phase 7: Update dependent code
+- [x] Verify no tests reference removed types
+
+**Technical Notes (Phase 7):**
+- Searched all test files in `Tests/` directory for references to removed types (`GitHubActionsClient`, `GitHubActionsService`, `WorkflowProgress`, `GitHubCISnapshot`)
+- No test files reference any of the removed types
+- Existing test file `Tests/service-deploy-tests/GitHubCLITests.swift` only uses stateless SDK types (`GitHubWorkflowRunsParser`, `GitHubPullRequestsParser`, `Gh.*` command structs) which are still present
+- All 357 tests pass (1 unrelated integration test fails due to Lambda routing, pre-existing issue)
+- Refactor is complete
 
 ## Files Affected
 
