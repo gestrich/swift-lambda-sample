@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_github
 import Foundation
 import Observation
 import service_deploy
@@ -24,7 +25,11 @@ public final class GitHubCIModel {
 
     public init(repoPath: String, config: GitHubConfiguration, cliClient: CLIClient) {
         self.config = config
-        self.actionsService = makeGitHubActionsClient(repoPath: repoPath, config: config, cliClient: cliClient)
+        self.actionsService = GitHubActionsClient(
+            repoPath: repoPath,
+            config: config.toSDKConfiguration(),
+            cliClient: cliClient
+        )
 
         // Fetch status from GitHub immediately on init
         Task {

@@ -780,9 +780,21 @@ public final class GitHubCIModel {
 - Reused `WorkflowRunInfo` from sdk-github rather than duplicating the type
 - The workflow follows the CloudWatchLogsWorkflow pattern with `AsyncThrowingStream<State, Error>`
 
-### [ ] Phase 2: Remove type aliases and re-exports (service-deploy)
-- [ ] Delete `GitHubActionsService.swift`
-- [ ] Update imports in dependent files to use `sdk_github` directly
+### [x] Phase 2: Remove type aliases and re-exports (service-deploy)
+- [x] Delete `GitHubActionsService.swift`
+- [x] Update imports in dependent files to use `sdk_github` directly
+
+**Technical Notes (Phase 2):**
+- Deleted `Sources/service-deploy/GitHubService/GitHubActionsService.swift` which contained:
+  - Type aliases: `GitHubActionsService`, `GitService`, `GitHubCLIService`
+  - Re-exports via `@_exported import` for SDK types
+  - Factory function `makeGitHubActionsClient()`
+- Updated `Sources/app-mac/Models/GitHubCIModel.swift`:
+  - Added `import sdk_github` to import SDK types directly
+  - Replaced `makeGitHubActionsClient()` with direct `GitHubActionsClient()` construction using `config.toSDKConfiguration()`
+- Updated `Sources/app-mac/RemoteService/GitHubCISectionView.swift`:
+  - Added `import sdk_github` to import SDK types directly (for `WorkflowRunInfo`, `GitHubRunDetail`, `GitHubJob`, `GitHubStep`)
+- `UpdateLambdaWorkflow.swift` and `StatusWorkflow.swift` already imported `sdk_github` directly and required no changes
 
 ### [ ] Phase 3: Refactor GitHubCIModel (app-mac)
 - [ ] Create `ModelState` enum with `init(from:prior:)`
