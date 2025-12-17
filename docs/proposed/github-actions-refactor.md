@@ -853,10 +853,26 @@ public final class GitHubCIModel {
   - Removed `.toSDKConfiguration()` call since we now use `GitHubConfiguration` properties directly
 - The workflow now stores GitHub configuration properties (branch, repository, workflowName) as fields rather than relying on the stateful `GitHubActionsClient` to provide them
 
-### [ ] Phase 6: Remove GitHubActionsClient (sdk-github)
-- [ ] Delete the stateful client
-- [ ] Keep GitHubCLIClient and GitClient (already stateless)
-- [ ] Keep data models (GitHubWorkflowRun, GitHubRunDetail, etc.)
+### [x] Phase 6: Remove GitHubActionsClient (sdk-github)
+- [x] Delete the stateful client
+- [x] Keep GitHubCLIClient and GitClient (already stateless)
+- [x] Keep data models (GitHubWorkflowRun, GitHubRunDetail, etc.)
+
+**Technical Notes (Phase 6):**
+- Deleted `Sources/sdk-github/GitHubActionsClient.swift` (the stateful orchestrator)
+- Created `Sources/sdk-github/GitHubTypes.swift` to hold kept types:
+  - `GitHubActionsConfiguration` - Configuration struct for GitHub Actions operations
+  - `GitStatus` - Git status information (unpushed commits, uncommitted changes, current branch)
+  - `WorkflowRunInfo` - UI-ready summary of a workflow run with convenience properties
+  - Added `WorkflowRunInfo.init(from: GitHubWorkflowRun)` extension for SDK type conversion
+- Deleted types that were only used by GitHubActionsClient:
+  - `GitHubActionsClient.State` enum (state machine for the stateful orchestrator)
+  - `WorkflowProgress` enum (progress updates from workflow monitoring)
+  - `GitHubCISnapshot` struct (snapshot of GitHub CI status)
+- Updated `Sources/app-mac/Models/DeploymentModel.swift`:
+  - Removed `githubClient: GitHubActionsClient?` property
+  - Removed GitHubActionsClient construction in init
+  - Changed `canUpdateLambda` to use `githubConfig != nil` instead of `githubClient != nil`
 
 ### [ ] Phase 7: Update dependent code
 - [ ] Any tests that reference removed types
@@ -865,7 +881,8 @@ public final class GitHubCIModel {
 
 | File | Action |
 |------|--------|
-| `Sources/sdk-github/GitHubActionsClient.swift` | Delete (stateful orchestrator) |
+| `Sources/sdk-github/GitHubActionsClient.swift` | ~~Delete (stateful orchestrator)~~ DELETED |
+| `Sources/sdk-github/GitHubTypes.swift` | Created (holds GitHubActionsConfiguration, GitStatus, WorkflowRunInfo) |
 | `Sources/sdk-github/GitHubCLIClient.swift` | Keep (already stateless) |
 | `Sources/sdk-github/GitClient.swift` | Keep (already stateless) |
 | `Sources/service-deploy/GitHubService/GitHubActionsService.swift` | Delete |

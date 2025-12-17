@@ -40,7 +40,6 @@ public class DeploymentModel {
 
     private let cdkClient: CDKClient
     private let cfClient: CloudFormationClient
-    private let githubClient: GitHubActionsClient?
     private let gitClient: GitClient
     public let cliClient: CLIClient
 
@@ -77,16 +76,6 @@ public class DeploymentModel {
         )
 
         self.gitClient = GitClient(repoPath: projectRoot, cliClient: cli)
-
-        if let githubConfig = githubConfig {
-            self.githubClient = GitHubActionsClient(
-                repoPath: projectRoot,
-                config: githubConfig,
-                cliClient: cli
-            )
-        } else {
-            self.githubClient = nil
-        }
     }
 
     /// Convenience initializer that loads configs from disk
@@ -130,7 +119,7 @@ public class DeploymentModel {
 
     /// Whether Lambda code can be updated (via GitHub Actions)
     public var canUpdateLambda: Bool {
-        state.isIdle && (githubClient != nil)
+        state.isIdle && (githubConfig != nil)
     }
 
     /// API client for making requests to this service
