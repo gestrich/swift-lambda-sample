@@ -1,5 +1,5 @@
 import CLISDK
-import c_service_lambda_build
+import LambdaBuildService
 import Foundation
 import c_service_deploy_core
 

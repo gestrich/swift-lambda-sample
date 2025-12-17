@@ -4,7 +4,7 @@ import MinioSDK
 import PostgreSQLSDK
 import DynamoDBSDK
 import ClientService
-import c_service_lambda_build
+import LambdaBuildService
 import Foundation
 import StorageService
 import c_service_deploy_core

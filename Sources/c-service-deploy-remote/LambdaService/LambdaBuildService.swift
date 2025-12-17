@@ -7,7 +7,7 @@
 
 import CLISDK
 import AWSSDK
-import c_service_lambda_build
+import LambdaBuildService
 import Foundation
 
 /// Service for building and uploading Lambda for Linux (AMD64) using Docker

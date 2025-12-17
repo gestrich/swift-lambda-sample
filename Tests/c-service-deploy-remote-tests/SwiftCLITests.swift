@@ -1,5 +1,5 @@
 import CLISDK
-import c_service_lambda_build
+import LambdaBuildService
 @testable import c_service_deploy_remote
 import Testing
 

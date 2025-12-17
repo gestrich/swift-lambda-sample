@@ -5,7 +5,7 @@ import Foundation
 import StorageService
 import c_service_deploy_local
 import c_service_deploy_core
-import c_service_lambda_build
+import LambdaBuildService
 import b_workflow_deploy_local_xcode
 
 /// Observable model for native macOS Xcode development workflow

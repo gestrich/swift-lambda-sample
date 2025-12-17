@@ -126,7 +126,7 @@ let package = Package(
                 .target(name: "DynamoDBSDK"),
                 .target(name: "ClientService"),
                 .target(name: "StorageService"),
-                .target(name: "c-service-lambda-build"),
+                .target(name: "LambdaBuildService"),
                 .target(name: "c-service-deploy-core"),
             ]
         ),
@@ -143,10 +143,11 @@ let package = Package(
             ]
         ),
         .target(
-            name: "c-service-lambda-build",
+            name: "LambdaBuildService",
             dependencies: [
                 .target(name: "CLISDK"),
-            ]
+            ],
+            path: "Sources/services/LambdaBuildService"
         ),
         .target(
             name: "b-workflow-deploy-remote",
@@ -195,7 +196,7 @@ let package = Package(
             dependencies: [
                 .target(name: "ClientService"),
                 .target(name: "StorageService"),
-                .target(name: "c-service-lambda-build"),
+                .target(name: "LambdaBuildService"),
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
@@ -227,7 +228,7 @@ let package = Package(
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),
-                .target(name: "c-service-lambda-build"),
+                .target(name: "LambdaBuildService"),
                 .target(name: "StorageService"),
                 .target(name: "c-service-setup"),
                 .target(name: "CLISDK"),
@@ -250,7 +251,7 @@ let package = Package(
             dependencies: [
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
-                .target(name: "c-service-lambda-build"),
+                .target(name: "LambdaBuildService"),
                 .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "NodeCLISDK"),

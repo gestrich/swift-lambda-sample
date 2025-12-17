@@ -198,12 +198,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **LambdaBuildService** (depends on CLISDK)
-  - [ ] Move `c-service-lambda-build/` to `services/LambdaBuildService/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **LambdaBuildService** (depends on CLISDK) ✅
+  - [x] Move `c-service-lambda-build/` to `services/LambdaBuildService/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **DeployCoreService** (depends on CLISDK, ClientService)
   - [ ] Move `c-service-deploy-core/` to `services/DeployCoreService/`
@@ -610,3 +610,26 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `ClientService` becomes module name `ClientService` directly (PascalCase, no hyphens)
+
+### LambdaBuildService Migration (Phase 2.3)
+
+**Key changes:**
+- Moved `Sources/c-service-lambda-build/` → `Sources/services/LambdaBuildService/`
+- Updated Package.swift: renamed target from `c-service-lambda-build` to `LambdaBuildService` with explicit path
+- Updated all dependency references from `.target(name: "c-service-lambda-build")` to `.target(name: "LambdaBuildService")` (4 references in Package.swift: c-service-deploy-local, c-service-deploy-remote, a-app-mac, c-service-deploy-remote-tests)
+- Updated all imports from `import c_service_lambda_build` to `import LambdaBuildService` (11 files affected)
+
+**Files updated:**
+- `Sources/a-app-mac/Models/LinuxLocalModel.swift`
+- `Sources/a-app-mac/Models/XcodeLocalModel.swift`
+- `Sources/a-app-mac/UI/LocalService/LocalServicesModel.swift`
+- `Sources/a-app-mac/UI/RemoteService/LambdaUploadSectionView.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/LocalService.swift`
+- `Sources/c-service-deploy-remote/LambdaService/LambdaBuildService.swift`
+- `Tests/c-service-deploy-remote-tests/BuildScriptTests.swift`
+- `Tests/c-service-deploy-remote-tests/SwiftCLITests.swift`
+
+**Module name behavior:**
+- `LambdaBuildService` becomes module name `LambdaBuildService` directly (PascalCase, no hyphens)

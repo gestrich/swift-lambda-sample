@@ -4,7 +4,7 @@ import Combine
 import Foundation
 import c_service_deploy_local
 import c_service_deploy_core
-import c_service_lambda_build
+import LambdaBuildService
 
 /// Model that wraps a LocalService, providing @Observable properties for SwiftUI.
 /// Subscribes to the underlying service's publishers and updates observable properties.
