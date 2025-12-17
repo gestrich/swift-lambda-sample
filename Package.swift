@@ -30,16 +30,17 @@ let package = Package(
     targets: [
         // MARK: - CLI Macros
         .macro(
-            name: "d-sdk-cli-macros",
+            name: "CLIMacrosSDK",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-            ]
+            ],
+            path: "Sources/sdks/CLIMacrosSDK"
         ),
         .target(
             name: "d-sdk-cli",
             dependencies: [
-                .target(name: "d-sdk-cli-macros"),
+                .target(name: "CLIMacrosSDK"),
             ],
             exclude: ["README.md"]
         ),
@@ -249,7 +250,7 @@ let package = Package(
             name: "d-sdk-cli-tests",
             dependencies: [
                 .target(name: "d-sdk-cli"),
-                .target(name: "d-sdk-cli-macros"),
+                .target(name: "CLIMacrosSDK"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         )

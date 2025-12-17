@@ -1,0 +1,357 @@
+# Target Restructure Migration Plan
+
+This document tracks the migration from the current `a-`, `b-`, `c-`, `d-` prefix naming convention to the new folder-based structure with PascalCase naming.
+
+## New Structure Overview
+
+```
+Sources/
+├── apps/
+│   ├── CLIApp/
+│   ├── LambdaApp/
+│   └── MacApp/
+├── features/
+│   ├── DeployRemoteFeature/
+│   │   ├── workflows/
+│   │   └── services/
+│   ├── DeployLocalXcodeFeature/
+│   │   ├── workflows/
+│   │   └── services/
+│   ├── DeployLocalLinuxFeature/
+│   │   ├── workflows/
+│   │   └── services/
+│   └── SetupFeature/
+│       ├── workflows/
+│       └── services/
+├── services/
+│   ├── StorageService/
+│   ├── DeployCoreService/
+│   ├── ClientService/
+│   ├── LambdaBuildService/
+│   └── DeployLocalService/
+└── sdks/
+    ├── CLISDK/
+    ├── CLIMacrosSDK/
+    ├── DockerCLISDK/
+    ├── BrewCLISDK/
+    ├── NodeCLISDK/
+    ├── AWSSDK/
+    ├── GitHubSDK/
+    ├── MinioSDK/
+    ├── PostgreSQLSDK/
+    └── DynamoDBSDK/
+```
+
+## Naming Convention
+
+- **PascalCase** for all target names
+- Suffix indicates layer: `Feature`, `Service`, `SDK`
+- Apps have `App` suffix
+
+## Migration Mapping
+
+### Apps
+
+| Old Target | New Target | New Path |
+|------------|------------|----------|
+| `a-app-cli` | `CLIApp` | `apps/CLIApp/` |
+| `a-app-lambda` | `LambdaApp` | `apps/LambdaApp/` |
+| `a-app-mac` | `MacApp` | `apps/MacApp/` |
+
+### Features (Workflow + Service merged)
+
+| Old Workflow | Old Service | New Target | New Path |
+|--------------|-------------|------------|----------|
+| `b-workflow-deploy-remote` | `c-service-deploy-remote` | `DeployRemoteFeature` | `features/DeployRemoteFeature/` |
+| `b-workflow-deploy-local-xcode` | (uses c-service-deploy-local) | `DeployLocalXcodeFeature` | `features/DeployLocalXcodeFeature/` |
+| `b-workflow-deploy-local-linux` | (uses c-service-deploy-local) | `DeployLocalLinuxFeature` | `features/DeployLocalLinuxFeature/` |
+| `b-workflow-setup` | `c-service-setup` | `SetupFeature` | `features/SetupFeature/` |
+
+### Services (Standalone)
+
+| Old Target | New Target | New Path |
+|------------|------------|----------|
+| `c-service-storage` | `StorageService` | `services/StorageService/` |
+| `c-service-deploy-core` | `DeployCoreService` | `services/DeployCoreService/` |
+| `c-service-client` | `ClientService` | `services/ClientService/` |
+| `c-service-lambda-build` | `LambdaBuildService` | `services/LambdaBuildService/` |
+| `c-service-deploy-local` | `DeployLocalService` | `services/DeployLocalService/` |
+
+### SDKs
+
+| Old Target | New Target | New Path |
+|------------|------------|----------|
+| `d-sdk-cli` | `CLISDK` | `sdks/CLISDK/` |
+| `d-sdk-cli-macros` | `CLIMacrosSDK` | `sdks/CLIMacrosSDK/` |
+| `d-sdk-cli-docker` | `DockerCLISDK` | `sdks/DockerCLISDK/` |
+| `d-sdk-cli-brew` | `BrewCLISDK` | `sdks/BrewCLISDK/` |
+| `d-sdk-cli-node` | `NodeCLISDK` | `sdks/NodeCLISDK/` |
+| `d-sdk-aws` | `AWSSDK` | `sdks/AWSSDK/` |
+| `d-sdk-github` | `GitHubSDK` | `sdks/GitHubSDK/` |
+| `d-sdk-minio` | `MinioSDK` | `sdks/MinioSDK/` |
+| `d-sdk-postgresql` | `PostgreSQLSDK` | `sdks/PostgreSQLSDK/` |
+| `d-sdk-dynamodb` | `DynamoDBSDK` | `sdks/DynamoDBSDK/` |
+
+### Tests
+
+| Old Target | New Target | New Path |
+|------------|------------|----------|
+| `c-service-deploy-remote-tests` | `DeployRemoteFeatureTests` | `Tests/DeployRemoteFeatureTests/` |
+| `d-sdk-cli-tests` | `CLISDKTests` | `Tests/CLISDKTests/` |
+
+---
+
+## Migration Checklist
+
+Migration order: SDKs first (no dependencies on other project targets), then Services, then Features, then Apps.
+
+### Phase 1: SDKs
+
+- [x] **CLIMacrosSDK** (no internal dependencies) ✅
+  - [x] Create `sdks/` folder
+  - [x] Move `d-sdk-cli-macros/` to `sdks/CLIMacrosSDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update all imports in dependent targets (Macros.swift module references)
+  - [x] Verify build succeeds
+
+- [ ] **CLISDK** (depends on CLIMacrosSDK)
+  - [ ] Move `d-sdk-cli/` to `sdks/CLISDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to CLIMacrosSDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DockerCLISDK** (depends on CLISDK)
+  - [ ] Move `d-sdk-cli-docker/` to `sdks/DockerCLISDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to CLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **BrewCLISDK** (depends on CLISDK)
+  - [ ] Move `d-sdk-cli-brew/` to `sdks/BrewCLISDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to CLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **NodeCLISDK** (depends on CLISDK)
+  - [ ] Move `d-sdk-cli-node/` to `sdks/NodeCLISDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to CLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **AWSSDK** (depends on CLISDK, NodeCLISDK)
+  - [ ] Move `d-sdk-aws/` to `sdks/AWSSDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **GitHubSDK** (depends on CLISDK)
+  - [ ] Move `d-sdk-github/` to `sdks/GitHubSDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to CLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **MinioSDK** (depends on DockerCLISDK)
+  - [ ] Move `d-sdk-minio/` to `sdks/MinioSDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to DockerCLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **PostgreSQLSDK** (depends on DockerCLISDK)
+  - [ ] Move `d-sdk-postgresql/` to `sdks/PostgreSQLSDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to DockerCLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DynamoDBSDK** (depends on DockerCLISDK)
+  - [ ] Move `d-sdk-dynamodb/` to `sdks/DynamoDBSDK/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency reference to DockerCLISDK
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **CLISDKTests**
+  - [ ] Move `Tests/d-sdk-cli-tests/` to `Tests/CLISDKTests/`
+  - [ ] Update Package.swift test target name and path
+  - [ ] Update dependency references
+  - [ ] Verify tests pass
+
+### Phase 2: Services
+
+- [ ] **StorageService** (no internal dependencies)
+  - [ ] Create `services/` folder
+  - [ ] Move `c-service-storage/` to `services/StorageService/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **ClientService** (no internal dependencies)
+  - [ ] Move `c-service-client/` to `services/ClientService/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **LambdaBuildService** (depends on CLISDK)
+  - [ ] Move `c-service-lambda-build/` to `services/LambdaBuildService/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DeployCoreService** (depends on CLISDK, ClientService)
+  - [ ] Move `c-service-deploy-core/` to `services/DeployCoreService/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DeployLocalService** (depends on multiple SDKs and services)
+  - [ ] Move `c-service-deploy-local/` to `services/DeployLocalService/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+### Phase 3: Features
+
+- [ ] **SetupFeature**
+  - [ ] Create `features/` folder
+  - [ ] Create `features/SetupFeature/` with `workflows/` and `services/` subfolders
+  - [ ] Move workflow code from `b-workflow-setup/` to `features/SetupFeature/workflows/`
+  - [ ] Move service code from `c-service-setup/` to `features/SetupFeature/services/`
+  - [ ] Update Package.swift (single target for the feature)
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DeployRemoteFeature**
+  - [ ] Create `features/DeployRemoteFeature/` with `workflows/` and `services/` subfolders
+  - [ ] Move workflow code from `b-workflow-deploy-remote/` to `features/DeployRemoteFeature/workflows/`
+  - [ ] Move service code from `c-service-deploy-remote/` to `features/DeployRemoteFeature/services/`
+  - [ ] Update Package.swift (single target for the feature)
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DeployRemoteFeatureTests**
+  - [ ] Move `Tests/c-service-deploy-remote-tests/` to `Tests/DeployRemoteFeatureTests/`
+  - [ ] Update Package.swift test target name and path
+  - [ ] Update dependency references
+  - [ ] Verify tests pass
+
+- [ ] **DeployLocalXcodeFeature**
+  - [ ] Create `features/DeployLocalXcodeFeature/` with `workflows/` and `services/` subfolders
+  - [ ] Move workflow code from `b-workflow-deploy-local-xcode/` to `features/DeployLocalXcodeFeature/workflows/`
+  - [ ] Add any xcode-specific service code to `services/` subfolder (if applicable)
+  - [ ] Update Package.swift (single target for the feature)
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+- [ ] **DeployLocalLinuxFeature**
+  - [ ] Create `features/DeployLocalLinuxFeature/` with `workflows/` and `services/` subfolders
+  - [ ] Move workflow code from `b-workflow-deploy-local-linux/` to `features/DeployLocalLinuxFeature/workflows/`
+  - [ ] Add any linux-specific service code to `services/` subfolder (if applicable)
+  - [ ] Update Package.swift (single target for the feature)
+  - [ ] Update dependency references
+  - [ ] Update all imports in dependent targets
+  - [ ] Verify build succeeds
+
+### Phase 4: Apps
+
+- [ ] **LambdaApp**
+  - [ ] Create `apps/` folder
+  - [ ] Move `a-app-lambda/` to `apps/LambdaApp/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Update product name if desired
+  - [ ] **Update hardcoded target name references:**
+    - [ ] GitHub Actions workflows (`.github/workflows/*.yml`) - build scripts reference target name
+    - [ ] Swift code that launches/references the Lambda target by string (e.g., `swift build --product`)
+    - [ ] `build.sh` and any other shell scripts
+    - [ ] Documentation referencing the old target name
+  - [ ] Verify build succeeds
+
+- [ ] **CLIApp**
+  - [ ] Move `a-app-cli/` to `apps/CLIApp/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Update product name if desired
+  - [ ] **Update hardcoded target name references:**
+    - [ ] `tools.sh` wrapper script (`swift run SwiftDeploy` or similar)
+    - [ ] Documentation (CLAUDE.md, README.md) referencing CLI commands
+  - [ ] Verify build succeeds
+
+- [ ] **MacApp**
+  - [ ] Move `a-app-mac/` to `apps/MacApp/`
+  - [ ] Update Package.swift target name and path
+  - [ ] Update dependency references
+  - [ ] Verify build succeeds
+
+### Phase 5: Cleanup
+
+- [ ] Remove empty old directories
+- [ ] Update documentation (CLAUDE.md, README.md, architecture docs)
+- [ ] Update any scripts that reference old target names
+- [ ] Run full test suite
+- [ ] Verify all apps build and run correctly
+
+---
+
+## Dependency Graph (New Names)
+
+```
+CLIApp ─────────────────┬─► DeployRemoteFeature ─────┬─► DeployCoreService
+                        │                            ├─► AWSSDK
+MacApp ─────────────────┼─► DeployLocalXcodeFeature ─┼─► GitHubSDK
+                        │                            ├─► CLISDK
+                        ├─► DeployLocalLinuxFeature ─┤
+                        │                            └─► DeployLocalService
+                        └─► SetupFeature ────────────┬─► StorageService
+                                                     ├─► ClientService
+LambdaApp ──────────────────────────────────────────►│   LambdaBuildService
+                                                     │
+                                                     └─► (SDKs below)
+
+SDKs (bottom layer):
+CLISDK ◄── CLIMacrosSDK
+   │
+   ├──► DockerCLISDK ──┬──► MinioSDK
+   │                   ├──► PostgreSQLSDK
+   │                   └──► DynamoDBSDK
+   ├──► BrewCLISDK
+   ├──► NodeCLISDK ────► AWSSDK
+   └──► GitHubSDK
+```
+
+---
+
+## Notes
+
+- Each target migration should be a separate commit for easy rollback
+- Build and test after each target migration before proceeding
+- Import statements will change from `import d_sdk_cli` to `import CLISDK` (underscores become part of the module name based on folder structure)
+- Features combine workflow + service into a single target with internal folder organization
+
+---
+
+## Technical Notes
+
+### CLIMacrosSDK Migration (Phase 1.1)
+
+**Key changes:**
+- Moved `Sources/d-sdk-cli-macros/` → `Sources/sdks/CLIMacrosSDK/`
+- Updated Package.swift: renamed target from `d-sdk-cli-macros` to `CLIMacrosSDK` with explicit path
+- Updated `#externalMacro` module references in `Sources/d-sdk-cli/Macros.swift` from `d_sdk_cli_macros` to `CLIMacrosSDK`
+- Updated dependency references in `d-sdk-cli` and `d-sdk-cli-tests` targets
+
+**Module name behavior:**
+- Swift macro targets use the target name directly as the module name
+- `CLIMacrosSDK` becomes module name `CLIMacrosSDK` (no underscore transformation since no hyphens)

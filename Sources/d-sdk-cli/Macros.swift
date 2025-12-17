@@ -26,7 +26,7 @@
 /// ```
 @attached(extension, conformances: CLIProgram, CLICommand, names: named(programName), named(commandPath), named(arguments), named(Program))
 @attached(member, names: named(init))
-public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "d_sdk_cli_macros", type: "CLIProgramMacro")
+public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "CLIMacrosSDK", type: "CLIProgramMacro")
 
 /// Marks a struct as a CLI command (subcommand)
 /// Must be nested inside a @CLIProgram struct.
@@ -46,7 +46,7 @@ public macro CLIProgram(_ name: String? = nil) = #externalMacro(module: "d_sdk_c
 /// ```
 @attached(extension, conformances: CLICommand, names: named(commandPath), named(arguments), named(Program))
 @attached(member, names: named(init))
-public macro CLICommand(_ name: String? = nil) = #externalMacro(module: "d_sdk_cli_macros", type: "CLICommandMacro")
+public macro CLICommand(_ name: String? = nil) = #externalMacro(module: "CLIMacrosSDK", type: "CLICommandMacro")
 
 /// Marks a property as a boolean flag
 ///
@@ -62,7 +62,7 @@ public macro CLICommand(_ name: String? = nil) = #externalMacro(module: "d_sdk_c
 /// @Flag("-version") var version: Bool = false      // -version (java style)
 /// ```
 @attached(peer)
-public macro Flag(_ names: String...) = #externalMacro(module: "d_sdk_cli_macros", type: "FlagMacro")
+public macro Flag(_ names: String...) = #externalMacro(module: "CLIMacrosSDK", type: "FlagMacro")
 
 /// Marks a property as an option with a value
 ///
@@ -78,7 +78,7 @@ public macro Flag(_ names: String...) = #externalMacro(module: "d_sdk_cli_macros
 /// @Option("-m") var message: String?                 // -m only
 /// ```
 @attached(peer)
-public macro Option(_ names: String...) = #externalMacro(module: "d_sdk_cli_macros", type: "OptionMacro")
+public macro Option(_ names: String...) = #externalMacro(module: "CLIMacrosSDK", type: "OptionMacro")
 
 /// Marks a property as a prefix option where prefix and value are joined
 ///
@@ -92,7 +92,7 @@ public macro Option(_ names: String...) = #externalMacro(module: "d_sdk_cli_macr
 /// @PrefixOption("-") var signal: String?  // Produces "-9" not "-" "9"
 /// ```
 @attached(peer)
-public macro PrefixOption(_ prefix: String) = #externalMacro(module: "d_sdk_cli_macros", type: "PrefixOptionMacro")
+public macro PrefixOption(_ prefix: String) = #externalMacro(module: "CLIMacrosSDK", type: "PrefixOptionMacro")
 
 /// Marks a property as a positional argument
 /// Positionals are ordered by declaration order
@@ -103,4 +103,4 @@ public macro PrefixOption(_ prefix: String) = #externalMacro(module: "d_sdk_cli_
 /// @Positional var destination: String  // second positional
 /// ```
 @attached(peer)
-public macro Positional() = #externalMacro(module: "d_sdk_cli_macros", type: "PositionalMacro")
+public macro Positional() = #externalMacro(module: "CLIMacrosSDK", type: "PositionalMacro")
