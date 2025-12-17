@@ -6,11 +6,15 @@ import Foundation
 /// 1. DerivedData: When run from Xcode, extracts workspace path from info.plist
 /// 2. Repo root: Current directory contains `cdk/` and `Package.swift`
 /// 3. Subdirectory: Currently inside a known project subdirectory
-struct ProjectPathResolver {
+public struct ProjectPathResolver {
 
     // MARK: - Public
+    
+    public init() {
+        
+    }
 
-    func resolveProjectRoot() throws -> URL {
+    public func resolveProjectRoot() throws -> URL {
         return try resolveFromWorkingDirectory()
     }
 
