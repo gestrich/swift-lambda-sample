@@ -284,7 +284,7 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update product name (renamed from `app-cli` to `CLIApp`)
   - [x] **Update hardcoded target name references:**
     - [x] `tools.sh` wrapper script (updated `swift run app-cli` to `swift run CLIApp`)
-    - [ ] Documentation (CLAUDE.md, README.md) referencing CLI commands - deferred to Phase 5
+    - [x] Documentation (CLAUDE.md, README.md) referencing CLI commands - completed in Phase 5
   - [x] Verify build succeeds
 
 - [x] **MacApp** ✅
