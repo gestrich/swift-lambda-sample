@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import sdk_cli
-import service_deploy
+import service_deploy_remote
 
 extension AWSCommand {
     struct UpdateLambdaCommand: AsyncParsableCommand {

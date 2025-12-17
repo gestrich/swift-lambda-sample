@@ -1,7 +1,7 @@
 import sdk_cli
 import Foundation
 import Observation
-import service_deploy
+import service_deploy_remote
 
 /// Observable model for dependency installation status
 /// Holds UI state and delegates checking to DependencyCheckerService

@@ -1,5 +1,5 @@
 import AppKit
-import service_deploy
+import service_deploy_remote
 import SwiftUI
 
 /// View for managing Docker services (MinIO S3, PostgreSQL, and DynamoDB)

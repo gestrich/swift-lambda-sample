@@ -1,6 +1,6 @@
 import sdk_aws
 import sdk_cli
-import service_deploy
+import service_deploy_remote
 import SwiftUI
 
 /// Placeholder when CDK infrastructure is not configured

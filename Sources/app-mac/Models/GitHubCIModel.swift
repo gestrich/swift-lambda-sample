@@ -3,7 +3,7 @@ import sdk_cli
 import sdk_github
 import Foundation
 import Observation
-import service_deploy
+import service_deploy_remote
 
 /// Observable model for GitHub CI operations.
 /// This is a thin model that uses GitHubCIWorkflow and maintains observable state.

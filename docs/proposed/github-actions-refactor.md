@@ -565,7 +565,7 @@ The model becomes a thin state holder that consumes workflow streams, following 
 
 ```swift
 import sdk_github
-import service_deploy
+import service_deploy_remote
 import Foundation
 import Observation
 

@@ -1,7 +1,7 @@
 import Foundation
 import sdk_cli
 import sdk_client
-import service_deploy
+import service_deploy_remote
 import service_storage
 
 /// Top-level model that creates and holds all services.

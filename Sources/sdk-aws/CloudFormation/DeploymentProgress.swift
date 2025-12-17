@@ -12,7 +12,7 @@ import Foundation
 /// ```
 /// DeploymentProgress (sdk-aws) - individual resources
 ///     └── embedded in CloudFormationState (sdk-aws) - stack lifecycle
-///         └── consumed by DeployWorkflow.Progress (service-deploy) - workflow steps
+///         └── consumed by DeployWorkflow.Progress (service-deploy-remote) - workflow steps
 ///             └── consumed by ActiveWorkflow (feature-mac) - UI state
 /// ```
 ///

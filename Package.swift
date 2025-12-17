@@ -58,7 +58,7 @@ let package = Package(
             name: "app-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "service-deploy"),
+                .target(name: "service-deploy-remote"),
                 .target(name: "sdk-aws"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-github"),
@@ -68,7 +68,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "service-deploy",
+            name: "service-deploy-remote",
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-storage"),
@@ -94,7 +94,7 @@ let package = Package(
             name: "app-mac",
             dependencies: [
                 .target(name: "sdk-client"),
-                .target(name: "service-deploy"),
+                .target(name: "service-deploy-remote"),
                 .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
             ],
@@ -107,9 +107,9 @@ let package = Package(
             dependencies: []
         ),
         .testTarget(
-            name: "service-deploy-tests",
+            name: "service-deploy-remote-tests",
             dependencies: [
-                .target(name: "service-deploy"),
+                .target(name: "service-deploy-remote"),
                 .target(name: "sdk-github"),
             ]
         ),

@@ -1,5 +1,5 @@
 import sdk_cli
-@testable import service_deploy
+@testable import service_deploy_remote
 import Testing
 
 @Suite("Docker CLI Command Tests")

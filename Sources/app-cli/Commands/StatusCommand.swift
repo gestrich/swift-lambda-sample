@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import service_deploy
+import service_deploy_remote
 import sdk_aws
 import sdk_cli
 

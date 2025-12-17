@@ -683,7 +683,7 @@ swift build
 - `Sources/app-mac/Models/DeploymentModel.swift`
 
 **Changes:**
-1. Import service-layer types: `import service_deploy`
+1. Import service-layer types: `import service_deploy_remote`
 2. Update `ModelState` to use service-layer types:
    - Keep `ModelState` enum (app-specific state machine)
    - Use `DeploymentSnapshot` from service-deploy

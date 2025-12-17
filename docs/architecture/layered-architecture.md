@@ -17,7 +17,7 @@ The project uses a three-layer architecture where dependencies flow downward:
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                       SERVICE                                │
-│              service-deploy  ·  service-storage              │
+│              service-deploy-remote  ·  service-storage              │
 │                                                              │
 │   Workflows returning AsyncThrowingStream                    │
 └────────────────────────┬────────────────────────────────────┘

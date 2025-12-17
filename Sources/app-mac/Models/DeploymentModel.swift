@@ -3,10 +3,10 @@ import sdk_aws
 import sdk_cli
 import sdk_client
 import sdk_github
-import service_deploy
+import service_deploy_remote
 
 /// Observable model for remote AWS deployments in the app layer.
-/// This is a thin model that uses workflows from service-deploy and maintains observable state.
+/// This is a thin model that uses workflows from service-deploy-remote and maintains observable state.
 ///
 /// Per the layered architecture:
 /// - App layer (this model): @Observable state + UI coordination

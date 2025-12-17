@@ -198,7 +198,7 @@ The model becomes a thin state holder that assigns workflow state directly.
 
 ```swift
 import sdk_aws
-import service_deploy
+import service_deploy_remote
 import Foundation
 import Observation
 

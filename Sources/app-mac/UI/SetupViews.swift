@@ -1,5 +1,5 @@
 import sdk_cli
-import service_deploy
+import service_deploy_remote
 import SwiftUI
 
 // MARK: - Overview View

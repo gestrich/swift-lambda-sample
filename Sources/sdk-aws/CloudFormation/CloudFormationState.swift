@@ -50,7 +50,7 @@ public struct DeployedStack: Sendable, Equatable {
 /// ```
 /// DeploymentProgress (sdk-aws) - individual resources
 ///     └── embedded in CloudFormationState (sdk-aws) ← YOU ARE HERE
-///         └── consumed by DeployWorkflow.Progress (service-deploy)
+///         └── consumed by DeployWorkflow.Progress (service-deploy-remote)
 ///             └── consumed by ActiveWorkflow (feature-mac)
 /// ```
 public enum CloudFormationState: Sendable, Equatable {

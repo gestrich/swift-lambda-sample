@@ -103,7 +103,7 @@ This project follows a **Feature-Service-SDK** layered architecture where depend
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        SERVICE                               │
-│             service-deploy  ·  service-storage               │
+│             service-deploy-remote  ·  service-storage               │
 │   @Observable services (services ARE the models)             │
 │   App-specific, orchestrates SDKs                            │
 └──────────────────────────┬──────────────────────────────────┘
@@ -129,7 +129,7 @@ Sources/
 ├── feature-lambda/       # AWS Lambda handler (entry point)
 ├── feature-mac/          # Mac app (SwiftUI views)
 ├── feature-cli/          # CLI tool (SwiftDeploy commands)
-├── service-deploy/       # AWS deployment service (@Observable)
+├── service-deploy-remote/       # AWS deployment service (@Observable)
 │   ├── DeploymentService.swift      # Main service, orchestrates SDKs
 │   ├── Models/                      # App-specific models
 │   ├── AWSService/                  # AWS auth config persistence
