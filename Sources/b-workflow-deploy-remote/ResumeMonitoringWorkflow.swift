@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import d_sdk_aws
+import AWSSDK
 import CLISDK
 import c_service_deploy_remote
 

@@ -142,12 +142,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **AWSSDK** (depends on CLISDK, NodeCLISDK)
-  - [ ] Move `d-sdk-aws/` to `sdks/AWSSDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **AWSSDK** (depends on CLISDK, NodeCLISDK) ✅
+  - [x] Move `d-sdk-aws/` to `sdks/AWSSDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **GitHubSDK** (depends on CLISDK)
   - [ ] Move `d-sdk-github/` to `sdks/GitHubSDK/`
@@ -418,8 +418,47 @@ CLISDK ◄── CLIMacrosSDK
 
 **Files updated:**
 - `Sources/b-workflow-setup/DependencyStatusWorkflow.swift`
-- `Sources/d-sdk-aws/CDK/CDKClient.swift`
+- `Sources/sdks/AWSSDK/CDK/CDKClient.swift`
 - `Tests/c-service-deploy-remote-tests/NpmTests.swift`
 
 **Module name behavior:**
 - `NodeCLISDK` becomes module name `NodeCLISDK` directly (PascalCase, no hyphens)
+
+### AWSSDK Migration (Phase 1.6)
+
+**Key changes:**
+- Moved `Sources/d-sdk-aws/` → `Sources/sdks/AWSSDK/`
+- Updated Package.swift: renamed target from `d-sdk-aws` to `AWSSDK` with explicit path
+- Updated all dependency references from `.target(name: "d-sdk-aws")` to `.target(name: "AWSSDK")` (5 references in Package.swift: b-workflow-setup, b-workflow-deploy-remote, a-app-cli, c-service-deploy-remote, a-app-mac)
+- Updated all imports from `import d_sdk_aws` to `import AWSSDK` (26 files affected)
+
+**Files updated:**
+- `Sources/b-workflow-setup/DependencyStatusWorkflow.swift`
+- `Sources/a-app-cli/Commands/StatusCommand.swift`
+- `Sources/a-app-cli/CLIAWSEnvironment.swift`
+- `Sources/a-app-cli/Commands/AWSCommand.swift`
+- `Sources/a-app-cli/Commands/DeployInitCommand.swift`
+- `Sources/a-app-cli/Commands/DeployCommand.swift`
+- `Sources/a-app-cli/Commands/TearDownCommand.swift`
+- `Sources/a-app-cli/Commands/UploadLambdaCommand.swift`
+- `Sources/a-app-cli/AWSAuthConfiguration+ArgumentParser.swift`
+- `Sources/b-workflow-deploy-remote/DeployWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/DestroyWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/ResumeMonitoringWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/DeployInitWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/CloudWatchLogsWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/DeployStatusWorkflow.swift`
+- `Sources/a-app-mac/Models/DeploymentModel.swift`
+- `Sources/a-app-mac/Models/CloudWatchLogsModel.swift`
+- `Sources/a-app-mac/UI/RemoteService/RemoteServiceView.swift`
+- `Sources/a-app-mac/UI/RemoteService/CDKInfrastructureSectionView.swift`
+- `Sources/a-app-mac/UI/RemoteService/CloudWatchLogsSectionView.swift`
+- `Sources/a-app-mac/UI/Components/AWSCredentialErrorView.swift`
+- `Sources/a-app-mac/UI/Settings/SettingsView.swift`
+- `Sources/c-service-deploy-remote/Models/DeploymentState.swift`
+- `Sources/c-service-deploy-remote/Models/CDKInfrastructureConfiguration.swift`
+- `Sources/c-service-deploy-remote/Auth/AWSAuthConfiguration+Persistence.swift`
+- `Sources/c-service-deploy-remote/LambdaService/LambdaBuildService.swift`
+
+**Module name behavior:**
+- `AWSSDK` becomes module name `AWSSDK` directly (PascalCase, no hyphens)

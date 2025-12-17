@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import d_sdk_aws
+import AWSSDK
 import c_service_deploy_remote
 
 /// Top-level command for all AWS operations

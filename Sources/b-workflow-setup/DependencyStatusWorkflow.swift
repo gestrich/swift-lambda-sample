@@ -2,7 +2,7 @@ import CLISDK
 import BrewCLISDK
 import NodeCLISDK
 import DockerCLISDK
-import d_sdk_aws
+import AWSSDK
 import d_sdk_github
 import c_service_setup
 

@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_aws
+import AWSSDK
 import CLISDK
 import d_sdk_github
 import c_service_deploy_core

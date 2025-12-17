@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_aws
+import AWSSDK
 import d_sdk_github
 
 // MARK: - DeploymentSnapshot (Stable State)

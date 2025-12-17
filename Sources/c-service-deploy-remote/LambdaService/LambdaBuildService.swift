@@ -6,7 +6,7 @@
 //
 
 import CLISDK
-import d_sdk_aws
+import AWSSDK
 import c_service_lambda_build
 import Foundation
 

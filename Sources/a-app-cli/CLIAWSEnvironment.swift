@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import d_sdk_aws
+import AWSSDK
 import CLISDK
 
 /// Shared environment for AWS CLI commands

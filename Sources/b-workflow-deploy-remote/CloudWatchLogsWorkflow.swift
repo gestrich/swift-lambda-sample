@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_aws
+import AWSSDK
 import CLISDK
 
 /// Workflow for streaming CloudWatch logs from Lambda.

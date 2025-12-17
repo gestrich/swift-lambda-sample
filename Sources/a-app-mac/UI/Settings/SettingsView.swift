@@ -1,4 +1,4 @@
-import d_sdk_aws
+import AWSSDK
 import c_service_deploy_remote
 import SwiftUI
 

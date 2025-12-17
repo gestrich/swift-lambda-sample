@@ -46,11 +46,12 @@ let package = Package(
             exclude: ["README.md"]
         ),
         .target(
-            name: "d-sdk-aws",
+            name: "AWSSDK",
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "NodeCLISDK"),
-            ]
+            ],
+            path: "Sources/sdks/AWSSDK"
         ),
         .target(
             name: "d-sdk-github",
@@ -131,7 +132,7 @@ let package = Package(
                 .target(name: "BrewCLISDK"),
                 .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
-                .target(name: "d-sdk-aws"),
+                .target(name: "AWSSDK"),
                 .target(name: "d-sdk-github"),
                 .target(name: "c-service-setup"),
             ]
@@ -146,7 +147,7 @@ let package = Package(
             name: "b-workflow-deploy-remote",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-aws"),
+                .target(name: "AWSSDK"),
                 .target(name: "d-sdk-github"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-core"),
@@ -176,7 +177,7 @@ let package = Package(
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),
-                .target(name: "d-sdk-aws"),
+                .target(name: "AWSSDK"),
                 .target(name: "CLISDK"),
                 .target(name: "d-sdk-github"),
             ],
@@ -192,7 +193,7 @@ let package = Package(
                 .target(name: "c-service-lambda-build"),
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
-                .target(name: "d-sdk-aws"),
+                .target(name: "AWSSDK"),
                 .target(name: "d-sdk-github"),
                 .target(name: "c-service-deploy-core"),
             ]
@@ -228,7 +229,7 @@ let package = Package(
                 .target(name: "BrewCLISDK"),
                 .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
-                .target(name: "d-sdk-aws"),
+                .target(name: "AWSSDK"),
                 .target(name: "d-sdk-github"),
             ],
             swiftSettings: [
