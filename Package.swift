@@ -127,6 +127,7 @@ let package = Package(
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy-remote"),
                 .target(name: "service-storage"),
+                .target(name: "service-setup"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-cli-brew"),
                 .target(name: "sdk-cli-node"),

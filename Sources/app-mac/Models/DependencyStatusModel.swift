@@ -1,98 +1,221 @@
 import sdk_cli
-import sdk_cli_brew
-import sdk_cli_docker
-import sdk_cli_node
-import sdk_aws
-import sdk_github
+import service_setup
 import Foundation
 import Observation
 
-/// Observable model for dependency installation status
-/// Uses individual SDK clients for checking each dependency
+/// Observable model for dependency installation status.
+/// Uses workflows from service-setup to check and install dependencies.
 @MainActor
 @Observable
 public final class DependencyStatusModel {
-    // MARK: - Status Properties
+    // MARK: - State
 
-    public private(set) var homebrewStatus: DependencyUIState = .unknown
-    public private(set) var nodejsStatus: DependencyUIState = .unknown
-    public private(set) var dockerStatus: DependencyUIState = .unknown
-    public private(set) var awsCLIStatus: DependencyUIState = .unknown
-    public private(set) var cdkStatus: DependencyUIState = .unknown
-    public private(set) var githubCLIStatus: DependencyUIState = .unknown
+    public enum ModelState: Sendable {
+        case uninitialized
+        case checking(prior: DependencySnapshot?)
+        case ready(DependencySnapshot)
+        case installing(CLITool, prior: DependencySnapshot?)
+    }
 
-    // MARK: - Clients
+    public private(set) var state: ModelState = .uninitialized
+
+    // MARK: - Dependencies
 
     public let cliClient: CLIClient
-    private let brewClient: BrewClient
-    private let nodeClient: NodeClient
-    private let dockerClient: DockerClient
-    private let awsCLIClient: AWSCLIClient
+    private let statusWorkflow: DependencyStatusWorkflow
+    private let installWorkflow: DependencyInstallWorkflow
 
     // MARK: - Init
 
     public init(cliClient: CLIClient) {
         self.cliClient = cliClient
-        self.brewClient = BrewClient(cliClient: cliClient)
-        self.nodeClient = NodeClient(cliClient: cliClient)
-        self.dockerClient = DockerClient(cliClient: cliClient)
-        self.awsCLIClient = AWSCLIClient(cliClient: cliClient)
+        self.statusWorkflow = DependencyStatusWorkflow(cliClient: cliClient)
+        self.installWorkflow = DependencyInstallWorkflow(cliClient: cliClient)
     }
 
     // MARK: - Public API
 
     /// Check all dependency statuses
     public func checkAll() async {
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.checkHomebrew() }
-            group.addTask { await self.checkNodeJS() }
-            group.addTask { await self.checkDocker() }
-            group.addTask { await self.checkAWSCLI() }
-            group.addTask { await self.checkCDK() }
-            group.addTask { await self.checkGitHubCLI() }
+        let prior = state.snapshot
+        state = .checking(prior: prior)
+
+        do {
+            for try await progress in statusWorkflow.run() {
+                if case .complete = progress.step,
+                   case .snapshot(let snapshot) = progress.detail {
+                    state = .ready(snapshot)
+                }
+            }
+        } catch {
+            if let prior {
+                state = .ready(prior)
+            } else {
+                state = .uninitialized
+            }
         }
     }
 
+    /// Install a specific dependency
+    public func install(_ tool: CLITool) async {
+        let prior = state.snapshot
+        state = .installing(tool, prior: prior)
+
+        do {
+            for try await progress in installWorkflow.run(tool: tool) {
+                if case .complete = progress.step {
+                    await checkAll()
+                    return
+                }
+            }
+        } catch {
+            if let prior {
+                state = .ready(prior)
+            } else {
+                state = .uninitialized
+            }
+        }
+    }
+
+    // MARK: - Convenience Accessors
+
+    /// Get status for a specific tool
+    public func status(for tool: CLITool) -> CLIToolStatus? {
+        state.snapshot?.status(for: tool)
+    }
+
+    /// Whether we're currently checking dependencies
+    public var isChecking: Bool {
+        if case .checking = state { return true }
+        return false
+    }
+
+    /// Check if we're currently installing a specific tool
+    public func isInstalling(_ tool: CLITool) -> Bool {
+        if case .installing(let t, _) = state { return t == tool }
+        return false
+    }
+
+    // MARK: - Backward-Compatible Properties
+
+    /// Homebrew installation status (backward-compatible)
+    public var homebrewStatus: DependencyUIState {
+        uiState(for: .homebrew)
+    }
+
+    /// Node.js installation status (backward-compatible)
+    public var nodejsStatus: DependencyUIState {
+        uiState(for: .nodejs)
+    }
+
+    /// Docker installation status (backward-compatible)
+    public var dockerStatus: DependencyUIState {
+        uiState(for: .docker)
+    }
+
+    /// AWS CLI installation status (backward-compatible)
+    public var awsCLIStatus: DependencyUIState {
+        uiState(for: .awsCLI)
+    }
+
+    /// CDK installation status (backward-compatible)
+    public var cdkStatus: DependencyUIState {
+        uiState(for: .cdk)
+    }
+
+    /// GitHub CLI installation status (backward-compatible)
+    public var githubCLIStatus: DependencyUIState {
+        uiState(for: .githubCLI)
+    }
+
+    /// Convert CLIToolStatus to DependencyUIState for backward compatibility
+    private func uiState(for tool: CLITool) -> DependencyUIState {
+        if case .checking = state {
+            return .checking
+        }
+        if case .installing(let t, _) = state, t == tool {
+            return .checking
+        }
+
+        guard let status = state.snapshot?.status(for: tool) else {
+            return .unknown
+        }
+
+        return status.isInstalled ? .installed : .notInstalled
+    }
+
+    // MARK: - Backward-Compatible Methods
+
     /// Check Homebrew installation status
     public func checkHomebrew() async {
-        homebrewStatus = .checking
-        let installed = await brewClient.isInstalled()
-        homebrewStatus = installed ? .installed : .notInstalled
+        await checkSingleTool(.homebrew)
     }
 
     /// Check Node.js installation status
     public func checkNodeJS() async {
-        nodejsStatus = .checking
-        let installed = await nodeClient.isInstalled()
-        nodejsStatus = installed ? .installed : .notInstalled
+        await checkSingleTool(.nodejs)
     }
 
     /// Check Docker installation status
     public func checkDocker() async {
-        dockerStatus = .checking
-        let installed = await dockerClient.isInstalled()
-        dockerStatus = installed ? .installed : .notInstalled
+        await checkSingleTool(.docker)
     }
 
     /// Check AWS CLI installation status
     public func checkAWSCLI() async {
-        awsCLIStatus = .checking
-        let installed = await awsCLIClient.isInstalled()
-        awsCLIStatus = installed ? .installed : .notInstalled
+        await checkSingleTool(.awsCLI)
     }
 
     /// Check CDK installation status
     public func checkCDK() async {
-        cdkStatus = .checking
-        let installed = await CDKClient.isInstalled(cliClient: cliClient)
-        cdkStatus = installed ? .installed : .notInstalled
+        await checkSingleTool(.cdk)
     }
 
     /// Check GitHub CLI installation status
     public func checkGitHubCLI() async {
-        githubCLIStatus = .checking
-        let installed = await GitHubCLIClient.isInstalled(cliClient: cliClient)
-        githubCLIStatus = installed ? .installed : .notInstalled
+        await checkSingleTool(.githubCLI)
+    }
+
+    /// Check a single tool and merge results into current snapshot
+    private func checkSingleTool(_ tool: CLITool) async {
+        let prior = state.snapshot
+        state = .checking(prior: prior)
+
+        do {
+            for try await progress in statusWorkflow.run(tools: [tool]) {
+                if case .complete = progress.step,
+                   case .snapshot(let newSnapshot) = progress.detail {
+                    var statuses = prior?.statuses ?? [:]
+                    for (key, value) in newSnapshot.statuses {
+                        statuses[key] = value
+                    }
+                    state = .ready(DependencySnapshot(statuses: statuses))
+                }
+            }
+        } catch {
+            if let prior {
+                state = .ready(prior)
+            } else {
+                state = .uninitialized
+            }
+        }
+    }
+}
+
+// MARK: - ModelState Extension
+
+extension DependencyStatusModel.ModelState {
+    var snapshot: DependencySnapshot? {
+        switch self {
+        case .uninitialized:
+            return nil
+        case .checking(let prior):
+            return prior
+        case .ready(let snapshot):
+            return snapshot
+        case .installing(_, let prior):
+            return prior
+        }
     }
 }
 

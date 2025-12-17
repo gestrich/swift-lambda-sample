@@ -363,16 +363,17 @@ public enum DependencyInstallError: Error, LocalizedError {
 
 ## Phase 4: Update DependencyStatusModel
 
-**Status:** Not Started
+**Status:** Completed
 
 **Goal:** Refactor model to use workflows and enum-based state.
 
 **Files:**
 - Modify: `Sources/app-mac/Models/DependencyStatusModel.swift`
+- Modify: `Package.swift` (add service-setup dependency to app-mac)
 
 **Changes:**
 
-Replace current implementation with:
+Model now uses workflows with enum-based state and backward-compatible properties:
 ```swift
 import sdk_cli
 import service_setup
@@ -395,85 +396,64 @@ public final class DependencyStatusModel {
 
     // MARK: - Dependencies
 
+    public let cliClient: CLIClient
     private let statusWorkflow: DependencyStatusWorkflow
     private let installWorkflow: DependencyInstallWorkflow
 
     // MARK: - Init
 
     public init(cliClient: CLIClient) {
+        self.cliClient = cliClient
         self.statusWorkflow = DependencyStatusWorkflow(cliClient: cliClient)
         self.installWorkflow = DependencyInstallWorkflow(cliClient: cliClient)
     }
 
     // MARK: - Public API
 
-    public func checkAll() async {
-        let prior = state.snapshot
-        state = .checking(prior: prior)
+    public func checkAll() async { ... }
+    public func install(_ tool: CLITool) async { ... }
 
-        do {
-            for try await progress in statusWorkflow.run() {
-                if case .complete = progress.step,
-                   case .snapshot(let snapshot) = progress.detail {
-                    state = .ready(snapshot)
-                }
-            }
-        } catch {
-            // Restore prior state on error
-            if let prior {
-                state = .ready(prior)
-            } else {
-                state = .uninitialized
-            }
-        }
-    }
+    // MARK: - Convenience Accessors
 
-    public func install(_ tool: CLITool) async {
-        let prior = state.snapshot
-        state = .installing(tool, prior: prior)
+    public func status(for tool: CLITool) -> CLIToolStatus? { ... }
+    public var isChecking: Bool { ... }
+    public func isInstalling(_ tool: CLITool) -> Bool { ... }
 
-        do {
-            for try await progress in installWorkflow.run(tool: tool) {
-                if case .complete = progress.step {
-                    // Refresh all statuses after install
-                    await checkAll()
-                    return
-                }
-            }
-        } catch {
-            // Restore prior state on error
-            if let prior {
-                state = .ready(prior)
-            } else {
-                state = .uninitialized
-            }
-        }
-    }
-}
+    // MARK: - Backward-Compatible Properties
 
-extension DependencyStatusModel.ModelState {
-    var snapshot: DependencySnapshot? {
-        switch self {
-        case .uninitialized:
-            return nil
-        case .checking(let prior):
-            return prior
-        case .ready(let snapshot):
-            return snapshot
-        case .installing(_, let prior):
-            return prior
-        }
-    }
+    public var homebrewStatus: DependencyUIState { ... }
+    public var nodejsStatus: DependencyUIState { ... }
+    public var dockerStatus: DependencyUIState { ... }
+    public var awsCLIStatus: DependencyUIState { ... }
+    public var cdkStatus: DependencyUIState { ... }
+    public var githubCLIStatus: DependencyUIState { ... }
+
+    // MARK: - Backward-Compatible Methods
+
+    public func checkHomebrew() async { ... }
+    public func checkNodeJS() async { ... }
+    public func checkDocker() async { ... }
+    public func checkAWSCLI() async { ... }
+    public func checkCDK() async { ... }
+    public func checkGitHubCLI() async { ... }
 }
 ```
 
 **Technical Notes:**
 - Single `state` property with enum cases
 - Prior snapshot preserved during operations
-- `DependencyUIState` enum removed (no longer needed)
-- Views will need updates to access status via new pattern
+- `DependencyUIState` enum retained for backward compatibility with views
+- Backward-compatible computed properties map from new state to old `DependencyUIState`
+- Backward-compatible methods use workflow to check single tools
+- `cliClient` property kept public (required by existing `DependencyView`)
+- Phase 6 (app-mac dependency) completed as part of this phase since it was required
 
 **Verification:** `swift build` succeeds.
+
+**Implementation Notes:**
+- Backward-compatible properties compute `DependencyUIState` from the new `ModelState`
+- When checking or installing, returns `.checking` state appropriately
+- `checkSingleTool` method merges new results with existing snapshot
 
 ---
 
@@ -535,7 +515,7 @@ let status = model.dependencyStatusModel.status(for: .docker)
 
 ## Phase 6: Add app-mac Dependency on service-setup
 
-**Status:** Not Started
+**Status:** Completed (as part of Phase 4)
 
 **Goal:** Update Package.swift to wire up the dependency.
 
@@ -543,17 +523,12 @@ let status = model.dependencyStatusModel.status(for: .docker)
 - Modify: `Package.swift`
 
 **Changes:**
-```swift
-.target(
-    name: "app-mac",
-    dependencies: [
-        // ... existing dependencies ...
-        "service-setup",  // Add this
-    ]
-),
-```
+Added `service-setup` dependency to `app-mac` target in Package.swift.
 
 **Verification:** `swift build` succeeds.
+
+**Implementation Notes:**
+- Completed as part of Phase 4 since it was required for the model to import service-setup types
 
 ---
 
