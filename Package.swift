@@ -163,11 +163,12 @@ let package = Package(
             path: "Sources/features/DeployRemoteFeature"
         ),
         .target(
-            name: "b-workflow-deploy-local-xcode",
+            name: "DeployLocalXcodeFeature",
             dependencies: [
                 .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
-            ]
+            ],
+            path: "Sources/features/DeployLocalXcodeFeature"
         ),
         .target(
             name: "b-workflow-deploy-local-linux",
@@ -181,7 +182,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "DeployRemoteFeature"),
-                .target(name: "b-workflow-deploy-local-xcode"),
+                .target(name: "DeployLocalXcodeFeature"),
                 .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
@@ -211,7 +212,7 @@ let package = Package(
             dependencies: [
                 .target(name: "ClientService"),
                 .target(name: "DeployRemoteFeature"),
-                .target(name: "b-workflow-deploy-local-xcode"),
+                .target(name: "DeployLocalXcodeFeature"),
                 .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "SetupFeature"),
                 .target(name: "DeployLocalService"),

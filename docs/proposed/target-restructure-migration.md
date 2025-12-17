@@ -246,14 +246,13 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update dependency references
   - [x] Verify tests pass
 
-- [ ] **DeployLocalXcodeFeature**
-  - [ ] Create `features/DeployLocalXcodeFeature/` with `workflows/` and `services/` subfolders
-  - [ ] Move workflow code from `b-workflow-deploy-local-xcode/` to `features/DeployLocalXcodeFeature/workflows/`
-  - [ ] Add any xcode-specific service code to `services/` subfolder (if applicable)
-  - [ ] Update Package.swift (single target for the feature)
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DeployLocalXcodeFeature** ✅
+  - [x] Create `features/DeployLocalXcodeFeature/` with `workflows/` subfolder
+  - [x] Move workflow code from `b-workflow-deploy-local-xcode/` to `features/DeployLocalXcodeFeature/workflows/`
+  - [x] Update Package.swift (single target for the feature)
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **DeployLocalLinuxFeature**
   - [ ] Create `features/DeployLocalLinuxFeature/` with `workflows/` and `services/` subfolders
@@ -826,3 +825,34 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DeployRemoteFeatureTests` becomes module name `DeployRemoteFeatureTests` directly (PascalCase, no hyphens)
+
+### DeployLocalXcodeFeature Migration (Phase 3.4)
+
+**Key changes:**
+- Created `Sources/features/DeployLocalXcodeFeature/` with `workflows/` subfolder
+- Moved `Sources/b-workflow-deploy-local-xcode/` files → `Sources/features/DeployLocalXcodeFeature/workflows/`
+- Removed old directory after migration
+- Updated Package.swift: renamed target from `b-workflow-deploy-local-xcode` to `DeployLocalXcodeFeature` with explicit path
+- Updated dependency references in `a-app-cli` and `a-app-mac`
+- Updated all imports from `import b_workflow_deploy_local_xcode` to `import DeployLocalXcodeFeature`
+
+**Files moved to workflows/:**
+- `XcodeBuildWorkflow.swift`
+- `XcodeCopyConfigWorkflow.swift`
+- `XcodeStartAllWorkflow.swift`
+- `XcodeStartLambdaWorkflow.swift`
+- `XcodeStartServicesWorkflow.swift`
+- `XcodeStatusWorkflow.swift`
+- `XcodeStopAllWorkflow.swift`
+- `XcodeStopLambdaWorkflow.swift`
+- `XcodeStopServicesWorkflow.swift`
+- `XcodeTestWorkflow.swift`
+
+**Files updated (imports):**
+- `Sources/a-app-cli/Commands/LocalCommand.swift`
+- `Sources/a-app-mac/Models/XcodeLocalModel.swift`
+
+**Note:** This feature only contains workflow code (no service layer). The service code it depends on is in `DeployLocalService` which was already migrated. Unlike SetupFeature and DeployRemoteFeature which merged workflow + service targets, DeployLocalXcodeFeature is a pure workflow feature that depends on a shared service.
+
+**Module name behavior:**
+- `DeployLocalXcodeFeature` becomes module name `DeployLocalXcodeFeature` directly (PascalCase, no hyphens)
