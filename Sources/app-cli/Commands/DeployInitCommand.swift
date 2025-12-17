@@ -172,6 +172,13 @@ extension AWSCommand {
 
             case .waitingForWorkflow:
                 print("   Waiting for GitHub Actions workflow...")
+
+            case .monitoringWorkflow(let runId):
+                if let detail = progress.runDetail {
+                    print("   Monitoring workflow \(runId): \(detail.status)")
+                } else {
+                    print("   Monitoring workflow \(runId)...")
+                }
             }
         }
     }

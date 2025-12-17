@@ -819,9 +819,26 @@ public final class GitHubCIModel {
 - Updated `Sources/app-mac/RemoteService/RemoteServiceView.swift`:
   - Fixed argument label from `repoPath:` to `projectRoot:`
 
-### [ ] Phase 4: Update UpdateLambdaWorkflow (service-deploy)
-- [ ] Use GitHubCLIClient and GitClient directly (already stateless)
-- [ ] Remove dependency on GitHubActionsClient
+### [x] Phase 4: Update UpdateLambdaWorkflow (service-deploy)
+- [x] Use GitHubCLIClient and GitClient directly (already stateless)
+- [x] Remove dependency on GitHubActionsClient
+
+**Technical Notes (Phase 4):**
+- Refactored `Sources/service-deploy/Workflows/UpdateLambdaWorkflow.swift`:
+  - Replaced `GitHubActionsClient` dependency with `GitHubCLIClient` (stateless)
+  - Added `branch` and `workflowName` fields to store configuration directly
+  - Updated `create()` factory to construct `GitHubCLIClient` directly using `githubConfig.repository`
+  - Implemented `triggerAndWaitForCompletion()` helper method
+  - Implemented `waitForNewRun()` method (moved from GitHubActionsClient)
+  - Implemented `monitorUntilComplete()` method (moved from GitHubActionsClient)
+  - Added `UpdateLambdaWorkflowError` enum for workflow-specific errors
+- Updated `Sources/service-deploy/Models/DeploymentState.swift`:
+  - Added `import sdk_github` for `GitHubRunDetail` type
+  - Added `runDetail: GitHubRunDetail?` property to `UpdateLambdaProgress`
+  - Added `monitoringWorkflow(runId: String)` case to `UpdateLambdaProgress.Step`
+- Updated CLI command files to handle new step case:
+  - `Sources/app-cli/Commands/UpdateLambdaCommand.swift`: Added case for `.monitoringWorkflow`
+  - `Sources/app-cli/Commands/DeployInitCommand.swift`: Added case for `.monitoringWorkflow`
 
 ### [ ] Phase 5: Update StatusWorkflow (service-deploy)
 - [ ] Use GitHubCLIClient and GitClient directly

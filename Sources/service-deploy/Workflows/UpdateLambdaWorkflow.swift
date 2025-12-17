@@ -6,14 +6,20 @@ import sdk_github
 /// Orchestrates git operations and workflow monitoring, returning progress via stream.
 public struct UpdateLambdaWorkflow: Sendable {
     private let gitClient: GitClient
-    private let githubClient: GitHubActionsClient
+    private let ghClient: GitHubCLIClient
+    private let branch: String
+    private let workflowName: String?
 
     public init(
         gitClient: GitClient,
-        githubClient: GitHubActionsClient
+        ghClient: GitHubCLIClient,
+        branch: String,
+        workflowName: String?
     ) {
         self.gitClient = gitClient
-        self.githubClient = githubClient
+        self.ghClient = ghClient
+        self.branch = branch
+        self.workflowName = workflowName
     }
 
     /// Creates a workflow by loading GitHub configuration from disk.
@@ -33,15 +39,13 @@ public struct UpdateLambdaWorkflow: Sendable {
         }
 
         let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
-        let githubClient = GitHubActionsClient(
-            repoPath: projectRoot,
-            config: githubConfig.toSDKConfiguration(),
-            cliClient: cliClient
-        )
+        let ghClient = GitHubCLIClient(repository: githubConfig.repository, cliClient: cliClient)
 
         return UpdateLambdaWorkflow(
             gitClient: gitClient,
-            githubClient: githubClient
+            ghClient: ghClient,
+            branch: githubConfig.branch,
+            workflowName: githubConfig.workflowName
         )
     }
 
@@ -99,12 +103,13 @@ public struct UpdateLambdaWorkflow: Sendable {
                 startTime: startTime
             )))
 
-            try await githubClient.triggerWorkflowAndWait(
+            try await triggerAndWaitForCompletion(
                 workflowName: options.workflowName,
-                timeoutMinutes: options.timeoutMinutes
+                timeoutMinutes: options.timeoutMinutes,
+                continuation: continuation,
+                startTime: startTime
             )
 
-            // Stream finishes without .completed - Lambda updates don't change infrastructure
             continuation.finish()
             return
         }
@@ -116,7 +121,7 @@ public struct UpdateLambdaWorkflow: Sendable {
         let hasCommitsToPush = try await gitClient.hasCommitsToPush()
 
         if hasCommitsToPush {
-            let beforeRunId = try await githubClient.getLatestRunId()
+            let beforeRunId = try await ghClient.getLatestWorkflowRun(branch: branch, workflow: workflowName)?.id
 
             continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
                 step: .pushing,
@@ -128,22 +133,129 @@ public struct UpdateLambdaWorkflow: Sendable {
                 step: .waitingForWorkflow,
                 startTime: startTime
             )))
-            try await githubClient.waitForNewWorkflowCompletion(
-                afterRunId: beforeRunId,
-                timeoutMinutes: options.timeoutMinutes
+
+            let runId = try await waitForNewRun(afterRunId: beforeRunId, timeout: .seconds(60))
+            try await monitorUntilComplete(
+                runId: runId,
+                timeoutMinutes: options.timeoutMinutes,
+                continuation: continuation,
+                startTime: startTime
             )
         } else {
             continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
                 step: .triggeringWorkflow,
                 startTime: startTime
             )))
-            try await githubClient.triggerWorkflowAndWait(
+            try await triggerAndWaitForCompletion(
                 workflowName: options.workflowName,
-                timeoutMinutes: options.timeoutMinutes
+                timeoutMinutes: options.timeoutMinutes,
+                continuation: continuation,
+                startTime: startTime
             )
         }
 
-        // Stream finishes without .completed - Lambda updates don't change infrastructure
         continuation.finish()
+    }
+
+    // MARK: - Private Helpers
+
+    private func triggerAndWaitForCompletion(
+        workflowName: String,
+        timeoutMinutes: Int,
+        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation,
+        startTime: Date
+    ) async throws {
+        let beforeRunId = try await ghClient.getLatestWorkflowRun(branch: branch, workflow: self.workflowName)?.id
+
+        try await ghClient.triggerWorkflow(workflow: workflowName, branch: branch)
+
+        try await Task.sleep(for: .seconds(2))
+
+        continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            step: .waitingForWorkflow,
+            startTime: startTime
+        )))
+
+        let runId = try await waitForNewRun(afterRunId: beforeRunId, timeout: .seconds(60))
+        try await monitorUntilComplete(
+            runId: runId,
+            timeoutMinutes: timeoutMinutes,
+            continuation: continuation,
+            startTime: startTime
+        )
+    }
+
+    private func waitForNewRun(afterRunId: String?, timeout: Duration) async throws -> String {
+        let startClock = ContinuousClock.now
+        let pollInterval: Duration = .seconds(2)
+
+        while ContinuousClock.now - startClock < timeout {
+            if let run = try await ghClient.getLatestWorkflowRun(branch: branch, workflow: workflowName) {
+                if let afterId = afterRunId {
+                    if let newIdInt = Int(run.id), let afterIdInt = Int(afterId), newIdInt > afterIdInt {
+                        return run.id
+                    }
+                } else {
+                    return run.id
+                }
+            }
+            try await Task.sleep(for: pollInterval)
+        }
+
+        throw UpdateLambdaWorkflowError.timeout(operation: "waiting for new workflow run", duration: timeout)
+    }
+
+    private func monitorUntilComplete(
+        runId: String,
+        timeoutMinutes: Int,
+        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation,
+        startTime: Date
+    ) async throws {
+        let pollInterval: Duration = .seconds(10)
+        let timeout: Duration = .seconds(timeoutMinutes * 60)
+        let startClock = ContinuousClock.now
+
+        while !Task.isCancelled {
+            if ContinuousClock.now - startClock > timeout {
+                throw UpdateLambdaWorkflowError.timeout(operation: "workflow monitoring", duration: timeout)
+            }
+
+            let detail = try await ghClient.getRunDetail(runId: runId)
+
+            if detail.isCompleted {
+                if detail.isSuccess {
+                    return
+                } else {
+                    throw UpdateLambdaWorkflowError.workflowFailed(
+                        runId: runId,
+                        conclusion: detail.conclusion ?? "unknown"
+                    )
+                }
+            }
+
+            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+                step: .monitoringWorkflow(runId: runId),
+                startTime: startTime,
+                runDetail: detail
+            )))
+
+            try await Task.sleep(for: pollInterval)
+        }
+    }
+}
+
+// MARK: - Errors
+
+public enum UpdateLambdaWorkflowError: Error, LocalizedError {
+    case timeout(operation: String, duration: Duration)
+    case workflowFailed(runId: String, conclusion: String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .timeout(let operation, let duration):
+            return "Timeout during \(operation) after \(duration)"
+        case .workflowFailed(let runId, let conclusion):
+            return "Workflow \(runId) failed: \(conclusion)"
+        }
     }
 }

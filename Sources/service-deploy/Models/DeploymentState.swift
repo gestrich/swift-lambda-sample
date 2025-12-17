@@ -1,5 +1,6 @@
 import Foundation
 import sdk_aws
+import sdk_github
 
 // MARK: - DeploymentSnapshot (Stable State)
 
@@ -168,17 +169,20 @@ public enum WorkflowState: Sendable, Equatable {
     public struct UpdateLambdaProgress: Sendable, Equatable {
         public let step: Step
         public let startTime: Date
+        public let runDetail: GitHubRunDetail?
 
         public enum Step: Sendable, Equatable {
             case checkingGitStatus
             case pushing
             case triggeringWorkflow
             case waitingForWorkflow
+            case monitoringWorkflow(runId: String)
         }
 
-        public init(step: Step, startTime: Date) {
+        public init(step: Step, startTime: Date, runDetail: GitHubRunDetail? = nil) {
             self.step = step
             self.startTime = startTime
+            self.runDetail = runDetail
         }
     }
 
