@@ -5,7 +5,7 @@
 
 ## Objective
 
-Rename all Swift package targets to use numbered layer prefixes (`a1-`, `a2-`, `a3-`, `a4-`) so that alphabetical sorting matches architectural hierarchy.
+Rename all Swift package targets to use letter layer prefixes (`a-`, `b-`, `c-`, `d-`) so that alphabetical sorting matches architectural hierarchy.
 
 ## Background
 
@@ -37,85 +37,85 @@ Add layer prefixes so alphabetical order matches top-to-bottom architecture:
 
 | Layer | Prefix | Rationale |
 |-------|--------|-----------|
-| App | `a1-` | Top layer, first alphabetically |
-| Workflow | `a2-` | Second layer |
-| Service | `a3-` | Third layer |
-| SDK | `a4-` | Bottom layer, last alphabetically |
+| App | `a-` | Top layer, first alphabetically |
+| Workflow | `b-` | Second layer |
+| Service | `c-` | Third layer |
+| SDK | `d-` | Bottom layer, last alphabetically |
 
-The `a` prefix groups all architecture layers together; the number indicates depth.
+The letter prefix indicates architectural depth (a = top, d = bottom).
 
 ## Target Rename Mapping
 
-### Apps (`a1-app-*`)
+### Apps (`a-app-*`)
 
 | Current | New |
 |---------|-----|
-| `app-cli` | `a1-app-cli` |
-| `app-lambda` | `a1-app-lambda` |
-| `app-mac` | `a1-app-mac` |
+| `app-cli` | `a-app-cli` |
+| `app-lambda` | `a-app-lambda` |
+| `app-mac` | `a-app-mac` |
 
-### Workflows (`a2-workflow-*`)
-
-| Current | New |
-|---------|-----|
-| `workflows-deploy-remote` | `a2-workflow-deploy-remote` |
-| `workflows-setup` | `a2-workflow-setup` |
-
-### Services (`a3-service-*`)
+### Workflows (`b-workflow-*`)
 
 | Current | New |
 |---------|-----|
-| `service-deploy-core` | `a3-service-deploy-core` |
-| `service-deploy-local` | `a3-service-deploy-local` |
-| `service-deploy-remote` | `a3-service-deploy-remote` |
-| `service-lambda-build` | `a3-service-lambda-build` |
-| `service-setup` | `a3-service-setup` |
-| `service-storage` | `a3-service-storage` |
+| `workflows-deploy-remote` | `b-workflow-deploy-remote` |
+| `workflows-setup` | `b-workflow-setup` |
 
-### SDKs (`a4-sdk-*`)
+### Services (`c-service-*`)
 
 | Current | New |
 |---------|-----|
-| `sdk-aws` | `a4-sdk-aws` |
-| `sdk-cli` | `a4-sdk-cli` |
-| `sdk-cli-brew` | `a4-sdk-cli-brew` |
-| `sdk-cli-docker` | `a4-sdk-cli-docker` |
-| `sdk-cli-macros` | `a4-sdk-cli-macros` |
-| `sdk-cli-node` | `a4-sdk-cli-node` |
-| `sdk-client` | `a4-sdk-client` |
-| `sdk-github` | `a4-sdk-github` |
+| `service-deploy-core` | `c-service-deploy-core` |
+| `service-deploy-local` | `c-service-deploy-local` |
+| `service-deploy-remote` | `c-service-deploy-remote` |
+| `service-lambda-build` | `c-service-lambda-build` |
+| `service-setup` | `c-service-setup` |
+| `service-storage` | `c-service-storage` |
+
+### SDKs (`d-sdk-*`)
+
+| Current | New |
+|---------|-----|
+| `sdk-aws` | `d-sdk-aws` |
+| `sdk-cli` | `d-sdk-cli` |
+| `sdk-cli-brew` | `d-sdk-cli-brew` |
+| `sdk-cli-docker` | `d-sdk-cli-docker` |
+| `sdk-cli-macros` | `d-sdk-cli-macros` |
+| `sdk-cli-node` | `d-sdk-cli-node` |
+| `sdk-client` | `d-sdk-client` |
+| `sdk-github` | `d-sdk-github` |
 
 ### Tests
 
 | Current | New |
 |---------|-----|
-| `sdk-cli-tests` | `a4-sdk-cli-tests` |
-| `service-deploy-remote-tests` | `a3-service-deploy-remote-tests` |
+| `sdk-cli-tests` | `d-sdk-cli-tests` |
+| `service-deploy-remote-tests` | `c-service-deploy-remote-tests` |
 
 ## Resulting Alphabetical Order
 
 After renaming, `ls Sources/` will show:
 
 ```
-a1-app-cli
-a1-app-lambda
-a1-app-mac
-a2-workflow-deploy-remote
-a2-workflow-setup
-a3-service-deploy-core
-a3-service-deploy-local
-a3-service-deploy-remote
-a3-service-lambda-build
-a3-service-setup
-a3-service-storage
-a4-sdk-aws
-a4-sdk-cli
-a4-sdk-cli-brew
-a4-sdk-cli-docker
-a4-sdk-cli-macros
-a4-sdk-cli-node
-a4-sdk-client
-a4-sdk-github
+a-app-cli
+a-app-lambda
+a-app-mac
+b-workflow-deploy-remote
+b-workflow-setup
+c-service-deploy-core
+c-service-deploy-local
+c-service-deploy-remote
+c-service-lambda-build
+c-service-setup
+c-service-storage
+d-sdk-aws
+d-sdk-cli
+d-sdk-cli-brew
+d-sdk-cli-docker
+d-sdk-cli-macros
+d-sdk-cli-node
+d-sdk-client
+d-sdk-github
 ```
 
 This order now reflects the architectural dependency hierarchy.
@@ -126,40 +126,40 @@ This order now reflects the architectural dependency hierarchy.
 
 Rename from the bottom of the dependency graph up to avoid broken intermediate states.
 
-1. Rename `Sources/sdk-*` directories to `Sources/a4-sdk-*`
+1. Rename `Sources/sdk-*` directories to `Sources/d-sdk-*`
 2. Update `Package.swift`:
    - Target names
-   - Target dependencies (all `.target(name: "sdk-*")` → `.target(name: "a4-sdk-*")`)
-3. Update imports in source files (`import sdk_cli` → `import a4_sdk_cli`)
+   - Target dependencies (all `.target(name: "sdk-*")` → `.target(name: "d-sdk-*")`)
+3. Update imports in source files (`import sdk_cli` → `import d_sdk_cli`)
 4. Verify build: `swift build`
 
 ### Phase 2: Rename Service Targets
 
-1. Rename `Sources/service-*` directories to `Sources/a3-service-*`
+1. Rename `Sources/service-*` directories to `Sources/c-service-*`
 2. Update `Package.swift` target names and dependencies
 3. Update imports in source files
 4. Verify build: `swift build`
 
 ### Phase 3: Rename Workflow Targets
 
-1. Rename `Sources/workflows-*` directories to `Sources/a2-workflow-*`
+1. Rename `Sources/workflows-*` directories to `Sources/b-workflow-*`
 2. Update `Package.swift` target names and dependencies
 3. Update imports in source files
 4. Verify build: `swift build`
 
 ### Phase 4: Rename App Targets
 
-1. Rename `Sources/app-*` directories to `Sources/a1-app-*`
+1. Rename `Sources/app-*` directories to `Sources/a-app-*`
 2. Update `Package.swift`:
    - Target names
-   - Product names (keep `app-lambda` product name or rename to `a1-app-lambda`)
+   - Product names (keep `app-lambda` product name or rename to `a-app-lambda`)
 3. Update imports in source files
 4. Verify build: `swift build`
 
 ### Phase 5: Rename Test Targets
 
-1. Rename `Tests/sdk-cli-tests` → `Tests/a4-sdk-cli-tests`
-2. Rename `Tests/service-deploy-remote-tests` → `Tests/a3-service-deploy-remote-tests`
+1. Rename `Tests/sdk-cli-tests` → `Tests/d-sdk-cli-tests`
+2. Rename `Tests/service-deploy-remote-tests` → `Tests/c-service-deploy-remote-tests`
 3. Update `Package.swift` test target names and dependencies
 4. Run tests: `swift test`
 
@@ -186,9 +186,9 @@ Every target definition and dependency reference:
 
 // After
 .target(
-    name: "a4-sdk-cli",
+    name: "d-sdk-cli",
     dependencies: [
-        .target(name: "a4-sdk-cli-macros"),
+        .target(name: "d-sdk-cli-macros"),
     ]
 )
 ```
@@ -204,9 +204,9 @@ import service_deploy_remote
 import workflows_deploy_remote
 
 // After
-import a4_sdk_cli
-import a3_service_deploy_remote
-import a2_workflow_deploy_remote
+import d_sdk_cli
+import c_service_deploy_remote
+import b_workflow_deploy_remote
 ```
 
 ## Considerations
@@ -218,14 +218,14 @@ The executable product `app-lambda` is referenced by:
 - Build scripts (`build.sh`)
 - AWS Lambda function name configuration
 
-**Decision needed**: Keep product name as `app-lambda` or rename to `a1-app-lambda`?
+**Decision needed**: Keep product name as `app-lambda` or rename to `a-app-lambda`?
 
 Recommendation: Keep product name as `app-lambda` for external compatibility:
 
 ```swift
 .executable(
     name: "app-lambda",           // Keep external name
-    targets: ["a1-app-lambda"]    // Internal target renamed
+    targets: ["a-app-lambda"]     // Internal target renamed
 )
 ```
 
@@ -254,7 +254,7 @@ The macro target `sdk-cli-macros` follows the same pattern:
 
 ```swift
 .macro(
-    name: "a4-sdk-cli-macros",
+    name: "d-sdk-cli-macros",
     ...
 )
 ```
