@@ -2,6 +2,7 @@ import Foundation
 import sdk_aws
 import sdk_cli
 import sdk_github
+import service_deploy_core
 
 /// Workflow for initial deployment - setting infrastructure configuration.
 /// Orchestrates safety checks, CDK deployment, Lambda update, database init, and verification.

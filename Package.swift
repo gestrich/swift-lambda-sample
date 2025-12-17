@@ -74,6 +74,13 @@ let package = Package(
             name: "service-storage"
         ),
         .target(
+            name: "service-deploy-core",
+            dependencies: [
+                .target(name: "sdk-cli"),
+                .target(name: "sdk-client"),
+            ]
+        ),
+        .target(
             name: "service-setup",
             dependencies: [
                 .target(name: "sdk-cli"),
@@ -95,6 +102,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "service-deploy-remote"),
+                .target(name: "service-deploy-core"),
                 .target(name: "sdk-aws"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-github"),
@@ -113,6 +121,7 @@ let package = Package(
                 .target(name: "sdk-cli-docker"),
                 .target(name: "sdk-aws"),
                 .target(name: "sdk-github"),
+                .target(name: "service-deploy-core"),
             ]
         ),
         .executableTarget(
@@ -133,6 +142,7 @@ let package = Package(
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy-remote"),
+                .target(name: "service-deploy-core"),
                 .target(name: "service-lambda-build"),
                 .target(name: "service-storage"),
                 .target(name: "service-setup"),

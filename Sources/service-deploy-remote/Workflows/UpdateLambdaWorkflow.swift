@@ -1,6 +1,7 @@
 import Foundation
 import sdk_cli
 import sdk_github
+import service_deploy_core
 
 /// Workflow for updating Lambda code via GitHub Actions.
 /// Orchestrates git operations and workflow monitoring, returning progress via stream.

@@ -4,6 +4,7 @@ import sdk_client
 import service_lambda_build
 import Foundation
 import service_storage
+import service_deploy_core
 
 /// Stateless service for Linux container development workflow (AWS Lambda compatible)
 /// Orchestrates Docker services, container builds, and Lambda container management

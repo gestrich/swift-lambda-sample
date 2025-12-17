@@ -3,6 +3,7 @@ import sdk_cli
 import Combine
 import Foundation
 import service_deploy_remote
+import service_deploy_core
 import service_lambda_build
 
 /// Model that wraps a LocalService, providing @Observable properties for SwiftUI.
