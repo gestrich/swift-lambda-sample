@@ -287,11 +287,11 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
     - [ ] Documentation (CLAUDE.md, README.md) referencing CLI commands - deferred to Phase 5
   - [x] Verify build succeeds
 
-- [ ] **MacApp**
-  - [ ] Move `a-app-mac/` to `apps/MacApp/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Verify build succeeds
+- [x] **MacApp** ✅
+  - [x] Move `a-app-mac/` to `apps/MacApp/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Verify build succeeds
 
 ### Phase 5: Cleanup
 
@@ -936,3 +936,25 @@ CLISDK ◄── CLIMacrosSDK
 - CLAUDE.md and README.md contain many references to `swift run SwiftDeploy` which is the old alias for the CLI
 - These documentation updates are deferred to Phase 5 (Cleanup) since the functional `tools.sh` wrapper has been updated
 - The CLI itself works correctly with `swift run CLIApp` or `./tools.sh`
+
+### MacApp Migration (Phase 4.3)
+
+**Key changes:**
+- Moved `Sources/a-app-mac/` → `Sources/apps/MacApp/`
+- Updated Package.swift: renamed target from `a-app-mac` to `MacApp` with explicit path
+- No product name change needed (target was not exposed as a product)
+- No import statement updates needed (executable target, not imported by other modules)
+
+**Files in target:**
+- `main.swift` - App entry point
+- `Models/` - Observable models (AppModel, DeploymentModel, etc.)
+- `UI/` - SwiftUI views organized by feature area
+
+**Module name behavior:**
+- `MacApp` becomes module name `MacApp` directly (PascalCase, no hyphens)
+
+**Documentation updates deferred:**
+- CLAUDE.md references to `a-app-mac` in the architecture diagram and project structure
+- These updates are deferred to Phase 5 (Cleanup)
+
+**Note:** This completes Phase 4 (Apps). All app layer targets have been migrated to the new `apps/` folder structure with PascalCase naming.

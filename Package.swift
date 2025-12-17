@@ -211,7 +211,7 @@ let package = Package(
             path: "Sources/apps/LambdaApp"
         ),
         .executableTarget(
-            name: "a-app-mac",
+            name: "MacApp",
             dependencies: [
                 .target(name: "ClientService"),
                 .target(name: "DeployRemoteFeature"),
@@ -229,6 +229,7 @@ let package = Package(
                 .target(name: "AWSSDK"),
                 .target(name: "GitHubSDK"),
             ],
+            path: "Sources/apps/MacApp",
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
