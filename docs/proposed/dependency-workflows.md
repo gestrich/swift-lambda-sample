@@ -244,7 +244,7 @@ public struct DependencyStatusWorkflow: Sendable {
 
 ## Phase 3: Create DependencyInstallWorkflow
 
-**Status:** Not Started
+**Status:** Completed
 
 **Goal:** Workflow that installs a specific dependency.
 
@@ -349,9 +349,15 @@ public enum DependencyInstallError: Error, LocalizedError {
 - Uses Homebrew for most installations
 - Some tools (Homebrew itself, CDK) require manual installation
 - Verifies installation after completion
-- May need to expose `checkTool` from DependencyStatusWorkflow
+- Reuses `checkTool` from `DependencyStatusWorkflow` (internal method exposed for same-module access)
 
 **Verification:** `swift build` succeeds.
+
+**Implementation Notes:**
+- Required `import Foundation` for `LocalizedError` protocol
+- Error message uses `tool.displayName` instead of `tool.rawValue` for better user-facing messages
+- Workflow yields progress at each step: preparing → installing → verifying → complete
+- On error, yields `.failed` detail before throwing
 
 ---
 
