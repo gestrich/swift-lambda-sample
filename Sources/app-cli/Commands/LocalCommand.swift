@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import service_deploy_remote
+import service_deploy_local
 import service_deploy_core
 
 // MARK: - Local Mac Command (Native macOS)

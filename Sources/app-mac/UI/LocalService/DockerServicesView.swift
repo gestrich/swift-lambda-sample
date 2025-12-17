@@ -1,5 +1,5 @@
 import AppKit
-import service_deploy_remote
+import service_deploy_local
 import service_deploy_core
 import SwiftUI
 

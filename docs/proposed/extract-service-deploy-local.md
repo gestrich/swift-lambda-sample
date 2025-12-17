@@ -1,6 +1,6 @@
 # Extract service-deploy-local Target
 
-**Status:** In Progress
+**Status:** Complete
 **Date:** 2025-12-17
 
 ## Objective
@@ -177,36 +177,52 @@ Sources/service-deploy-local/
 - Created placeholder file `ServiceDeployLocal.swift` to satisfy Swift package manager requirements
 - Target dependencies match the proposal: `sdk-cli`, `sdk-cli-docker`, `sdk-client`, `service-storage`, `service-lambda-build`, `service-deploy-core`
 
-### Phase 3: Move Local Development Services
+### Phase 3: Move Local Development Services ✅ COMPLETED
 
-- [ ] Move `LocalDevelopmentService/Containers/` → `service-deploy-local/Containers/`
-- [ ] Move `LocalDevelopmentService/LinuxLocalDevelopmentService.swift` → `service-deploy-local/`
-- [ ] Move `LocalDevelopmentService/XcodeLocalDevelopmentService.swift` → `service-deploy-local/`
-- [ ] Move `LocalDevelopmentService/EnvironmentVariables.swift` → `service-deploy-local/`
-- [ ] Move `LocalDevelopmentService/Protocols/LocalService.swift` → `service-deploy-local/LocalService.swift`
-- [ ] Update imports in moved files
-- [ ] Build and verify
+- [x] Move `LocalDevelopmentService/Containers/` → `service-deploy-local/Containers/`
+- [x] Move `LocalDevelopmentService/LinuxLocalDevelopmentService.swift` → `service-deploy-local/`
+- [x] Move `LocalDevelopmentService/XcodeLocalDevelopmentService.swift` → `service-deploy-local/`
+- [x] Move `LocalDevelopmentService/EnvironmentVariables.swift` → `service-deploy-local/`
+- [x] Move `LocalDevelopmentService/Protocols/LocalService.swift` → `service-deploy-local/LocalService.swift`
+- [x] Update imports in moved files
+- [x] Build and verify
 
-### Phase 4: Update Consumers
+**Technical Notes (Phase 3):**
+- Moved 7 files total: 3 container services (MinIO, PostgreSQL, DynamoDB), 2 development services (Xcode, Linux), 1 protocol (LocalService), 1 helper (EnvironmentVariables)
+- Removed placeholder `ServiceDeployLocal.swift` after moving real files
+- Deleted empty `LocalDevelopmentService/` directory tree from `service-deploy-remote`
 
-- [ ] Update `app-cli/Commands/LocalCommand.swift`:
-  - Add `import service_deploy_local`
-  - Add `import service_deploy_core` (if needed)
-- [ ] Update `app-mac/Models/XcodeLocalModel.swift`:
-  - Add `import service_deploy_local`
-  - Add `import service_deploy_core`
-- [ ] Update `app-mac/Models/LinuxLocalModel.swift`:
-  - Add `import service_deploy_local`
-  - Add `import service_deploy_core`
-- [ ] Build and verify all targets compile
+### Phase 4: Update Consumers ✅ COMPLETED
 
-### Phase 5: Clean Up service-deploy-remote
+- [x] Update `app-cli/Commands/LocalCommand.swift`:
+  - Changed `import service_deploy_remote` → `import service_deploy_local`
+- [x] Update `app-mac/Models/XcodeLocalModel.swift`:
+  - Changed `import service_deploy_remote` → `import service_deploy_local`
+- [x] Update `app-mac/Models/LinuxLocalModel.swift`:
+  - Changed `import service_deploy_remote` → `import service_deploy_local`
+- [x] Update `app-mac/UI/LocalService/LocalServicesModel.swift`:
+  - Changed `import service_deploy_remote` → `import service_deploy_local`
+- [x] Update `app-mac/UI/LocalService/DockerServicesView.swift`:
+  - Changed `import service_deploy_remote` → `import service_deploy_local`
+- [x] Add `service-deploy-local` dependency to `app-cli` in Package.swift
+- [x] Add `service-deploy-local` dependency to `app-mac` in Package.swift
+- [x] Build and verify all targets compile
 
-- [ ] Delete empty `LocalDevelopmentService/` directory from `service-deploy-remote`
-- [ ] Delete empty `Core/Errors/` directory (if empty)
-- [ ] Delete empty `LambdaService/Models/` and `LambdaService/Protocols/` directories (if empty)
-- [ ] Verify `service-deploy-remote` no longer references local-only types
-- [ ] Run full build to ensure no broken references
+**Technical Notes (Phase 4):**
+- Additional file `DockerServicesView.swift` also needed import update (not originally listed)
+- Replaced `service_deploy_remote` import with `service_deploy_local` (not added alongside)
+
+### Phase 5: Clean Up service-deploy-remote ✅ COMPLETED
+
+- [x] Delete empty `LocalDevelopmentService/` directory from `service-deploy-remote`
+- [x] `Core/Errors/` already removed in Phase 1
+- [x] `LambdaService/Models/` and `LambdaService/Protocols/` already removed in Phase 1
+- [x] Verify `service-deploy-remote` no longer references local-only types
+- [x] Run full build to ensure no broken references
+
+**Technical Notes (Phase 5):**
+- `LocalDevelopmentService/` directory tree (including `Containers/` and `Protocols/` subdirectories) was removed as part of Phase 3
+- Full build passes successfully
 
 ## Dependency Diagram
 

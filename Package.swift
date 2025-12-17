@@ -113,6 +113,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "service-deploy-remote"),
+                .target(name: "service-deploy-local"),
                 .target(name: "service-deploy-core"),
                 .target(name: "sdk-aws"),
                 .target(name: "sdk-cli"),
@@ -153,6 +154,7 @@ let package = Package(
             dependencies: [
                 .target(name: "sdk-client"),
                 .target(name: "service-deploy-remote"),
+                .target(name: "service-deploy-local"),
                 .target(name: "service-deploy-core"),
                 .target(name: "service-lambda-build"),
                 .target(name: "service-storage"),

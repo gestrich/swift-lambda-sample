@@ -3,7 +3,7 @@ import sdk_client
 import Combine
 import Foundation
 import service_storage
-import service_deploy_remote
+import service_deploy_local
 import service_deploy_core
 import service_lambda_build
 
