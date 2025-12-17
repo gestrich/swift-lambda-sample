@@ -75,10 +75,11 @@ let package = Package(
             path: "Sources/sdks/MinioSDK"
         ),
         .target(
-            name: "d-sdk-postgresql",
+            name: "PostgreSQLSDK",
             dependencies: [
                 .target(name: "DockerCLISDK"),
-            ]
+            ],
+            path: "Sources/sdks/PostgreSQLSDK"
         ),
         .target(
             name: "d-sdk-dynamodb",
@@ -119,7 +120,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "MinioSDK"),
-                .target(name: "d-sdk-postgresql"),
+                .target(name: "PostgreSQLSDK"),
                 .target(name: "d-sdk-dynamodb"),
                 .target(name: "c-service-client"),
                 .target(name: "c-service-storage"),

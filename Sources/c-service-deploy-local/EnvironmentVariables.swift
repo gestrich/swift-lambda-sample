@@ -7,7 +7,7 @@
 
 import Foundation
 import MinioSDK
-import d_sdk_postgresql
+import PostgreSQLSDK
 import d_sdk_dynamodb
 
 /// Execution context for Lambda - determines how to connect to services
