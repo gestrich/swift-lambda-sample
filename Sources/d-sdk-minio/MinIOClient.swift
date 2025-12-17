@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_cli_docker
+import DockerCLISDK
 
 /// Client for managing local MinIO S3 service via Docker
 public struct MinIOClient: Sendable {

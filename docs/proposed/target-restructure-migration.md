@@ -121,12 +121,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DockerCLISDK** (depends on CLISDK)
-  - [ ] Move `d-sdk-cli-docker/` to `sdks/DockerCLISDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to CLISDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DockerCLISDK** (depends on CLISDK) ✅
+  - [x] Move `d-sdk-cli-docker/` to `sdks/DockerCLISDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to CLISDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **BrewCLISDK** (depends on CLISDK)
   - [ ] Move `d-sdk-cli-brew/` to `sdks/BrewCLISDK/`
@@ -372,3 +372,23 @@ CLISDK ◄── CLIMacrosSDK
 - When updating imports with sed/find, be careful not to accidentally modify imports for other SDK targets
 - For example, `d_sdk_cli_docker` should NOT become `CLISDK_docker` - each SDK migrates independently
 - Pattern used: `s/import d_sdk_cli$/import CLISDK/` (exact match) rather than `s/d_sdk_cli/CLISDK/g` (global replace)
+
+### DockerCLISDK Migration (Phase 1.3)
+
+**Key changes:**
+- Moved `Sources/d-sdk-cli-docker/` → `Sources/sdks/DockerCLISDK/`
+- Updated Package.swift: renamed target from `d-sdk-cli-docker` to `DockerCLISDK` with explicit path
+- Updated all dependency references from `.target(name: "d-sdk-cli-docker")` to `.target(name: "DockerCLISDK")` (8 references)
+- Updated all imports from `import d_sdk_cli_docker` to `import DockerCLISDK` (7 files affected)
+
+**Files updated:**
+- `Sources/b-workflow-setup/DependencyStatusWorkflow.swift`
+- `Sources/d-sdk-minio/MinIOClient.swift`
+- `Sources/d-sdk-postgresql/PostgreSQLClient.swift`
+- `Sources/d-sdk-dynamodb/DynamoDBClient.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Tests/c-service-deploy-remote-tests/DockerTests.swift`
+
+**Module name behavior:**
+- `DockerCLISDK` becomes module name `DockerCLISDK` directly (PascalCase, no hyphens)

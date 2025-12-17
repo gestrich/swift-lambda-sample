@@ -1,7 +1,7 @@
 import CLISDK
 import d_sdk_cli_brew
 import d_sdk_cli_node
-import d_sdk_cli_docker
+import DockerCLISDK
 import d_sdk_aws
 import d_sdk_github
 import c_service_setup

@@ -59,27 +59,28 @@ let package = Package(
             ]
         ),
         .target(
-            name: "d-sdk-cli-docker",
+            name: "DockerCLISDK",
             dependencies: [
                 .target(name: "CLISDK"),
-            ]
+            ],
+            path: "Sources/sdks/DockerCLISDK"
         ),
         .target(
             name: "d-sdk-minio",
             dependencies: [
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
             ]
         ),
         .target(
             name: "d-sdk-postgresql",
             dependencies: [
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
             ]
         ),
         .target(
             name: "d-sdk-dynamodb",
             dependencies: [
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
             ]
         ),
         .target(
@@ -111,7 +112,7 @@ let package = Package(
             name: "c-service-deploy-local",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-minio"),
                 .target(name: "d-sdk-postgresql"),
                 .target(name: "d-sdk-dynamodb"),
@@ -127,7 +128,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-brew"),
                 .target(name: "d-sdk-cli-node"),
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
                 .target(name: "c-service-setup"),
@@ -188,7 +189,7 @@ let package = Package(
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
                 .target(name: "c-service-deploy-core"),
@@ -224,7 +225,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-brew"),
                 .target(name: "d-sdk-cli-node"),
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
             ],
@@ -243,7 +244,7 @@ let package = Package(
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "d-sdk-github"),
-                .target(name: "d-sdk-cli-docker"),
+                .target(name: "DockerCLISDK"),
                 .target(name: "d-sdk-cli-node"),
             ]
         ),

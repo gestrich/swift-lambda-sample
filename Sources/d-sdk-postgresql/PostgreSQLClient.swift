@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_cli_docker
+import DockerCLISDK
 
 /// Client for managing local PostgreSQL database via Docker
 public struct PostgreSQLClient: Sendable {

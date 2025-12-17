@@ -1,5 +1,5 @@
 import CLISDK
-@testable import d_sdk_cli_docker
+@testable import DockerCLISDK
 @testable import c_service_deploy_remote
 import Testing
 

@@ -1,5 +1,5 @@
 import CLISDK
-import d_sdk_cli_docker
+import DockerCLISDK
 import d_sdk_minio
 import d_sdk_postgresql
 import d_sdk_dynamodb
