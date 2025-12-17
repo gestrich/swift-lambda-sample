@@ -1,5 +1,8 @@
 # Local Development Workflows Plan
 
+**Status:** ✅ Complete
+**Completed:** 2025-12-17
+
 ## Overview
 
 Create workflow targets for local development actions, used by both the Mac app (`a-app-mac`) and CLI app (`a-app-cli`).
