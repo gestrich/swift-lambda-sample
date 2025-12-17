@@ -221,15 +221,15 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
 
 ### Phase 3: Features
 
-- [ ] **SetupFeature**
-  - [ ] Create `features/` folder
-  - [ ] Create `features/SetupFeature/` with `workflows/` and `services/` subfolders
-  - [ ] Move workflow code from `b-workflow-setup/` to `features/SetupFeature/workflows/`
-  - [ ] Move service code from `c-service-setup/` to `features/SetupFeature/services/`
-  - [ ] Update Package.swift (single target for the feature)
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **SetupFeature** ✅
+  - [x] Create `features/` folder
+  - [x] Create `features/SetupFeature/` with `workflows/` and `services/` subfolders
+  - [x] Move workflow code from `b-workflow-setup/` to `features/SetupFeature/workflows/`
+  - [x] Move service code from `c-service-setup/` to `features/SetupFeature/services/`
+  - [x] Update Package.swift (single target for the feature)
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **DeployRemoteFeature**
   - [ ] Create `features/DeployRemoteFeature/` with `workflows/` and `services/` subfolders
@@ -707,3 +707,41 @@ CLISDK ◄── CLIMacrosSDK
 - `DeployLocalService` becomes module name `DeployLocalService` directly (PascalCase, no hyphens)
 
 **Note:** This completes Phase 2 (Services). All service layer targets have been migrated to the new `services/` folder structure with PascalCase naming.
+
+### SetupFeature Migration (Phase 3.1)
+
+**Key changes:**
+- Created `Sources/features/` folder for feature layer targets
+- Created `Sources/features/SetupFeature/` with `workflows/` and `services/` subfolders
+- Moved `Sources/b-workflow-setup/` files → `Sources/features/SetupFeature/workflows/`
+- Moved `Sources/c-service-setup/` files → `Sources/features/SetupFeature/services/`
+- Removed old directories after migration
+- Updated Package.swift: merged `b-workflow-setup` and `c-service-setup` targets into single `SetupFeature` target
+- Updated dependency references in `a-app-mac` from two targets (`b-workflow-setup`, `c-service-setup`) to single `SetupFeature`
+- Updated all imports from `import b_workflow_setup` and `import c_service_setup` to `import SetupFeature`
+- Removed internal `import c_service_setup` from workflow files (now same module)
+
+**Files moved to workflows/:**
+- `DependencyStatusWorkflow.swift`
+- `DependencyInstallWorkflow.swift`
+
+**Files moved to services/:**
+- `DependencySnapshot.swift`
+- `CLIToolStatus.swift`
+- `CLITool.swift`
+
+**Files updated (imports):**
+- `Sources/a-app-mac/Models/DependencyStatusModel.swift`
+- `Sources/a-app-mac/UI/SetupViews.swift`
+- `Sources/a-app-mac/UI/LocalService/ServicesView.swift`
+
+**Feature consolidation:**
+- Features combine workflow + service code into a single target
+- Internal folder organization (`workflows/`, `services/`) provides logical separation without module boundary
+- Types from former `c-service-setup` (CLITool, CLIToolStatus, DependencySnapshot) are now public exports of SetupFeature module
+- Workflows no longer need to import service types - they're in the same module
+
+**Module name behavior:**
+- `SetupFeature` becomes module name `SetupFeature` directly (PascalCase, no hyphens)
+
+**Note:** This is the first feature layer migration. The `features/` folder now exists for subsequent feature migrations.

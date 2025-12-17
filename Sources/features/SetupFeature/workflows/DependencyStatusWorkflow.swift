@@ -4,7 +4,6 @@ import NodeCLISDK
 import DockerCLISDK
 import AWSSDK
 import GitHubSDK
-import c_service_setup
 
 /// Workflow that checks all dependency statuses and yields progress
 public struct DependencyStatusWorkflow: Sendable {

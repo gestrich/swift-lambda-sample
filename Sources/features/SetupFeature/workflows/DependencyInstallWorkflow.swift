@@ -1,7 +1,6 @@
 import Foundation
 import CLISDK
 import BrewCLISDK
-import c_service_setup
 
 /// Workflow that installs a specific dependency
 public struct DependencyInstallWorkflow: Sendable {

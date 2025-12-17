@@ -1,6 +1,5 @@
 import CLISDK
-import c_service_setup
-import b_workflow_setup
+import SetupFeature
 import SwiftUI
 
 // MARK: - Overview View

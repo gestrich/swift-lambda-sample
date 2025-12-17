@@ -107,7 +107,16 @@ let package = Package(
             path: "Sources/services/StorageService"
         ),
         .target(
-            name: "c-service-setup"
+            name: "SetupFeature",
+            dependencies: [
+                .target(name: "CLISDK"),
+                .target(name: "BrewCLISDK"),
+                .target(name: "NodeCLISDK"),
+                .target(name: "DockerCLISDK"),
+                .target(name: "AWSSDK"),
+                .target(name: "GitHubSDK"),
+            ],
+            path: "Sources/features/SetupFeature"
         ),
         .target(
             name: "DeployCoreService",
@@ -131,18 +140,6 @@ let package = Package(
                 .target(name: "DeployCoreService"),
             ],
             path: "Sources/services/DeployLocalService"
-        ),
-        .target(
-            name: "b-workflow-setup",
-            dependencies: [
-                .target(name: "CLISDK"),
-                .target(name: "BrewCLISDK"),
-                .target(name: "NodeCLISDK"),
-                .target(name: "DockerCLISDK"),
-                .target(name: "AWSSDK"),
-                .target(name: "GitHubSDK"),
-                .target(name: "c-service-setup"),
-            ]
         ),
         .target(
             name: "LambdaBuildService",
@@ -226,13 +223,12 @@ let package = Package(
                 .target(name: "b-workflow-deploy-remote"),
                 .target(name: "b-workflow-deploy-local-xcode"),
                 .target(name: "b-workflow-deploy-local-linux"),
-                .target(name: "b-workflow-setup"),
+                .target(name: "SetupFeature"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "StorageService"),
-                .target(name: "c-service-setup"),
                 .target(name: "CLISDK"),
                 .target(name: "BrewCLISDK"),
                 .target(name: "NodeCLISDK"),
