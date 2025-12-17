@@ -721,7 +721,7 @@ public enum LocalServiceType: Sendable, Hashable {
 
 1. **LocalServiceType enum** - Added to `c-service-deploy-local/LocalServiceType.swift`
 
-2. **b-workflow-deploy-local-xcode target** - 9 workflows:
+2. **b-workflow-deploy-local-xcode target** - 10 workflows:
    - `XcodeBuildWorkflow` - Native macOS build
    - `XcodeStartLambdaWorkflow` - Start Lambda as native process
    - `XcodeStopLambdaWorkflow` - Stop Lambda process
@@ -731,8 +731,9 @@ public enum LocalServiceType: Sendable, Hashable {
    - `XcodeStopAllWorkflow` - Stop Lambda + services
    - `XcodeTestWorkflow` - Test local endpoints
    - `XcodeCopyConfigWorkflow` - Copy config to ~/.swiftSampleDemo/
+   - `XcodeStatusWorkflow` - Check status of all services
 
-3. **b-workflow-deploy-local-linux target** - 11 workflows:
+3. **b-workflow-deploy-local-linux target** - 12 workflows:
    - `LinuxBuildWorkflow` - Docker-based Linux build
    - `LinuxStartLambdaWorkflow` - Start Lambda container
    - `LinuxStopLambdaWorkflow` - Stop Lambda container
@@ -744,6 +745,7 @@ public enum LocalServiceType: Sendable, Hashable {
    - `LinuxCopyConfigWorkflow` - Copy config to ~/.swiftSampleDemo/
    - `LinuxSetupNetworkWorkflow` - Setup Docker network for container communication
    - `LinuxRunInteractiveWorkflow` - Run interactive container shell
+   - `LinuxStatusWorkflow` - Check status of all services
 
 **Technical Notes:**
 
@@ -783,7 +785,6 @@ public enum LocalServiceType: Sendable, Hashable {
 - CLI commands still create `XcodeLocalDevelopmentService` / `LinuxLocalDevelopmentService` instances but pass them to workflows
 - Workflows encapsulate the orchestration logic and emit structured progress events
 - Progress printers handle all step/detail combinations with appropriate icons
-- Status command still uses direct service call (no workflow needed - simple query operation)
 
 **Benefits:**
 - Consistent progress reporting across CLI and Mac app (when integrated)
@@ -825,7 +826,37 @@ public enum LocalServiceType: Sendable, Hashable {
 - Workflows handle all the sequencing (services → network → Lambda)
 - Future UI enhancements can subscribe to workflow Progress events for richer feedback
 
+### Phase 4: Status Workflows (Completed)
+
+**Date:** Phase completed
+
+**What was implemented:**
+
+1. **XcodeStatusWorkflow** - Added to `b-workflow-deploy-local-xcode/XcodeStatusWorkflow.swift`
+   - Checks Lambda, S3, PostgreSQL, and DynamoDB status
+   - Returns `DeploymentStatus` in completion detail
+
+2. **LinuxStatusWorkflow** - Added to `b-workflow-deploy-local-linux/LinuxStatusWorkflow.swift`
+   - Checks Lambda container, S3, PostgreSQL, and DynamoDB status
+   - Returns `DeploymentStatus` in completion detail
+
+3. **CLI integration** - Updated `LocalCommand.swift`:
+   - `LocalMacCommand.StatusCommand` now uses `XcodeStatusWorkflow`
+   - `LocalLinuxCommand.StatusCommand` now uses `LinuxStatusWorkflow`
+   - Added `printXcodeStatusProgress` and `printLinuxStatusProgress` progress printers
+
+**Technical Notes:**
+
+- Status workflows query all services in parallel via the service's `status()` method
+- Progress steps indicate which service is being checked (for potential future per-service feedback)
+- Final progress event includes the complete `DeploymentStatus` for display
+
+**Benefits:**
+- All CLI commands now consistently use workflows
+- Status checking follows the same pattern as other operations
+- Foundation for Mac app to show checking progress per service
+
 ### Next Steps
 
-- Consider adding XcodeStatusWorkflow and LinuxStatusWorkflow for completeness
 - Consider exposing workflow Progress streams to Mac app UI for detailed step-by-step feedback
+- Consider adding workflow-based status checking to Mac app models

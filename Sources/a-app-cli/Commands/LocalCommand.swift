@@ -257,8 +257,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let status = try await service.status()
-            printStatus(status, mode: "Mac (Native)")
+            let workflow = XcodeStatusWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeStatusProgress(progress)
+            }
         }
     }
 
@@ -534,8 +537,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let status = try await service.status()
-            printStatus(status, mode: "Linux (Container)")
+            let workflow = LinuxStatusWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxStatusProgress(progress)
+            }
         }
     }
 
@@ -1095,5 +1101,41 @@ private func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWor
         }
     case .complete:
         print("✅ Interactive session ended")
+    }
+}
+
+// MARK: - Status Progress Printers
+
+private func printXcodeStatusProgress(_ progress: XcodeStatusWorkflow.Progress) {
+    switch progress.step {
+    case .checkingLambda:
+        print("🔍 Checking Lambda status...")
+    case .checkingS3:
+        print("🔍 Checking S3 status...")
+    case .checkingDatabase:
+        print("🔍 Checking PostgreSQL status...")
+    case .checkingDynamoDB:
+        print("🔍 Checking DynamoDB status...")
+    case .complete:
+        if case .status(let status) = progress.detail {
+            printStatus(status, mode: "Mac (Native)")
+        }
+    }
+}
+
+private func printLinuxStatusProgress(_ progress: LinuxStatusWorkflow.Progress) {
+    switch progress.step {
+    case .checkingLambda:
+        print("🔍 Checking Lambda container status...")
+    case .checkingS3:
+        print("🔍 Checking S3 status...")
+    case .checkingDatabase:
+        print("🔍 Checking PostgreSQL status...")
+    case .checkingDynamoDB:
+        print("🔍 Checking DynamoDB status...")
+    case .complete:
+        if case .status(let status) = progress.detail {
+            printStatus(status, mode: "Linux (Container)")
+        }
     }
 }
