@@ -23,7 +23,7 @@ Build the Lambda for the Linux/Amazon Linux 2 environment that AWS Lambda uses.
 
 ```bash
 # Build for Linux (AWS Lambda architecture)
-./build.sh SwiftLambda
+./build.sh LambdaApp
 ```
 
 This creates:
@@ -42,7 +42,7 @@ The build script:
 ### Build Output
 
 ```
-Building SwiftLambda for platform linux/amd64
+Building LambdaApp for platform linux/amd64
 AWS Lambda Architecture: x86_64 (amd64)
 =========================================
 
@@ -66,13 +66,13 @@ Lambda package: /path/to/lambda.zip
 
 ```bash
 # Default: linux/amd64 (AWS Lambda x86_64)
-./build.sh SwiftLambda
+./build.sh LambdaApp
 
 # With explicit platform
-./build.sh SwiftLambda linux/amd64
+./build.sh LambdaApp linux/amd64
 
 # With GitHub token (for private dependencies)
-./build.sh SwiftLambda linux/amd64 $GITHUB_TOKEN
+./build.sh LambdaApp linux/amd64 $GITHUB_TOKEN
 ```
 
 ### Build Troubleshooting
@@ -83,7 +83,7 @@ Lambda package: /path/to/lambda.zip
 
 **Build fails with permission errors:**
 - The script automatically handles permissions for Mac/Linux
-- Try cleaning: `rm -rf .aws-sam/build-SwiftLambda lambda lambda.zip`
+- Try cleaning: `rm -rf .aws-sam/build-LambdaApp lambda lambda.zip`
 
 **Package too large:**
 - Check the size breakdown in build output
@@ -105,7 +105,7 @@ aws lambda update-function-code \
   --profile production
 ```
 
-### Deploy via SwiftDeploy CLI
+### Deploy via CLIApp
 
 ```bash
 # Update Lambda code only (doesn't change infrastructure)
@@ -132,7 +132,7 @@ Test your Lambda in a Linux container that matches the AWS Lambda runtime enviro
 You must build the Lambda first (see section above):
 
 ```bash
-./build.sh SwiftLambda
+./build.sh LambdaApp
 ```
 
 This creates the `lambda/` directory with the compiled bootstrap executable.
@@ -422,7 +422,7 @@ mc cp local/org.gestrich.sandbox/hello-world.text ./
 
 ```bash
 # 1. Build for Linux
-./build.sh SwiftLambda
+./build.sh LambdaApp
 
 # 2. Start services
 ./tools.sh local services start-all
@@ -462,13 +462,13 @@ Before deploying to AWS:
 
 ```bash
 # 1. Make changes to Swift code
-vim Sources/SwiftLambda/APIGatewayHandler.swift
+vim Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift
 
 # 2. Rebuild for Linux
-./build.sh SwiftLambda
+./build.sh LambdaApp
 
 # 3. Test in container
-./tools.sh local lambda run-container
+./tools.sh local linux run-interactive
 ./bootstrap
 ```
 
@@ -476,10 +476,10 @@ vim Sources/SwiftLambda/APIGatewayHandler.swift
 
 ```bash
 # Remove all build artifacts
-rm -rf .aws-sam/build-SwiftLambda lambda lambda.zip
+rm -rf .aws-sam/build-LambdaApp lambda lambda.zip
 
 # Then rebuild
-./build.sh SwiftLambda
+./build.sh LambdaApp
 ```
 
 ### Stopping Services

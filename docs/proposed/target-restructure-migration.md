@@ -293,13 +293,13 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update dependency references
   - [x] Verify build succeeds
 
-### Phase 5: Cleanup
+### Phase 5: Cleanup ✅
 
-- [ ] Remove empty old directories
-- [ ] Update documentation (CLAUDE.md, README.md, architecture docs)
-- [ ] Update any scripts that reference old target names
-- [ ] Run full test suite
-- [ ] Verify all apps build and run correctly
+- [x] Remove empty old directories
+- [x] Update documentation (CLAUDE.md, README.md, architecture docs)
+- [x] Update any scripts that reference old target names
+- [x] Run full test suite
+- [x] Verify all apps build and run correctly
 
 ---
 
@@ -958,3 +958,33 @@ CLISDK ◄── CLIMacrosSDK
 - These updates are deferred to Phase 5 (Cleanup)
 
 **Note:** This completes Phase 4 (Apps). All app layer targets have been migrated to the new `apps/` folder structure with PascalCase naming.
+
+### Phase 5 Cleanup (Final)
+
+**Key changes:**
+- All old directories (`a-app-*`, `b-workflow-*`, `c-service-*`, `d-sdk-*`) were already removed during previous phases
+- Updated CLAUDE.md with new architecture diagram and folder structure
+- Updated all `swift run SwiftDeploy` references to `swift run CLIApp` throughout documentation
+- Updated README.md with new command references
+- Updated `docs/guides/RUN_LOCALLY_XCODE.md` and `docs/guides/RUN_LOCALLY_LINUX.md` with new target names
+- The `tools.sh` wrapper was already updated in Phase 4.2
+
+**Documentation files updated:**
+- `CLAUDE.md` - Complete rewrite of architecture sections, all CLI command examples
+- `README.md` - Updated deployment commands and examples
+- `docs/guides/RUN_LOCALLY_XCODE.md` - Updated target names (LambdaApp)
+- `docs/guides/RUN_LOCALLY_LINUX.md` - Updated build commands and paths
+
+**Test verification:**
+- All 365 tests compiled and ran successfully
+- One pre-existing functional test failure in LinuxDeployTests (S3 endpoint routing issue unrelated to migration)
+
+**Build verification:**
+- CLIApp builds successfully
+- LambdaApp builds successfully
+- MacApp builds successfully
+
+**Note:** This completes the entire target restructure migration. The project now uses:
+- Folder-based organization (`apps/`, `features/`, `services/`, `sdks/`)
+- PascalCase target names (`CLIApp`, `LambdaApp`, `MacApp`, `DeployRemoteFeature`, etc.)
+- Features combining workflow + service code in single targets

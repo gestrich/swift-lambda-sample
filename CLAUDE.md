@@ -15,7 +15,7 @@ build.sh           → Pure build (Bash + Docker)
                      - Used by GitHub Actions CI/CD
                      - Works everywhere (Mac, Linux, CI/CD)
 
-SwiftDeploy        → Deployment + Testing + Local Dev (Swift CLI)
+CLIApp             → Deployment + Testing + Local Dev (Swift CLI)
                      - CDK infrastructure deployment
                      - GitHub Actions monitoring
                      - AWS testing (endpoints, S3, logs)
@@ -24,8 +24,8 @@ SwiftDeploy        → Deployment + Testing + Local Dev (Swift CLI)
                      - Mac only (requires Swift toolchain)
 
 tools.sh           → Convenience aliases (Bash wrapper)
-                     - Optional shortcuts for SwiftDeploy commands
-                     - All logic delegates to SwiftDeploy
+                     - Optional shortcuts for CLIApp commands
+                     - All logic delegates to CLIApp
                      - AWS testing helpers (curl, CloudFormation)
 ```
 
@@ -37,7 +37,7 @@ tools.sh           → Convenience aliases (Bash wrapper)
 - ✅ Cross-platform compatible
 - ✅ Simple, focused on one task: building
 
-**SwiftDeploy (Swift)**
+**CLIApp (Swift)**
 - ✅ Type-safe deployment logic
 - ✅ Testable infrastructure code
 - ✅ Great local development UX
@@ -45,20 +45,20 @@ tools.sh           → Convenience aliases (Bash wrapper)
 - ⚠️ Requires Swift toolchain (local Mac only)
 
 **tools.sh (Bash wrapper)**
-- ✅ Thin delegator to SwiftDeploy
-- ✅ Shorter prefix: `./tools.sh` vs `swift run SwiftDeploy`
-- ✅ All logic in SwiftDeploy (single source of truth)
+- ✅ Thin delegator to CLIApp
+- ✅ Shorter prefix: `./tools.sh` vs `swift run CLIApp`
+- ✅ All logic in CLIApp (single source of truth)
 
 ### Command Comparison
 
-| Task | SwiftDeploy (Full) | tools.sh (Shortcut) |
-|------|-------------------|---------------------|
-| Deploy infrastructure | `swift run SwiftDeploy aws deploy` | `./tools.sh aws deploy` |
-| Update Lambda code | `swift run SwiftDeploy aws update-lambda` | `./tools.sh aws update-lambda` |
-| Start local services | `swift run SwiftDeploy local services start-all` | `./tools.sh local services start-all` |
-| Test deployment | `swift run SwiftDeploy aws test all` | `./tools.sh aws test all` |
-| Check logs | `swift run SwiftDeploy aws logs` | `./tools.sh aws logs` |
-| Check status | `swift run SwiftDeploy aws status` | `./tools.sh aws status` |
+| Task | CLIApp (Full) | tools.sh (Shortcut) |
+|------|---------------|---------------------|
+| Deploy infrastructure | `swift run CLIApp aws deploy` | `./tools.sh aws deploy` |
+| Update Lambda code | `swift run CLIApp aws update-lambda` | `./tools.sh aws update-lambda` |
+| Start local services | `swift run CLIApp local services start-all` | `./tools.sh local services start-all` |
+| Test deployment | `swift run CLIApp aws test all` | `./tools.sh aws test all` |
+| Check logs | `swift run CLIApp aws logs` | `./tools.sh aws logs` |
+| Check status | `swift run CLIApp aws status` | `./tools.sh aws status` |
 
 ### LocalStorageService
 
@@ -91,33 +91,34 @@ let dataDir = storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
 
 ### Layered Architecture
 
-This project follows a **four-layer architecture** (App-Workflow-Service-SDK) where dependencies flow downward:
+This project follows a **four-layer architecture** (App-Feature-Service-SDK) where dependencies flow downward:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                          APP (a-)                            │
-│       a-app-lambda  ·  a-app-mac  ·  a-app-cli               │
+│                           APPS                               │
+│           LambdaApp  ·  MacApp  ·  CLIApp                    │
 │   Entry points, I/O, @Observable models (where needed)       │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       WORKFLOW (b-)                          │
-│     b-workflow-deploy-remote  ·  b-workflow-setup            │
+│                         FEATURES                             │
+│  DeployRemoteFeature · SetupFeature · DeployLocalXcodeFeature │
 │   Multi-step orchestration returning AsyncThrowingStream     │
+│   Features combine workflow + service code in one target     │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                        SERVICE (c-)                          │
-│  c-service-deploy-remote · c-service-deploy-local · c-service-client │
+│                         SERVICES                             │
+│  DeployCoreService · DeployLocalService · ClientService      │
 │   Models, configuration, auth, stateful utilities            │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                          SDK (d-)                            │
-│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli                  │
+│                           SDKS                               │
+│       AWSSDK  ·  GitHubSDK  ·  CLISDK  ·  DockerCLISDK       │
 │   Reusable utilities, not app-specific                       │
 │   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘
@@ -125,40 +126,42 @@ This project follows a **four-layer architecture** (App-Workflow-Service-SDK) wh
 
 **Key Principles:**
 - **Apps handle I/O** — Entry points, SwiftUI views, CLI argument parsing.
-- **Workflows orchestrate** — Multi-step operations returning `AsyncThrowingStream`.
-- **Services provide models** — Configuration, auth, types used by workflows.
+- **Features orchestrate** — Multi-step operations returning `AsyncThrowingStream`. Features combine workflow + service code.
+- **Services provide models** — Configuration, auth, types used by features.
 - **SDKs are reusable** — Could be extracted to separate packages.
 
 ### Source Code Structure
 
-Targets use layer prefixes (`a-`, `b-`, `c-`, `d-`) so alphabetical sorting matches architectural hierarchy:
+Targets are organized by architectural layer in folders:
 
 ```
 Sources/
-├── a-app-cli/            # CLI tool (SwiftDeploy commands)
-├── a-app-lambda/         # AWS Lambda handler (entry point)
-├── a-app-mac/            # Mac app (SwiftUI views, @Observable models)
-├── b-workflow-deploy-remote/  # AWS deployment workflows
-│   ├── DeployWorkflow.swift
-│   ├── DeployInitWorkflow.swift
-│   ├── DestroyWorkflow.swift
-│   ├── UpdateLambdaWorkflow.swift
-│   └── ...
-├── b-workflow-setup/     # Setup and dependency workflows
-│   ├── DependencyStatusWorkflow.swift
-│   ├── DependencyInstallWorkflow.swift
-│   └── ...
-├── c-service-deploy-remote/  # AWS deployment models & config
-│   ├── Models/               # App-specific models
-│   ├── AWSService/           # AWS auth config persistence
-│   └── GitHubService/        # GitHub config persistence
-├── c-service-deploy-local/   # Local development services
-├── c-service-client/         # HTTP client utilities
-├── c-service-storage/        # Local file storage service
-├── d-sdk-aws/            # AWS SDKs (CDK, CloudFormation, Lambda, S3, etc.)
-├── d-sdk-cli/            # CLI utilities (process execution, streams)
-├── d-sdk-cli-macros/     # Swift macros for CLI
-└── d-sdk-github/         # GitHub SDKs (Actions, Git)
+├── apps/                     # Entry points
+│   ├── CLIApp/               # CLI tool (deployment commands)
+│   ├── LambdaApp/            # AWS Lambda handler (entry point)
+│   └── MacApp/               # Mac app (SwiftUI views, @Observable models)
+├── features/                 # Feature modules (workflow + service combined)
+│   ├── DeployRemoteFeature/  # AWS deployment feature
+│   │   ├── workflows/        # DeployWorkflow, DestroyWorkflow, etc.
+│   │   └── services/         # Models, auth config, GitHub config
+│   ├── DeployLocalXcodeFeature/  # Xcode local development workflows
+│   ├── DeployLocalLinuxFeature/  # Linux container development workflows
+│   └── SetupFeature/         # Setup and dependency workflows
+├── services/                 # Shared service modules
+│   ├── DeployCoreService/    # Core deployment utilities
+│   ├── DeployLocalService/   # Local development services
+│   ├── ClientService/        # HTTP client utilities
+│   ├── StorageService/       # Local file storage service
+│   └── LambdaBuildService/   # Lambda build utilities
+└── sdks/                     # Low-level SDK modules
+    ├── AWSSDK/               # AWS SDKs (CDK, CloudFormation, Lambda, S3)
+    ├── CLISDK/               # CLI utilities (process execution, streams)
+    ├── CLIMacrosSDK/         # Swift macros for CLI
+    ├── DockerCLISDK/         # Docker CLI utilities
+    ├── GitHubSDK/            # GitHub SDKs (Actions, Git)
+    ├── MinioSDK/             # MinIO S3-compatible storage
+    ├── PostgreSQLSDK/        # PostgreSQL database utilities
+    └── ...                   # Other SDKs (BrewCLISDK, NodeCLISDK, DynamoDBSDK)
 ```
 
 ### Nested CDK Directory
@@ -231,7 +234,7 @@ Create `~/.swiftSampleDemo/aws-config.json` with your AWS profile:
 
 ```bash
 # Copy the example config file (creates both app config and AWS config template)
-swift run SwiftDeploy local copy-config
+swift run CLIApp local copy-config
 
 # Or create AWS config manually
 mkdir -p ~/.swiftSampleDemo
@@ -247,7 +250,7 @@ EOF
 - `profileName`: AWS profile name to use (required)
 - `useAWSVault`: Use aws-vault for credential management (default: false)
 
-The SwiftDeploy CLI will automatically read the profile from this file. You can override it with the `--aws-profile` and `--use-aws-vault` flags if needed.
+The CLIApp will automatically read the profile from this file. You can override it with the `--aws-profile` and `--use-aws-vault` flags if needed.
 
 #### Using AWS Profiles
 
@@ -255,19 +258,19 @@ The SwiftDeploy CLI will automatically read the profile from this file. You can 
 
 ```bash
 # Profile is read from ~/.swiftSampleDemo/aws-config.json
-swift run SwiftDeploy aws deploy
-swift run SwiftDeploy aws status
+swift run CLIApp aws deploy
+swift run CLIApp aws status
 ```
 
 **Option 2: Override with CLI flag**
 
 ```bash
 # Use a different profile for this command
-swift run SwiftDeploy aws deploy --aws-profile staging
-swift run SwiftDeploy aws test all --aws-profile development
+swift run CLIApp aws deploy --aws-profile staging
+swift run CLIApp aws test all --aws-profile development
 ```
 
-**Direct AWS CLI usage** (when not using SwiftDeploy)
+**Direct AWS CLI usage** (when not using CLIApp)
 
 When using AWS CLI commands directly, you must specify the profile:
 
@@ -328,7 +331,7 @@ aws-vault add production
 aws-vault exec production -- aws sts get-caller-identity
 ```
 
-#### Configuring SwiftDeploy to Use aws-vault
+#### Configuring CLIApp to Use aws-vault
 
 **Option 1: Enable in config file (recommended)**
 
@@ -341,30 +344,30 @@ Update `~/.swiftSampleDemo/aws-config.json`:
 }
 ```
 
-Now all SwiftDeploy commands will use aws-vault automatically:
+Now all CLIApp commands will use aws-vault automatically:
 
 ```bash
 # These commands now use aws-vault
-swift run SwiftDeploy aws deploy
-swift run SwiftDeploy aws status
-swift run SwiftDeploy aws test all
+swift run CLIApp aws deploy
+swift run CLIApp aws status
+swift run CLIApp aws test all
 ```
 
 **Option 2: Use CLI flag**
 
 ```bash
 # Use aws-vault for a single command
-swift run SwiftDeploy aws deploy --use-aws-vault
-swift run SwiftDeploy aws test all --use-aws-vault
+swift run CLIApp aws deploy --use-aws-vault
+swift run CLIApp aws test all --use-aws-vault
 
 # Override config to NOT use aws-vault for this command
 # (if useAWSVault is true in config but you want to temporarily disable it)
-swift run SwiftDeploy aws deploy  # Uses traditional credentials
+swift run CLIApp aws deploy  # Uses traditional credentials
 ```
 
 #### How it Works
 
-When `useAWSVault` is enabled, SwiftDeploy:
+When `useAWSVault` is enabled, CLIApp:
 1. Wraps AWS CLI and CDK commands with `aws-vault exec <profile> --`
 2. Removes `--profile` flags from commands (aws-vault handles authentication)
 3. Credentials are injected via environment variables
@@ -381,7 +384,7 @@ aws-vault exec production -- aws cloudformation describe-stacks
 aws-vault exec production -- cdk deploy
 ```
 
-SwiftDeploy handles this automatically when `useAWSVault: true`.
+CLIApp handles this automatically when `useAWSVault: true`.
 
 #### Benefits
 
@@ -438,7 +441,7 @@ This project uses **GitHub Actions** for continuous deployment. Every push to th
 
 The GitHub Action runs:
 ```bash
-./build.sh SwiftLambda linux/amd64 $GITHUB_TOKEN
+./build.sh LambdaApp linux/amd64 $GITHUB_TOKEN
 aws lambda update-function-code \
   --function-name swift-lambda-sample \
   --zip-file fileb://lambda.zip
@@ -483,7 +486,7 @@ gh run list --repo gestrich/swift-lambda-sample --branch dev --limit 1 \
 
 ```bash
 # 1. Make changes to Swift code
-vim Sources/SwiftLambda/APIGatewayHandler.swift
+vim Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift
 
 # 2. Commit and push
 git add -A
@@ -501,7 +504,7 @@ curl -X GET <api-gw-url>/api/users
 
 **Note:** The API Gateway URL changes with each fresh deployment. Get the current URL from the deployment outputs or by running:
 ```bash
-swift run SwiftDeploy status
+swift run CLIApp aws status
 # Or use the shortcut
 ./tools.sh aws get-url
 ```
@@ -605,9 +608,9 @@ curl -X DELETE <api-gw-url>/api/users/{uuid}
 # Note: User endpoints require PostgreSQL to be deployed
 ```
 
-## SwiftDeploy CLI Tool
+## CLIApp CLI Tool
 
-This project includes a **Swift-based CLI tool** (`SwiftDeploy`) for managing deployments. It provides a streamlined interface for deploying, destroying, and monitoring your AWS infrastructure.
+This project includes a **Swift-based CLI tool** (`CLIApp`) for managing deployments. It provides a streamlined interface for deploying, destroying, and monitoring your AWS infrastructure.
 
 ### Installation & Usage
 
@@ -615,16 +618,16 @@ The CLI is built as part of the Swift package and can be run directly:
 
 ```bash
 # Run commands directly (full form)
-swift run SwiftDeploy <command> [subcommand] [args...]
+swift run CLIApp <command> [subcommand] [args...]
 
 # Or use the tools.sh wrapper (shortcut)
 ./tools.sh <command> [subcommand] [args...]
 
 # Examples
-swift run SwiftDeploy aws deploy          # Full form
+swift run CLIApp aws deploy          # Full form
 ./tools.sh aws deploy                     # Shortcut
 
-swift run SwiftDeploy local services start-all
+swift run CLIApp local services start-all
 ./tools.sh local services start-all
 ```
 
@@ -633,7 +636,7 @@ swift run SwiftDeploy local services start-all
 The CLI is organized into two top-level commands:
 
 ```
-SwiftDeploy
+CLIApp
 ├── aws                          # All AWS operations
 │   ├── deploy-init              # Initial deployment - set infrastructure configuration
 │   ├── deploy                   # Deploy/update infrastructure (maintains current state)
@@ -694,15 +697,15 @@ SwiftDeploy
 **Basic usage:**
 ```bash
 # Minimal deployment (default: no Postgres, no NAT)
-swift run SwiftDeploy aws deploy-init
+swift run CLIApp aws deploy-init
 ./tools.sh aws deploy-init
 
 # Deploy with PostgreSQL (adds cost)
-swift run SwiftDeploy aws deploy-init --with-postgres
+swift run CLIApp aws deploy-init --with-postgres
 ./tools.sh aws deploy-init --with-postgres
 
 # Full deployment (Postgres + NAT)
-swift run SwiftDeploy aws deploy-init --with-postgres --with-nat-gateway
+swift run CLIApp aws deploy-init --with-postgres --with-nat-gateway
 ./tools.sh aws deploy-init --with-postgres --with-nat-gateway
 ```
 
@@ -731,7 +734,7 @@ swift run SwiftDeploy aws deploy-init --with-postgres --with-nat-gateway
 **Usage:**
 ```bash
 # Update infrastructure (maintains current state)
-swift run SwiftDeploy aws deploy
+swift run CLIApp aws deploy
 ./tools.sh aws deploy
 ```
 
@@ -769,11 +772,11 @@ swift run SwiftDeploy aws deploy
 **Usage:**
 ```bash
 # Update Lambda code
-swift run SwiftDeploy aws update-lambda
+swift run CLIApp aws update-lambda
 ./tools.sh aws update-lambda
 
 # Update without pushing git commits
-swift run SwiftDeploy aws update-lambda --skip-push
+swift run CLIApp aws update-lambda --skip-push
 ```
 
 **What it does:**
@@ -788,13 +791,13 @@ Safely destroys the entire CDK stack:
 
 ```bash
 # Using Swift directly (with confirmation prompt)
-swift run SwiftDeploy aws tear-down
+swift run CLIApp aws tear-down
 
 # Using tools.sh wrapper
 ./tools.sh aws tear-down
 
 # Skip confirmation prompt
-swift run SwiftDeploy aws tear-down --force
+swift run CLIApp aws tear-down --force
 ```
 
 **Warning**: This destroys ALL infrastructure including:
@@ -812,7 +815,7 @@ Check the current state of your deployment:
 
 ```bash
 # Using Swift directly
-swift run SwiftDeploy aws status
+swift run CLIApp aws status
 
 # Using tools.sh wrapper
 ./tools.sh aws status
@@ -849,11 +852,11 @@ swift run SwiftDeploy aws status
 
 ```bash
 # Show logs from last 5 minutes (default)
-swift run SwiftDeploy aws logs
+swift run CLIApp aws logs
 ./tools.sh aws logs
 
 # Show logs from last hour
-swift run SwiftDeploy aws logs --since 1h
+swift run CLIApp aws logs --since 1h
 ./tools.sh aws logs --since 1h
 ```
 
@@ -862,7 +865,7 @@ swift run SwiftDeploy aws logs --since 1h
 **Get API Gateway URL from CloudFormation:**
 
 ```bash
-swift run SwiftDeploy aws get-url
+swift run CLIApp aws get-url
 ./tools.sh aws get-url
 ```
 
@@ -873,33 +876,33 @@ swift run SwiftDeploy aws get-url
 **Available subcommands:**
 ```bash
 # Run all verification tests
-swift run SwiftDeploy aws test all
+swift run CLIApp aws test all
 ./tools.sh aws test all
 
 # Test S3 file upload/download endpoint
-swift run SwiftDeploy aws test s3-upload
+swift run CLIApp aws test s3-upload
 ./tools.sh aws test s3-upload
 
 # Test S3 endpoint with verbose curl output
-swift run SwiftDeploy aws test s3-upload --verbose
+swift run CLIApp aws test s3-upload --verbose
 ./tools.sh aws test s3-upload --verbose
 
 # Test user CRUD endpoints (requires PostgreSQL)
-swift run SwiftDeploy aws test users
+swift run CLIApp aws test users
 ./tools.sh aws test users
 ```
 
 **Example workflow:**
 ```bash
 # 1. Deploy Lambda
-swift run SwiftDeploy aws deploy-full
+swift run CLIApp aws deploy-init
 
 # 2. Run all tests
-swift run SwiftDeploy aws test all
+swift run CLIApp aws test all
 
 # 3. Or test individual components
-swift run SwiftDeploy aws test s3-upload
-swift run SwiftDeploy aws logs
+swift run CLIApp aws test s3-upload
+swift run CLIApp aws logs
 ```
 
 #### 9. Local Development Commands (`local`)
@@ -909,68 +912,68 @@ swift run SwiftDeploy aws logs
 **Service Management:**
 ```bash
 # Start all services (PostgreSQL + MinIO)
-swift run SwiftDeploy local services start-all
+swift run CLIApp local services start-all
 ./tools.sh local services start-all
 
 # Stop all services
-swift run SwiftDeploy local services stop-all
+swift run CLIApp local services stop-all
 ./tools.sh local services stop-all
 
 # Start individual services
-swift run SwiftDeploy local services start-database  # PostgreSQL only
-swift run SwiftDeploy local services start-s3        # MinIO only
+swift run CLIApp local services start-database  # PostgreSQL only
+swift run CLIApp local services start-s3        # MinIO only
 
 # Stop individual services
-swift run SwiftDeploy local services stop-database
-swift run SwiftDeploy local services stop-s3
+swift run CLIApp local services stop-database
+swift run CLIApp local services stop-s3
 ```
 
 **Xcode Local Development (Native macOS - Fast Iteration):**
 ```bash
 # Build Lambda for macOS (native Swift build)
-swift run SwiftDeploy local xcode build
+swift run CLIApp local xcode build
 ./tools.sh local xcode build
 
 # Start Lambda with all services
-swift run SwiftDeploy local xcode start-all
+swift run CLIApp local xcode start-all
 ./tools.sh local xcode start-all
 
 # Test local Lambda endpoints
-swift run SwiftDeploy local xcode test
+swift run CLIApp local xcode test
 ./tools.sh local xcode test
 
 # Stop Lambda and all services
-swift run SwiftDeploy local xcode stop-all
+swift run CLIApp local xcode stop-all
 ./tools.sh local xcode stop-all
 ```
 
 **Linux Container Development (AWS-Compatible):**
 ```bash
 # Build Lambda for Linux (Docker-based)
-swift run SwiftDeploy local linux build
+swift run CLIApp local linux build
 ./tools.sh local linux build
 
 # Start Lambda container with all services
-swift run SwiftDeploy local linux start-all
+swift run CLIApp local linux start-all
 ./tools.sh local linux start-all
 
 # Test Lambda container endpoints
-swift run SwiftDeploy local linux test
+swift run CLIApp local linux test
 ./tools.sh local linux test
 
 # Stop Lambda container and all services
-swift run SwiftDeploy local linux stop-all
+swift run CLIApp local linux stop-all
 ./tools.sh local linux stop-all
 
 # Linux-specific commands
-swift run SwiftDeploy local linux setup-network      # Setup Docker network
-swift run SwiftDeploy local linux run-interactive    # Run in interactive container
+swift run CLIApp local linux setup-network      # Setup Docker network
+swift run CLIApp local linux run-interactive    # Run in interactive container
 ```
 
 **Configuration:**
 ```bash
 # Copy config files to ~/.swiftSampleDemo/
-swift run SwiftDeploy local copy-config
+swift run CLIApp local copy-config
 ./tools.sh local copy-config
 ```
 
@@ -1003,12 +1006,12 @@ swift run SwiftDeploy local copy-config
 
 ### Tools.sh Thin Wrapper
 
-The `tools.sh` script is a **thin wrapper** that delegates all commands directly to SwiftDeploy. It provides a shorter command prefix for convenience.
+The `tools.sh` script is a **thin wrapper** that delegates all commands directly to CLIApp. It provides a shorter command prefix for convenience.
 
 **How it works:**
-- `./tools.sh` simply runs `swift run SwiftDeploy` with all arguments passed through
+- `./tools.sh` simply runs `swift run CLIApp` with all arguments passed through
 - No logic or wrapper functions - just a delegator
-- Single source of truth: all functionality is in SwiftDeploy
+- Single source of truth: all functionality is in CLIApp
 
 **Usage:**
 ```bash
@@ -1018,8 +1021,8 @@ The `tools.sh` script is a **thin wrapper** that delegates all commands directly
 ./tools.sh local --help
 
 # All commands are the same, just with shorter prefix
-./tools.sh aws deploy                     # = swift run SwiftDeploy aws deploy
-./tools.sh aws deploy-full --with-postgres
+./tools.sh aws deploy                     # = swift run CLIApp aws deploy
+./tools.sh aws deploy-init --with-postgres
 ./tools.sh aws test all
 ./tools.sh local services start-all
 ```
@@ -1068,7 +1071,7 @@ The `tools.sh` script is a **thin wrapper** that delegates all commands directly
 #### Update Lambda Code Only
 ```bash
 # 1. Make changes to Swift code
-vim Sources/SwiftLambda/APIGatewayHandler.swift
+vim Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift
 
 # 2. Commit changes
 git add -A
@@ -1117,7 +1120,7 @@ vim cdk/lib/constructs/lambda-construct.ts
 
 ### Deploying Infrastructure Changes (Manual Method)
 
-If you prefer to use CDK directly instead of SwiftDeploy:
+If you prefer to use CDK directly instead of CLIApp:
 
 ```bash
 cd cdk
@@ -1135,7 +1138,7 @@ cdk deploy --profile production --require-approval never
 cdk deploy --profile production --outputs-file outputs.json
 ```
 
-**Note**: The `swift run SwiftDeploy aws deploy-init` command handles all of this automatically.
+**Note**: The `swift run CLIApp aws deploy-init` command handles all of this automatically.
 
 ### Deploying Lambda Code Changes
 
@@ -1143,7 +1146,7 @@ Lambda code deploys automatically via GitHub Actions on push to `dev`:
 
 ```bash
 # Make changes to Swift code
-vim Sources/SwiftLambda/APIGatewayHandler.swift
+vim Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift
 
 # Commit and push
 git add -A
@@ -1227,7 +1230,7 @@ The Lambda connects to RDS PostgreSQL with:
 The Lambda handler is configured to parse the `/api` prefix:
 
 ```swift
-// Sources/SwiftLambda/APIGatewayHandler.swift
+// Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift
 let leadingPathPart = "api"  // Strips /api from the path
 ```
 
@@ -1296,44 +1299,44 @@ gh run view {run-id} --repo gestrich/swift-lambda-sample --log
 
 ## Quick Reference
 
-### SwiftDeploy CLI (Recommended)
+### CLIApp (Recommended)
 ```bash
 # Initial deployment (set infrastructure configuration)
-swift run SwiftDeploy aws deploy-init
+swift run CLIApp aws deploy-init
 ./tools.sh aws deploy-init
 
 # Initial deployment with database
-swift run SwiftDeploy aws deploy-init --with-postgres
+swift run CLIApp aws deploy-init --with-postgres
 ./tools.sh aws deploy-init --with-postgres
 
 # Update infrastructure (maintains current configuration automatically)
-swift run SwiftDeploy aws deploy
+swift run CLIApp aws deploy
 ./tools.sh aws deploy
 
 # Check status
-swift run SwiftDeploy aws status
+swift run CLIApp aws status
 ./tools.sh aws status
 
 # Update Lambda code only
-swift run SwiftDeploy aws update-lambda
+swift run CLIApp aws update-lambda
 ./tools.sh aws update-lambda
 
 # Test deployment
-swift run SwiftDeploy aws test all
+swift run CLIApp aws test all
 ./tools.sh aws test all
 
 # Show logs
-swift run SwiftDeploy aws logs
+swift run CLIApp aws logs
 ./tools.sh aws logs
 
 # Destroy deployment
-swift run SwiftDeploy aws tear-down
+swift run CLIApp aws tear-down
 ./tools.sh aws tear-down
 
 # Get help
-swift run SwiftDeploy --help
-swift run SwiftDeploy aws --help
-swift run SwiftDeploy local --help
+swift run CLIApp --help
+swift run CLIApp aws --help
+swift run CLIApp local --help
 ```
 
 ### CDK Commands (Manual Method)

@@ -51,7 +51,7 @@ You should see:
 
 ### 3. Configure Xcode Environment Variables
 
-Edit the scheme for the **SwiftLambda** target:
+Edit the scheme for the **LambdaApp** target:
 
 1. Product → Scheme → Edit Scheme
 2. Select "Run" in the left sidebar
@@ -68,7 +68,7 @@ Edit the scheme for the **SwiftLambda** target:
 
 ### 4. Run in Xcode
 
-1. Select the **SwiftLambda** target
+1. Select the **LambdaApp** target
 2. Select **My Mac** as the destination
 3. Click the **Run** button (or press ⌘R)
 
@@ -308,7 +308,7 @@ To test against real AWS services instead of local Docker containers:
 ./tools.sh local copy-config
 
 # 3. Run Lambda locally via swift run
-swift run SwiftLambda
+swift run LambdaApp
 
 # 4. Test endpoints (in another terminal)
 ./tools.sh local lambda test 8080
@@ -340,7 +340,7 @@ swift test --filter XcodeLocalIntegrationTests
 - Waits for services to be ready
 - Runs end-to-end API tests
 
-See `/Users/bill/Developer/personal/swift-lambda-sample/Tests/SwiftDeployTests/XcodeDeployTests.swift` for the test implementation.
+See `Tests/DeployRemoteFeatureTests/` for the test implementations.
 
 ## Next Steps
 

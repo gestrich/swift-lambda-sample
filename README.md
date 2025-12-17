@@ -16,11 +16,11 @@ The project demonstrates integration with various AWS services:
 * **SQS** - Message queuing with Dead Letter Queue
 * **VPC** - Network isolation with public/private subnets
 
-The repository includes infrastructure-as-code using **AWS CDK (TypeScript)**, automated CI/CD via **GitHub Actions**, and a custom **SwiftDeploy CLI** and mac app for streamlined deployment management.
+The repository includes infrastructure-as-code using **AWS CDK (TypeScript)**, automated CI/CD via **GitHub Actions**, and a custom **CLIApp** CLI and Mac app for streamlined deployment management.
 
 ## Deployment
 
-This project uses the **SwiftDeploy** CLI tool for managing AWS deployments. The tool handles both infrastructure (via CDK) and Lambda code deployment.
+This project uses the **CLIApp** CLI tool for managing AWS deployments. The tool handles both infrastructure (via CDK) and Lambda code deployment.
 
 **Prerequisites:** Configure AWS credentials and profile (see [CLAUDE.md](CLAUDE.md#aws-profile-configuration) for details)
 
@@ -58,23 +58,23 @@ Deploy with minimal AWS costs (no database, no NAT Gateway):
 
 ```bash
 # Initial deployment
-swift run SwiftDeploy aws deploy-full
+swift run CLIApp aws deploy-init
 
 # Or using the tools.sh wrapper
-./tools.sh aws deploy-full
+./tools.sh aws deploy-init
 ```
 
 ### Deployment Commands
 
 | Command | Description |
 |---------|-------------|
-| `swift run SwiftDeploy aws deploy-full` | Initial deployment: CDK infrastructure + Lambda code |
-| `swift run SwiftDeploy aws deploy` | Update CDK infrastructure only |
-| `swift run SwiftDeploy aws update-lambda` | Update Lambda code only |
-| `swift run SwiftDeploy aws status` | Check deployment status and outputs |
-| `swift run SwiftDeploy aws tear-down` | Destroy all infrastructure |
-| `swift run SwiftDeploy aws test all` | Test deployed endpoints |
-| `swift run SwiftDeploy aws logs` | Show CloudWatch logs |
+| `swift run CLIApp aws deploy-init` | Initial deployment: CDK infrastructure + Lambda code |
+| `swift run CLIApp aws deploy` | Update CDK infrastructure only |
+| `swift run CLIApp aws update-lambda` | Update Lambda code only |
+| `swift run CLIApp aws status` | Check deployment status and outputs |
+| `swift run CLIApp aws tear-down` | Destroy all infrastructure |
+| `swift run CLIApp aws test all` | Test deployed endpoints |
+| `swift run CLIApp aws logs` | Show CloudWatch logs |
 
 ### Deployment Options
 
@@ -82,23 +82,23 @@ Control costs by choosing which resources to deploy:
 
 ```bash
 # Minimal deployment (default: no Postgres, no NAT Gateway)
-swift run SwiftDeploy aws deploy-full
+swift run CLIApp aws deploy-init
 
 # Include PostgreSQL database (~$15/month)
-swift run SwiftDeploy aws deploy-full --with-postgres
+swift run CLIApp aws deploy-init --with-postgres
 
 # Full deployment with PostgreSQL and NAT Gateway (~$47/month)
-swift run SwiftDeploy aws deploy-full --with-postgres --with-nat-gateway
+swift run CLIApp aws deploy-init --with-postgres --with-nat-gateway
 ```
 
 ### Using tools.sh Wrapper
 
-The `tools.sh` script is a thin wrapper that delegates to SwiftDeploy:
+The `tools.sh` script is a thin wrapper that delegates to CLIApp:
 
 ```bash
 # Deployment
-./tools.sh aws deploy-full                    # Initial deployment
-./tools.sh aws deploy-full --with-postgres    # With database
+./tools.sh aws deploy-init                    # Initial deployment
+./tools.sh aws deploy-init --with-postgres    # With database
 ./tools.sh aws deploy                          # Update infrastructure
 ./tools.sh aws update-lambda                   # Update Lambda code
 ./tools.sh aws status                          # Check status
@@ -114,14 +114,14 @@ The `tools.sh` script is a thin wrapper that delegates to SwiftDeploy:
 
 **Initial Setup:**
 ```bash
-./tools.sh aws deploy-full
+./tools.sh aws deploy-init
 ./tools.sh aws test all
 ```
 
 **Update Lambda Code:**
 ```bash
 # Make changes to Swift code
-vim Sources/SwiftLambda/APIGatewayHandler.swift
+vim Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift
 
 # Commit and deploy
 git add -A && git commit -m "Update handler"
@@ -161,9 +161,9 @@ There are three ways to run and test the Lambda locally:
 **For testing before AWS deployment:**
 ```bash
 # Build and test in Linux container
-./build.sh SwiftLambda
+./build.sh LambdaApp
 ./tools.sh local services start-all
-./tools.sh local lambda run-container
+./tools.sh local linux run-interactive
 
 # Inside container:
 ./bootstrap
@@ -200,7 +200,7 @@ This section walks you through configuring GitHub Actions for automated Lambda d
 Update these variables to match your project:
 
 ```yaml
-productName: SwiftLambda        # Your Swift Package product name
+productName: LambdaApp          # Your Swift Package product name
 lambdaName: swift-lambda-sample # Your Lambda function name
 ```
 
