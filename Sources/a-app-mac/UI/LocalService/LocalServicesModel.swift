@@ -2,7 +2,7 @@ import ClientService
 import CLISDK
 import Combine
 import Foundation
-import c_service_deploy_local
+import DeployLocalService
 import DeployCoreService
 import LambdaBuildService
 

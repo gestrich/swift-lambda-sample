@@ -1,5 +1,5 @@
 import Foundation
-import c_service_deploy_local
+import DeployLocalService
 import CLISDK
 
 /// Workflow for stopping local services for Xcode development.

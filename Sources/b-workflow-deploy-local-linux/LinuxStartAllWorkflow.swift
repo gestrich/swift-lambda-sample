@@ -1,5 +1,5 @@
 import Foundation
-import c_service_deploy_local
+import DeployLocalService
 import CLISDK
 
 /// Workflow for starting Lambda with all services for Linux development.

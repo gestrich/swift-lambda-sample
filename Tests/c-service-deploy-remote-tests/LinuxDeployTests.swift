@@ -8,7 +8,7 @@
 import Foundation
 import CLISDK
 @testable import c_service_deploy_remote
-@testable import c_service_deploy_local
+@testable import DeployLocalService
 import Testing
 
 @Suite("Linux Lambda Container Integration Tests")

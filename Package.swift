@@ -118,7 +118,7 @@ let package = Package(
             path: "Sources/services/DeployCoreService"
         ),
         .target(
-            name: "c-service-deploy-local",
+            name: "DeployLocalService",
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
@@ -129,7 +129,8 @@ let package = Package(
                 .target(name: "StorageService"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "DeployCoreService"),
-            ]
+            ],
+            path: "Sources/services/DeployLocalService"
         ),
         .target(
             name: "b-workflow-setup",
@@ -163,14 +164,14 @@ let package = Package(
         .target(
             name: "b-workflow-deploy-local-xcode",
             dependencies: [
-                .target(name: "c-service-deploy-local"),
+                .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
             ]
         ),
         .target(
             name: "b-workflow-deploy-local-linux",
             dependencies: [
-                .target(name: "c-service-deploy-local"),
+                .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
             ]
         ),
@@ -182,7 +183,7 @@ let package = Package(
                 .target(name: "b-workflow-deploy-local-xcode"),
                 .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "c-service-deploy-remote"),
-                .target(name: "c-service-deploy-local"),
+                .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "AWSSDK"),
                 .target(name: "CLISDK"),
@@ -227,7 +228,7 @@ let package = Package(
                 .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "b-workflow-setup"),
                 .target(name: "c-service-deploy-remote"),
-                .target(name: "c-service-deploy-local"),
+                .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "StorageService"),
@@ -251,7 +252,7 @@ let package = Package(
             name: "c-service-deploy-remote-tests",
             dependencies: [
                 .target(name: "c-service-deploy-remote"),
-                .target(name: "c-service-deploy-local"),
+                .target(name: "DeployLocalService"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),

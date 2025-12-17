@@ -1,5 +1,5 @@
 import Foundation
-import c_service_deploy_local
+import DeployLocalService
 import DeployCoreService
 
 /// Workflow for checking the status of local development services (Xcode mode).

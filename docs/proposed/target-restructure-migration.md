@@ -212,12 +212,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DeployLocalService** (depends on multiple SDKs and services)
-  - [ ] Move `c-service-deploy-local/` to `services/DeployLocalService/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DeployLocalService** (depends on multiple SDKs and services) ✅
+  - [x] Move `c-service-deploy-local/` to `services/DeployLocalService/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 ### Phase 3: Features
 
@@ -663,3 +663,47 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DeployCoreService` becomes module name `DeployCoreService` directly (PascalCase, no hyphens)
+
+### DeployLocalService Migration (Phase 2.5)
+
+**Key changes:**
+- Moved `Sources/c-service-deploy-local/` → `Sources/services/DeployLocalService/`
+- Updated Package.swift: renamed target from `c-service-deploy-local` to `DeployLocalService` with explicit path
+- Updated all dependency references from `.target(name: "c-service-deploy-local")` to `.target(name: "DeployLocalService")` (5 references in Package.swift: b-workflow-deploy-local-xcode, b-workflow-deploy-local-linux, a-app-cli, a-app-mac, c-service-deploy-remote-tests)
+- Updated all imports from `import c_service_deploy_local` to `import DeployLocalService` (27 files affected)
+- Updated `@testable import c_service_deploy_local` to `@testable import DeployLocalService` (1 test file)
+
+**Files updated:**
+- `Sources/b-workflow-deploy-local-xcode/XcodeStopLambdaWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeCopyConfigWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStopServicesWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeTestWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStartAllWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStatusWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeBuildWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStartLambdaWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStopAllWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStartServicesWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxRunInteractiveWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxSetupNetworkWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStatusWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStartAllWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStopLambdaWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxCopyConfigWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStopAllWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxBuildWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStartLambdaWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStartServicesWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxTestWorkflow.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStopServicesWorkflow.swift`
+- `Sources/a-app-cli/Commands/LocalCommand.swift`
+- `Sources/a-app-mac/Models/LinuxLocalModel.swift`
+- `Sources/a-app-mac/Models/XcodeLocalModel.swift`
+- `Sources/a-app-mac/UI/LocalService/DockerServicesView.swift`
+- `Sources/a-app-mac/UI/LocalService/LocalServicesModel.swift`
+- `Tests/c-service-deploy-remote-tests/LinuxDeployTests.swift`
+
+**Module name behavior:**
+- `DeployLocalService` becomes module name `DeployLocalService` directly (PascalCase, no hyphens)
+
+**Note:** This completes Phase 2 (Services). All service layer targets have been migrated to the new `services/` folder structure with PascalCase naming.

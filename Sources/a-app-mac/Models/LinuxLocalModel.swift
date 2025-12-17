@@ -3,7 +3,7 @@ import ClientService
 import Combine
 import Foundation
 import StorageService
-import c_service_deploy_local
+import DeployLocalService
 import DeployCoreService
 import LambdaBuildService
 import b_workflow_deploy_local_linux
