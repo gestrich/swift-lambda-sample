@@ -269,7 +269,16 @@ public class LinuxLocalModel: LocalService {
     // MARK: - Status
 
     public func status() async throws -> DeploymentStatus {
-        try await developmentService.status()
+        let workflow = LinuxStatusWorkflow(service: developmentService)
+        var result: DeploymentStatus = .stopped
+
+        for try await progress in workflow.run() {
+            if case .complete = progress.step,
+               case .status(let status)? = progress.detail {
+                result = status
+            }
+        }
+        return result
     }
 
     public func refreshStatus() {

@@ -856,7 +856,45 @@ public enum LocalServiceType: Sendable, Hashable {
 - Status checking follows the same pattern as other operations
 - Foundation for Mac app to show checking progress per service
 
-### Next Steps
+### Phase 5: Mac App Status Workflow Integration (Completed)
 
-- Consider exposing workflow Progress streams to Mac app UI for detailed step-by-step feedback
-- Consider adding workflow-based status checking to Mac app models
+**Date:** Phase completed
+
+**What was implemented:**
+
+1. **XcodeLocalModel.swift** - Updated `status()` method to use `XcodeStatusWorkflow`:
+   - Consumes workflow progress stream
+   - Extracts `DeploymentStatus` from completion event
+   - `refreshStatus()` unchanged (still calls `status()` internally)
+
+2. **LinuxLocalModel.swift** - Updated `status()` method to use `LinuxStatusWorkflow`:
+   - Same pattern as XcodeLocalModel
+   - Consistent workflow-based status checking
+
+**Technical Notes:**
+
+- The `status()` method now uses the workflow pattern, consuming the progress stream and extracting the final status
+- Future enhancement: UI could subscribe to intermediate progress events (`.checkingLambda`, `.checkingS3`, etc.) to show per-service loading indicators
+- `refreshStatus()` method unchanged - continues to call `status()` internally and publish via Combine subjects
+
+**Benefits:**
+- All Mac app model operations now consistently use workflows
+- Foundation for future per-service status feedback in UI
+- Single source of truth: status logic is in workflows, not duplicated in models
+
+---
+
+## Implementation Complete
+
+All planned phases have been implemented:
+
+1. ✅ Phase 1: LocalServiceType and Workflow Targets
+2. ✅ Phase 2: CLI Workflow Integration
+3. ✅ Phase 3: Mac App Workflow Integration
+4. ✅ Phase 4: Status Workflows
+5. ✅ Phase 5: Mac App Status Workflow Integration
+
+### Future Enhancements
+
+- Expose workflow Progress streams to Mac app UI for detailed step-by-step feedback
+- Add per-service loading indicators using intermediate progress events
