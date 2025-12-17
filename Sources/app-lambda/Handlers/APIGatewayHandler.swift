@@ -7,7 +7,7 @@
 
 import AWSLambdaEvents
 import AWSLambdaRuntime
-import sdk_client
+import d_sdk_client
 import Foundation
 import HTTPTypes
 

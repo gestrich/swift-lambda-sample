@@ -26,48 +26,48 @@ let package = Package(
     targets: [
         // MARK: - CLI Macros
         .macro(
-            name: "sdk-cli-macros",
+            name: "d-sdk-cli-macros",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
             ]
         ),
         .target(
-            name: "sdk-cli",
+            name: "d-sdk-cli",
             dependencies: [
-                .target(name: "sdk-cli-macros"),
+                .target(name: "d-sdk-cli-macros"),
             ],
             exclude: ["README.md"]
         ),
         .target(
-            name: "sdk-aws",
+            name: "d-sdk-aws",
             dependencies: [
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-cli-node"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-cli-node"),
             ]
         ),
         .target(
-            name: "sdk-github",
+            name: "d-sdk-github",
             dependencies: [
-                .target(name: "sdk-cli"),
+                .target(name: "d-sdk-cli"),
             ]
         ),
         .target(
-            name: "sdk-cli-docker",
+            name: "d-sdk-cli-docker",
             dependencies: [
-                .target(name: "sdk-cli"),
+                .target(name: "d-sdk-cli"),
             ]
         ),
         .target(
-            name: "sdk-cli-brew",
+            name: "d-sdk-cli-brew",
             dependencies: [
-                .target(name: "sdk-cli"),
+                .target(name: "d-sdk-cli"),
             ]
         ),
         .target(
-            name: "sdk-cli-node",
+            name: "d-sdk-cli-node",
             dependencies: [
-                .target(name: "sdk-cli"),
+                .target(name: "d-sdk-cli"),
             ]
         ),
         .target(
@@ -79,16 +79,16 @@ let package = Package(
         .target(
             name: "service-deploy-core",
             dependencies: [
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-client"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-client"),
             ]
         ),
         .target(
             name: "service-deploy-local",
             dependencies: [
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-cli-docker"),
-                .target(name: "sdk-client"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-cli-docker"),
+                .target(name: "d-sdk-client"),
                 .target(name: "service-storage"),
                 .target(name: "service-lambda-build"),
                 .target(name: "service-deploy-core"),
@@ -97,27 +97,27 @@ let package = Package(
         .target(
             name: "workflows-setup",
             dependencies: [
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-cli-brew"),
-                .target(name: "sdk-cli-node"),
-                .target(name: "sdk-cli-docker"),
-                .target(name: "sdk-aws"),
-                .target(name: "sdk-github"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-cli-brew"),
+                .target(name: "d-sdk-cli-node"),
+                .target(name: "d-sdk-cli-docker"),
+                .target(name: "d-sdk-aws"),
+                .target(name: "d-sdk-github"),
                 .target(name: "service-setup"),
             ]
         ),
         .target(
             name: "service-lambda-build",
             dependencies: [
-                .target(name: "sdk-cli"),
+                .target(name: "d-sdk-cli"),
             ]
         ),
         .target(
             name: "workflows-deploy-remote",
             dependencies: [
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-aws"),
-                .target(name: "sdk-github"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-aws"),
+                .target(name: "d-sdk-github"),
                 .target(name: "service-deploy-remote"),
                 .target(name: "service-deploy-core"),
             ]
@@ -130,9 +130,9 @@ let package = Package(
                 .target(name: "service-deploy-remote"),
                 .target(name: "service-deploy-local"),
                 .target(name: "service-deploy-core"),
-                .target(name: "sdk-aws"),
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-github"),
+                .target(name: "d-sdk-aws"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-github"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
@@ -141,13 +141,13 @@ let package = Package(
         .target(
             name: "service-deploy-remote",
             dependencies: [
-                .target(name: "sdk-client"),
+                .target(name: "d-sdk-client"),
                 .target(name: "service-storage"),
                 .target(name: "service-lambda-build"),
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-cli-docker"),
-                .target(name: "sdk-aws"),
-                .target(name: "sdk-github"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-cli-docker"),
+                .target(name: "d-sdk-aws"),
+                .target(name: "d-sdk-github"),
                 .target(name: "service-deploy-core"),
             ]
         ),
@@ -161,13 +161,13 @@ let package = Package(
                 .product(name: "SotoS3", package: "soto"),
                 .product(name: "SotoSecretsManager", package: "soto"),
                 .product(name: "SotoDynamoDB", package: "soto"),
-                .target(name: "sdk-client")
+                .target(name: "d-sdk-client")
             ]
         ),
         .executableTarget(
             name: "app-mac",
             dependencies: [
-                .target(name: "sdk-client"),
+                .target(name: "d-sdk-client"),
                 .target(name: "workflows-deploy-remote"),
                 .target(name: "workflows-setup"),
                 .target(name: "service-deploy-remote"),
@@ -176,33 +176,33 @@ let package = Package(
                 .target(name: "service-lambda-build"),
                 .target(name: "service-storage"),
                 .target(name: "service-setup"),
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-cli-brew"),
-                .target(name: "sdk-cli-node"),
-                .target(name: "sdk-cli-docker"),
-                .target(name: "sdk-aws"),
-                .target(name: "sdk-github"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-cli-brew"),
+                .target(name: "d-sdk-cli-node"),
+                .target(name: "d-sdk-cli-docker"),
+                .target(name: "d-sdk-aws"),
+                .target(name: "d-sdk-github"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
         ),
         .target(
-            name: "sdk-client",
+            name: "d-sdk-client",
             dependencies: []
         ),
         .testTarget(
             name: "service-deploy-remote-tests",
             dependencies: [
                 .target(name: "service-deploy-remote"),
-                .target(name: "sdk-github"),
+                .target(name: "d-sdk-github"),
             ]
         ),
         .testTarget(
             name: "sdk-cli-tests",
             dependencies: [
-                .target(name: "sdk-cli"),
-                .target(name: "sdk-cli-macros"),
+                .target(name: "d-sdk-cli"),
+                .target(name: "d-sdk-cli-macros"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         )

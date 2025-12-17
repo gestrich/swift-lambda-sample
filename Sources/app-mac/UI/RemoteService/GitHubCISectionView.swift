@@ -1,4 +1,4 @@
-import sdk_github
+import d_sdk_github
 import service_deploy_remote
 import workflows_deploy_remote
 import SwiftUI

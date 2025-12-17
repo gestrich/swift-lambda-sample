@@ -1,9 +1,9 @@
-import sdk_cli
-import sdk_cli_brew
-import sdk_cli_node
-import sdk_cli_docker
-import sdk_aws
-import sdk_github
+import d_sdk_cli
+import d_sdk_cli_brew
+import d_sdk_cli_node
+import d_sdk_cli_docker
+import d_sdk_aws
+import d_sdk_github
 import service_setup
 
 /// Workflow that checks all dependency statuses and yields progress

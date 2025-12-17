@@ -7,7 +7,7 @@
 
 import Foundation
 import SotoDynamoDB
-import sdk_client
+import d_sdk_client
 
 public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked Sendable {
 

@@ -1,5 +1,5 @@
 import Foundation
-import sdk_cli_docker
+import d_sdk_cli_docker
 import service_storage
 
 /// Service for managing local DynamoDB via Docker

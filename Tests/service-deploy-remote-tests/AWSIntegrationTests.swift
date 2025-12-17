@@ -7,9 +7,9 @@
 //
 
 import Foundation
-import sdk_aws
-import sdk_cli
-import sdk_client
+import d_sdk_aws
+import d_sdk_cli
+import d_sdk_client
 @testable import service_deploy_remote
 import Testing
 

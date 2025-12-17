@@ -1,5 +1,5 @@
-import sdk_client
-import sdk_cli
+import d_sdk_client
+import d_sdk_cli
 import Combine
 import Foundation
 import service_deploy_local

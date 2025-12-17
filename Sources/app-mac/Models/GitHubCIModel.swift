@@ -1,6 +1,6 @@
 import AppKit
-import sdk_cli
-import sdk_github
+import d_sdk_cli
+import d_sdk_github
 import Foundation
 import Observation
 import service_deploy_remote

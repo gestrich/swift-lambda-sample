@@ -1,4 +1,4 @@
-import sdk_cli
+import d_sdk_cli
 import service_lambda_build
 import Foundation
 import service_deploy_core

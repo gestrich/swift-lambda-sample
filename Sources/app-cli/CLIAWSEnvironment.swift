@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import sdk_aws
-import sdk_cli
+import d_sdk_aws
+import d_sdk_cli
 
 /// Shared environment for AWS CLI commands
 struct CLIAWSEnvironment {

@@ -1,4 +1,4 @@
-import sdk_client
+import d_sdk_client
 
 extension APIClient {
     /// A placeholder APIClient for SwiftUI previews.

@@ -1,6 +1,6 @@
 import Foundation
-import sdk_cli
-import sdk_cli_brew
+import d_sdk_cli
+import d_sdk_cli_brew
 import service_setup
 
 /// Workflow that installs a specific dependency

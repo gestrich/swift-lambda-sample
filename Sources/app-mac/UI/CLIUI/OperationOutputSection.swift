@@ -1,4 +1,4 @@
-import sdk_cli
+import d_sdk_cli
 import SwiftUI
 
 /// A reusable component for displaying operation output with action buttons.

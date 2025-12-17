@@ -1,6 +1,6 @@
 # Target Layer Prefix Renaming
 
-**Status**: Proposed
+**Status**: In Progress
 **Date**: 2024-12-17
 
 ## Objective
@@ -122,7 +122,7 @@ This order now reflects the architectural dependency hierarchy.
 
 ## Implementation Steps
 
-### Phase 1: Rename SDK Targets (Bottom Layer First)
+### Phase 1: Rename SDK Targets (Bottom Layer First) ✅ COMPLETED
 
 Rename from the bottom of the dependency graph up to avoid broken intermediate states.
 
@@ -132,6 +132,10 @@ Rename from the bottom of the dependency graph up to avoid broken intermediate s
    - Target dependencies (all `.target(name: "sdk-*")` → `.target(name: "d-sdk-*")`)
 3. Update imports in source files (`import sdk_cli` → `import d_sdk_cli`)
 4. Verify build: `swift build`
+
+**Technical Notes:**
+- Also updated `#externalMacro(module: "sdk_cli_macros"` → `#externalMacro(module: "d_sdk_cli_macros"` in `Macros.swift`
+- Updated qualified type reference `sdk_github.GitStatus` → `d_sdk_github.GitStatus` in `DeployStatusWorkflow.swift`
 
 ### Phase 2: Rename Service Targets
 

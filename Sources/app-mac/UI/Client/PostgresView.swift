@@ -1,4 +1,4 @@
-import sdk_client
+import d_sdk_client
 import SwiftUI
 
 /// PostgreSQL section view for use in ClientView

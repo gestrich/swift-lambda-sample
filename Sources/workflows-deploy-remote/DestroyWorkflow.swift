@@ -1,6 +1,6 @@
 import Foundation
-import sdk_aws
-import sdk_cli
+import d_sdk_aws
+import d_sdk_cli
 import service_deploy_remote
 
 /// Workflow for destroying CDK infrastructure.

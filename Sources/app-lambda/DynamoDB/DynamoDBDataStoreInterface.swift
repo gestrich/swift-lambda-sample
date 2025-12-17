@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import sdk_client
+import d_sdk_client
 
 public protocol DynamoDBDataStoreInterface: Sendable {
     func createReminder(_ request: CreateReminderRequest) async throws -> Reminder

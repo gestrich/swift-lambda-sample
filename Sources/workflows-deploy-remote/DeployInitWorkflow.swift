@@ -1,7 +1,7 @@
 import Foundation
-import sdk_aws
-import sdk_cli
-import sdk_github
+import d_sdk_aws
+import d_sdk_cli
+import d_sdk_github
 import service_deploy_core
 import service_deploy_remote
 
