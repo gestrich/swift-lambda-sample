@@ -6,7 +6,7 @@ import StorageService
 import DeployLocalService
 import DeployCoreService
 import LambdaBuildService
-import b_workflow_deploy_local_linux
+import DeployLocalLinuxFeature
 
 /// Observable model for Linux container development workflow
 /// Holds UI state and delegates operations to LinuxLocalDevelopmentService

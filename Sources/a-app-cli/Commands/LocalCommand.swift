@@ -3,7 +3,7 @@ import Foundation
 import DeployLocalService
 import DeployCoreService
 import DeployLocalXcodeFeature
-import b_workflow_deploy_local_linux
+import DeployLocalLinuxFeature
 
 // MARK: - Local Mac Command (Native macOS)
 

@@ -254,14 +254,13 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DeployLocalLinuxFeature**
-  - [ ] Create `features/DeployLocalLinuxFeature/` with `workflows/` and `services/` subfolders
-  - [ ] Move workflow code from `b-workflow-deploy-local-linux/` to `features/DeployLocalLinuxFeature/workflows/`
-  - [ ] Add any linux-specific service code to `services/` subfolder (if applicable)
-  - [ ] Update Package.swift (single target for the feature)
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DeployLocalLinuxFeature** ✅
+  - [x] Create `features/DeployLocalLinuxFeature/` with `workflows/` subfolder
+  - [x] Move workflow code from `b-workflow-deploy-local-linux/` to `features/DeployLocalLinuxFeature/workflows/`
+  - [x] Update Package.swift (single target for the feature)
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 ### Phase 4: Apps
 
@@ -856,3 +855,36 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DeployLocalXcodeFeature` becomes module name `DeployLocalXcodeFeature` directly (PascalCase, no hyphens)
+
+### DeployLocalLinuxFeature Migration (Phase 3.5)
+
+**Key changes:**
+- Created `Sources/features/DeployLocalLinuxFeature/` with `workflows/` subfolder
+- Moved `Sources/b-workflow-deploy-local-linux/` files → `Sources/features/DeployLocalLinuxFeature/workflows/`
+- Removed old directory after migration
+- Updated Package.swift: renamed target from `b-workflow-deploy-local-linux` to `DeployLocalLinuxFeature` with explicit path
+- Updated dependency references in `a-app-cli` and `a-app-mac`
+- Updated all imports from `import b_workflow_deploy_local_linux` to `import DeployLocalLinuxFeature`
+
+**Files moved to workflows/:**
+- `LinuxBuildWorkflow.swift`
+- `LinuxCopyConfigWorkflow.swift`
+- `LinuxRunInteractiveWorkflow.swift`
+- `LinuxSetupNetworkWorkflow.swift`
+- `LinuxStartAllWorkflow.swift`
+- `LinuxStartLambdaWorkflow.swift`
+- `LinuxStartServicesWorkflow.swift`
+- `LinuxStatusWorkflow.swift`
+- `LinuxStopAllWorkflow.swift`
+- `LinuxStopLambdaWorkflow.swift`
+- `LinuxStopServicesWorkflow.swift`
+- `LinuxTestWorkflow.swift`
+
+**Files updated (imports):**
+- `Sources/a-app-cli/Commands/LocalCommand.swift`
+- `Sources/a-app-mac/Models/LinuxLocalModel.swift`
+
+**Note:** Like DeployLocalXcodeFeature, this feature only contains workflow code (no service layer). The service code it depends on is in `DeployLocalService` which was already migrated. This completes Phase 3 (Features) - all feature targets have been migrated.
+
+**Module name behavior:**
+- `DeployLocalLinuxFeature` becomes module name `DeployLocalLinuxFeature` directly (PascalCase, no hyphens)
