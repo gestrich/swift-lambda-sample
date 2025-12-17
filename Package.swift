@@ -122,6 +122,20 @@ let package = Package(
                 .target(name: "c-service-deploy-core"),
             ]
         ),
+        .target(
+            name: "b-workflow-deploy-local-xcode",
+            dependencies: [
+                .target(name: "c-service-deploy-local"),
+                .target(name: "d-sdk-cli"),
+            ]
+        ),
+        .target(
+            name: "b-workflow-deploy-local-linux",
+            dependencies: [
+                .target(name: "c-service-deploy-local"),
+                .target(name: "d-sdk-cli"),
+            ]
+        ),
         .executableTarget(
             name: "a-app-cli",
             dependencies: [
