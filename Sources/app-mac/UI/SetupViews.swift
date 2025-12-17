@@ -1,6 +1,6 @@
 import d_sdk_cli
 import c_service_setup
-import workflows_setup
+import b_workflow_setup
 import SwiftUI
 
 // MARK: - Overview View

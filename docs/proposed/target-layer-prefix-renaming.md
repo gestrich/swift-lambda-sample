@@ -149,12 +149,17 @@ Rename from the bottom of the dependency graph up to avoid broken intermediate s
 - Updated all import statements from `import service_*` to `import c_service_*` across Sources and Tests
 - Updated `@testable import` statements in test files
 
-### Phase 3: Rename Workflow Targets
+### Phase 3: Rename Workflow Targets ✅ COMPLETED
 
 1. Rename `Sources/workflows-*` directories to `Sources/b-workflow-*`
 2. Update `Package.swift` target names and dependencies
 3. Update imports in source files
 4. Verify build: `swift build`
+
+**Technical Notes:**
+- Renamed 2 workflow directories: `workflows-deploy-remote`, `workflows-setup`
+- Updated all import statements from `import workflows_*` to `import b_workflow_*` across Sources
+- Updated dependency references in Package.swift for app-cli and app-mac targets
 
 ### Phase 4: Rename App Targets
 

@@ -1,5 +1,5 @@
 import c_service_setup
-import workflows_setup
+import b_workflow_setup
 import SwiftUI
 
 /// Navigation category for the main sidebar

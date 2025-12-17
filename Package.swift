@@ -95,7 +95,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "workflows-setup",
+            name: "b-workflow-setup",
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-brew"),
@@ -113,7 +113,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "workflows-deploy-remote",
+            name: "b-workflow-deploy-remote",
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-aws"),
@@ -126,7 +126,7 @@ let package = Package(
             name: "app-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "workflows-deploy-remote"),
+                .target(name: "b-workflow-deploy-remote"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),
@@ -168,8 +168,8 @@ let package = Package(
             name: "app-mac",
             dependencies: [
                 .target(name: "d-sdk-client"),
-                .target(name: "workflows-deploy-remote"),
-                .target(name: "workflows-setup"),
+                .target(name: "b-workflow-deploy-remote"),
+                .target(name: "b-workflow-setup"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),
