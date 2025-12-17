@@ -1,8 +1,9 @@
 # Dependency Workflows: service-setup Target
 
-## Status: Proposed
+## Status: Completed
 
 **Created:** 2025-12-17
+**Completed:** 2025-12-17
 
 ## Goal
 
@@ -459,7 +460,7 @@ public final class DependencyStatusModel {
 
 ## Phase 5: Update Views
 
-**Status:** Not Started
+**Status:** Completed
 
 **Goal:** Update SetupViews and ServicesView to use new state pattern.
 
@@ -469,47 +470,71 @@ public final class DependencyStatusModel {
 
 **Changes:**
 
-1. Add helper computed properties to `DependencyStatusModel`:
+1. **ServicesView** - Updated `dependencyStatusIndicator(for:)` to use `CLITool`:
 ```swift
-extension DependencyStatusModel {
-    public func status(for tool: CLITool) -> CLIToolStatus? {
-        state.snapshot?.status(for: tool)
+let tool: CLITool? = {
+    switch category {
+    case .docker: return .docker
+    case .awsCLI: return .awsCLI
+    case .cdk: return .cdk
+    case .githubCLI: return .githubCLI
+    default: return nil
     }
+}()
 
-    public var isChecking: Bool {
-        if case .checking = state { return true }
-        return false
-    }
+if let tool {
+    let statusModel = model.dependencyStatusModel
+    let toolStatus = statusModel.status(for: tool)
 
-    public func isInstalling(_ tool: CLITool) -> Bool {
-        if case .installing(let t, _) = state { return t == tool }
-        return false
+    if statusModel.isChecking || statusModel.isInstalling(tool) {
+        ProgressView()...
+    } else if let toolStatus {
+        if toolStatus.isInstalled { ... } else { ... }
+    } else {
+        ProgressView()...
     }
 }
 ```
 
-2. Update `ServicesView` status badge:
+2. **SetupViews DependencyView** - Added bridging and updated status logic:
 ```swift
-// Old:
-// model.dependencyStatusModel.dockerStatus
+// Added cliTool computed property to Dependency enum
+var cliTool: CLITool {
+    switch self {
+    case .docker: return .docker
+    case .awsCLI: return .awsCLI
+    case .cdk: return .cdk
+    case .githubCLI: return .githubCLI
+    }
+}
 
-// New:
-let status = model.dependencyStatusModel.status(for: .docker)
-// status?.isInstalled, model.dependencyStatusModel.isChecking, etc.
+// DependencyView now uses CLITool-based API
+private var tool: CLITool { dependency.cliTool }
+private var toolStatus: CLIToolStatus? { statusModel.status(for: tool) }
+private var isCheckingOrInstalling: Bool {
+    statusModel.isChecking || statusModel.isInstalling(tool)
+}
+
+// Simplified checkStatus() method
+private func checkStatus() async {
+    await statusModel.check(tool)
+}
 ```
 
-3. Update `DependencyView` in SetupViews:
+3. **DependencyStatusModel** - Added public `check(_:)` method:
 ```swift
-// Map CLITool to the view's Dependency enum
-// Or update Dependency enum to use CLITool cases
+public func check(_ tool: CLITool) async {
+    await checkSingleTool(tool)
+}
 ```
 
 **Technical Notes:**
-- Need to map between UI `Dependency` enum and service layer `CLITool`
-- Consider consolidating enums or adding bridging
-- Status badge logic changes from individual properties to snapshot lookup
+- UI `Dependency` enum now has a `cliTool` computed property for bridging
+- Views use `status(for:)`, `isChecking`, and `isInstalling(_:)` instead of backward-compatible properties
+- Backward-compatible properties remain available but are no longer used by views
+- Added `check(_ tool: CLITool)` method to model for cleaner single-tool checking API
 
-**Verification:** `swift build` succeeds. Mac app shows correct status.
+**Verification:** `swift build` succeeds.
 
 ---
 

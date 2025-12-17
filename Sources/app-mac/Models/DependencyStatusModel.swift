@@ -144,6 +144,13 @@ public final class DependencyStatusModel {
         return status.isInstalled ? .installed : .notInstalled
     }
 
+    // MARK: - Single Tool Check
+
+    /// Check a specific tool's installation status
+    public func check(_ tool: CLITool) async {
+        await checkSingleTool(tool)
+    }
+
     // MARK: - Backward-Compatible Methods
 
     /// Check Homebrew installation status

@@ -1,3 +1,4 @@
+import service_setup
 import SwiftUI
 
 /// Navigation category for the main sidebar
@@ -221,30 +222,38 @@ struct ServicesView: View {
 
     @ViewBuilder
     private func dependencyStatusIndicator(for category: AppCategory) -> some View {
-        let status: DependencyUIState? = {
+        let tool: CLITool? = {
             switch category {
-            case .docker: return model.dependencyStatusModel.dockerStatus
-            case .awsCLI: return model.dependencyStatusModel.awsCLIStatus
-            case .cdk: return model.dependencyStatusModel.cdkStatus
-            case .githubCLI: return model.dependencyStatusModel.githubCLIStatus
+            case .docker: return .docker
+            case .awsCLI: return .awsCLI
+            case .cdk: return .cdk
+            case .githubCLI: return .githubCLI
             default: return nil
             }
         }()
 
-        if let status {
-            switch status {
-            case .unknown, .checking:
+        if let tool {
+            let statusModel = model.dependencyStatusModel
+            let toolStatus = statusModel.status(for: tool)
+
+            if statusModel.isChecking || statusModel.isInstalling(tool) {
                 ProgressView()
                     .scaleEffect(0.5)
                     .frame(width: 16, height: 16)
-            case .installed:
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            case .notInstalled:
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+            } else if let toolStatus {
+                if toolStatus.isInstalled {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            } else {
+                ProgressView()
+                    .scaleEffect(0.5)
+                    .frame(width: 16, height: 16)
             }
         }
     }

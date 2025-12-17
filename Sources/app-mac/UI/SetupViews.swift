@@ -1,4 +1,5 @@
 import sdk_cli
+import service_setup
 import SwiftUI
 
 // MARK: - Overview View
@@ -594,6 +595,15 @@ enum Dependency {
             return "https://github.com/cli/cli#installation"
         }
     }
+
+    var cliTool: CLITool {
+        switch self {
+        case .docker: return .docker
+        case .awsCLI: return .awsCLI
+        case .cdk: return .cdk
+        case .githubCLI: return .githubCLI
+        }
+    }
 }
 
 // MARK: - Dependency View
@@ -613,13 +623,16 @@ struct DependencyView: View {
         selectedMethodType ?? dependency.availableMethodTypes.first ?? .homebrew
     }
 
-    private var status: DependencyUIState {
-        switch dependency {
-        case .docker: return statusModel.dockerStatus
-        case .awsCLI: return statusModel.awsCLIStatus
-        case .cdk: return statusModel.cdkStatus
-        case .githubCLI: return statusModel.githubCLIStatus
-        }
+    private var tool: CLITool {
+        dependency.cliTool
+    }
+
+    private var toolStatus: CLIToolStatus? {
+        statusModel.status(for: tool)
+    }
+
+    private var isCheckingOrInstalling: Bool {
+        statusModel.isChecking || statusModel.isInstalling(tool)
     }
 
     var body: some View {
@@ -681,7 +694,7 @@ struct DependencyView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .disabled(status.isChecking)
+            .disabled(isCheckingOrInstalling)
             .help("Check again")
         }
         .padding(16)
@@ -691,66 +704,59 @@ struct DependencyView: View {
 
     @ViewBuilder
     private var statusIndicator: some View {
-        switch status {
-        case .unknown, .checking:
+        if isCheckingOrInstalling {
             ProgressView()
                 .scaleEffect(0.8)
                 .frame(width: 24, height: 24)
-        case .installed:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.green)
-        case .notInstalled:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title2)
-                .foregroundStyle(.orange)
+        } else if let toolStatus {
+            if toolStatus.isInstalled {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.green)
+            } else {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+            }
+        } else {
+            ProgressView()
+                .scaleEffect(0.8)
+                .frame(width: 24, height: 24)
         }
     }
 
     private var statusTitle: String {
-        switch status {
-        case .unknown, .checking:
+        if isCheckingOrInstalling {
             return "Checking..."
-        case .installed:
-            return "Installed"
-        case .notInstalled:
-            return "Not Installed"
+        } else if let toolStatus {
+            return toolStatus.isInstalled ? "Installed" : "Not Installed"
+        } else {
+            return "Checking..."
         }
     }
 
     private var statusColor: Color {
-        switch status {
-        case .unknown, .checking:
+        if isCheckingOrInstalling {
             return .secondary
-        case .installed:
-            return .green
-        case .notInstalled:
-            return .orange
+        } else if let toolStatus {
+            return toolStatus.isInstalled ? .green : .orange
+        } else {
+            return .secondary
         }
     }
 
     private var statusBackgroundColor: Color {
-        switch status {
-        case .unknown, .checking:
+        if isCheckingOrInstalling {
             return Color(nsColor: .windowBackgroundColor)
-        case .installed:
-            return Color.green.opacity(0.1)
-        case .notInstalled:
-            return Color.orange.opacity(0.1)
+        } else if let toolStatus {
+            return toolStatus.isInstalled ? Color.green.opacity(0.1) : Color.orange.opacity(0.1)
+        } else {
+            return Color(nsColor: .windowBackgroundColor)
         }
     }
 
     private func checkStatus() async {
-        switch dependency {
-        case .docker:
-            await statusModel.checkDocker()
-        case .awsCLI:
-            await statusModel.checkAWSCLI()
-        case .cdk:
-            await statusModel.checkCDK()
-        case .githubCLI:
-            await statusModel.checkGitHubCLI()
-        }
+        await statusModel.check(tool)
     }
 
     private var descriptionSection: some View {
