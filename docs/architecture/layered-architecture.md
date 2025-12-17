@@ -156,6 +156,57 @@ for try await progress in workflow.run(options: opts) {
 
 The workflow should yield state that the model can use directly. If the model needs to do complex mapping, that's a signal the workflow should be returning better-structured state.
 
+#### State Ownership
+
+**Workflows own state data; models own state transitions.**
+
+- Workflows define and return snapshot types (e.g., `DeploymentSnapshot`, `GitHubCISnapshot`)
+- Models define their enum cases for app-layer concerns (`uninitialized`, `loading`, `operating`, `ready`)
+- Associated values in model state should come directly from workflow types
+
+```swift
+// Model defines enum cases (app-layer concerns)
+enum ModelState {
+    case uninitialized
+    case loading(prior: WorkflowSnapshot?)
+    case ready(WorkflowSnapshot)           // ← Associated value from workflow
+    case operating(WorkflowState, prior: WorkflowSnapshot?)  // ← From workflow
+}
+```
+
+**Code smell**: Switching on workflow state to create model state with similar cases.
+
+```swift
+// ❌ Bad: Redundant transformation
+for try await workflowState in workflow.run() {
+    switch workflowState {
+    case .deploying(let progress):
+        state = .operating(step: progress.step, startTime: progress.startTime)
+    case .completed(let runId):
+        state = .ready(status: .success(runId: runId))
+    case .failed(let runId, let reason):
+        state = .ready(status: .failed(runId: runId, reason: reason))
+    }
+}
+
+// ✅ Good: Direct assignment via init
+for try await workflowState in workflow.run() {
+    state = ModelState(from: workflowState, prior: prior)
+}
+```
+
+The `ModelState.init(from:prior:)` should be trivial—typically just checking if the workflow completed:
+
+```swift
+init(from workflowState: WorkflowState, prior: Snapshot?) {
+    if let snapshot = workflowState.completedSnapshot {
+        self = .ready(snapshot)
+    } else {
+        self = .operating(workflowState, prior: prior)
+    }
+}
+```
+
 #### Enum-Based State in Models
 
 Use enums to represent model state rather than multiple independent properties.
