@@ -1,8 +1,8 @@
 import sdk_cli
 import Foundation
 
-/// Service for interacting with Docker
-public actor DockerService {
+/// Client for interacting with Docker CLI
+public struct DockerClient: Sendable {
     private let cliClient: CLIClient
 
     public init(cliClient: CLIClient) {
@@ -21,93 +21,60 @@ public actor DockerService {
         }
     }
 
-    /// Start Docker Desktop application
-    public func startDockerDesktop() async throws {
-        print("🐳 Starting Docker Desktop...")
-
-        // Open Docker Desktop app
-        let result = try await cliClient.executeForResult(
-            Open(application: "Docker"),
-            printCommand: false
-        )
-
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "open -a Docker",
-                exitCode: result.exitCode,
-                output: "Failed to start Docker Desktop. Is it installed?"
-            )
-        }
-
-        // Wait for Docker daemon to be ready
-        print("   Waiting for Docker daemon to be ready...")
-        let maxAttempts = 60  // Wait up to 60 seconds
-        for attempt in 1...maxAttempts {
-            if await isDockerRunning() {
-                print("   ✅ Docker is ready")
-                return
-            }
-            try await Task.sleep(for: .seconds(1))
-            if attempt % 10 == 0 {
-                print("   Still waiting... (\(attempt)s)")
-            }
-        }
-
-        throw DeployError.commandFailed(
-            command: "docker",
-            exitCode: 1,
-            output: "Docker Desktop started but daemon did not become ready within 60 seconds."
-        )
-    }
-
-    /// Ensure Docker daemon is running, starting Docker Desktop if needed
-    public func ensureDockerRunning() async throws {
-        if await isDockerRunning() {
-            return
-        }
-
-        // Try to start Docker Desktop
-        try await startDockerDesktop()
-    }
-
     // MARK: - Container Management
 
-    public struct RunOptions {
-        public var detached: Bool = false
-        public var remove: Bool = false
-        public var interactive: Bool = false
-        public var tty: Bool = false
+    public struct RunOptions: Sendable {
+        public var detached: Bool
+        public var remove: Bool
+        public var interactive: Bool
+        public var tty: Bool
         public var platform: String?
         public var name: String?
         public var network: String?
-        public var ports: [(host: Int, container: Int)] = []
-        public var volumes: [(host: String, container: String)] = []
-        public var environment: [String: String] = [:]
+        public var ports: [(host: Int, container: Int)]
+        public var volumes: [(host: String, container: String)]
+        public var environment: [String: String]
         public var user: String?
         public var workingDirectory: String?
 
-        public init() {}
+        public init(
+            detached: Bool = false,
+            remove: Bool = false,
+            interactive: Bool = false,
+            tty: Bool = false,
+            platform: String? = nil,
+            name: String? = nil,
+            network: String? = nil,
+            ports: [(host: Int, container: Int)] = [],
+            volumes: [(host: String, container: String)] = [],
+            environment: [String: String] = [:],
+            user: String? = nil,
+            workingDirectory: String? = nil
+        ) {
+            self.detached = detached
+            self.remove = remove
+            self.interactive = interactive
+            self.tty = tty
+            self.platform = platform
+            self.name = name
+            self.network = network
+            self.ports = ports
+            self.volumes = volumes
+            self.environment = environment
+            self.user = user
+            self.workingDirectory = workingDirectory
+        }
     }
 
     /// Run a Docker container
-    /// - Parameters:
-    ///   - image: Docker image to run
-    ///   - command: Command to execute in the container
-    ///   - options: Run options (ports, volumes, environment, etc.)
-    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func run(
         image: String,
         command: [String] = [],
         options: RunOptions = RunOptions(),
         output: CLIOutputStream? = nil
     ) async throws {
-        // Build port mappings as strings
         let portMappings = options.ports.map { "\($0.host):\($0.container)" }
-
-        // Build volume mappings as strings
         let volumeMappings = options.volumes.map { "\($0.host):\($0.container)" }
-
-        // Build environment variables as KEY=value strings
         let envVars = options.environment.map { "\($0.key)=\($0.value)" }
 
         let dockerRun = Docker.Run(
@@ -134,7 +101,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker run",
                 exitCode: result.exitCode,
                 output: result.output
@@ -150,7 +117,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker start",
                 exitCode: result.exitCode,
                 output: result.output
@@ -166,7 +133,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker stop",
                 exitCode: result.exitCode,
                 output: result.output
@@ -182,7 +149,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker rm",
                 exitCode: result.exitCode,
                 output: result.output
@@ -220,31 +187,38 @@ public actor DockerService {
 
     // MARK: - Image Management
 
-    public struct BuildOptions {
+    public struct BuildOptions: Sendable {
         public var platform: String?
         public var tag: String?
         public var file: String?
-        public var buildArgs: [String: String] = [:]
-        public var secrets: [(id: String, src: String)] = []
+        public var buildArgs: [String: String]
+        public var secrets: [(id: String, src: String)]
         public var workingDirectory: String?
 
-        public init() {}
+        public init(
+            platform: String? = nil,
+            tag: String? = nil,
+            file: String? = nil,
+            buildArgs: [String: String] = [:],
+            secrets: [(id: String, src: String)] = [],
+            workingDirectory: String? = nil
+        ) {
+            self.platform = platform
+            self.tag = tag
+            self.file = file
+            self.buildArgs = buildArgs
+            self.secrets = secrets
+            self.workingDirectory = workingDirectory
+        }
     }
 
     /// Build a Docker image
-    /// - Parameters:
-    ///   - context: Build context directory (default: ".")
-    ///   - options: Build options (platform, tag, Dockerfile, build args, etc.)
-    ///   - output: Optional client-owned stream to receive output (in addition to global stream)
     public func build(
         context: String = ".",
         options: BuildOptions = BuildOptions(),
         output: CLIOutputStream? = nil
     ) async throws {
-        // Build buildArg as KEY=value strings
         let buildArgStrings = options.buildArgs.map { "\($0.key)=\($0.value)" }
-
-        // Build secrets as id=X,src=Y strings
         let secretStrings = options.secrets.map { "id=\($0.id),src=\($0.src)" }
 
         let dockerBuild = Docker.Build(
@@ -256,8 +230,6 @@ public actor DockerService {
             context: context
         )
 
-        // Use shell with cd to ensure we're in the right directory
-        // Docker buildkit can have issues with process.currentDirectoryURL
         let dockerCommand = dockerBuild.commandString
         let fullCommand: String
         if let workDir = options.workingDirectory {
@@ -269,7 +241,7 @@ public actor DockerService {
         let result = try await cliClient.executeForResult(Sh(command: fullCommand), output: output)
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker build",
                 exitCode: result.exitCode,
                 output: result.output
@@ -286,7 +258,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker network create",
                 exitCode: result.exitCode,
                 output: result.output
@@ -311,7 +283,7 @@ public actor DockerService {
         )
 
         guard result.isSuccess else {
-            throw DeployError.commandFailed(
+            throw DockerError.commandFailed(
                 command: "docker network connect",
                 exitCode: result.exitCode,
                 output: result.output

@@ -1,14 +1,15 @@
 import Foundation
+import sdk_cli_docker
 import service_storage
 
 /// Service for managing local PostgreSQL database via Docker
 public actor PostgreSQLLocalService {
-    private let dockerService: DockerService
+    private let dockerClient: DockerClient
     private let config: PostgreSQLConfig
     private let storageService: LocalStorageService
 
-    public init(dockerService: DockerService, config: PostgreSQLConfig, storageService: LocalStorageService) {
-        self.dockerService = dockerService
+    public init(dockerClient: DockerClient, config: PostgreSQLConfig, storageService: LocalStorageService) {
+        self.dockerClient = dockerClient
         self.config = config
         self.storageService = storageService
     }
@@ -31,11 +32,11 @@ public actor PostgreSQLLocalService {
         print("\n🗄️  Starting PostgreSQL (\(config.containerName))...")
 
         // Check if container already exists
-        let containerExists = try await dockerService.containerExists(name: config.containerName)
+        let containerExists = try await dockerClient.containerExists(name: config.containerName)
 
         if containerExists {
             // Check if it's already running
-            let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+            let isRunning = try await dockerClient.containerIsRunning(name: config.containerName)
             if isRunning {
                 print("✅ PostgreSQL already running")
                 return
@@ -43,7 +44,7 @@ public actor PostgreSQLLocalService {
 
             // Container exists but is stopped - start it
             print("→ Starting existing PostgreSQL container...")
-            try await dockerService.start(container: config.containerName)
+            try await dockerClient.start(container: config.containerName)
         } else {
             // Container doesn't exist - create and run it
             try await createAndRunContainer()
@@ -67,7 +68,7 @@ public actor PostgreSQLLocalService {
         // Run PostgreSQL container with host directory for data persistence
         // The official postgres image handles initialization automatically
         print("→ Creating PostgreSQL container...")
-        var runOptions = DockerService.RunOptions()
+        var runOptions = DockerClient.RunOptions()
         runOptions.detached = true
         runOptions.ports = [(config.port, config.internalPort)]
         runOptions.name = config.containerName
@@ -78,7 +79,7 @@ public actor PostgreSQLLocalService {
             "POSTGRES_DB": config.database
         ]
 
-        try await dockerService.run(
+        try await dockerClient.run(
             image: config.imageName,
             options: runOptions
         )
@@ -91,7 +92,7 @@ public actor PostgreSQLLocalService {
 
     /// Check if PostgreSQL container is running
     public func isRunning() async throws -> Bool {
-        return try await dockerService.containerIsRunning(name: config.containerName)
+        return try await dockerClient.containerIsRunning(name: config.containerName)
     }
 
     // MARK: - Private Helpers
@@ -99,12 +100,12 @@ public actor PostgreSQLLocalService {
     /// Stop a Docker container by name
     private func stopContainer(named containerName: String) async throws {
         // Check if container exists
-        let exists = try await dockerService.containerExists(name: containerName)
+        let exists = try await dockerClient.containerExists(name: containerName)
 
         if exists {
             print("→ Stopping and removing \(containerName)...")
-            try await dockerService.stop(container: containerName)
-            try await dockerService.remove(container: containerName)
+            try await dockerClient.stop(container: containerName)
+            try await dockerClient.remove(container: containerName)
             print("✅ \(containerName) stopped and removed")
         }
     }

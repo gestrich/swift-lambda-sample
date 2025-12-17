@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_cli_docker
 import sdk_client
 import Foundation
 import service_storage
@@ -6,7 +7,7 @@ import service_storage
 /// Stateless service for native macOS Xcode development workflow
 /// Orchestrates Docker services, native Swift builds, and Lambda process management
 public actor XcodeLocalDevelopmentService {
-    private let dockerService: DockerService
+    private let dockerClient: DockerClient
     private let cliClient: CLIClient
     private let storageService: LocalStorageService
 
@@ -27,25 +28,73 @@ public actor XcodeLocalDevelopmentService {
     public init(workingDirectory: String) {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.cliClient = cliClient
-        self.dockerService = DockerService(cliClient: cliClient)
+        let dockerClient = DockerClient(cliClient: cliClient)
+        self.dockerClient = dockerClient
         self.workingDirectory = workingDirectory
         self.storageService = LocalStorageService()
 
         self.postgresService = PostgreSQLLocalService(
-            dockerService: dockerService,
+            dockerClient: dockerClient,
             config: .xcode,
             storageService: storageService
         )
         self.minioService = MinIOService(
-            dockerService: dockerService,
+            dockerClient: dockerClient,
             networkName: "lambda-xcode",
             config: .xcode,
             storageService: storageService
         )
         self.dynamodbService = DynamoDBLocalService(
-            dockerService: dockerService,
+            dockerClient: dockerClient,
             config: .xcode,
             storageService: storageService
+        )
+    }
+
+    // MARK: - Docker Daemon Management
+
+    /// Ensure Docker daemon is running, starting Docker Desktop if needed
+    private func ensureDockerRunning() async throws {
+        if await dockerClient.isDockerRunning() {
+            return
+        }
+        try await startDockerDesktop()
+    }
+
+    /// Start Docker Desktop application and wait for daemon to be ready
+    private func startDockerDesktop() async throws {
+        print("🐳 Starting Docker Desktop...")
+
+        let result = try await cliClient.executeForResult(
+            Open(application: "Docker"),
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "open -a Docker",
+                exitCode: result.exitCode,
+                output: "Failed to start Docker Desktop. Is it installed?"
+            )
+        }
+
+        print("   Waiting for Docker daemon to be ready...")
+        let maxAttempts = 60
+        for attempt in 1...maxAttempts {
+            if await dockerClient.isDockerRunning() {
+                print("   ✅ Docker is ready")
+                return
+            }
+            try await Task.sleep(for: .seconds(1))
+            if attempt % 10 == 0 {
+                print("   Still waiting... (\(attempt)s)")
+            }
+        }
+
+        throw DeployError.commandFailed(
+            command: "docker",
+            exitCode: 1,
+            output: "Docker Desktop started but daemon did not become ready within 60 seconds."
         )
     }
 
@@ -53,7 +102,7 @@ public actor XcodeLocalDevelopmentService {
 
     /// Start all services (PostgreSQL + MinIO + DynamoDB)
     public func startAllServices() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
 
         if !(try await minioService.isRunning()) {
             try await minioService.start()
@@ -83,7 +132,7 @@ public actor XcodeLocalDevelopmentService {
 
     /// Start MinIO S3 service
     public func startS3() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
         try await minioService.start()
     }
 
@@ -99,7 +148,7 @@ public actor XcodeLocalDevelopmentService {
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
         try await postgresService.start()
     }
 
@@ -110,7 +159,7 @@ public actor XcodeLocalDevelopmentService {
 
     /// Start DynamoDB Local
     public func startDynamoDB() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
         try await dynamodbService.start()
     }
 
@@ -335,19 +384,19 @@ public actor XcodeLocalDevelopmentService {
     private func setupNetworkAndBucket() async throws {
         let networkName = "lambda-xcode"
 
-        if !(try await dockerService.networkExists(name: networkName)) {
+        if !(try await dockerClient.networkExists(name: networkName)) {
             print("→ Creating Docker network: \(networkName)")
-            try await dockerService.createNetwork(name: networkName)
+            try await dockerClient.createNetwork(name: networkName)
         }
 
         let minioContainer = minioService.minioContainerName
-        let isConnected = try await dockerService.isConnectedToNetwork(
+        let isConnected = try await dockerClient.isConnectedToNetwork(
             container: minioContainer,
             network: networkName
         )
         if !isConnected {
             print("→ Connecting \(minioContainer) to \(networkName)")
-            try await dockerService.connectToNetwork(container: minioContainer, network: networkName)
+            try await dockerClient.connectToNetwork(container: minioContainer, network: networkName)
         }
 
         try await minioService.createBucket(bucketName: nil)

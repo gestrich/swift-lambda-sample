@@ -1,14 +1,15 @@
 import Foundation
+import sdk_cli_docker
 import service_storage
 
 /// Service for managing local DynamoDB via Docker
 public actor DynamoDBLocalService {
-    private let dockerService: DockerService
+    private let dockerClient: DockerClient
     private let config: DynamoDBLocalConfig
     private let storageService: LocalStorageService
 
-    public init(dockerService: DockerService, config: DynamoDBLocalConfig, storageService: LocalStorageService) {
-        self.dockerService = dockerService
+    public init(dockerClient: DockerClient, config: DynamoDBLocalConfig, storageService: LocalStorageService) {
+        self.dockerClient = dockerClient
         self.config = config
         self.storageService = storageService
     }
@@ -34,11 +35,11 @@ public actor DynamoDBLocalService {
         print("\n🗄️  Starting DynamoDB Local (\(config.containerName))...")
 
         // Check if container already exists
-        let containerExists = try await dockerService.containerExists(name: config.containerName)
+        let containerExists = try await dockerClient.containerExists(name: config.containerName)
 
         if containerExists {
             // Check if it's already running
-            let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+            let isRunning = try await dockerClient.containerIsRunning(name: config.containerName)
             if isRunning {
                 print("✅ DynamoDB Local already running")
                 return
@@ -46,7 +47,7 @@ public actor DynamoDBLocalService {
 
             // Container exists but is stopped - start it
             print("→ Starting existing DynamoDB Local container...")
-            try await dockerService.start(container: config.containerName)
+            try await dockerClient.start(container: config.containerName)
         } else {
             // Container doesn't exist - create and run it
             try await createAndRunContainer()
@@ -71,14 +72,14 @@ public actor DynamoDBLocalService {
         // Note: We don't set a custom user because DynamoDB Local runs as a specific user
         // and setting a different user causes permission issues with the jar file
         print("→ Creating DynamoDB Local container...")
-        var runOptions = DockerService.RunOptions()
+        var runOptions = DockerClient.RunOptions()
         runOptions.detached = true
         runOptions.ports = [(config.port, config.internalPort)]
         runOptions.name = config.containerName
         runOptions.workingDirectory = "/home/dynamodblocal"
         runOptions.volumes = [(dataDir, "/home/dynamodblocal/data")]
 
-        try await dockerService.run(
+        try await dockerClient.run(
             image: config.imageName,
             command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "./data"],
             options: runOptions
@@ -92,7 +93,7 @@ public actor DynamoDBLocalService {
 
     /// Check if DynamoDB Local container is running
     public func isRunning() async throws -> Bool {
-        return try await dockerService.containerIsRunning(name: config.containerName)
+        return try await dockerClient.containerIsRunning(name: config.containerName)
     }
 
     // MARK: - Private Helpers
@@ -100,12 +101,12 @@ public actor DynamoDBLocalService {
     /// Stop a Docker container by name
     private func stopContainer(named containerName: String) async throws {
         // Check if container exists
-        let exists = try await dockerService.containerExists(name: containerName)
+        let exists = try await dockerClient.containerExists(name: containerName)
 
         if exists {
             print("→ Stopping and removing \(containerName)...")
-            try await dockerService.stop(container: containerName)
-            try await dockerService.remove(container: containerName)
+            try await dockerClient.stop(container: containerName)
+            try await dockerClient.remove(container: containerName)
             print("✅ \(containerName) stopped and removed")
         }
     }

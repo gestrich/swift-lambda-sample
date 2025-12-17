@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_cli_docker
 import sdk_client
 import Foundation
 import service_storage
@@ -6,7 +7,7 @@ import service_storage
 /// Stateless service for Linux container development workflow (AWS Lambda compatible)
 /// Orchestrates Docker services, container builds, and Lambda container management
 public actor LinuxLocalDevelopmentService {
-    private let dockerService: DockerService
+    private let dockerClient: DockerClient
     private let cliClient: CLIClient
     private let storageService: LocalStorageService
 
@@ -33,24 +34,25 @@ public actor LinuxLocalDevelopmentService {
     public init(workingDirectory: String) {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.cliClient = cliClient
-        self.dockerService = DockerService(cliClient: cliClient)
+        let dockerClient = DockerClient(cliClient: cliClient)
+        self.dockerClient = dockerClient
         self.workingDirectory = workingDirectory
         self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
 
         self.postgresService = PostgreSQLLocalService(
-            dockerService: dockerService,
+            dockerClient: dockerClient,
             config: .linux,
             storageService: storageService
         )
         self.minioService = MinIOService(
-            dockerService: dockerService,
+            dockerClient: dockerClient,
             networkName: config.networkName,
             config: .linux,
             storageService: storageService
         )
         self.dynamodbService = DynamoDBLocalService(
-            dockerService: dockerService,
+            dockerClient: dockerClient,
             config: .linux,
             storageService: storageService
         )
@@ -64,11 +66,58 @@ public actor LinuxLocalDevelopmentService {
     /// The container name
     public var containerName: String { config.containerName }
 
+    // MARK: - Docker Daemon Management
+
+    /// Ensure Docker daemon is running, starting Docker Desktop if needed
+    private func ensureDockerRunning() async throws {
+        if await dockerClient.isDockerRunning() {
+            return
+        }
+        try await startDockerDesktop()
+    }
+
+    /// Start Docker Desktop application and wait for daemon to be ready
+    private func startDockerDesktop() async throws {
+        print("🐳 Starting Docker Desktop...")
+
+        let result = try await cliClient.executeForResult(
+            Open(application: "Docker"),
+            printCommand: false
+        )
+
+        guard result.isSuccess else {
+            throw DeployError.commandFailed(
+                command: "open -a Docker",
+                exitCode: result.exitCode,
+                output: "Failed to start Docker Desktop. Is it installed?"
+            )
+        }
+
+        print("   Waiting for Docker daemon to be ready...")
+        let maxAttempts = 60
+        for attempt in 1...maxAttempts {
+            if await dockerClient.isDockerRunning() {
+                print("   ✅ Docker is ready")
+                return
+            }
+            try await Task.sleep(for: .seconds(1))
+            if attempt % 10 == 0 {
+                print("   Still waiting... (\(attempt)s)")
+            }
+        }
+
+        throw DeployError.commandFailed(
+            command: "docker",
+            exitCode: 1,
+            output: "Docker Desktop started but daemon did not become ready within 60 seconds."
+        )
+    }
+
     // MARK: - Service Management
 
     /// Start all services (PostgreSQL + MinIO + DynamoDB)
     public func startAllServices() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
 
         if !(try await minioService.isRunning()) {
             try await minioService.start()
@@ -98,7 +147,7 @@ public actor LinuxLocalDevelopmentService {
 
     /// Start MinIO S3 service
     public func startS3() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
         try await minioService.start()
     }
 
@@ -114,7 +163,7 @@ public actor LinuxLocalDevelopmentService {
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
         try await postgresService.start()
     }
 
@@ -125,7 +174,7 @@ public actor LinuxLocalDevelopmentService {
 
     /// Start DynamoDB Local
     public func startDynamoDB() async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
         try await dynamodbService.start()
     }
 
@@ -244,7 +293,7 @@ public actor LinuxLocalDevelopmentService {
         await output?.send(.stdout(commandID: .init(), text: stopMsg))
 
         do {
-            try await dockerService.stop(container: config.containerName)
+            try await dockerClient.stop(container: config.containerName)
             let doneMsg = "\n✅ Lambda stopped\n"
             await output?.send(.stdout(commandID: .init(), text: doneMsg))
         } catch {
@@ -309,7 +358,7 @@ public actor LinuxLocalDevelopmentService {
     public func waitForReady(maxAttempts: Int = 30) async throws {
         print("🔍 Verifying Lambda is running...")
 
-        let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+        let isRunning = try await dockerClient.containerIsRunning(name: config.containerName)
         guard isRunning else {
             throw DeployError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
         }
@@ -385,16 +434,16 @@ public actor LinuxLocalDevelopmentService {
 
     /// Check if Lambda container is running
     public func isRunning() async throws -> Bool {
-        return try await dockerService.containerIsRunning(name: config.containerName)
+        return try await dockerClient.containerIsRunning(name: config.containerName)
     }
 
     // MARK: - Linux-Specific Methods
 
     /// Setup Docker network for Lambda container
     public func setupDockerNetwork() async throws {
-        if !(try await dockerService.networkExists(name: config.networkName)) {
+        if !(try await dockerClient.networkExists(name: config.networkName)) {
             print("→ Creating Docker network: \(config.networkName)")
-            try await dockerService.createNetwork(name: config.networkName)
+            try await dockerClient.createNetwork(name: config.networkName)
         } else {
             print("✓ Network \(config.networkName) already exists")
         }
@@ -442,7 +491,7 @@ public actor LinuxLocalDevelopmentService {
         print("\n✅ Starting interactive container...")
         print("(Type 'exit' to leave the container)\n")
 
-        var options = DockerService.RunOptions()
+        var options = DockerClient.RunOptions()
         options.interactive = true
         options.tty = true
         options.remove = true
@@ -452,7 +501,7 @@ public actor LinuxLocalDevelopmentService {
         options.ports = [(config.hostPort, config.containerPort)]
         options.environment = getEnvironmentVariables()
 
-        try await dockerService.run(
+        try await dockerClient.run(
             image: config.swiftImage,
             command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && echo '✅ Lambda ready! Run: ./bootstrap' && bash"],
             options: options
@@ -487,7 +536,7 @@ public actor LinuxLocalDevelopmentService {
 
     /// Start Lambda container in detached mode
     private func startDetached(lambdaPath: String? = nil, output: CLIOutputStream? = nil) async throws {
-        try await dockerService.ensureDockerRunning()
+        try await ensureDockerRunning()
 
         let effectiveLambdaDir = lambdaPath ?? lambdaDir
 
@@ -497,7 +546,7 @@ public actor LinuxLocalDevelopmentService {
             throw CLIClientError.invalidWorkingDirectory("lambda directory not found")
         }
 
-        var options = DockerService.RunOptions()
+        var options = DockerClient.RunOptions()
         options.detached = true
         options.remove = true
         options.name = config.containerName
@@ -507,7 +556,7 @@ public actor LinuxLocalDevelopmentService {
         options.volumes = [(effectiveLambdaDir, "/var/task")]
         options.environment = getEnvironmentVariables()
 
-        try await dockerService.run(
+        try await dockerClient.run(
             image: config.swiftImage,
             command: ["bash", "-c", "cd /var/task && chmod +x bootstrap && exec ./bootstrap"],
             options: options,
@@ -529,17 +578,17 @@ public actor LinuxLocalDevelopmentService {
     private func connectContainerToNetwork(container: String) async throws {
         try await Task.sleep(for: .seconds(1))
 
-        let isConnected = try await dockerService.isConnectedToNetwork(
+        let isConnected = try await dockerClient.isConnectedToNetwork(
             container: container,
             network: config.networkName
         )
 
         if !isConnected {
-            let isRunning = try await dockerService.containerIsRunning(name: container)
+            let isRunning = try await dockerClient.containerIsRunning(name: container)
 
             if isRunning {
                 print("→ Connecting \(container) to \(config.networkName)")
-                try await dockerService.connectToNetwork(container: container, network: config.networkName)
+                try await dockerClient.connectToNetwork(container: container, network: config.networkName)
             } else {
                 print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local services start-\(container == postgresService.connectionInfo.containerName ? "database" : "s3")")
             }

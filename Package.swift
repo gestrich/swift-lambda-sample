@@ -52,6 +52,12 @@ let package = Package(
             ]
         ),
         .target(
+            name: "sdk-cli-docker",
+            dependencies: [
+                .target(name: "sdk-cli"),
+            ]
+        ),
+        .target(
             name: "service-storage"
         ),
         .executableTarget(
@@ -73,6 +79,7 @@ let package = Package(
                 .target(name: "sdk-client"),
                 .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
+                .target(name: "sdk-cli-docker"),
                 .target(name: "sdk-aws"),
                 .target(name: "sdk-github"),
             ]

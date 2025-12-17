@@ -1,5 +1,11 @@
 # Move DockerService to sdk-cli-docker Layer
 
+## Status: ✅ COMPLETED
+
+**Completed:** 2025-12-17
+
+All migration steps have been successfully completed. The `DockerService` has been migrated to `sdk-cli-docker` as `DockerClient`, following the project's layered architecture principles.
+
 ## Overview
 
 This document plans the migration of `DockerService` from `service-deploy-remote` to a new `sdk-cli-docker` target, following the project's layered architecture principles.
@@ -257,19 +263,19 @@ Sources/
 
 ## Migration Steps
 
-1. **Create sdk-cli-docker target in Package.swift**
+1. ✅ **Create sdk-cli-docker target in Package.swift**
    - Add target definition
    - Add dependency: sdk-cli
 
-2. **Create DockerError.swift** in sdk-cli-docker
+2. ✅ **Create DockerError.swift** in sdk-cli-docker
    - Define error cases
    - Implement LocalizedError
 
-3. **Move Docker.swift** to sdk-cli-docker/CLI/
+3. ✅ **Move Docker.swift** to sdk-cli-docker/CLI/
    - No code changes needed
    - Update import if needed
 
-4. **Create DockerClient.swift** in sdk-cli-docker
+4. ✅ **Create DockerClient.swift** in sdk-cli-docker
    - Copy from DockerService.swift
    - Rename DockerService → DockerClient
    - Change `actor` → `struct`
@@ -277,18 +283,22 @@ Sources/
    - Remove print statements
    - Remove startDockerDesktop() and ensureDockerRunning()
 
-5. **Delete service-deploy-remote/DockerService/** directory
+5. ✅ **Delete service-deploy-remote/DockerService/** directory
 
-6. **Update Package.swift dependencies**
+6. ✅ **Update Package.swift dependencies**
    - Add sdk-cli-docker dependency to service-deploy-remote
 
-7. **Update consumers**
+7. ✅ **Update consumers**
    - LinuxLocalDevelopmentService
    - XcodeLocalDevelopmentService
+   - MinIOService
+   - PostgreSQLLocalService
+   - DynamoDBLocalService
    - Update imports and types
-   - Move ensureDockerRunning() logic into these services
+   - Move ensureDockerRunning() logic into LinuxLocalDevelopmentService and XcodeLocalDevelopmentService
 
-8. **Run tests and verify**
+8. ✅ **Run tests and verify**
+   - Build successful
 
 ## Benefits
 
@@ -306,10 +316,25 @@ Sources/
 
 | File | Change |
 |------|--------|
-| `Package.swift` | Add sdk-cli-docker target |
+| `Package.swift` | Add sdk-cli-docker target, add dependency to service-deploy-remote |
 | `Sources/sdk-cli-docker/DockerClient.swift` | New file (from DockerService) |
 | `Sources/sdk-cli-docker/DockerError.swift` | New file |
 | `Sources/sdk-cli-docker/CLI/Docker.swift` | Moved from service-deploy-remote |
-| `Sources/service-deploy-remote/DockerService/` | Delete directory |
+| `Sources/service-deploy-remote/DockerService/` | Deleted directory |
 | `Sources/service-deploy-remote/LocalDevelopmentService/LinuxLocalDevelopmentService.swift` | Update imports, add ensureDockerRunning logic |
 | `Sources/service-deploy-remote/LocalDevelopmentService/XcodeLocalDevelopmentService.swift` | Update imports, add ensureDockerRunning logic |
+| `Sources/service-deploy-remote/LocalDevelopmentService/Containers/MinIOService.swift` | Update to use DockerClient |
+| `Sources/service-deploy-remote/LocalDevelopmentService/Containers/PostgreSQLLocalService.swift` | Update to use DockerClient |
+| `Sources/service-deploy-remote/LocalDevelopmentService/Containers/DynamoDBLocalService.swift` | Update to use DockerClient |
+
+## Technical Notes
+
+### Key Architectural Decisions
+
+1. **DockerClient is a struct, not an actor**: Since all operations are stateless CLI calls, there's no need for actor isolation.
+
+2. **ensureDockerRunning() moved to service layer**: The orchestration logic (check if running → start Docker Desktop → wait for ready) with user feedback (print statements) is kept in `LinuxLocalDevelopmentService` and `XcodeLocalDevelopmentService` rather than the SDK layer.
+
+3. **DockerError for SDK, DeployError for services**: The SDK uses its own `DockerError` enum for command failures, while service-layer code continues to use `DeployError` for orchestration failures.
+
+4. **Consumers updated**: All container services (MinIO, PostgreSQL, DynamoDB) now take `DockerClient` in their initializers instead of `DockerService`.

@@ -1,15 +1,16 @@
 import Foundation
+import sdk_cli_docker
 import service_storage
 
 /// Service for managing local MinIO S3 service via Docker
 public actor MinIOService {
-    private let dockerService: DockerService
+    private let dockerClient: DockerClient
     private let networkName: String
     private let config: MinIOConfig
     private let storageService: LocalStorageService
 
-    public init(dockerService: DockerService, networkName: String, config: MinIOConfig, storageService: LocalStorageService) {
-        self.dockerService = dockerService
+    public init(dockerClient: DockerClient, networkName: String, config: MinIOConfig, storageService: LocalStorageService) {
+        self.dockerClient = dockerClient
         self.networkName = networkName
         self.config = config
         self.storageService = storageService
@@ -60,11 +61,11 @@ public actor MinIOService {
         print("\n🗄️  Starting MinIO S3 (\(config.containerName))...")
 
         // Check if container already exists
-        let containerExists = try await dockerService.containerExists(name: config.containerName)
+        let containerExists = try await dockerClient.containerExists(name: config.containerName)
 
         if containerExists {
             // Check if it's already running
-            let isRunning = try await dockerService.containerIsRunning(name: config.containerName)
+            let isRunning = try await dockerClient.containerIsRunning(name: config.containerName)
             if isRunning {
                 print("✅ MinIO already running")
                 return
@@ -72,7 +73,7 @@ public actor MinIOService {
 
             // Container exists but is stopped - start it
             print("→ Starting existing MinIO container...")
-            try await dockerService.start(container: config.containerName)
+            try await dockerClient.start(container: config.containerName)
         } else {
             // Container doesn't exist - create and run it
             try await createAndRunContainer()
@@ -95,8 +96,8 @@ public actor MinIOService {
         }
 
         // Get user ID and group ID
-        let userId = try await dockerService.getCurrentUserId()
-        let groupId = try await dockerService.getCurrentGroupId()
+        let userId = try await dockerClient.getCurrentUserId()
+        let groupId = try await dockerClient.getCurrentGroupId()
 
         // Run MinIO container
         // MinIO S3 API always listens on port 9000 internally
@@ -104,7 +105,7 @@ public actor MinIOService {
         let internalS3Port = 9000
         let internalConsolePort = 9001
 
-        var options = DockerService.RunOptions()
+        var options = DockerClient.RunOptions()
         options.detached = true
         // Map external ports to internal ports (MinIO always uses 9000 for S3, 9001 for console internally)
         options.ports = [(config.s3Port, internalS3Port), (config.consolePort, internalConsolePort)]
@@ -117,7 +118,7 @@ public actor MinIOService {
         ]
         options.volumes = [(dataDir, "/data")]
 
-        try await dockerService.run(
+        try await dockerClient.run(
             image: config.imageName,
             command: ["server", "/data", "--console-address", ":\(internalConsolePort)"],
             options: options
@@ -131,7 +132,7 @@ public actor MinIOService {
 
         // Run AWS CLI in a container to create the bucket
         // Use internal port (9000) since we're connecting container-to-container via Docker network
-        var options = DockerService.RunOptions()
+        var options = DockerClient.RunOptions()
         options.remove = true
         options.network = networkName
         options.environment = [
@@ -142,7 +143,7 @@ public actor MinIOService {
         ]
 
         do {
-            try await dockerService.run(
+            try await dockerClient.run(
                 image: "amazon/aws-cli",
                 command: ["--endpoint-url", "http://\(config.containerName):\(internalS3Port)", "s3", "mb", "s3://\(bucket)"],
                 options: options
@@ -161,7 +162,7 @@ public actor MinIOService {
 
     /// Check if MinIO container is running
     public func isRunning() async throws -> Bool {
-        return try await dockerService.containerIsRunning(name: config.containerName)
+        return try await dockerClient.containerIsRunning(name: config.containerName)
     }
 
     // MARK: - Private Helpers
@@ -169,12 +170,12 @@ public actor MinIOService {
     /// Stop a Docker container by name
     private func stopContainer(named containerName: String) async throws {
         // Check if container exists
-        let exists = try await dockerService.containerExists(name: containerName)
+        let exists = try await dockerClient.containerExists(name: containerName)
 
         if exists {
             print("→ Stopping and removing \(containerName)...")
-            try await dockerService.stop(container: containerName)
-            try await dockerService.remove(container: containerName)
+            try await dockerClient.stop(container: containerName)
+            try await dockerClient.remove(container: containerName)
             print("✅ \(containerName) stopped and removed")
         }
     }
