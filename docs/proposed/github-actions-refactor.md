@@ -764,45 +764,45 @@ public final class GitHubCIModel {
 
 ## Migration Steps
 
-- [ ] **Phase 1: Create GitHubCIWorkflow and State types** (service-deploy)
-   - Create `GitHubCISnapshot` (stable state, like `DeploymentSnapshot`)
-   - Create `GitHubCIWorkflow.State` enum (what workflows yield)
-   - Create `GitHubCIWorkflow` struct with:
-     - `getStatus()` → `StatusSnapshot` (for refresh)
-     - `pushAndDeploy()` → `AsyncThrowingStream<State, Error>`
-     - `monitorRun()` → `AsyncThrowingStream<State, Error>`
-   - Move orchestration logic from `GitHubActionsClient`
+### [ ] Phase 1: Create GitHubCIWorkflow and State types (service-deploy)
+- [ ] Create `GitHubCISnapshot` (stable state, like `DeploymentSnapshot`)
+- [ ] Create `GitHubCIWorkflow.State` enum (what workflows yield)
+- [ ] Create `GitHubCIWorkflow` struct with:
+  - [ ] `getStatus()` → `StatusSnapshot` (for refresh)
+  - [ ] `pushAndDeploy()` → `AsyncThrowingStream<State, Error>`
+  - [ ] `monitorRun()` → `AsyncThrowingStream<State, Error>`
+- [ ] Move orchestration logic from `GitHubActionsClient`
 
-- [ ] **Phase 2: Remove type aliases and re-exports** (service-deploy)
-   - Delete `GitHubActionsService.swift`
-   - Update imports in dependent files to use `sdk_github` directly
+### [ ] Phase 2: Remove type aliases and re-exports (service-deploy)
+- [ ] Delete `GitHubActionsService.swift`
+- [ ] Update imports in dependent files to use `sdk_github` directly
 
-- [ ] **Phase 3: Refactor GitHubCIModel** (app-mac)
-   - Create `ModelState` enum with `init(from:prior:)`
-   - Remove async work from init
-   - Operations use: `state = ModelState(from: workflowState, prior: prior)`
-   - No switch statements on workflow state
+### [ ] Phase 3: Refactor GitHubCIModel (app-mac)
+- [ ] Create `ModelState` enum with `init(from:prior:)`
+- [ ] Remove async work from init
+- [ ] Operations use: `state = ModelState(from: workflowState, prior: prior)`
+- [ ] No switch statements on workflow state
 
-- [ ] **Phase 4: Update UpdateLambdaWorkflow** (service-deploy)
-   - Use GitHubCLIClient and GitClient directly (already stateless)
-   - Remove dependency on GitHubActionsClient
+### [ ] Phase 4: Update UpdateLambdaWorkflow (service-deploy)
+- [ ] Use GitHubCLIClient and GitClient directly (already stateless)
+- [ ] Remove dependency on GitHubActionsClient
 
-- [ ] **Phase 5: Update StatusWorkflow** (service-deploy)
-   - Use GitHubCLIClient and GitClient directly
-   - Remove dependency on GitHubActionsClient
+### [ ] Phase 5: Update StatusWorkflow (service-deploy)
+- [ ] Use GitHubCLIClient and GitClient directly
+- [ ] Remove dependency on GitHubActionsClient
 
-- [ ] **Phase 6: Remove GitHubActionsClient** (sdk-github)
-   - Delete the stateful client
-   - Keep GitHubCLIClient and GitClient (already stateless)
-   - Keep data models (GitHubWorkflowRun, GitHubRunDetail, etc.)
+### [ ] Phase 6: Remove GitHubActionsClient (sdk-github)
+- [ ] Delete the stateful client
+- [ ] Keep GitHubCLIClient and GitClient (already stateless)
+- [ ] Keep data models (GitHubWorkflowRun, GitHubRunDetail, etc.)
 
-- [ ] **Phase 7: Update GitHubCISectionView** (app-mac)
-   - Update to use new model state enum
-   - Update model initialization
+### [ ] Phase 7: Update GitHubCISectionView (app-mac)
+- [ ] Update to use new model state enum
+- [ ] Update model initialization
 
-- [ ] **Phase 8: Update dependent code**
-   - `RemoteServiceView.swift` - Update model creation
-   - Any tests that reference removed types
+### [ ] Phase 8: Update dependent code
+- [ ] `RemoteServiceView.swift` - Update model creation
+- [ ] Any tests that reference removed types
 
 ## Files Affected
 
