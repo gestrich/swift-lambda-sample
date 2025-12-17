@@ -9,9 +9,10 @@ import Foundation
 import MinioSDK
 import PostgreSQLSDK
 import DynamoDBSDK
+import StorageService
 
 /// Execution context for Lambda - determines how to connect to services
-enum LambdaExecutionContext {
+public enum LambdaExecutionContext {
     /// Native macOS process (Xcode mode) - connects via localhost
     case xcode
     /// Docker container (Linux mode) - connects via Docker network DNS
@@ -19,7 +20,7 @@ enum LambdaExecutionContext {
 }
 
 /// Create environment variables for Lambda based on execution context
-func createEnvironmentVariables(
+public func createEnvironmentVariables(
     postgresClient: PostgreSQLClient,
     minioClient: MinIOClient,
     dynamodbClient: DynamoDBClient,
@@ -89,4 +90,11 @@ func createEnvironmentVariables(
     ]
 
     return env
+}
+
+// MARK: - Storage Keys
+
+/// Storage key for app configuration file
+public struct AppConfigFileKey: StorageFileKey {
+    public static let filename = "swiftLambdaDemo.json"
 }

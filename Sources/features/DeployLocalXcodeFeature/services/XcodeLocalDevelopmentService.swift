@@ -1,13 +1,14 @@
+import ClientService
 import CLISDK
+import DeployCoreService
+import DeployLocalService
 import DockerCLISDK
+import DynamoDBSDK
+import Foundation
+import LambdaBuildService
 import MinioSDK
 import PostgreSQLSDK
-import DynamoDBSDK
-import ClientService
-import LambdaBuildService
-import Foundation
 import StorageService
-import DeployCoreService
 
 /// Stateless service for native macOS Xcode development workflow
 /// Orchestrates Docker services, native Swift builds, and Lambda process management
@@ -624,18 +625,4 @@ public actor XcodeLocalDevelopmentService {
             throw DeployError.testFailed(message: "Database endpoint test failed")
         }
     }
-}
-
-// MARK: - Storage Keys
-
-/// Storage key for app configuration file
-public struct AppConfigFileKey: StorageFileKey {
-    public static let filename = "swiftLambdaDemo.json"
-}
-
-/// Result of a local build operation
-public struct LocalBuildResult: Sendable {
-    public let success: Bool
-    public let exitCode: Int32
-    public let output: String
 }
