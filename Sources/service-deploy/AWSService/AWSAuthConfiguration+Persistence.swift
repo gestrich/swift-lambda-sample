@@ -6,19 +6,8 @@
 //
 
 import Foundation
-import service_storage
 import sdk_aws
-
-// Re-export SDK types for app-mac and other consumers
-// This allows app-mac to depend only on service-deploy, not directly on sdk-aws
-@_exported import struct sdk_aws.AWSAuthConfiguration
-@_exported import struct sdk_aws.CloudWatchLogEntry
-
-// CloudFormation state types used by views
-@_exported import enum sdk_aws.CloudFormationState
-@_exported import struct sdk_aws.DeploymentProgress
-@_exported import struct sdk_aws.ResourceProgress
-@_exported import enum sdk_aws.ResourceStatus
+import service_storage
 
 // MARK: - Storage Keys
 
