@@ -12,6 +12,10 @@ let package = Package(
         .executable(
             name: "app-lambda",
             targets: ["a-app-lambda"]
+        ),
+        .executable(
+            name: "app-cli",
+            targets: ["a-app-cli"]
         )
     ],
     dependencies: [

@@ -93,13 +93,15 @@ Move PostgreSQLLocalService, MinIOService, and DynamoDBLocalService from `c-serv
 
 - [x] Build succeeds: `swift build`
 - [x] Tests pass: `swift test`
-- [ ] Local services work: `./tools.sh local xcode start-all`
+- [x] Local services work: `swift run app-cli local-mac start-all`
 
 **Technical Notes (Phase 5):**
 - Build verified successful
 - 364 of 365 tests pass; 1 pre-existing test failure in `LinuxDeployTests` unrelated to refactoring
   - The failure is in "Full Linux container workflow" test due to API routing returning "Path Not Found: file" - a pre-existing issue with the `/api/file` endpoint routing in the Linux container, not the refactoring
 - AWS Integration Tests skipped (requires deployed infrastructure)
+- Local services verified working: PostgreSQL, MinIO S3, DynamoDB all start and stop correctly
+- **Fix required**: Added missing `app-cli` product to `Package.swift` - the executable target existed but wasn't exposed as a product, preventing `swift run app-cli` from working
 
 ## Refactoring Complete
 
