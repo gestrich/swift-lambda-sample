@@ -7,20 +7,29 @@ import sdk_github
 /// Orchestrates git status, GitHub Actions status, and CloudFormation stack queries.
 public struct StatusWorkflow: Sendable {
     private let gitClient: GitClient
-    private let githubClient: GitHubActionsClient?
+    private let ghClient: GitHubCLIClient?
     private let cfClient: CloudFormationClient
     private let stackName: String
+    private let branch: String?
+    private let repository: String?
+    private let workflowName: String?
 
     public init(
         gitClient: GitClient,
-        githubClient: GitHubActionsClient?,
+        ghClient: GitHubCLIClient?,
         cfClient: CloudFormationClient,
-        stackName: String
+        stackName: String,
+        branch: String?,
+        repository: String?,
+        workflowName: String?
     ) {
         self.gitClient = gitClient
-        self.githubClient = githubClient
+        self.ghClient = ghClient
         self.cfClient = cfClient
         self.stackName = stackName
+        self.branch = branch
+        self.repository = repository
+        self.workflowName = workflowName
     }
 
     /// Components needed for status operations.
@@ -48,16 +57,19 @@ public struct StatusWorkflow: Sendable {
             cliClient: cliClient
         )
         let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
-        let githubConfig = GitHubConfiguration.loadConfig()?.toSDKConfiguration()
-        let githubClient = githubConfig.map {
-            GitHubActionsClient(repoPath: projectRoot, config: $0, cliClient: cliClient)
+        let githubConfig = GitHubConfiguration.loadConfig()
+        let ghClient = githubConfig.map {
+            GitHubCLIClient(repository: $0.repository, cliClient: cliClient)
         }
 
         let workflow = StatusWorkflow(
             gitClient: gitClient,
-            githubClient: githubClient,
+            ghClient: ghClient,
             cfClient: cfClient,
-            stackName: stackName
+            stackName: stackName,
+            branch: githubConfig?.branch,
+            repository: githubConfig?.repository,
+            workflowName: githubConfig?.workflowName
         )
 
         return Components(
@@ -206,18 +218,28 @@ public struct StatusWorkflow: Sendable {
     private func fetchGitHubStatus(
         continuation: AsyncThrowingStream<Progress, Error>.Continuation
     ) async -> GitHubStatus? {
-        guard let githubClient else {
+        guard let ghClient, let repository, let branch else {
             continuation.yield(Progress(step: .checkingGitHub, detail: .githubNotConfigured))
             return nil
         }
 
         do {
-            let (status, conclusion) = try await githubClient.getLatestRunStatus()
+            let latestRun = try await ghClient.getLatestWorkflowRun(branch: branch, workflow: workflowName)
+            guard let run = latestRun else {
+                let githubStatus = GitHubStatus(
+                    repository: repository,
+                    branch: branch,
+                    latestRunStatus: "none",
+                    latestRunConclusion: nil
+                )
+                continuation.yield(Progress(step: .checkingGitHub, detail: .githubStatus(githubStatus)))
+                return githubStatus
+            }
             let githubStatus = GitHubStatus(
-                repository: githubClient.repository,
-                branch: githubClient.branch,
-                latestRunStatus: status,
-                latestRunConclusion: conclusion
+                repository: repository,
+                branch: branch,
+                latestRunStatus: run.status,
+                latestRunConclusion: run.conclusion
             )
             continuation.yield(Progress(step: .checkingGitHub, detail: .githubStatus(githubStatus)))
             return githubStatus

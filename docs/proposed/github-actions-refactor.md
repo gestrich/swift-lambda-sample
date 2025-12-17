@@ -840,9 +840,18 @@ public final class GitHubCIModel {
   - `Sources/app-cli/Commands/UpdateLambdaCommand.swift`: Added case for `.monitoringWorkflow`
   - `Sources/app-cli/Commands/DeployInitCommand.swift`: Added case for `.monitoringWorkflow`
 
-### [ ] Phase 5: Update StatusWorkflow (service-deploy)
-- [ ] Use GitHubCLIClient and GitClient directly
-- [ ] Remove dependency on GitHubActionsClient
+### [x] Phase 5: Update StatusWorkflow (service-deploy)
+- [x] Use GitHubCLIClient and GitClient directly
+- [x] Remove dependency on GitHubActionsClient
+
+**Technical Notes (Phase 5):**
+- Refactored `Sources/service-deploy/Workflows/StatusWorkflow.swift`:
+  - Replaced `GitHubActionsClient` dependency with `GitHubCLIClient` (stateless)
+  - Added `branch`, `repository`, and `workflowName` fields to store configuration directly
+  - Updated `create()` factory to construct `GitHubCLIClient` directly using `githubConfig.repository`
+  - Updated `fetchGitHubStatus()` to call `ghClient.getLatestWorkflowRun()` directly instead of `githubClient.getLatestRunStatus()`
+  - Removed `.toSDKConfiguration()` call since we now use `GitHubConfiguration` properties directly
+- The workflow now stores GitHub configuration properties (branch, repository, workflowName) as fields rather than relying on the stateful `GitHubActionsClient` to provide them
 
 ### [ ] Phase 6: Remove GitHubActionsClient (sdk-github)
 - [ ] Delete the stateful client
