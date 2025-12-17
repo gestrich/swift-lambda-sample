@@ -5,7 +5,7 @@ import sdk_github
 
 /// Workflow for querying deployment and git status.
 /// Orchestrates git status, GitHub Actions status, and CloudFormation stack queries.
-public struct StatusWorkflow: Sendable {
+public struct DeployStatusWorkflow: Sendable {
     private let gitClient: GitClient
     private let ghClient: GitHubCLIClient?
     private let cfClient: CloudFormationClient
@@ -34,7 +34,7 @@ public struct StatusWorkflow: Sendable {
 
     /// Components needed for status operations.
     public struct Components: Sendable {
-        public let workflow: StatusWorkflow
+        public let workflow: DeployStatusWorkflow
         public let cfClient: CloudFormationClient
         public let stackName: String
     }
@@ -62,7 +62,7 @@ public struct StatusWorkflow: Sendable {
             GitHubCLIClient(repository: $0.repository, cliClient: cliClient)
         }
 
-        let workflow = StatusWorkflow(
+        let workflow = DeployStatusWorkflow(
             gitClient: gitClient,
             ghClient: ghClient,
             cfClient: cfClient,

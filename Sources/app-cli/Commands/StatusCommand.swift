@@ -29,7 +29,7 @@ extension AWSCommand {
             let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
             let credentialProvider = awsConfig.makeCredentialProvider()
 
-            let components = StatusWorkflow.create(
+            let components = DeployStatusWorkflow.create(
                 projectRoot: projectRoot,
                 credentialProvider: credentialProvider,
                 cliClient: cliClient
@@ -40,7 +40,7 @@ extension AWSCommand {
             }
         }
 
-        private func printProgress(_ progress: StatusWorkflow.Progress) {
+        private func printProgress(_ progress: DeployStatusWorkflow.Progress) {
             guard let detail = progress.detail else { return }
 
             switch detail {
@@ -80,7 +80,7 @@ extension AWSCommand {
             }
         }
 
-        private func printStackStatus(_ status: StatusWorkflow.StackStatus) {
+        private func printStackStatus(_ status: DeployStatusWorkflow.StackStatus) {
             switch status {
             case .deployed(let stack):
                 if stack.outputs.isEmpty {
