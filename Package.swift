@@ -74,6 +74,9 @@ let package = Package(
             name: "service-storage"
         ),
         .target(
+            name: "service-setup"
+        ),
+        .target(
             name: "service-deploy-core",
             dependencies: [
                 .target(name: "sdk-cli"),
@@ -100,6 +103,7 @@ let package = Package(
                 .target(name: "sdk-cli-docker"),
                 .target(name: "sdk-aws"),
                 .target(name: "sdk-github"),
+                .target(name: "service-setup"),
             ]
         ),
         .target(
@@ -171,6 +175,7 @@ let package = Package(
                 .target(name: "service-deploy-core"),
                 .target(name: "service-lambda-build"),
                 .target(name: "service-storage"),
+                .target(name: "service-setup"),
                 .target(name: "sdk-cli"),
                 .target(name: "sdk-cli-brew"),
                 .target(name: "sdk-cli-node"),

@@ -1,6 +1,7 @@
 import Foundation
 import sdk_cli
 import sdk_cli_brew
+import service_setup
 
 /// Workflow that installs a specific dependency
 public struct DependencyInstallWorkflow: Sendable {
