@@ -141,6 +141,8 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "b-workflow-deploy-remote"),
+                .target(name: "b-workflow-deploy-local-xcode"),
+                .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),

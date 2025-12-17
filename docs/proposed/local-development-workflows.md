@@ -752,8 +752,45 @@ public enum LocalServiceType: Sendable, Hashable {
 - Xcode workflows use port 8080 (native process)
 - Linux workflows use port 8081 (Docker container) to avoid conflicts
 
+### Phase 2: CLI Workflow Integration (Completed)
+
+**Date:** Phase completed
+
+**What was implemented:**
+
+1. **Package.swift dependencies** - Added `b-workflow-deploy-local-xcode` and `b-workflow-deploy-local-linux` to `a-app-cli` target
+
+2. **LocalCommand.swift refactored** - All CLI commands now use workflows instead of direct service calls:
+   - Commands consume `AsyncThrowingStream<Progress, Error>` from workflows
+   - Each command has a dedicated progress printer function
+   - Progress output provides meaningful feedback (icons, step descriptions)
+   - Nested workflow progress is properly forwarded (e.g., StartAllWorkflow → StartServicesWorkflow → individual service progress)
+
+3. **Progress printing pattern** - Each workflow type has its own printer:
+   - `printXcodeBuildProgress`, `printLinuxBuildProgress`
+   - `printXcodeStartLambdaProgress`, `printLinuxStartLambdaProgress`
+   - `printXcodeStopLambdaProgress`, `printLinuxStopLambdaProgress`
+   - `printXcodeStartServicesProgress`, `printLinuxStartServicesProgress`
+   - `printXcodeStopServicesProgress`, `printLinuxStopServicesProgress`
+   - `printXcodeStartAllProgress`, `printLinuxStartAllProgress`
+   - `printXcodeStopAllProgress`, `printLinuxStopAllProgress`
+   - `printXcodeTestProgress`, `printLinuxTestProgress`
+   - `printXcodeCopyConfigProgress`, `printLinuxCopyConfigProgress`
+   - `printLinuxSetupNetworkProgress`, `printLinuxRunInteractiveProgress`
+
+**Technical Notes:**
+
+- CLI commands still create `XcodeLocalDevelopmentService` / `LinuxLocalDevelopmentService` instances but pass them to workflows
+- Workflows encapsulate the orchestration logic and emit structured progress events
+- Progress printers handle all step/detail combinations with appropriate icons
+- Status command still uses direct service call (no workflow needed - simple query operation)
+
+**Benefits:**
+- Consistent progress reporting across CLI and Mac app (when integrated)
+- Testable workflow logic separate from I/O
+- Structured progress events enable rich UI updates
+
 ### Next Steps
 
-- Update `a-app-cli` to use the new workflow targets
 - Update `a-app-mac` to use the new workflow targets
-- Remove direct service calls from CLI commands in favor of workflows
+- Consider adding XcodeStatusWorkflow and LinuxStatusWorkflow for completeness

@@ -2,6 +2,8 @@ import ArgumentParser
 import Foundation
 import c_service_deploy_local
 import c_service_deploy_core
+import b_workflow_deploy_local_xcode
+import b_workflow_deploy_local_linux
 
 // MARK: - Local Mac Command (Native macOS)
 
@@ -44,7 +46,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.build(clean: clean)
+            let workflow = XcodeBuildWorkflow(service: service)
+            let options = XcodeBuildWorkflow.Options(clean: clean)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeBuildProgress(progress)
+            }
         }
     }
 
@@ -57,7 +64,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startLambda()
+            let workflow = XcodeStartLambdaWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeStartLambdaProgress(progress)
+            }
         }
     }
 
@@ -70,7 +81,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopLambda()
+            let workflow = XcodeStopLambdaWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeStopLambdaProgress(progress)
+            }
         }
     }
 
@@ -83,7 +98,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startWithServices()
+            let workflow = XcodeStartAllWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeStartAllProgress(progress)
+            }
         }
     }
 
@@ -96,7 +115,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopWithServices()
+            let workflow = XcodeStopAllWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeStopAllProgress(progress)
+            }
         }
     }
 
@@ -109,7 +132,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startDatabase()
+            let workflow = XcodeStartServicesWorkflow(service: service)
+            let options = XcodeStartServicesWorkflow.Options.only(.database)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeStartServicesProgress(progress)
+            }
         }
     }
 
@@ -122,7 +150,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopDatabase()
+            let workflow = XcodeStopServicesWorkflow(service: service)
+            let options = XcodeStopServicesWorkflow.Options.only(.database)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeStopServicesProgress(progress)
+            }
         }
     }
 
@@ -135,7 +168,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startDynamoDB()
+            let workflow = XcodeStartServicesWorkflow(service: service)
+            let options = XcodeStartServicesWorkflow.Options.only(.dynamodb)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeStartServicesProgress(progress)
+            }
         }
     }
 
@@ -148,7 +186,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopDynamoDB()
+            let workflow = XcodeStopServicesWorkflow(service: service)
+            let options = XcodeStopServicesWorkflow.Options.only(.dynamodb)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeStopServicesProgress(progress)
+            }
         }
     }
 
@@ -161,7 +204,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startS3()
+            let workflow = XcodeStartServicesWorkflow(service: service)
+            let options = XcodeStartServicesWorkflow.Options.only(.s3)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeStartServicesProgress(progress)
+            }
         }
     }
 
@@ -174,7 +222,12 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopS3()
+            let workflow = XcodeStopServicesWorkflow(service: service)
+            let options = XcodeStopServicesWorkflow.Options.only(.s3)
+
+            for try await progress in workflow.run(options: options) {
+                printXcodeStopServicesProgress(progress)
+            }
         }
     }
 
@@ -187,7 +240,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.testLambda()
+            let workflow = XcodeTestWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeTestProgress(progress)
+            }
         }
     }
 
@@ -214,7 +271,11 @@ extension LocalMacCommand {
 
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.copyConfig()
+            let workflow = XcodeCopyConfigWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printXcodeCopyConfigProgress(progress)
+            }
         }
     }
 }
@@ -262,7 +323,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.build(clean: clean)
+            let workflow = LinuxBuildWorkflow(service: service)
+            let options = LinuxBuildWorkflow.Options(clean: clean)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxBuildProgress(progress)
+            }
         }
     }
 
@@ -275,7 +341,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startLambda()
+            let workflow = LinuxStartLambdaWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxStartLambdaProgress(progress)
+            }
         }
     }
 
@@ -288,7 +358,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopLambda()
+            let workflow = LinuxStopLambdaWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxStopLambdaProgress(progress)
+            }
         }
     }
 
@@ -301,7 +375,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startWithServices()
+            let workflow = LinuxStartAllWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxStartAllProgress(progress)
+            }
         }
     }
 
@@ -314,7 +392,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopWithServices()
+            let workflow = LinuxStopAllWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxStopAllProgress(progress)
+            }
         }
     }
 
@@ -327,7 +409,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startDatabase()
+            let workflow = LinuxStartServicesWorkflow(service: service)
+            let options = LinuxStartServicesWorkflow.Options.only(.database)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxStartServicesProgress(progress)
+            }
         }
     }
 
@@ -340,7 +427,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopDatabase()
+            let workflow = LinuxStopServicesWorkflow(service: service)
+            let options = LinuxStopServicesWorkflow.Options.only(.database)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxStopServicesProgress(progress)
+            }
         }
     }
 
@@ -353,7 +445,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startDynamoDB()
+            let workflow = LinuxStartServicesWorkflow(service: service)
+            let options = LinuxStartServicesWorkflow.Options.only(.dynamodb)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxStartServicesProgress(progress)
+            }
         }
     }
 
@@ -366,7 +463,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopDynamoDB()
+            let workflow = LinuxStopServicesWorkflow(service: service)
+            let options = LinuxStopServicesWorkflow.Options.only(.dynamodb)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxStopServicesProgress(progress)
+            }
         }
     }
 
@@ -379,7 +481,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.startS3()
+            let workflow = LinuxStartServicesWorkflow(service: service)
+            let options = LinuxStartServicesWorkflow.Options.only(.s3)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxStartServicesProgress(progress)
+            }
         }
     }
 
@@ -392,7 +499,12 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.stopS3()
+            let workflow = LinuxStopServicesWorkflow(service: service)
+            let options = LinuxStopServicesWorkflow.Options.only(.s3)
+
+            for try await progress in workflow.run(options: options) {
+                printLinuxStopServicesProgress(progress)
+            }
         }
     }
 
@@ -405,7 +517,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.testLambda()
+            let workflow = LinuxTestWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxTestProgress(progress)
+            }
         }
     }
 
@@ -432,7 +548,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.setupDockerNetwork()
+            let workflow = LinuxSetupNetworkWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxSetupNetworkProgress(progress)
+            }
         }
     }
 
@@ -445,7 +565,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.runInteractive()
+            let workflow = LinuxRunInteractiveWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxRunInteractiveProgress(progress)
+            }
         }
     }
 
@@ -458,7 +582,11 @@ extension LocalLinuxCommand {
 
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            try await service.copyConfig()
+            let workflow = LinuxCopyConfigWorkflow(service: service)
+
+            for try await progress in workflow.run() {
+                printLinuxCopyConfigProgress(progress)
+            }
         }
     }
 }
@@ -480,4 +608,492 @@ private func printStatus(_ status: DeploymentStatus, mode: String) {
     print("\(postgresIcon) PostgreSQL: \(status.postgresState)")
     print("\(dynamodbIcon) DynamoDB:   \(status.dynamodbState)")
     print("")
+}
+
+// MARK: - Xcode Progress Printers
+
+private func printXcodeBuildProgress(_ progress: XcodeBuildWorkflow.Progress) {
+    switch progress.step {
+    case .cleaning:
+        print("🧹 Cleaning build artifacts...")
+    case .building:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔨 Building Lambda for macOS...")
+        }
+    case .complete:
+        if case .buildPath(let path) = progress.detail {
+            print("✅ Build complete: \(path)")
+        } else {
+            print("✅ Build complete")
+        }
+    }
+}
+
+private func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.Progress) {
+    switch progress.step {
+    case .checkingBuild:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔍 Checking build...")
+        }
+    case .starting:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🚀 Starting Lambda...")
+        }
+    case .waitingForReady:
+        print("⏳ Waiting for Lambda to be ready...")
+    case .complete:
+        if case .port(let port) = progress.detail {
+            print("✅ Lambda running on port \(port)")
+        } else {
+            print("✅ Lambda started")
+        }
+    }
+}
+
+private func printXcodeStopLambdaProgress(_ progress: XcodeStopLambdaWorkflow.Progress) {
+    switch progress.step {
+    case .checking:
+        print("🔍 Checking Lambda status...")
+    case .stopping:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🛑 Stopping Lambda...")
+        }
+    case .complete:
+        if case .wasRunning(let wasRunning) = progress.detail {
+            if wasRunning {
+                print("✅ Lambda stopped")
+            } else {
+                print("ℹ️  Lambda was not running")
+            }
+        } else {
+            print("✅ Lambda stopped")
+        }
+    }
+}
+
+private func printXcodeStartServicesProgress(_ progress: XcodeStartServicesWorkflow.Progress) {
+    switch progress.step {
+    case .startingDatabase:
+        if case .serviceStarted(_) = progress.detail {
+            print("✅ PostgreSQL started")
+        } else {
+            print("🐘 Starting PostgreSQL...")
+        }
+    case .startingS3:
+        if case .serviceStarted(_) = progress.detail {
+            print("✅ MinIO S3 started")
+        } else {
+            print("📦 Starting MinIO S3...")
+        }
+    case .creatingBucket:
+        print("🪣 Creating S3 bucket...")
+    case .startingDynamoDB:
+        if case .serviceStarted(_) = progress.detail {
+            print("✅ DynamoDB started")
+        } else {
+            print("⚡ Starting DynamoDB...")
+        }
+    case .complete:
+        print("✅ All services started")
+    }
+}
+
+private func printXcodeStopServicesProgress(_ progress: XcodeStopServicesWorkflow.Progress) {
+    switch progress.step {
+    case .stoppingDatabase:
+        if case .serviceStopped(_) = progress.detail {
+            print("✅ PostgreSQL stopped")
+        } else {
+            print("🐘 Stopping PostgreSQL...")
+        }
+    case .stoppingS3:
+        if case .serviceStopped(_) = progress.detail {
+            print("✅ MinIO S3 stopped")
+        } else {
+            print("📦 Stopping MinIO S3...")
+        }
+    case .stoppingDynamoDB:
+        if case .serviceStopped(_) = progress.detail {
+            print("✅ DynamoDB stopped")
+        } else {
+            print("⚡ Stopping DynamoDB...")
+        }
+    case .complete:
+        print("✅ All services stopped")
+    }
+}
+
+private func printXcodeStartAllProgress(_ progress: XcodeStartAllWorkflow.Progress) {
+    switch progress.step {
+    case .startingServices:
+        if case .servicesProgress(let servicesProgress) = progress.detail {
+            printXcodeStartServicesProgress(servicesProgress)
+        } else {
+            print("🔄 Starting services...")
+        }
+    case .startingLambda:
+        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+            printXcodeStartLambdaProgress(lambdaProgress)
+        } else {
+            print("🔄 Starting Lambda...")
+        }
+    case .waitingForReady:
+        print("⏳ Waiting for Lambda to be ready...")
+    case .complete:
+        if case .port(let port) = progress.detail {
+            print("")
+            print("✅ All services and Lambda running on port \(port)")
+        } else {
+            print("✅ All services started")
+        }
+    }
+}
+
+private func printXcodeStopAllProgress(_ progress: XcodeStopAllWorkflow.Progress) {
+    switch progress.step {
+    case .stoppingLambda:
+        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+            printXcodeStopLambdaProgress(lambdaProgress)
+        } else {
+            print("🔄 Stopping Lambda...")
+        }
+    case .stoppingServices:
+        if case .servicesProgress(let servicesProgress) = progress.detail {
+            printXcodeStopServicesProgress(servicesProgress)
+        } else {
+            print("🔄 Stopping services...")
+        }
+    case .complete:
+        print("")
+        print("✅ All Lambda and services stopped")
+    }
+}
+
+private func printXcodeTestProgress(_ progress: XcodeTestWorkflow.Progress) {
+    switch progress.step {
+    case .checkingLambda:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔍 Checking Lambda status...")
+        }
+    case .testingFileUpload:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("📤 Testing file upload...")
+        }
+    case .testingFileList:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("📋 Testing file list...")
+        }
+    case .testingFileDownload:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("📥 Testing file download...")
+        }
+    case .testingDatabaseInit:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("🗄️  Testing database init...")
+        }
+    case .complete:
+        print("")
+        print("✅ All tests passed")
+    }
+}
+
+private func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.Progress) {
+    switch progress.step {
+    case .copying:
+        if case .copiedFile(let file) = progress.detail {
+            print("📄 Copied \(file)")
+        } else {
+            print("📋 Copying config files...")
+        }
+    case .complete:
+        if case .destinationPath(let path) = progress.detail {
+            print("✅ Config copied to \(path)")
+        } else {
+            print("✅ Config copied")
+        }
+    }
+}
+
+// MARK: - Linux Progress Printers
+
+private func printLinuxBuildProgress(_ progress: LinuxBuildWorkflow.Progress) {
+    switch progress.step {
+    case .cleaning:
+        print("🧹 Cleaning build artifacts...")
+    case .building:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🐳 Building Lambda for Linux (Docker)...")
+        }
+    case .complete:
+        if case .buildPath(let path) = progress.detail {
+            print("✅ Build complete: \(path)")
+        } else {
+            print("✅ Build complete")
+        }
+    }
+}
+
+private func printLinuxStartLambdaProgress(_ progress: LinuxStartLambdaWorkflow.Progress) {
+    switch progress.step {
+    case .checkingBuild:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔍 Checking build...")
+        }
+    case .starting:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🐳 Starting Lambda container...")
+        }
+    case .waitingForReady:
+        print("⏳ Waiting for Lambda to be ready...")
+    case .complete:
+        if case .port(let port) = progress.detail {
+            print("✅ Lambda container running on port \(port)")
+        } else {
+            print("✅ Lambda container started")
+        }
+    }
+}
+
+private func printLinuxStopLambdaProgress(_ progress: LinuxStopLambdaWorkflow.Progress) {
+    switch progress.step {
+    case .checking:
+        print("🔍 Checking Lambda container status...")
+    case .stopping:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🛑 Stopping Lambda container...")
+        }
+    case .complete:
+        if case .wasRunning(let wasRunning) = progress.detail {
+            if wasRunning {
+                print("✅ Lambda container stopped")
+            } else {
+                print("ℹ️  Lambda container was not running")
+            }
+        } else {
+            print("✅ Lambda container stopped")
+        }
+    }
+}
+
+private func printLinuxStartServicesProgress(_ progress: LinuxStartServicesWorkflow.Progress) {
+    switch progress.step {
+    case .startingDatabase:
+        if case .serviceStarted(_) = progress.detail {
+            print("✅ PostgreSQL started")
+        } else {
+            print("🐘 Starting PostgreSQL...")
+        }
+    case .startingS3:
+        if case .serviceStarted(_) = progress.detail {
+            print("✅ MinIO S3 started")
+        } else {
+            print("📦 Starting MinIO S3...")
+        }
+    case .creatingBucket:
+        print("🪣 Creating S3 bucket...")
+    case .startingDynamoDB:
+        if case .serviceStarted(_) = progress.detail {
+            print("✅ DynamoDB started")
+        } else {
+            print("⚡ Starting DynamoDB...")
+        }
+    case .complete:
+        print("✅ All services started")
+    }
+}
+
+private func printLinuxStopServicesProgress(_ progress: LinuxStopServicesWorkflow.Progress) {
+    switch progress.step {
+    case .stoppingDatabase:
+        if case .serviceStopped(_) = progress.detail {
+            print("✅ PostgreSQL stopped")
+        } else {
+            print("🐘 Stopping PostgreSQL...")
+        }
+    case .stoppingS3:
+        if case .serviceStopped(_) = progress.detail {
+            print("✅ MinIO S3 stopped")
+        } else {
+            print("📦 Stopping MinIO S3...")
+        }
+    case .stoppingDynamoDB:
+        if case .serviceStopped(_) = progress.detail {
+            print("✅ DynamoDB stopped")
+        } else {
+            print("⚡ Stopping DynamoDB...")
+        }
+    case .complete:
+        print("✅ All services stopped")
+    }
+}
+
+private func printLinuxStartAllProgress(_ progress: LinuxStartAllWorkflow.Progress) {
+    switch progress.step {
+    case .startingServices:
+        if case .servicesProgress(let servicesProgress) = progress.detail {
+            printLinuxStartServicesProgress(servicesProgress)
+        } else {
+            print("🔄 Starting services...")
+        }
+    case .setupNetwork:
+        if case .networkProgress(let networkProgress) = progress.detail {
+            printLinuxSetupNetworkProgress(networkProgress)
+        } else {
+            print("🌐 Setting up Docker network...")
+        }
+    case .startingLambda:
+        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+            printLinuxStartLambdaProgress(lambdaProgress)
+        } else {
+            print("🔄 Starting Lambda container...")
+        }
+    case .waitingForReady:
+        print("⏳ Waiting for Lambda to be ready...")
+    case .complete:
+        if case .port(let port) = progress.detail {
+            print("")
+            print("✅ All services and Lambda container running on port \(port)")
+        } else {
+            print("✅ All services started")
+        }
+    }
+}
+
+private func printLinuxStopAllProgress(_ progress: LinuxStopAllWorkflow.Progress) {
+    switch progress.step {
+    case .stoppingLambda:
+        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+            printLinuxStopLambdaProgress(lambdaProgress)
+        } else {
+            print("🔄 Stopping Lambda container...")
+        }
+    case .stoppingServices:
+        if case .servicesProgress(let servicesProgress) = progress.detail {
+            printLinuxStopServicesProgress(servicesProgress)
+        } else {
+            print("🔄 Stopping services...")
+        }
+    case .complete:
+        print("")
+        print("✅ All Lambda container and services stopped")
+    }
+}
+
+private func printLinuxTestProgress(_ progress: LinuxTestWorkflow.Progress) {
+    switch progress.step {
+    case .checkingLambda:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔍 Checking Lambda container status...")
+        }
+    case .testingFileUpload:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("📤 Testing file upload...")
+        }
+    case .testingFileList:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("📋 Testing file list...")
+        }
+    case .testingFileDownload:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("📥 Testing file download...")
+        }
+    case .testingDatabaseInit:
+        if case .testPassed(let name) = progress.detail {
+            print("✅ \(name)")
+        } else {
+            print("🗄️  Testing database init...")
+        }
+    case .complete:
+        print("")
+        print("✅ All tests passed")
+    }
+}
+
+private func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.Progress) {
+    switch progress.step {
+    case .copying:
+        if case .copiedFile(let file) = progress.detail {
+            print("📄 Copied \(file)")
+        } else {
+            print("📋 Copying config files...")
+        }
+    case .complete:
+        if case .destinationPath(let path) = progress.detail {
+            print("✅ Config copied to \(path)")
+        } else {
+            print("✅ Config copied")
+        }
+    }
+}
+
+private func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflow.Progress) {
+    switch progress.step {
+    case .creatingNetwork:
+        if case .networkCreated(let name) = progress.detail {
+            print("✅ Network '\(name)' created")
+        } else {
+            print("🌐 Creating Docker network...")
+        }
+    case .connectingContainers:
+        if case .containerConnected(let name) = progress.detail {
+            print("  🔗 Connected \(name)")
+        } else {
+            print("🔗 Connecting containers to network...")
+        }
+    case .complete:
+        print("✅ Docker network setup complete")
+    }
+}
+
+private func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWorkflow.Progress) {
+    switch progress.step {
+    case .preparing:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔧 Preparing interactive container...")
+        }
+    case .launching:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🐳 Launching interactive container...")
+        }
+    case .complete:
+        print("✅ Interactive session ended")
+    }
 }
