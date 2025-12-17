@@ -108,6 +108,16 @@ let package = Package(
                 .target(name: "sdk-cli"),
             ]
         ),
+        .target(
+            name: "workflows-deploy-remote",
+            dependencies: [
+                .target(name: "sdk-cli"),
+                .target(name: "sdk-aws"),
+                .target(name: "sdk-github"),
+                .target(name: "service-deploy-remote"),
+                .target(name: "service-deploy-core"),
+            ]
+        ),
         .executableTarget(
             name: "app-cli",
             dependencies: [

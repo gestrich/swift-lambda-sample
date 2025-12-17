@@ -1,6 +1,7 @@
 import Foundation
 import sdk_aws
 import sdk_cli
+import service_deploy_remote
 
 /// Workflow for destroying CDK infrastructure.
 /// Orchestrates CDK destroy and CloudFormation monitoring, returning progress via stream.

@@ -2,6 +2,7 @@ import Foundation
 import sdk_aws
 import sdk_cli
 import sdk_github
+import service_deploy_remote
 
 /// Workflow for querying deployment and git status.
 /// Orchestrates git status, GitHub Actions status, and CloudFormation stack queries.

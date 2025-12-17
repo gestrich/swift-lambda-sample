@@ -1,6 +1,7 @@
 import Foundation
 import sdk_aws
 import sdk_cli
+import service_deploy_remote
 
 /// Workflow for deploying CDK infrastructure.
 /// Orchestrates CDK deployment and CloudFormation monitoring, returning progress via stream.
