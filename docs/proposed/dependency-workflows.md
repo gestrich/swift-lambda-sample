@@ -132,7 +132,7 @@ public struct DependencySnapshot: Sendable, Equatable {
 
 ## Phase 2: Create DependencyStatusWorkflow
 
-**Status:** Not Started
+**Status:** Completed
 
 **Goal:** Workflow that checks all dependency statuses and yields progress.
 
@@ -234,6 +234,11 @@ public struct DependencyStatusWorkflow: Sendable {
 - Yields progress for each tool being checked, then final snapshot
 
 **Verification:** `swift build` succeeds.
+
+**Implementation Notes:**
+- `checkTool` is internal (no `public` modifier) to allow `DependencyInstallWorkflow` in the same module to verify installations
+- DockerClient does not expose a `version()` method, so version is nil for Docker
+- Progress yields twice per tool: once when starting to check, once with the status result
 
 ---
 
