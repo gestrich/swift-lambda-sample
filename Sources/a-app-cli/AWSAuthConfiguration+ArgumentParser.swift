@@ -8,7 +8,7 @@
 import ArgumentParser
 import AWSSDK
 import c_service_deploy_remote
-import c_service_deploy_core
+import DeployCoreService
 
 extension AWSAuthConfiguration {
 

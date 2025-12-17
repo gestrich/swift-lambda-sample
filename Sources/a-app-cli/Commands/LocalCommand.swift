@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import c_service_deploy_local
-import c_service_deploy_core
+import DeployCoreService
 import b_workflow_deploy_local_xcode
 import b_workflow_deploy_local_linux
 

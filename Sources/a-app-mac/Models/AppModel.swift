@@ -2,7 +2,7 @@ import Foundation
 import CLISDK
 import ClientService
 import c_service_deploy_remote
-import c_service_deploy_core
+import DeployCoreService
 import StorageService
 
 /// Top-level model that creates and holds all services.

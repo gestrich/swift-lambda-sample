@@ -1,7 +1,7 @@
 import Foundation
 import GitHubSDK
 import CLISDK
-import c_service_deploy_core
+import DeployCoreService
 import c_service_deploy_remote
 
 /// Workflow for GitHub CI operations.

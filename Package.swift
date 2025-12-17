@@ -110,11 +110,12 @@ let package = Package(
             name: "c-service-setup"
         ),
         .target(
-            name: "c-service-deploy-core",
+            name: "DeployCoreService",
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "ClientService"),
-            ]
+            ],
+            path: "Sources/services/DeployCoreService"
         ),
         .target(
             name: "c-service-deploy-local",
@@ -127,7 +128,7 @@ let package = Package(
                 .target(name: "ClientService"),
                 .target(name: "StorageService"),
                 .target(name: "LambdaBuildService"),
-                .target(name: "c-service-deploy-core"),
+                .target(name: "DeployCoreService"),
             ]
         ),
         .target(
@@ -156,7 +157,7 @@ let package = Package(
                 .target(name: "AWSSDK"),
                 .target(name: "GitHubSDK"),
                 .target(name: "c-service-deploy-remote"),
-                .target(name: "c-service-deploy-core"),
+                .target(name: "DeployCoreService"),
             ]
         ),
         .target(
@@ -182,7 +183,7 @@ let package = Package(
                 .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
-                .target(name: "c-service-deploy-core"),
+                .target(name: "DeployCoreService"),
                 .target(name: "AWSSDK"),
                 .target(name: "CLISDK"),
                 .target(name: "GitHubSDK"),
@@ -201,7 +202,7 @@ let package = Package(
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
                 .target(name: "GitHubSDK"),
-                .target(name: "c-service-deploy-core"),
+                .target(name: "DeployCoreService"),
             ]
         ),
         .executableTarget(
@@ -227,7 +228,7 @@ let package = Package(
                 .target(name: "b-workflow-setup"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
-                .target(name: "c-service-deploy-core"),
+                .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "StorageService"),
                 .target(name: "c-service-setup"),

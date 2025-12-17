@@ -1,7 +1,7 @@
 import Foundation
 import CLISDK
 import GitHubSDK
-import c_service_deploy_core
+import DeployCoreService
 import c_service_deploy_remote
 
 /// Workflow for updating Lambda code via GitHub Actions.

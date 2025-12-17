@@ -4,7 +4,7 @@ import Combine
 import Foundation
 import StorageService
 import c_service_deploy_local
-import c_service_deploy_core
+import DeployCoreService
 import LambdaBuildService
 import b_workflow_deploy_local_xcode
 

@@ -5,7 +5,7 @@ import ClientService
 import GitHubSDK
 import c_service_deploy_remote
 import b_workflow_deploy_remote
-import c_service_deploy_core
+import DeployCoreService
 
 /// Observable model for remote AWS deployments in the app layer.
 /// This is a thin model that uses workflows from service-deploy-remote and maintains observable state.

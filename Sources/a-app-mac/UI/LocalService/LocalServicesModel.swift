@@ -3,7 +3,7 @@ import CLISDK
 import Combine
 import Foundation
 import c_service_deploy_local
-import c_service_deploy_core
+import DeployCoreService
 import LambdaBuildService
 
 /// Model that wraps a LocalService, providing @Observable properties for SwiftUI.

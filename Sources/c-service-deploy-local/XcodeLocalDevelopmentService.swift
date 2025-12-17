@@ -7,7 +7,7 @@ import ClientService
 import LambdaBuildService
 import Foundation
 import StorageService
-import c_service_deploy_core
+import DeployCoreService
 
 /// Stateless service for native macOS Xcode development workflow
 /// Orchestrates Docker services, native Swift builds, and Lambda process management

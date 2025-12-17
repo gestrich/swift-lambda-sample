@@ -2,7 +2,7 @@ import Foundation
 import AWSSDK
 import CLISDK
 import GitHubSDK
-import c_service_deploy_core
+import DeployCoreService
 import c_service_deploy_remote
 
 /// Workflow for initial deployment - setting infrastructure configuration.

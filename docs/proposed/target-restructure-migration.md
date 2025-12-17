@@ -205,12 +205,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DeployCoreService** (depends on CLISDK, ClientService)
-  - [ ] Move `c-service-deploy-core/` to `services/DeployCoreService/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DeployCoreService** (depends on CLISDK, ClientService) ✅
+  - [x] Move `c-service-deploy-core/` to `services/DeployCoreService/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **DeployLocalService** (depends on multiple SDKs and services)
   - [ ] Move `c-service-deploy-local/` to `services/DeployLocalService/`
@@ -633,3 +633,33 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `LambdaBuildService` becomes module name `LambdaBuildService` directly (PascalCase, no hyphens)
+
+### DeployCoreService Migration (Phase 2.4)
+
+**Key changes:**
+- Moved `Sources/c-service-deploy-core/` → `Sources/services/DeployCoreService/`
+- Updated Package.swift: renamed target from `c-service-deploy-core` to `DeployCoreService` with explicit path
+- Updated all dependency references from `.target(name: "c-service-deploy-core")` to `.target(name: "DeployCoreService")` (6 references in Package.swift: c-service-deploy-local, c-service-deploy-remote, b-workflow-deploy-remote, b-workflow-deploy-local-xcode, b-workflow-deploy-local-linux, a-app-mac)
+- Updated all imports from `import c_service_deploy_core` to `import DeployCoreService` (17 files affected)
+
+**Files updated:**
+- `Sources/c-service-deploy-local/LocalService.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Sources/a-app-mac/UI/LocalService/LocalServicesModel.swift`
+- `Sources/a-app-mac/UI/LocalService/DockerServicesView.swift`
+- `Sources/a-app-mac/Models/XcodeLocalModel.swift`
+- `Sources/a-app-mac/Models/LinuxLocalModel.swift`
+- `Sources/a-app-mac/Models/DeploymentModel.swift`
+- `Sources/a-app-mac/Models/AppModel.swift`
+- `Sources/b-workflow-deploy-remote/GitHubCIWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/UpdateLambdaWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/DeployInitWorkflow.swift`
+- `Sources/a-app-cli/Commands/TearDownCommand.swift`
+- `Sources/a-app-cli/AWSAuthConfiguration+ArgumentParser.swift`
+- `Sources/a-app-cli/Commands/LocalCommand.swift`
+- `Sources/b-workflow-deploy-local-linux/LinuxStatusWorkflow.swift`
+- `Sources/b-workflow-deploy-local-xcode/XcodeStatusWorkflow.swift`
+
+**Module name behavior:**
+- `DeployCoreService` becomes module name `DeployCoreService` directly (PascalCase, no hyphens)
