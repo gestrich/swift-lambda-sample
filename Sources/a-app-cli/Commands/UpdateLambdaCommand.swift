@@ -1,8 +1,7 @@
 import ArgumentParser
 import Foundation
 import CLISDK
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 
 extension AWSCommand {
     struct UpdateLambdaCommand: AsyncParsableCommand {

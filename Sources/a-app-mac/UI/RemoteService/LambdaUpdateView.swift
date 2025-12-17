@@ -1,5 +1,5 @@
 import CLISDK
-import c_service_deploy_remote
+import DeployRemoteFeature
 import SwiftUI
 
 /// Enum for Lambda update method selection

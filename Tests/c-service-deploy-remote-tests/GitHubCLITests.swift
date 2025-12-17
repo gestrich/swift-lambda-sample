@@ -1,6 +1,6 @@
 import CLISDK
 import GitHubSDK
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 import Testing
 
 @Suite("GitHub CLI Command Tests")

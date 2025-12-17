@@ -1,6 +1,6 @@
 import CLISDK
 @testable import DockerCLISDK
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 import Testing
 
 @Suite("Docker CLI Command Tests")

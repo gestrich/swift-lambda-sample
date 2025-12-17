@@ -1,4 +1,4 @@
-import c_service_deploy_remote
+import DeployRemoteFeature
 import LambdaBuildService
 import SwiftUI
 

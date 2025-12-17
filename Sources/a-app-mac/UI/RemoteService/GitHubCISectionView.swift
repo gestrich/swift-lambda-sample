@@ -1,6 +1,5 @@
 import GitHubSDK
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 import SwiftUI
 
 /// Placeholder when GitHubCIModel is not available (config missing or loading)

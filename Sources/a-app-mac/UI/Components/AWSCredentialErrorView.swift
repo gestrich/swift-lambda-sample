@@ -1,5 +1,5 @@
 import AWSSDK
-import c_service_deploy_remote
+import DeployRemoteFeature
 import SwiftUI
 
 /// View that explains how to fix AWS credential errors based on configuration state

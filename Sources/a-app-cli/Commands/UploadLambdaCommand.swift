@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import AWSSDK
-import c_service_deploy_remote
+import DeployRemoteFeature
 
 extension AWSCommand {
     struct UploadLambdaCommand: AsyncParsableCommand {

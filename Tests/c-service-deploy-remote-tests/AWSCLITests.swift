@@ -1,6 +1,6 @@
 import AWSSDK
 import CLISDK
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 import Testing
 
 @Suite("AWS CLI Command Tests")

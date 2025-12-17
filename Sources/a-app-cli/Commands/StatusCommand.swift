@@ -1,7 +1,6 @@
 import ArgumentParser
 import Foundation
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 import AWSSDK
 import CLISDK
 

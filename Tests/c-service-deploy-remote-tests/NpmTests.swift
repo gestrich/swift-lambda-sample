@@ -1,7 +1,7 @@
 import AWSSDK
 import CLISDK
 import NodeCLISDK
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 import Testing
 
 @Suite("npm CLI Command Tests")

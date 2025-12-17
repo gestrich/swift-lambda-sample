@@ -3,8 +3,7 @@ import AWSSDK
 import CLISDK
 import ClientService
 import GitHubSDK
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 import DeployCoreService
 
 /// Observable model for remote AWS deployments in the app layer.

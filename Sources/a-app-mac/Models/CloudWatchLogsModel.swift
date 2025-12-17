@@ -2,8 +2,7 @@ import AWSSDK
 import CLISDK
 import Foundation
 import Observation
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 
 /// Observable model for CloudWatch logs viewing.
 /// Holds UI state and delegates operations to CloudWatchLogsWorkflow.

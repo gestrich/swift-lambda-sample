@@ -1,5 +1,5 @@
 import AWSSDK
-import c_service_deploy_remote
+import DeployRemoteFeature
 import SwiftUI
 
 /// Settings view for configuring AWS credentials and other app settings

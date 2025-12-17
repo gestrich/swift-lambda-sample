@@ -231,14 +231,14 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DeployRemoteFeature**
-  - [ ] Create `features/DeployRemoteFeature/` with `workflows/` and `services/` subfolders
-  - [ ] Move workflow code from `b-workflow-deploy-remote/` to `features/DeployRemoteFeature/workflows/`
-  - [ ] Move service code from `c-service-deploy-remote/` to `features/DeployRemoteFeature/services/`
-  - [ ] Update Package.swift (single target for the feature)
-  - [ ] Update dependency references
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **DeployRemoteFeature** ✅
+  - [x] Create `features/DeployRemoteFeature/` with `workflows/` and `services/` subfolders
+  - [x] Move workflow code from `b-workflow-deploy-remote/` to `features/DeployRemoteFeature/workflows/`
+  - [x] Move service code from `c-service-deploy-remote/` to `features/DeployRemoteFeature/services/`
+  - [x] Update Package.swift (single target for the feature)
+  - [x] Update dependency references
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **DeployRemoteFeatureTests**
   - [ ] Move `Tests/c-service-deploy-remote-tests/` to `Tests/DeployRemoteFeatureTests/`
@@ -745,3 +745,57 @@ CLISDK ◄── CLIMacrosSDK
 - `SetupFeature` becomes module name `SetupFeature` directly (PascalCase, no hyphens)
 
 **Note:** This is the first feature layer migration. The `features/` folder now exists for subsequent feature migrations.
+
+### DeployRemoteFeature Migration (Phase 3.2)
+
+**Key changes:**
+- Created `Sources/features/DeployRemoteFeature/` with `workflows/` and `services/` subfolders
+- Moved `Sources/b-workflow-deploy-remote/` files → `Sources/features/DeployRemoteFeature/workflows/`
+- Moved `Sources/c-service-deploy-remote/` files → `Sources/features/DeployRemoteFeature/services/`
+- Preserved service subdirectory structure (Auth/, GitHubService/, LambdaService/, Models/)
+- Removed old directories after migration
+- Updated Package.swift: merged `b-workflow-deploy-remote` and `c-service-deploy-remote` targets into single `DeployRemoteFeature` target
+- Updated dependency references in `a-app-cli`, `a-app-mac`, and `c-service-deploy-remote-tests`
+- Updated all imports from `import b_workflow_deploy_remote` and `import c_service_deploy_remote` to `import DeployRemoteFeature`
+- Removed internal `import c_service_deploy_remote` from workflow files (now same module)
+
+**Files moved to workflows/:**
+- `DeployWorkflow.swift`
+- `DeployInitWorkflow.swift`
+- `DeployStatusWorkflow.swift`
+- `DestroyWorkflow.swift`
+- `UpdateLambdaWorkflow.swift`
+- `GitHubCIWorkflow.swift`
+- `CloudWatchLogsWorkflow.swift`
+- `ResumeMonitoringWorkflow.swift`
+
+**Files moved to services/:**
+- `Auth/AWSAuthConfiguration+Persistence.swift`
+- `GitHubService/GitHubConfiguration.swift`
+- `LambdaService/LambdaBuildService.swift`
+- `Models/CDKInfrastructureConfiguration.swift`
+- `Models/CDKStackConfiguration.swift`
+- `Models/CDKStackOutputs.swift`
+- `Models/DeploymentConfiguration.swift`
+- `Models/DeploymentState.swift`
+- `Models/InfrastructureShape.swift`
+
+**Files updated (imports):**
+- `Sources/a-app-cli/main.swift`
+- `Sources/a-app-cli/Commands/*.swift` (8 files)
+- `Sources/a-app-cli/AWSAuthConfiguration+ArgumentParser.swift`
+- `Sources/a-app-mac/Models/*.swift` (4 files)
+- `Sources/a-app-mac/UI/RemoteService/*.swift` (7 files)
+- `Sources/a-app-mac/UI/Components/AWSCredentialErrorView.swift`
+- `Sources/a-app-mac/UI/Settings/SettingsView.swift`
+- `Sources/a-app-mac/UI/LocalService/LocalServiceView.swift`
+- `Tests/c-service-deploy-remote-tests/*.swift` (10 files)
+
+**Feature consolidation:**
+- Features combine workflow + service code into a single target
+- Internal folder organization (`workflows/`, `services/`) provides logical separation without module boundary
+- Types from former `c-service-deploy-remote` are now public exports of DeployRemoteFeature module
+- Workflows no longer need to import service types - they're in the same module
+
+**Module name behavior:**
+- `DeployRemoteFeature` becomes module name `DeployRemoteFeature` directly (PascalCase, no hyphens)

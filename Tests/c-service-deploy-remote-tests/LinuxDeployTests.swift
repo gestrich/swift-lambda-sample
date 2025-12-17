@@ -7,7 +7,7 @@
 
 import Foundation
 import CLISDK
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 @testable import DeployLocalService
 import Testing
 

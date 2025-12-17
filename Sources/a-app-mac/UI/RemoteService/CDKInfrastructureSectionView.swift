@@ -1,6 +1,6 @@
 import AWSSDK
 import CLISDK
-import c_service_deploy_remote
+import DeployRemoteFeature
 import SwiftUI
 
 /// Placeholder when CDK infrastructure is not configured

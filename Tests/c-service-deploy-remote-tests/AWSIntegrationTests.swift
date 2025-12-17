@@ -10,7 +10,7 @@ import Foundation
 import AWSSDK
 import CLISDK
 import ClientService
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 import Testing
 
 @Suite("AWS Integration Tests", .disabled("Requires deployed AWS infrastructure and credentials"))

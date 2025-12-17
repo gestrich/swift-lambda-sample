@@ -1,8 +1,7 @@
 import AppKit
 import AWSSDK
 import CLISDK
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 import SwiftUI
 
 /// View for Remote (AWS) Lambda service management

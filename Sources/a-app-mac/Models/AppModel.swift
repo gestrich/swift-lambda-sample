@@ -1,7 +1,7 @@
 import Foundation
 import CLISDK
 import ClientService
-import c_service_deploy_remote
+import DeployRemoteFeature
 import DeployCoreService
 import StorageService
 

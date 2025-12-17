@@ -1,6 +1,6 @@
 import CLISDK
 import LambdaBuildService
-@testable import c_service_deploy_remote
+@testable import DeployRemoteFeature
 import Testing
 
 @Suite("BuildScript CLI Command Tests")

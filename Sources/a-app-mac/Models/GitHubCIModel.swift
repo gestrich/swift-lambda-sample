@@ -3,8 +3,7 @@ import CLISDK
 import GitHubSDK
 import Foundation
 import Observation
-import c_service_deploy_remote
-import b_workflow_deploy_remote
+import DeployRemoteFeature
 
 /// Observable model for GitHub CI operations.
 /// This is a thin model that uses GitHubCIWorkflow and maintains observable state.

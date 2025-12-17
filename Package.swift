@@ -149,14 +149,18 @@ let package = Package(
             path: "Sources/services/LambdaBuildService"
         ),
         .target(
-            name: "b-workflow-deploy-remote",
+            name: "DeployRemoteFeature",
             dependencies: [
                 .target(name: "CLISDK"),
+                .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
                 .target(name: "GitHubSDK"),
-                .target(name: "c-service-deploy-remote"),
+                .target(name: "ClientService"),
+                .target(name: "StorageService"),
+                .target(name: "LambdaBuildService"),
                 .target(name: "DeployCoreService"),
-            ]
+            ],
+            path: "Sources/features/DeployRemoteFeature"
         ),
         .target(
             name: "b-workflow-deploy-local-xcode",
@@ -176,10 +180,9 @@ let package = Package(
             name: "a-app-cli",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .target(name: "b-workflow-deploy-remote"),
+                .target(name: "DeployRemoteFeature"),
                 .target(name: "b-workflow-deploy-local-xcode"),
                 .target(name: "b-workflow-deploy-local-linux"),
-                .target(name: "c-service-deploy-remote"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "AWSSDK"),
@@ -188,19 +191,6 @@ let package = Package(
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
-            ]
-        ),
-        .target(
-            name: "c-service-deploy-remote",
-            dependencies: [
-                .target(name: "ClientService"),
-                .target(name: "StorageService"),
-                .target(name: "LambdaBuildService"),
-                .target(name: "CLISDK"),
-                .target(name: "DockerCLISDK"),
-                .target(name: "AWSSDK"),
-                .target(name: "GitHubSDK"),
-                .target(name: "DeployCoreService"),
             ]
         ),
         .executableTarget(
@@ -220,11 +210,10 @@ let package = Package(
             name: "a-app-mac",
             dependencies: [
                 .target(name: "ClientService"),
-                .target(name: "b-workflow-deploy-remote"),
+                .target(name: "DeployRemoteFeature"),
                 .target(name: "b-workflow-deploy-local-xcode"),
                 .target(name: "b-workflow-deploy-local-linux"),
                 .target(name: "SetupFeature"),
-                .target(name: "c-service-deploy-remote"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
@@ -247,7 +236,7 @@ let package = Package(
         .testTarget(
             name: "c-service-deploy-remote-tests",
             dependencies: [
-                .target(name: "c-service-deploy-remote"),
+                .target(name: "DeployRemoteFeature"),
                 .target(name: "DeployLocalService"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "GitHubSDK"),
