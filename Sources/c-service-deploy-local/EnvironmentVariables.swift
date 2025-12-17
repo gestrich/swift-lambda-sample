@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import d_sdk_cli_docker
 
 /// Execution context for Lambda - determines how to connect to services
 enum LambdaExecutionContext {
@@ -17,13 +18,13 @@ enum LambdaExecutionContext {
 
 /// Create environment variables for Lambda based on execution context
 func createEnvironmentVariables(
-    postgresService: PostgreSQLLocalService,
-    minioService: MinIOService,
-    dynamodbService: DynamoDBLocalService,
+    postgresClient: PostgreSQLClient,
+    minioClient: MinIOClient,
+    dynamodbClient: DynamoDBClient,
     context: LambdaExecutionContext = .container
 ) -> [String: String] {
-    let postgresInfo = postgresService.connectionInfo
-    let minioCreds = minioService.credentials
+    let postgresInfo = postgresClient.connectionInfo
+    let minioCreds = minioClient.credentials
 
     // Determine host and port based on execution context
     let postgresHost: String
@@ -39,18 +40,18 @@ func createEnvironmentVariables(
         postgresHost = "localhost"
         postgresPort = postgresInfo.port  // External/host port
         minioHost = "localhost"
-        minioPort = minioService.s3Port  // External/host port
+        minioPort = minioClient.s3Port  // External/host port
         dynamodbHost = "localhost"
-        dynamodbPort = dynamodbService.connectionInfo.port
+        dynamodbPort = dynamodbClient.connectionInfo.port
     case .container:
         // Container connects via Docker network DNS (container names)
         // Use internal ports since we're connecting container-to-container
         postgresHost = postgresInfo.containerName
         postgresPort = postgresInfo.internalPort  // Internal port (always 5432)
-        minioHost = minioService.minioContainerName
-        minioPort = minioService.internalS3Port  // Internal port (always 9000)
-        dynamodbHost = dynamodbService.connectionInfo.containerName
-        dynamodbPort = dynamodbService.connectionInfo.internalPort
+        minioHost = minioClient.minioContainerName
+        minioPort = minioClient.internalS3Port  // Internal port (always 9000)
+        dynamodbHost = dynamodbClient.connectionInfo.containerName
+        dynamodbPort = dynamodbClient.connectionInfo.internalPort
     }
 
     let env: [String: String] = [
@@ -63,7 +64,7 @@ func createEnvironmentVariables(
         "POSTGRES_PASSWORD_SECRET_ID": "local-testing",  // Bypass Secrets Manager for local testing
 
         // S3/MinIO configuration
-        "S3_BUCKET_NAME": minioService.bucketName,
+        "S3_BUCKET_NAME": minioClient.bucketName,
         "AWS_ENDPOINT_URL": "http://\(minioHost):\(minioPort)",
         "AWS_ACCESS_KEY_ID": minioCreds.accessKeyId,
         "AWS_SECRET_ACCESS_KEY": minioCreds.secretAccessKey,

@@ -13,9 +13,9 @@ public actor XcodeLocalDevelopmentService {
     private let cliClient: CLIClient
     private let storageService: LocalStorageService
 
-    private let postgresService: PostgreSQLLocalService
-    private let minioService: MinIOService
-    private let dynamodbService: DynamoDBLocalService
+    private let postgresClient: PostgreSQLClient
+    private let minioClient: MinIOClient
+    private let dynamodbClient: DynamoDBClient
 
     // Lambda configuration
     private let lambdaHostPort = 8080
@@ -33,23 +33,24 @@ public actor XcodeLocalDevelopmentService {
         let dockerClient = DockerClient(cliClient: cliClient)
         self.dockerClient = dockerClient
         self.workingDirectory = workingDirectory
-        self.storageService = LocalStorageService()
+        let storageService = LocalStorageService()
+        self.storageService = storageService
 
-        self.postgresService = PostgreSQLLocalService(
+        self.postgresClient = PostgreSQLClient(
             dockerClient: dockerClient,
             config: .xcode,
-            storageService: storageService
+            dataDirectory: storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
         )
-        self.minioService = MinIOService(
+        self.minioClient = MinIOClient(
             dockerClient: dockerClient,
             networkName: "lambda-xcode",
             config: .xcode,
-            storageService: storageService
+            dataDirectory: storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
         )
-        self.dynamodbService = DynamoDBLocalService(
+        self.dynamodbClient = DynamoDBClient(
             dockerClient: dockerClient,
             config: .xcode,
-            storageService: storageService
+            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
         )
     }
 
@@ -106,20 +107,20 @@ public actor XcodeLocalDevelopmentService {
     public func startAllServices() async throws {
         try await ensureDockerRunning()
 
-        if !(try await minioService.isRunning()) {
-            try await minioService.start()
+        if !(try await minioClient.isRunning()) {
+            try await minioClient.start()
         } else {
             print("✓ MinIO (xcode) already running")
         }
 
-        if !(try await postgresService.isRunning()) {
-            try await postgresService.start()
+        if !(try await postgresClient.isRunning()) {
+            try await postgresClient.start()
         } else {
             print("✓ PostgreSQL (xcode) already running")
         }
 
-        if !(try await dynamodbService.isRunning()) {
-            try await dynamodbService.start()
+        if !(try await dynamodbClient.isRunning()) {
+            try await dynamodbClient.start()
         } else {
             print("✓ DynamoDB Local (xcode) already running")
         }
@@ -127,47 +128,47 @@ public actor XcodeLocalDevelopmentService {
 
     /// Stop all services
     public func stopAllServices() async throws {
-        try await minioService.stop()
-        try await postgresService.stop()
-        try await dynamodbService.stop()
+        try await minioClient.stop()
+        try await postgresClient.stop()
+        try await dynamodbClient.stop()
     }
 
     /// Start MinIO S3 service
     public func startS3() async throws {
         try await ensureDockerRunning()
-        try await minioService.start()
+        try await minioClient.start()
     }
 
     /// Create S3 bucket in MinIO
     public func createBucket(bucketName: String? = nil) async throws {
-        try await minioService.createBucket(bucketName: bucketName)
+        try await minioClient.createBucket(bucketName: bucketName)
     }
 
     /// Stop MinIO S3 service
     public func stopS3() async throws {
-        try await minioService.stop()
+        try await minioClient.stop()
     }
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
         try await ensureDockerRunning()
-        try await postgresService.start()
+        try await postgresClient.start()
     }
 
     /// Stop PostgreSQL database
     public func stopDatabase() async throws {
-        try await postgresService.stop()
+        try await postgresClient.stop()
     }
 
     /// Start DynamoDB Local
     public func startDynamoDB() async throws {
         try await ensureDockerRunning()
-        try await dynamodbService.start()
+        try await dynamodbClient.start()
     }
 
     /// Stop DynamoDB Local
     public func stopDynamoDB() async throws {
-        try await dynamodbService.stop()
+        try await dynamodbClient.stop()
     }
 
     /// Data directory for S3 (MinIO)
@@ -391,7 +392,7 @@ public actor XcodeLocalDevelopmentService {
             try await dockerClient.createNetwork(name: networkName)
         }
 
-        let minioContainer = minioService.minioContainerName
+        let minioContainer = minioClient.minioContainerName
         let isConnected = try await dockerClient.isConnectedToNetwork(
             container: minioContainer,
             network: networkName
@@ -401,7 +402,7 @@ public actor XcodeLocalDevelopmentService {
             try await dockerClient.connectToNetwork(container: minioContainer, network: networkName)
         }
 
-        try await minioService.createBucket(bucketName: nil)
+        try await minioClient.createBucket(bucketName: nil)
     }
 
     /// Stop Lambda and all services (complete flow)
@@ -489,9 +490,9 @@ public actor XcodeLocalDevelopmentService {
     /// Get the status of all services (Lambda, S3, PostgreSQL, DynamoDB)
     public func status() async throws -> DeploymentStatus {
         let lambdaRunning = await isLambdaRunning()
-        let s3Running = try await minioService.isRunning()
-        let postgresRunning = try await postgresService.isRunning()
-        let dynamodbRunning = try await dynamodbService.isRunning()
+        let s3Running = try await minioClient.isRunning()
+        let postgresRunning = try await postgresClient.isRunning()
+        let dynamodbRunning = try await dynamodbClient.isRunning()
 
         return DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
@@ -558,9 +559,9 @@ public actor XcodeLocalDevelopmentService {
 
     private func getLambdaEnvironmentVariables() -> [String: String] {
         return createEnvironmentVariables(
-            postgresService: postgresService,
-            minioService: minioService,
-            dynamodbService: dynamodbService,
+            postgresClient: postgresClient,
+            minioClient: minioClient,
+            dynamodbClient: dynamodbClient,
             context: .xcode
         )
     }

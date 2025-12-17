@@ -13,9 +13,9 @@ public actor LinuxLocalDevelopmentService {
     private let cliClient: CLIClient
     private let storageService: LocalStorageService
 
-    private let postgresService: PostgreSQLLocalService
-    private let minioService: MinIOService
-    private let dynamodbService: DynamoDBLocalService
+    private let postgresClient: PostgreSQLClient
+    private let minioClient: MinIOClient
+    private let dynamodbClient: DynamoDBClient
     private let config: LinuxContainerConfig
 
     // Working directory
@@ -39,24 +39,26 @@ public actor LinuxLocalDevelopmentService {
         let dockerClient = DockerClient(cliClient: cliClient)
         self.dockerClient = dockerClient
         self.workingDirectory = workingDirectory
-        self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
-        self.storageService = LocalStorageService()
+        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
+        self.config = config
+        let storageService = LocalStorageService()
+        self.storageService = storageService
 
-        self.postgresService = PostgreSQLLocalService(
+        self.postgresClient = PostgreSQLClient(
             dockerClient: dockerClient,
             config: .linux,
-            storageService: storageService
+            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
         )
-        self.minioService = MinIOService(
+        self.minioClient = MinIOClient(
             dockerClient: dockerClient,
             networkName: config.networkName,
             config: .linux,
-            storageService: storageService
+            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
         )
-        self.dynamodbService = DynamoDBLocalService(
+        self.dynamodbClient = DynamoDBClient(
             dockerClient: dockerClient,
             config: .linux,
-            storageService: storageService
+            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
     }
 
@@ -121,20 +123,20 @@ public actor LinuxLocalDevelopmentService {
     public func startAllServices() async throws {
         try await ensureDockerRunning()
 
-        if !(try await minioService.isRunning()) {
-            try await minioService.start()
+        if !(try await minioClient.isRunning()) {
+            try await minioClient.start()
         } else {
             print("✓ MinIO (linux) already running")
         }
 
-        if !(try await postgresService.isRunning()) {
-            try await postgresService.start()
+        if !(try await postgresClient.isRunning()) {
+            try await postgresClient.start()
         } else {
             print("✓ PostgreSQL (linux) already running")
         }
 
-        if !(try await dynamodbService.isRunning()) {
-            try await dynamodbService.start()
+        if !(try await dynamodbClient.isRunning()) {
+            try await dynamodbClient.start()
         } else {
             print("✓ DynamoDB Local (linux) already running")
         }
@@ -142,47 +144,47 @@ public actor LinuxLocalDevelopmentService {
 
     /// Stop all services
     public func stopAllServices() async throws {
-        try await minioService.stop()
-        try await postgresService.stop()
-        try await dynamodbService.stop()
+        try await minioClient.stop()
+        try await postgresClient.stop()
+        try await dynamodbClient.stop()
     }
 
     /// Start MinIO S3 service
     public func startS3() async throws {
         try await ensureDockerRunning()
-        try await minioService.start()
+        try await minioClient.start()
     }
 
     /// Create S3 bucket in MinIO
     public func createBucket(bucketName: String? = nil) async throws {
-        try await minioService.createBucket(bucketName: bucketName)
+        try await minioClient.createBucket(bucketName: bucketName)
     }
 
     /// Stop MinIO S3 service
     public func stopS3() async throws {
-        try await minioService.stop()
+        try await minioClient.stop()
     }
 
     /// Start PostgreSQL database
     public func startDatabase() async throws {
         try await ensureDockerRunning()
-        try await postgresService.start()
+        try await postgresClient.start()
     }
 
     /// Stop PostgreSQL database
     public func stopDatabase() async throws {
-        try await postgresService.stop()
+        try await postgresClient.stop()
     }
 
     /// Start DynamoDB Local
     public func startDynamoDB() async throws {
         try await ensureDockerRunning()
-        try await dynamodbService.start()
+        try await dynamodbClient.start()
     }
 
     /// Stop DynamoDB Local
     public func stopDynamoDB() async throws {
-        try await dynamodbService.stop()
+        try await dynamodbClient.stop()
     }
 
     /// Data directory for S3 (MinIO)
@@ -323,7 +325,7 @@ public actor LinuxLocalDevelopmentService {
         try await setupDockerNetwork()
 
         print("\n→ Ensuring S3 bucket exists...")
-        try await minioService.createBucket(bucketName: nil)
+        try await minioClient.createBucket(bucketName: nil)
 
         print("\n→ Starting Lambda container in background...")
         try await startLambda(output: output)
@@ -422,9 +424,9 @@ public actor LinuxLocalDevelopmentService {
     /// Get the status of all services (Lambda, S3, PostgreSQL, DynamoDB)
     public func status() async throws -> DeploymentStatus {
         let lambdaRunning = try await isRunning()
-        let s3Running = try await minioService.isRunning()
-        let postgresRunning = try await postgresService.isRunning()
-        let dynamodbRunning = try await dynamodbService.isRunning()
+        let s3Running = try await minioClient.isRunning()
+        let postgresRunning = try await postgresClient.isRunning()
+        let dynamodbRunning = try await dynamodbClient.isRunning()
 
         return DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
@@ -450,9 +452,9 @@ public actor LinuxLocalDevelopmentService {
             print("✓ Network \(config.networkName) already exists")
         }
 
-        try await connectContainerToNetwork(container: postgresService.connectionInfo.containerName)
-        try await connectContainerToNetwork(container: minioService.minioContainerName)
-        try await connectContainerToNetwork(container: dynamodbService.connectionInfo.containerName)
+        try await connectContainerToNetwork(container: postgresClient.connectionInfo.containerName)
+        try await connectContainerToNetwork(container: minioClient.minioContainerName)
+        try await connectContainerToNetwork(container: dynamodbClient.connectionInfo.containerName)
     }
 
     /// Print the Docker command to run Lambda interactively
@@ -569,9 +571,9 @@ public actor LinuxLocalDevelopmentService {
     /// Get environment variables for Lambda container (Docker network)
     public func getEnvironmentVariables() -> [String: String] {
         return createEnvironmentVariables(
-            postgresService: postgresService,
-            minioService: minioService,
-            dynamodbService: dynamodbService,
+            postgresClient: postgresClient,
+            minioClient: minioClient,
+            dynamodbClient: dynamodbClient,
             context: .container
         )
     }
@@ -592,7 +594,7 @@ public actor LinuxLocalDevelopmentService {
                 print("→ Connecting \(container) to \(config.networkName)")
                 try await dockerClient.connectToNetwork(container: container, network: config.networkName)
             } else {
-                print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local services start-\(container == postgresService.connectionInfo.containerName ? "database" : "s3")")
+                print("⚠️  Warning: \(container) is not running. Start it with: swift run SwiftDeploy local services start-\(container == postgresClient.connectionInfo.containerName ? "database" : "s3")")
             }
         } else {
             print("✓ \(container) already connected")

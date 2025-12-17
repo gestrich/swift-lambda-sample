@@ -50,19 +50,33 @@ Move PostgreSQLLocalService, MinIOService, and DynamoDBLocalService from `c-serv
 - Removed duplicate storage key definitions from the original service files (`PostgreSQLLocalService.swift`, `MinIOService.swift`, `DynamoDBLocalService.swift`)
 - Old service files still exist and function correctly, using the keys from the new centralized file
 
-### Phase 3: Update Callers
+### Phase 3: Update Callers ✅
 
-- [ ] Update `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- [x] Update `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
   - Rename properties: `postgresService` → `postgresClient`, etc.
   - Update instantiation to pass `dataDirectory` string
   - Use storage keys to resolve paths
 
-- [ ] Update `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- [x] Update `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
   - Same changes as XcodeLocalDevelopmentService
   - Use Linux storage keys
 
-- [ ] Update `Sources/c-service-deploy-local/EnvironmentVariables.swift`
+- [x] Update `Sources/c-service-deploy-local/EnvironmentVariables.swift`
   - Update parameter names and types to use new client names
+
+**Technical Notes (Phase 3):**
+- Renamed service properties: `postgresService` → `postgresClient`, `minioService` → `minioClient`, `dynamodbService` → `dynamodbClient`
+- Updated instantiation to use storage keys for path resolution:
+  ```swift
+  self.postgresClient = PostgreSQLClient(
+      dockerClient: dockerClient,
+      config: .xcode,
+      dataDirectory: storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
+  )
+  ```
+- `EnvironmentVariables.swift` now imports `d_sdk_cli_docker` for access to the new client types
+- Function signature changed: `createEnvironmentVariables(postgresClient:minioClient:dynamodbClient:context:)`
+- All method calls updated throughout both development service files
 
 ### Phase 4: Delete Old Files
 
