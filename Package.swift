@@ -43,6 +43,7 @@ let package = Package(
             name: "sdk-aws",
             dependencies: [
                 .target(name: "sdk-cli"),
+                .target(name: "sdk-cli-node"),
             ]
         ),
         .target(
@@ -53,6 +54,18 @@ let package = Package(
         ),
         .target(
             name: "sdk-cli-docker",
+            dependencies: [
+                .target(name: "sdk-cli"),
+            ]
+        ),
+        .target(
+            name: "sdk-cli-brew",
+            dependencies: [
+                .target(name: "sdk-cli"),
+            ]
+        ),
+        .target(
+            name: "sdk-cli-node",
             dependencies: [
                 .target(name: "sdk-cli"),
             ]
@@ -104,6 +117,11 @@ let package = Package(
                 .target(name: "service-deploy-remote"),
                 .target(name: "service-storage"),
                 .target(name: "sdk-cli"),
+                .target(name: "sdk-cli-brew"),
+                .target(name: "sdk-cli-node"),
+                .target(name: "sdk-cli-docker"),
+                .target(name: "sdk-aws"),
+                .target(name: "sdk-github"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

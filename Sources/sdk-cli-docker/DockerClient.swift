@@ -9,6 +9,18 @@ public struct DockerClient: Sendable {
         self.cliClient = cliClient
     }
 
+    // MARK: - Installation Check
+
+    /// Check if Docker is installed
+    public func isInstalled() async -> Bool {
+        do {
+            let result = try await cliClient.executeForResult(Docker.Version(), printCommand: false)
+            return result.isSuccess
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Docker Daemon
 
     /// Check if Docker daemon is running

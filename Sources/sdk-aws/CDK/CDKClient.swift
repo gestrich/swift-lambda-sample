@@ -1,4 +1,5 @@
 import sdk_cli
+import sdk_cli_node
 import Foundation
 
 /// Generic client for interacting with AWS CDK CLI
@@ -18,6 +19,18 @@ public actor CDKClient {
         self.cliClient = cliClient
         self.cdkDirectory = cdkDirectory
         self.credentialProvider = credentialProvider
+    }
+
+    // MARK: - Installation Check
+
+    /// Check if CDK is installed (static method that only needs CLIClient)
+    public static func isInstalled(cliClient: CLIClient) async -> Bool {
+        do {
+            let result = try await cliClient.executeForResult(Cdk.Version(), printCommand: false)
+            return result.isSuccess
+        } catch {
+            return false
+        }
     }
 
     // MARK: - Command Building

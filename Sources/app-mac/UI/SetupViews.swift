@@ -1,5 +1,4 @@
 import sdk_cli
-import service_deploy_remote
 import SwiftUI
 
 // MARK: - Overview View
@@ -614,7 +613,7 @@ struct DependencyView: View {
         selectedMethodType ?? dependency.availableMethodTypes.first ?? .homebrew
     }
 
-    private var status: DependencyInstallStatus {
+    private var status: DependencyUIState {
         switch dependency {
         case .docker: return statusModel.dockerStatus
         case .awsCLI: return statusModel.awsCLIStatus
@@ -670,13 +669,6 @@ struct DependencyView: View {
                 Text(statusTitle)
                     .font(.headline)
                     .foregroundStyle(statusColor)
-
-                if case .installed(let version) = status, let version {
-                    Text(version)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
             }
 
             Spacer()

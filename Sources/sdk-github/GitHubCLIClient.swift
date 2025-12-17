@@ -11,6 +11,18 @@ public actor GitHubCLIClient {
         self.repository = repository
     }
 
+    // MARK: - Installation Check
+
+    /// Check if GitHub CLI (gh) is installed (static method that only needs CLIClient)
+    public static func isInstalled(cliClient: CLIClient) async -> Bool {
+        do {
+            let result = try await cliClient.executeForResult(Gh.Version(), printCommand: false)
+            return result.isSuccess
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Workflow Operations
 
     /// List workflow runs

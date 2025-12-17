@@ -1,32 +1,42 @@
 import sdk_cli
+import sdk_cli_brew
+import sdk_cli_docker
+import sdk_cli_node
+import sdk_aws
+import sdk_github
 import Foundation
 import Observation
-import service_deploy_remote
 
 /// Observable model for dependency installation status
-/// Holds UI state and delegates checking to DependencyCheckerService
+/// Uses individual SDK clients for checking each dependency
 @MainActor
 @Observable
 public final class DependencyStatusModel {
     // MARK: - Status Properties
 
-    public private(set) var homebrewStatus: DependencyInstallStatus = .unknown
-    public private(set) var nodejsStatus: DependencyInstallStatus = .unknown
-    public private(set) var dockerStatus: DependencyInstallStatus = .unknown
-    public private(set) var awsCLIStatus: DependencyInstallStatus = .unknown
-    public private(set) var cdkStatus: DependencyInstallStatus = .unknown
-    public private(set) var githubCLIStatus: DependencyInstallStatus = .unknown
+    public private(set) var homebrewStatus: DependencyUIState = .unknown
+    public private(set) var nodejsStatus: DependencyUIState = .unknown
+    public private(set) var dockerStatus: DependencyUIState = .unknown
+    public private(set) var awsCLIStatus: DependencyUIState = .unknown
+    public private(set) var cdkStatus: DependencyUIState = .unknown
+    public private(set) var githubCLIStatus: DependencyUIState = .unknown
 
-    // MARK: - Services
+    // MARK: - Clients
 
     public let cliClient: CLIClient
-    private let checkerService: DependencyCheckerService
+    private let brewClient: BrewClient
+    private let nodeClient: NodeClient
+    private let dockerClient: DockerClient
+    private let awsCLIClient: AWSCLIClient
 
     // MARK: - Init
 
     public init(cliClient: CLIClient) {
         self.cliClient = cliClient
-        self.checkerService = DependencyCheckerService(cliClient: cliClient)
+        self.brewClient = BrewClient(cliClient: cliClient)
+        self.nodeClient = NodeClient(cliClient: cliClient)
+        self.dockerClient = DockerClient(cliClient: cliClient)
+        self.awsCLIClient = AWSCLIClient(cliClient: cliClient)
     }
 
     // MARK: - Public API
@@ -46,36 +56,58 @@ public final class DependencyStatusModel {
     /// Check Homebrew installation status
     public func checkHomebrew() async {
         homebrewStatus = .checking
-        homebrewStatus = await checkerService.checkHomebrew()
+        let installed = await brewClient.isInstalled()
+        homebrewStatus = installed ? .installed : .notInstalled
     }
 
     /// Check Node.js installation status
     public func checkNodeJS() async {
         nodejsStatus = .checking
-        nodejsStatus = await checkerService.checkNodeJS()
+        let installed = await nodeClient.isInstalled()
+        nodejsStatus = installed ? .installed : .notInstalled
     }
 
     /// Check Docker installation status
     public func checkDocker() async {
         dockerStatus = .checking
-        dockerStatus = await checkerService.checkDocker()
+        let installed = await dockerClient.isInstalled()
+        dockerStatus = installed ? .installed : .notInstalled
     }
 
     /// Check AWS CLI installation status
     public func checkAWSCLI() async {
         awsCLIStatus = .checking
-        awsCLIStatus = await checkerService.checkAWSCLI()
+        let installed = await awsCLIClient.isInstalled()
+        awsCLIStatus = installed ? .installed : .notInstalled
     }
 
     /// Check CDK installation status
     public func checkCDK() async {
         cdkStatus = .checking
-        cdkStatus = await checkerService.checkCDK()
+        let installed = await CDKClient.isInstalled(cliClient: cliClient)
+        cdkStatus = installed ? .installed : .notInstalled
     }
 
     /// Check GitHub CLI installation status
     public func checkGitHubCLI() async {
         githubCLIStatus = .checking
-        githubCLIStatus = await checkerService.checkGitHubCLI()
+        let installed = await GitHubCLIClient.isInstalled(cliClient: cliClient)
+        githubCLIStatus = installed ? .installed : .notInstalled
+    }
+}
+
+/// UI state for dependency status (app-layer concern)
+public enum DependencyUIState: Equatable, Sendable {
+    case unknown
+    case checking
+    case installed
+    case notInstalled
+
+    public var isInstalled: Bool {
+        self == .installed
+    }
+
+    public var isChecking: Bool {
+        self == .checking
     }
 }

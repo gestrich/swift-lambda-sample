@@ -1,4 +1,3 @@
-import service_deploy_remote
 import SwiftUI
 
 /// Navigation category for the main sidebar
@@ -222,7 +221,7 @@ struct ServicesView: View {
 
     @ViewBuilder
     private func dependencyStatusIndicator(for category: AppCategory) -> some View {
-        let status: DependencyInstallStatus? = {
+        let status: DependencyUIState? = {
             switch category {
             case .docker: return model.dependencyStatusModel.dockerStatus
             case .awsCLI: return model.dependencyStatusModel.awsCLIStatus
