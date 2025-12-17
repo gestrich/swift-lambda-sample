@@ -18,7 +18,7 @@ Move PostgreSQLLocalService, MinIOService, and DynamoDBLocalService from `c-serv
 - [x] Create `Sources/d-sdk-cli-docker/PostgreSQLClient.swift`
   - Convert from `actor` to `public struct PostgreSQLClient: Sendable`
   - Change init: `storageService: LocalStorageService` → `dataDirectory: String`
-  - Remove `import c_service_storage`
+  - Remove `import StorageService`
   - Remove `storageKeyType` from `PostgreSQLConfig` enum
   - Remove storage key structs
   - Replace `storageService.dataDirectory(for:)` with `dataDirectory`

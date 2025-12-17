@@ -103,7 +103,8 @@ let package = Package(
             path: "Sources/sdks/NodeCLISDK"
         ),
         .target(
-            name: "c-service-storage"
+            name: "StorageService",
+            path: "Sources/services/StorageService"
         ),
         .target(
             name: "c-service-setup"
@@ -124,7 +125,7 @@ let package = Package(
                 .target(name: "PostgreSQLSDK"),
                 .target(name: "DynamoDBSDK"),
                 .target(name: "c-service-client"),
-                .target(name: "c-service-storage"),
+                .target(name: "StorageService"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "c-service-deploy-core"),
             ]
@@ -193,7 +194,7 @@ let package = Package(
             name: "c-service-deploy-remote",
             dependencies: [
                 .target(name: "c-service-client"),
-                .target(name: "c-service-storage"),
+                .target(name: "StorageService"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
@@ -227,7 +228,7 @@ let package = Package(
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),
                 .target(name: "c-service-lambda-build"),
-                .target(name: "c-service-storage"),
+                .target(name: "StorageService"),
                 .target(name: "c-service-setup"),
                 .target(name: "CLISDK"),
                 .target(name: "BrewCLISDK"),

@@ -6,7 +6,7 @@ import DynamoDBSDK
 import c_service_client
 import c_service_lambda_build
 import Foundation
-import c_service_storage
+import StorageService
 import c_service_deploy_core
 
 /// Stateless service for Linux container development workflow (AWS Lambda compatible)

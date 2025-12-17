@@ -3,7 +3,7 @@ import CLISDK
 import c_service_client
 import c_service_deploy_remote
 import c_service_deploy_core
-import c_service_storage
+import StorageService
 
 /// Top-level model that creates and holds all services.
 /// Manages mode selection and provides access to individual services.

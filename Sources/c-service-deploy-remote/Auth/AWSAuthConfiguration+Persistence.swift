@@ -7,7 +7,7 @@
 
 import Foundation
 import AWSSDK
-import c_service_storage
+import StorageService
 
 // MARK: - Storage Keys
 

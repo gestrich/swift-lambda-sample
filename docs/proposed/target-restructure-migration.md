@@ -185,12 +185,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
 
 ### Phase 2: Services
 
-- [ ] **StorageService** (no internal dependencies)
-  - [ ] Create `services/` folder
-  - [ ] Move `c-service-storage/` to `services/StorageService/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **StorageService** (no internal dependencies) ✅
+  - [x] Create `services/` folder
+  - [x] Move `c-service-storage/` to `services/StorageService/`
+  - [x] Update Package.swift target name and path
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **ClientService** (no internal dependencies)
   - [ ] Move `c-service-client/` to `services/ClientService/`
@@ -553,3 +553,27 @@ CLISDK ◄── CLIMacrosSDK
 - All 104 tests pass across 12 test suites
 
 **Note:** This completes Phase 1 (SDKs). All SDK targets and their tests have been migrated to the new `sdks/` folder structure with PascalCase naming.
+
+### StorageService Migration (Phase 2.1)
+
+**Key changes:**
+- Created `Sources/services/` folder for service layer targets
+- Moved `Sources/c-service-storage/` → `Sources/services/StorageService/`
+- Updated Package.swift: renamed target from `c-service-storage` to `StorageService` with explicit path
+- Updated all dependency references from `.target(name: "c-service-storage")` to `.target(name: "StorageService")` (3 references in Package.swift: c-service-deploy-local, c-service-deploy-remote, a-app-mac)
+- Updated all imports from `import c_service_storage` to `import StorageService` (8 files affected)
+
+**Files updated:**
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/Containers/StorageKeys.swift`
+- `Sources/c-service-deploy-remote/GitHubService/GitHubConfiguration.swift`
+- `Sources/c-service-deploy-remote/Auth/AWSAuthConfiguration+Persistence.swift`
+- `Sources/a-app-mac/Models/LinuxLocalModel.swift`
+- `Sources/a-app-mac/Models/AppModel.swift`
+- `Sources/a-app-mac/Models/XcodeLocalModel.swift`
+
+**Module name behavior:**
+- `StorageService` becomes module name `StorageService` directly (PascalCase, no hyphens)
+
+**Note:** This is the first service layer migration. The `services/` folder now exists for subsequent service migrations.

@@ -1,4 +1,4 @@
-import c_service_storage
+import StorageService
 
 // MARK: - PostgreSQL Storage Keys
 

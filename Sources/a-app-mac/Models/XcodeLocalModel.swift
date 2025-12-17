@@ -2,7 +2,7 @@ import CLISDK
 import c_service_client
 import Combine
 import Foundation
-import c_service_storage
+import StorageService
 import c_service_deploy_local
 import c_service_deploy_core
 import c_service_lambda_build
