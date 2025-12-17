@@ -37,13 +37,18 @@ Move PostgreSQLLocalService, MinIOService, and DynamoDBLocalService from `c-serv
 - Directory creation uses inline `FileManager.default.createDirectory(atPath:withIntermediateDirectories:)`
 - Old service files in `c-service-deploy-local` remain unchanged for now (will be deleted in Phase 4)
 
-### Phase 2: Create Storage Keys File
+### Phase 2: Create Storage Keys File ✅
 
-- [ ] Create `Sources/c-service-deploy-local/Containers/StorageKeys.swift`
+- [x] Create `Sources/c-service-deploy-local/Containers/StorageKeys.swift`
   - Move all storage key definitions here:
     - `PostgreSQLXcodeStorageKey`, `PostgreSQLLinuxStorageKey`
     - `MinIOXcodeStorageKey`, `MinIOLinuxStorageKey`
     - `DynamoDBLocalXcodeStorageKey`, `DynamoDBLocalLinuxStorageKey`
+
+**Technical Notes (Phase 2):**
+- Created centralized `StorageKeys.swift` file with all 6 storage key definitions
+- Removed duplicate storage key definitions from the original service files (`PostgreSQLLocalService.swift`, `MinIOService.swift`, `DynamoDBLocalService.swift`)
+- Old service files still exist and function correctly, using the keys from the new centralized file
 
 ### Phase 3: Update Callers
 

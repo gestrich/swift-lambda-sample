@@ -162,14 +162,3 @@ public enum PostgreSQLConfig: Sendable {
     var internalPort: Int { 5432 }
 }
 
-// MARK: - Storage Keys
-
-/// Storage key for PostgreSQL Xcode workflow data
-public struct PostgreSQLXcodeStorageKey: StoragePathKey {
-    public static let pathComponent = "postgres/xcode-data"
-}
-
-/// Storage key for PostgreSQL Linux workflow data
-public struct PostgreSQLLinuxStorageKey: StoragePathKey {
-    public static let pathComponent = "postgres/linux-data"
-}

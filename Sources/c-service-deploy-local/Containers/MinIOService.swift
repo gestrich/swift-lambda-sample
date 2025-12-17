@@ -232,14 +232,3 @@ public enum MinIOConfig: Sendable {
     var region: String { "us-east-1" }
 }
 
-// MARK: - Storage Keys
-
-/// Storage key for MinIO Xcode workflow data
-public struct MinIOXcodeStorageKey: StoragePathKey {
-    public static let pathComponent = "minio/xcode-data"
-}
-
-/// Storage key for MinIO Linux workflow data
-public struct MinIOLinuxStorageKey: StoragePathKey {
-    public static let pathComponent = "minio/linux-data"
-}

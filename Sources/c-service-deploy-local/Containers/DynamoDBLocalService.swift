@@ -157,14 +157,3 @@ public enum DynamoDBLocalConfig: Sendable {
     var internalPort: Int { 8000 }
 }
 
-// MARK: - Storage Keys
-
-/// Storage key for DynamoDB Local Xcode workflow data
-public struct DynamoDBLocalXcodeStorageKey: StoragePathKey {
-    public static let pathComponent = "dynamodb/xcode-data"
-}
-
-/// Storage key for DynamoDB Local Linux workflow data
-public struct DynamoDBLocalLinuxStorageKey: StoragePathKey {
-    public static let pathComponent = "dynamodb/linux-data"
-}
