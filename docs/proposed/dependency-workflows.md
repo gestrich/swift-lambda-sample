@@ -49,7 +49,7 @@ sdk-cli-brew, sdk-cli-node, sdk-cli-docker, sdk-aws, sdk-github
 
 ## Phase 1: Create service-setup Target
 
-**Status:** Not Started
+**Status:** Completed
 
 **Goal:** Create new service-layer target with basic types.
 
@@ -123,6 +123,10 @@ public struct DependencySnapshot: Sendable, Equatable {
 ```
 
 **Verification:** `swift build` succeeds.
+
+**Implementation Notes:**
+- Added `displayName` computed property to `CLITool` for UI usage
+- Target has dependencies on all SDK clients: sdk-cli, sdk-cli-brew, sdk-cli-node, sdk-cli-docker, sdk-aws, sdk-github
 
 ---
 

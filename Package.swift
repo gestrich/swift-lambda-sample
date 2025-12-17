@@ -73,6 +73,17 @@ let package = Package(
         .target(
             name: "service-storage"
         ),
+        .target(
+            name: "service-setup",
+            dependencies: [
+                .target(name: "sdk-cli"),
+                .target(name: "sdk-cli-brew"),
+                .target(name: "sdk-cli-node"),
+                .target(name: "sdk-cli-docker"),
+                .target(name: "sdk-aws"),
+                .target(name: "sdk-github"),
+            ]
+        ),
         .executableTarget(
             name: "app-cli",
             dependencies: [
