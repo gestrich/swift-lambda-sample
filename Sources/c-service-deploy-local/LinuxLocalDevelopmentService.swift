@@ -3,7 +3,7 @@ import DockerCLISDK
 import MinioSDK
 import PostgreSQLSDK
 import DynamoDBSDK
-import c_service_client
+import ClientService
 import c_service_lambda_build
 import Foundation
 import StorageService

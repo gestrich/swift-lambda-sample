@@ -7,7 +7,7 @@
 
 import Foundation
 import SotoDynamoDB
-import c_service_client
+import ClientService
 
 public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked Sendable {
 

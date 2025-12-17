@@ -113,7 +113,7 @@ let package = Package(
             name: "c-service-deploy-core",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "c-service-client"),
+                .target(name: "ClientService"),
             ]
         ),
         .target(
@@ -124,7 +124,7 @@ let package = Package(
                 .target(name: "MinioSDK"),
                 .target(name: "PostgreSQLSDK"),
                 .target(name: "DynamoDBSDK"),
-                .target(name: "c-service-client"),
+                .target(name: "ClientService"),
                 .target(name: "StorageService"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "c-service-deploy-core"),
@@ -193,7 +193,7 @@ let package = Package(
         .target(
             name: "c-service-deploy-remote",
             dependencies: [
-                .target(name: "c-service-client"),
+                .target(name: "ClientService"),
                 .target(name: "StorageService"),
                 .target(name: "c-service-lambda-build"),
                 .target(name: "CLISDK"),
@@ -213,13 +213,13 @@ let package = Package(
                 .product(name: "SotoS3", package: "soto"),
                 .product(name: "SotoSecretsManager", package: "soto"),
                 .product(name: "SotoDynamoDB", package: "soto"),
-                .target(name: "c-service-client")
+                .target(name: "ClientService")
             ]
         ),
         .executableTarget(
             name: "a-app-mac",
             dependencies: [
-                .target(name: "c-service-client"),
+                .target(name: "ClientService"),
                 .target(name: "b-workflow-deploy-remote"),
                 .target(name: "b-workflow-deploy-local-xcode"),
                 .target(name: "b-workflow-deploy-local-linux"),
@@ -242,8 +242,8 @@ let package = Package(
             ]
         ),
         .target(
-            name: "c-service-client",
-            dependencies: []
+            name: "ClientService",
+            path: "Sources/services/ClientService"
         ),
         .testTarget(
             name: "c-service-deploy-remote-tests",

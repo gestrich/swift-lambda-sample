@@ -7,7 +7,7 @@
 
 import AWSLambdaEvents
 import AWSLambdaRuntime
-import c_service_client
+import ClientService
 import Foundation
 import HTTPTypes
 

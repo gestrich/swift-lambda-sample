@@ -9,7 +9,7 @@
 import Foundation
 import AWSSDK
 import CLISDK
-import c_service_client
+import ClientService
 @testable import c_service_deploy_remote
 import Testing
 

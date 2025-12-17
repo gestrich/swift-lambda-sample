@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import c_service_client
+import ClientService
 
 public struct SwiftServerApp {
 

@@ -1,6 +1,6 @@
 import Foundation
 import CLISDK
-import c_service_client
+import ClientService
 import c_service_deploy_remote
 import c_service_deploy_core
 import StorageService

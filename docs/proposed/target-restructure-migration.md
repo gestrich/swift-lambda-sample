@@ -192,11 +192,11 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **ClientService** (no internal dependencies)
-  - [ ] Move `c-service-client/` to `services/ClientService/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **ClientService** (no internal dependencies) ✅
+  - [x] Move `c-service-client/` to `services/ClientService/`
+  - [x] Update Package.swift target name and path
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **LambdaBuildService** (depends on CLISDK)
   - [ ] Move `c-service-lambda-build/` to `services/LambdaBuildService/`
@@ -577,3 +577,36 @@ CLISDK ◄── CLIMacrosSDK
 - `StorageService` becomes module name `StorageService` directly (PascalCase, no hyphens)
 
 **Note:** This is the first service layer migration. The `services/` folder now exists for subsequent service migrations.
+
+### ClientService Migration (Phase 2.2)
+
+**Key changes:**
+- Moved `Sources/c-service-client/` → `Sources/services/ClientService/`
+- Updated Package.swift: renamed target from `c-service-client` to `ClientService` with explicit path
+- Updated all dependency references from `.target(name: "c-service-client")` to `.target(name: "ClientService")` (5 references in Package.swift: c-service-deploy-core, c-service-deploy-local, c-service-deploy-remote, a-app-lambda, a-app-mac)
+- Updated all imports from `import c_service_client` to `import ClientService` (20 files affected)
+
+**Files updated:**
+- `Sources/a-app-mac/Models/XcodeLocalModel.swift`
+- `Sources/a-app-mac/Models/AppModel.swift`
+- `Sources/a-app-mac/Models/LinuxLocalModel.swift`
+- `Sources/a-app-mac/Models/DeploymentModel.swift`
+- `Sources/a-app-mac/UI/LocalService/LocalServicesModel.swift`
+- `Sources/a-app-mac/UI/Client/S3View.swift`
+- `Sources/a-app-mac/UI/Client/PostgresView.swift`
+- `Sources/a-app-mac/UI/Client/RemindersView.swift`
+- `Sources/a-app-mac/UI/Client/UserFormView.swift`
+- `Sources/a-app-mac/UI/Client/APIClient+Previews.swift`
+- `Sources/a-app-mac/UI/Client/ClientView.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-core/LambdaService.swift`
+- `Sources/a-app-lambda/Handlers/APIGatewayHandler.swift`
+- `Sources/a-app-lambda/DynamoDB/DynamoDBDataStoreProduction.swift`
+- `Sources/a-app-lambda/DynamoDB/DynamoDBDataStoreInterface.swift`
+- `Sources/a-app-lambda/DynamoDB/DynamoDBDataStoreAWS.swift`
+- `Sources/a-app-lambda/SwiftServerApp.swift`
+- `Tests/c-service-deploy-remote-tests/AWSIntegrationTests.swift`
+
+**Module name behavior:**
+- `ClientService` becomes module name `ClientService` directly (PascalCase, no hyphens)

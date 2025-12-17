@@ -1,4 +1,4 @@
-import c_service_client
+import ClientService
 
 extension APIClient {
     /// A placeholder APIClient for SwiftUI previews.

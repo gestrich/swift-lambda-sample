@@ -1,4 +1,4 @@
-import c_service_client
+import ClientService
 import SwiftUI
 
 struct RemindersView: View {

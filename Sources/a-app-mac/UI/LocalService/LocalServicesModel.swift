@@ -1,4 +1,4 @@
-import c_service_client
+import ClientService
 import CLISDK
 import Combine
 import Foundation

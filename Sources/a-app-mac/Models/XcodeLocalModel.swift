@@ -1,5 +1,5 @@
 import CLISDK
-import c_service_client
+import ClientService
 import Combine
 import Foundation
 import StorageService
