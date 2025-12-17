@@ -1,7 +1,7 @@
 import d_sdk_cli
-import service_lambda_build
+import c_service_lambda_build
 import Foundation
-import service_deploy_core
+import c_service_deploy_core
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
 /// Both XcodeLocalModel and LinuxLocalModel conform to this protocol.

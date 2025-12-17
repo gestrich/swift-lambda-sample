@@ -7,7 +7,7 @@
 
 import Foundation
 import d_sdk_aws
-import service_storage
+import c_service_storage
 
 // MARK: - Storage Keys
 

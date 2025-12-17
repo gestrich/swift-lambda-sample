@@ -2,7 +2,7 @@ import d_sdk_aws
 import d_sdk_cli
 import Foundation
 import Observation
-import service_deploy_remote
+import c_service_deploy_remote
 import workflows_deploy_remote
 
 /// Observable model for CloudWatch logs viewing.

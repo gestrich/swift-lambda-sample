@@ -7,8 +7,8 @@
 
 import ArgumentParser
 import d_sdk_aws
-import service_deploy_remote
-import service_deploy_core
+import c_service_deploy_remote
+import c_service_deploy_core
 
 extension AWSAuthConfiguration {
 

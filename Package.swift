@@ -71,27 +71,27 @@ let package = Package(
             ]
         ),
         .target(
-            name: "service-storage"
+            name: "c-service-storage"
         ),
         .target(
-            name: "service-setup"
+            name: "c-service-setup"
         ),
         .target(
-            name: "service-deploy-core",
+            name: "c-service-deploy-core",
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-client"),
             ]
         ),
         .target(
-            name: "service-deploy-local",
+            name: "c-service-deploy-local",
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-docker"),
                 .target(name: "d-sdk-client"),
-                .target(name: "service-storage"),
-                .target(name: "service-lambda-build"),
-                .target(name: "service-deploy-core"),
+                .target(name: "c-service-storage"),
+                .target(name: "c-service-lambda-build"),
+                .target(name: "c-service-deploy-core"),
             ]
         ),
         .target(
@@ -103,11 +103,11 @@ let package = Package(
                 .target(name: "d-sdk-cli-docker"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
-                .target(name: "service-setup"),
+                .target(name: "c-service-setup"),
             ]
         ),
         .target(
-            name: "service-lambda-build",
+            name: "c-service-lambda-build",
             dependencies: [
                 .target(name: "d-sdk-cli"),
             ]
@@ -118,8 +118,8 @@ let package = Package(
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
-                .target(name: "service-deploy-remote"),
-                .target(name: "service-deploy-core"),
+                .target(name: "c-service-deploy-remote"),
+                .target(name: "c-service-deploy-core"),
             ]
         ),
         .executableTarget(
@@ -127,9 +127,9 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "workflows-deploy-remote"),
-                .target(name: "service-deploy-remote"),
-                .target(name: "service-deploy-local"),
-                .target(name: "service-deploy-core"),
+                .target(name: "c-service-deploy-remote"),
+                .target(name: "c-service-deploy-local"),
+                .target(name: "c-service-deploy-core"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-github"),
@@ -139,16 +139,16 @@ let package = Package(
             ]
         ),
         .target(
-            name: "service-deploy-remote",
+            name: "c-service-deploy-remote",
             dependencies: [
                 .target(name: "d-sdk-client"),
-                .target(name: "service-storage"),
-                .target(name: "service-lambda-build"),
+                .target(name: "c-service-storage"),
+                .target(name: "c-service-lambda-build"),
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-docker"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
-                .target(name: "service-deploy-core"),
+                .target(name: "c-service-deploy-core"),
             ]
         ),
         .executableTarget(
@@ -170,12 +170,12 @@ let package = Package(
                 .target(name: "d-sdk-client"),
                 .target(name: "workflows-deploy-remote"),
                 .target(name: "workflows-setup"),
-                .target(name: "service-deploy-remote"),
-                .target(name: "service-deploy-local"),
-                .target(name: "service-deploy-core"),
-                .target(name: "service-lambda-build"),
-                .target(name: "service-storage"),
-                .target(name: "service-setup"),
+                .target(name: "c-service-deploy-remote"),
+                .target(name: "c-service-deploy-local"),
+                .target(name: "c-service-deploy-core"),
+                .target(name: "c-service-lambda-build"),
+                .target(name: "c-service-storage"),
+                .target(name: "c-service-setup"),
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-brew"),
                 .target(name: "d-sdk-cli-node"),
@@ -194,7 +194,7 @@ let package = Package(
         .testTarget(
             name: "service-deploy-remote-tests",
             dependencies: [
-                .target(name: "service-deploy-remote"),
+                .target(name: "c-service-deploy-remote"),
                 .target(name: "d-sdk-github"),
             ]
         ),

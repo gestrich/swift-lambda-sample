@@ -4,7 +4,7 @@ import d_sdk_cli_node
 import d_sdk_cli_docker
 import d_sdk_aws
 import d_sdk_github
-import service_setup
+import c_service_setup
 
 /// Workflow that checks all dependency statuses and yields progress
 public struct DependencyStatusWorkflow: Sendable {

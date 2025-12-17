@@ -1,8 +1,8 @@
 import Foundation
 import d_sdk_cli
 import d_sdk_github
-import service_deploy_core
-import service_deploy_remote
+import c_service_deploy_core
+import c_service_deploy_remote
 
 /// Workflow for updating Lambda code via GitHub Actions.
 /// Orchestrates git operations and workflow monitoring, returning progress via stream.

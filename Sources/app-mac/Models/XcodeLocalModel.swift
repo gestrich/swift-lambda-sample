@@ -2,10 +2,10 @@ import d_sdk_cli
 import d_sdk_client
 import Combine
 import Foundation
-import service_storage
-import service_deploy_local
-import service_deploy_core
-import service_lambda_build
+import c_service_storage
+import c_service_deploy_local
+import c_service_deploy_core
+import c_service_lambda_build
 
 /// Observable model for native macOS Xcode development workflow
 /// Holds UI state and delegates operations to XcodeLocalDevelopmentService

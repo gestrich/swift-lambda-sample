@@ -1,6 +1,6 @@
 import AppKit
-import service_deploy_local
-import service_deploy_core
+import c_service_deploy_local
+import c_service_deploy_core
 import SwiftUI
 
 /// View for managing Docker services (MinIO S3, PostgreSQL, and DynamoDB)

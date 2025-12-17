@@ -1,6 +1,6 @@
 import d_sdk_cli
 import d_sdk_github
-@testable import service_deploy_remote
+@testable import c_service_deploy_remote
 import Testing
 
 @Suite("GitHub CLI Command Tests")

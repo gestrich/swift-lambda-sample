@@ -1,5 +1,5 @@
 import d_sdk_cli
-import service_deploy_remote
+import c_service_deploy_remote
 import SwiftUI
 
 /// Enum for Lambda update method selection

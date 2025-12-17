@@ -7,7 +7,7 @@
 
 import d_sdk_cli
 import d_sdk_aws
-import service_lambda_build
+import c_service_lambda_build
 import Foundation
 
 /// Service for building and uploading Lambda for Linux (AMD64) using Docker

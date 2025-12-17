@@ -1,5 +1,5 @@
 import d_sdk_cli
-import service_setup
+import c_service_setup
 import workflows_setup
 import Foundation
 import Observation

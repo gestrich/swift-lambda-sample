@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import service_storage
+import c_service_storage
 import d_sdk_github
 
 /// GitHub configuration for SwiftDeploy with file persistence

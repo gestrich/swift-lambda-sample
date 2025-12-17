@@ -1,9 +1,9 @@
 import Foundation
 import d_sdk_cli
 import d_sdk_client
-import service_deploy_remote
-import service_deploy_core
-import service_storage
+import c_service_deploy_remote
+import c_service_deploy_core
+import c_service_storage
 
 /// Top-level model that creates and holds all services.
 /// Manages mode selection and provides access to individual services.

@@ -2,9 +2,9 @@ import d_sdk_client
 import d_sdk_cli
 import Combine
 import Foundation
-import service_deploy_local
-import service_deploy_core
-import service_lambda_build
+import c_service_deploy_local
+import c_service_deploy_core
+import c_service_lambda_build
 
 /// Model that wraps a LocalService, providing @Observable properties for SwiftUI.
 /// Subscribes to the underlying service's publishers and updates observable properties.

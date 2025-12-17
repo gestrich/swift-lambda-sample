@@ -1,5 +1,5 @@
-import service_deploy_remote
-import service_lambda_build
+import c_service_deploy_remote
+import c_service_lambda_build
 import SwiftUI
 
 /// Placeholder when LambdaUploadService is not available (config missing)

@@ -1,6 +1,6 @@
 import d_sdk_aws
 import d_sdk_cli
-import service_deploy_remote
+import c_service_deploy_remote
 import workflows_deploy_remote
 import SwiftUI
 

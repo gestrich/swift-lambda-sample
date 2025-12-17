@@ -1,5 +1,5 @@
 import d_sdk_aws
-import service_deploy_remote
+import c_service_deploy_remote
 import SwiftUI
 
 /// View that explains how to fix AWS credential errors based on configuration state

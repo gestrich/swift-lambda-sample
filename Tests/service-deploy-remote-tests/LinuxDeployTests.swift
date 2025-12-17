@@ -7,7 +7,7 @@
 
 import Foundation
 import d_sdk_cli
-@testable import service_deploy_remote
+@testable import c_service_deploy_remote
 import Testing
 
 @Suite("Linux Lambda Container Integration Tests")

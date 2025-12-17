@@ -8,7 +8,7 @@
 import Foundation
 import d_sdk_aws
 import d_sdk_cli
-import service_deploy_remote
+import c_service_deploy_remote
 
 /// Workflow for resuming monitoring of an in-progress CloudFormation operation.
 /// Used when the app starts and detects a deploy/destroy is already running.

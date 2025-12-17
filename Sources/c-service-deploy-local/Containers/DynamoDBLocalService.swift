@@ -1,6 +1,6 @@
 import Foundation
 import d_sdk_cli_docker
-import service_storage
+import c_service_storage
 
 /// Service for managing local DynamoDB via Docker
 public actor DynamoDBLocalService {

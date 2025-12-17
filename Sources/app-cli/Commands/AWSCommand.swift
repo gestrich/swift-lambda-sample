@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import d_sdk_aws
-import service_deploy_remote
+import c_service_deploy_remote
 
 /// Top-level command for all AWS operations
 struct AWSCommand: AsyncParsableCommand {

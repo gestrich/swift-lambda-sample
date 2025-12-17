@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 import d_sdk_cli
-import service_deploy_remote
+import c_service_deploy_remote
 import workflows_deploy_remote
 
 extension AWSCommand {

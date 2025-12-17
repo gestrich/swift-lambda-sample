@@ -10,7 +10,7 @@ import Foundation
 import d_sdk_aws
 import d_sdk_cli
 import d_sdk_client
-@testable import service_deploy_remote
+@testable import c_service_deploy_remote
 import Testing
 
 @Suite("AWS Integration Tests", .disabled("Requires deployed AWS infrastructure and credentials"))
