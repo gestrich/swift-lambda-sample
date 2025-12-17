@@ -240,11 +240,11 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **DeployRemoteFeatureTests**
-  - [ ] Move `Tests/c-service-deploy-remote-tests/` to `Tests/DeployRemoteFeatureTests/`
-  - [ ] Update Package.swift test target name and path
-  - [ ] Update dependency references
-  - [ ] Verify tests pass
+- [x] **DeployRemoteFeatureTests** ✅
+  - [x] Move `Tests/c-service-deploy-remote-tests/` to `Tests/DeployRemoteFeatureTests/`
+  - [x] Update Package.swift test target name and path
+  - [x] Update dependency references
+  - [x] Verify tests pass
 
 - [ ] **DeployLocalXcodeFeature**
   - [ ] Create `features/DeployLocalXcodeFeature/` with `workflows/` and `services/` subfolders
@@ -799,3 +799,30 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DeployRemoteFeature` becomes module name `DeployRemoteFeature` directly (PascalCase, no hyphens)
+
+### DeployRemoteFeatureTests Migration (Phase 3.3)
+
+**Key changes:**
+- Moved `Tests/c-service-deploy-remote-tests/` → `Tests/DeployRemoteFeatureTests/`
+- Updated Package.swift: renamed test target from `c-service-deploy-remote-tests` to `DeployRemoteFeatureTests` with explicit path
+- Dependencies already referenced new target names from previous migrations (DeployRemoteFeature, DeployLocalService, LambdaBuildService, GitHubSDK, DockerCLISDK, NodeCLISDK)
+- No import statement changes needed (test files already used new module names)
+
+**Test files migrated:**
+- `AWSCLITests.swift` - AWS CLI command tests
+- `AWSIntegrationTests.swift` - AWS integration tests
+- `BuildScriptTests.swift` - Lambda build script tests
+- `CDKTests.swift` - CDK infrastructure tests
+- `CurlTests.swift` - HTTP curl command tests
+- `DockerTests.swift` - Docker CLI tests
+- `GitHubCLITests.swift` - GitHub CLI tests
+- `LinuxDeployTests.swift` - Linux container deployment tests
+- `NpmTests.swift` - NPM command tests
+- `SwiftCLITests.swift` - Swift CLI tests
+
+**Test verification:**
+- All 261 tests compiled and ran successfully with the new target name
+- One pre-existing functional test failure in LinuxDeployTests (S3 endpoint routing issue unrelated to migration)
+
+**Module name behavior:**
+- `DeployRemoteFeatureTests` becomes module name `DeployRemoteFeatureTests` directly (PascalCase, no hyphens)

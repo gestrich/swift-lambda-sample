@@ -234,7 +234,7 @@ let package = Package(
             path: "Sources/services/ClientService"
         ),
         .testTarget(
-            name: "c-service-deploy-remote-tests",
+            name: "DeployRemoteFeatureTests",
             dependencies: [
                 .target(name: "DeployRemoteFeature"),
                 .target(name: "DeployLocalService"),
@@ -242,7 +242,8 @@ let package = Package(
                 .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "NodeCLISDK"),
-            ]
+            ],
+            path: "Tests/DeployRemoteFeatureTests"
         ),
         .testTarget(
             name: "CLISDKTests",
