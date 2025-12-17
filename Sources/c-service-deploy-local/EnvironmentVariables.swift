@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import d_sdk_minio
+import MinioSDK
 import d_sdk_postgresql
 import d_sdk_dynamodb
 

@@ -156,12 +156,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **MinioSDK** (depends on DockerCLISDK)
-  - [ ] Move `d-sdk-minio/` to `sdks/MinioSDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to DockerCLISDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **MinioSDK** (depends on DockerCLISDK) ✅
+  - [x] Move `d-sdk-minio/` to `sdks/MinioSDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to DockerCLISDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **PostgreSQLSDK** (depends on DockerCLISDK)
   - [ ] Move `d-sdk-postgresql/` to `sdks/PostgreSQLSDK/`
@@ -487,3 +487,19 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `GitHubSDK` becomes module name `GitHubSDK` directly (PascalCase, no hyphens)
+
+### MinioSDK Migration (Phase 1.8)
+
+**Key changes:**
+- Moved `Sources/d-sdk-minio/` → `Sources/sdks/MinioSDK/`
+- Updated Package.swift: renamed target from `d-sdk-minio` to `MinioSDK` with explicit path
+- Updated dependency reference in `c-service-deploy-local` from `.target(name: "d-sdk-minio")` to `.target(name: "MinioSDK")`
+- Updated all imports from `import d_sdk_minio` to `import MinioSDK` (3 files affected)
+
+**Files updated:**
+- `Sources/c-service-deploy-local/XcodeLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/LinuxLocalDevelopmentService.swift`
+- `Sources/c-service-deploy-local/EnvironmentVariables.swift`
+
+**Module name behavior:**
+- `MinioSDK` becomes module name `MinioSDK` directly (PascalCase, no hyphens)
