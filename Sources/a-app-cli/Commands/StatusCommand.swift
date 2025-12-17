@@ -3,7 +3,7 @@ import Foundation
 import c_service_deploy_remote
 import b_workflow_deploy_remote
 import d_sdk_aws
-import d_sdk_cli
+import CLISDK
 
 extension AWSCommand {
     struct StatusCommand: AsyncParsableCommand {

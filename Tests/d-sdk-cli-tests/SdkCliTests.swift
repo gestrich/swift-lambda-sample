@@ -1,5 +1,5 @@
 import Testing
-import d_sdk_cli
+import CLISDK
 
 @Suite("sdk-cli Tests")
 struct SdkCliTests {

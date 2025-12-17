@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_cli
+import CLISDK
 import d_sdk_cli_brew
 import c_service_setup
 

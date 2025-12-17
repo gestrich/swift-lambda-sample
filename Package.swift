@@ -38,29 +38,30 @@ let package = Package(
             path: "Sources/sdks/CLIMacrosSDK"
         ),
         .target(
-            name: "d-sdk-cli",
+            name: "CLISDK",
             dependencies: [
                 .target(name: "CLIMacrosSDK"),
             ],
+            path: "Sources/sdks/CLISDK",
             exclude: ["README.md"]
         ),
         .target(
             name: "d-sdk-aws",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-node"),
             ]
         ),
         .target(
             name: "d-sdk-github",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .target(
             name: "d-sdk-cli-docker",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .target(
@@ -84,13 +85,13 @@ let package = Package(
         .target(
             name: "d-sdk-cli-brew",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .target(
             name: "d-sdk-cli-node",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .target(
@@ -102,14 +103,14 @@ let package = Package(
         .target(
             name: "c-service-deploy-core",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "c-service-client"),
             ]
         ),
         .target(
             name: "c-service-deploy-local",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-docker"),
                 .target(name: "d-sdk-minio"),
                 .target(name: "d-sdk-postgresql"),
@@ -123,7 +124,7 @@ let package = Package(
         .target(
             name: "b-workflow-setup",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-brew"),
                 .target(name: "d-sdk-cli-node"),
                 .target(name: "d-sdk-cli-docker"),
@@ -135,13 +136,13 @@ let package = Package(
         .target(
             name: "c-service-lambda-build",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .target(
             name: "b-workflow-deploy-remote",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
                 .target(name: "c-service-deploy-remote"),
@@ -152,14 +153,14 @@ let package = Package(
             name: "b-workflow-deploy-local-xcode",
             dependencies: [
                 .target(name: "c-service-deploy-local"),
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .target(
             name: "b-workflow-deploy-local-linux",
             dependencies: [
                 .target(name: "c-service-deploy-local"),
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
             ]
         ),
         .executableTarget(
@@ -173,7 +174,7 @@ let package = Package(
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-deploy-core"),
                 .target(name: "d-sdk-aws"),
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-github"),
             ],
             swiftSettings: [
@@ -186,7 +187,7 @@ let package = Package(
                 .target(name: "c-service-client"),
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-lambda-build"),
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-docker"),
                 .target(name: "d-sdk-aws"),
                 .target(name: "d-sdk-github"),
@@ -220,7 +221,7 @@ let package = Package(
                 .target(name: "c-service-lambda-build"),
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-setup"),
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "d-sdk-cli-brew"),
                 .target(name: "d-sdk-cli-node"),
                 .target(name: "d-sdk-cli-docker"),
@@ -249,7 +250,7 @@ let package = Package(
         .testTarget(
             name: "d-sdk-cli-tests",
             dependencies: [
-                .target(name: "d-sdk-cli"),
+                .target(name: "CLISDK"),
                 .target(name: "CLIMacrosSDK"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]

@@ -5,7 +5,7 @@
 //  Protocol for AWS credential strategies
 //
 
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// Protocol for providing AWS credentials to CLI commands

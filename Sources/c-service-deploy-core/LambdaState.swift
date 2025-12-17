@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// Simple data container for Lambda lifecycle state

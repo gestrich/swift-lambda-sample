@@ -1,5 +1,5 @@
 import d_sdk_aws
-import d_sdk_cli
+import CLISDK
 import d_sdk_cli_node
 @testable import c_service_deploy_remote
 import Testing

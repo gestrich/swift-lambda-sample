@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import d_sdk_cli
+import CLISDK
 @testable import c_service_deploy_remote
 @testable import c_service_deploy_local
 import Testing

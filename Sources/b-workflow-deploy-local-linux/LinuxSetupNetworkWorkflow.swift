@@ -1,6 +1,6 @@
 import Foundation
 import c_service_deploy_local
-import d_sdk_cli
+import CLISDK
 
 /// Workflow for setting up Docker network for container communication.
 public struct LinuxSetupNetworkWorkflow: Sendable {

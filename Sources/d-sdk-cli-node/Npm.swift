@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// npm CLI program definition using macro-based API

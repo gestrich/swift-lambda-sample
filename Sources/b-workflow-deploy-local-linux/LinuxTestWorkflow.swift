@@ -1,6 +1,6 @@
 import Foundation
 import c_service_deploy_local
-import d_sdk_cli
+import CLISDK
 
 /// Workflow for testing local Lambda endpoints (Linux mode).
 public struct LinuxTestWorkflow: Sendable {

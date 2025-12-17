@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// Bash CLI program for running shell commands

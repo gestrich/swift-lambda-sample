@@ -5,7 +5,7 @@
 //  Service for building and uploading Lambda for Linux using Docker
 //
 
-import d_sdk_cli
+import CLISDK
 import d_sdk_aws
 import c_service_lambda_build
 import Foundation

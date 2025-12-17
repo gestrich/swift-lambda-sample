@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// Build script CLI wrapper for ./build.sh

@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import SwiftUI
 
 // MARK: - Command Block Model

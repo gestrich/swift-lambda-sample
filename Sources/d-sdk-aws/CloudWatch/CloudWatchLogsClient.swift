@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// A log entry from CloudWatch Logs

@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import Foundation
 
 /// Generic service for interacting with AWS CloudFormation via CLI

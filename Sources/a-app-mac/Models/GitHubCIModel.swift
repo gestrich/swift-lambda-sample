@@ -1,5 +1,5 @@
 import AppKit
-import d_sdk_cli
+import CLISDK
 import d_sdk_github
 import Foundation
 import Observation

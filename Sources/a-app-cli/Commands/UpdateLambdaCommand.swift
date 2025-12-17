@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import d_sdk_cli
+import CLISDK
 import c_service_deploy_remote
 import b_workflow_deploy_remote
 

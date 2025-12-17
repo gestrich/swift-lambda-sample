@@ -1,5 +1,5 @@
 import Foundation
-import d_sdk_cli
+import CLISDK
 import c_service_client
 import c_service_deploy_remote
 import c_service_deploy_core

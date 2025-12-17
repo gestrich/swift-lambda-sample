@@ -114,12 +114,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets (Macros.swift module references)
   - [x] Verify build succeeds
 
-- [ ] **CLISDK** (depends on CLIMacrosSDK)
-  - [ ] Move `d-sdk-cli/` to `sdks/CLISDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to CLIMacrosSDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **CLISDK** (depends on CLIMacrosSDK) ✅
+  - [x] Move `d-sdk-cli/` to `sdks/CLISDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to CLIMacrosSDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **DockerCLISDK** (depends on CLISDK)
   - [ ] Move `d-sdk-cli-docker/` to `sdks/DockerCLISDK/`
@@ -349,9 +349,26 @@ CLISDK ◄── CLIMacrosSDK
 **Key changes:**
 - Moved `Sources/d-sdk-cli-macros/` → `Sources/sdks/CLIMacrosSDK/`
 - Updated Package.swift: renamed target from `d-sdk-cli-macros` to `CLIMacrosSDK` with explicit path
-- Updated `#externalMacro` module references in `Sources/d-sdk-cli/Macros.swift` from `d_sdk_cli_macros` to `CLIMacrosSDK`
+- Updated `#externalMacro` module references in `Sources/sdks/CLISDK/Macros.swift` from `d_sdk_cli_macros` to `CLIMacrosSDK`
 - Updated dependency references in `d-sdk-cli` and `d-sdk-cli-tests` targets
 
 **Module name behavior:**
 - Swift macro targets use the target name directly as the module name
 - `CLIMacrosSDK` becomes module name `CLIMacrosSDK` (no underscore transformation since no hyphens)
+
+### CLISDK Migration (Phase 1.2)
+
+**Key changes:**
+- Moved `Sources/d-sdk-cli/` → `Sources/sdks/CLISDK/`
+- Updated Package.swift: renamed target from `d-sdk-cli` to `CLISDK` with explicit path
+- Updated all dependency references from `.target(name: "d-sdk-cli")` to `.target(name: "CLISDK")`
+- Updated all imports from `import d_sdk_cli` to `import CLISDK` (99 files affected)
+
+**Module name behavior:**
+- Regular targets with PascalCase names become module names directly
+- `CLISDK` becomes module name `CLISDK` (no underscore transformation)
+
+**Important: Only rename the target being migrated:**
+- When updating imports with sed/find, be careful not to accidentally modify imports for other SDK targets
+- For example, `d_sdk_cli_docker` should NOT become `CLISDK_docker` - each SDK migrates independently
+- Pattern used: `s/import d_sdk_cli$/import CLISDK/` (exact match) rather than `s/d_sdk_cli/CLISDK/g` (global replace)

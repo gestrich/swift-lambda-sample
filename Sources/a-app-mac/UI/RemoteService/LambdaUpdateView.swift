@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import c_service_deploy_remote
 import SwiftUI
 

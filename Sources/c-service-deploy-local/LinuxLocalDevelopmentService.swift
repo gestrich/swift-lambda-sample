@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import d_sdk_cli_docker
 import d_sdk_minio
 import d_sdk_postgresql

@@ -1,4 +1,4 @@
-import d_sdk_cli
+import CLISDK
 import d_sdk_cli_brew
 import d_sdk_cli_node
 import d_sdk_cli_docker

@@ -1,6 +1,6 @@
 import Foundation
 import c_service_deploy_local
-import d_sdk_cli
+import CLISDK
 
 /// Workflow for starting the Lambda as a native macOS process.
 public struct XcodeStartLambdaWorkflow: Sendable {

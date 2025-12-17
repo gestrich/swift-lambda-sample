@@ -1,6 +1,6 @@
 import Foundation
 import d_sdk_aws
-import d_sdk_cli
+import CLISDK
 
 /// Workflow for streaming CloudWatch logs from Lambda.
 /// Orchestrates log fetching and yields state updates with accumulated entries.
