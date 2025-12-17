@@ -764,14 +764,21 @@ public final class GitHubCIModel {
 
 ## Migration Steps
 
-### [ ] Phase 1: Create GitHubCIWorkflow and State types (service-deploy)
-- [ ] Create `GitHubCISnapshot` (stable state, like `DeploymentSnapshot`)
-- [ ] Create `GitHubCIWorkflow.State` enum (what workflows yield)
-- [ ] Create `GitHubCIWorkflow` struct with:
-  - [ ] `getStatus()` → `StatusSnapshot` (for refresh)
-  - [ ] `pushAndDeploy()` → `AsyncThrowingStream<State, Error>`
-  - [ ] `monitorRun()` → `AsyncThrowingStream<State, Error>`
-- [ ] Move orchestration logic from `GitHubActionsClient`
+### [x] Phase 1: Create GitHubCIWorkflow and State types (service-deploy)
+- [x] Create `GitHubCISnapshot` (stable state, like `DeploymentSnapshot`)
+- [x] Create `GitHubCIWorkflow.State` enum (what workflows yield)
+- [x] Create `GitHubCIWorkflow` struct with:
+  - [x] `getStatus()` → `StatusSnapshot` (for refresh)
+  - [x] `pushAndDeploy()` → `AsyncThrowingStream<State, Error>`
+  - [x] `monitorRun()` → `AsyncThrowingStream<State, Error>`
+- [x] Move orchestration logic from `GitHubActionsClient`
+
+**Technical Notes (Phase 1):**
+- Created `Sources/service-deploy/Workflows/GitHubCIWorkflow.swift`
+- Named the snapshot type `Snapshot` (not `GitHubCISnapshot`) to avoid collision with the existing type in sdk-github
+- Added `WorkflowRunInfo.init(from: GitHubWorkflowRun)` extension to convert SDK types
+- Reused `WorkflowRunInfo` from sdk-github rather than duplicating the type
+- The workflow follows the CloudWatchLogsWorkflow pattern with `AsyncThrowingStream<State, Error>`
 
 ### [ ] Phase 2: Remove type aliases and re-exports (service-deploy)
 - [ ] Delete `GitHubActionsService.swift`
