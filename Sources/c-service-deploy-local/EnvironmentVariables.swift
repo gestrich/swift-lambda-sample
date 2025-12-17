@@ -6,7 +6,9 @@
 //
 
 import Foundation
-import d_sdk_cli_docker
+import d_sdk_minio
+import d_sdk_postgresql
+import d_sdk_dynamodb
 
 /// Execution context for Lambda - determines how to connect to services
 enum LambdaExecutionContext {

@@ -1,5 +1,8 @@
 import d_sdk_cli
 import d_sdk_cli_docker
+import d_sdk_minio
+import d_sdk_postgresql
+import d_sdk_dynamodb
 import c_service_client
 import c_service_lambda_build
 import Foundation

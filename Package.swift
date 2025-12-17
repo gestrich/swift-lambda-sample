@@ -63,6 +63,24 @@ let package = Package(
             ]
         ),
         .target(
+            name: "d-sdk-minio",
+            dependencies: [
+                .target(name: "d-sdk-cli-docker"),
+            ]
+        ),
+        .target(
+            name: "d-sdk-postgresql",
+            dependencies: [
+                .target(name: "d-sdk-cli-docker"),
+            ]
+        ),
+        .target(
+            name: "d-sdk-dynamodb",
+            dependencies: [
+                .target(name: "d-sdk-cli-docker"),
+            ]
+        ),
+        .target(
             name: "d-sdk-cli-brew",
             dependencies: [
                 .target(name: "d-sdk-cli"),
@@ -92,6 +110,9 @@ let package = Package(
             dependencies: [
                 .target(name: "d-sdk-cli"),
                 .target(name: "d-sdk-cli-docker"),
+                .target(name: "d-sdk-minio"),
+                .target(name: "d-sdk-postgresql"),
+                .target(name: "d-sdk-dynamodb"),
                 .target(name: "c-service-client"),
                 .target(name: "c-service-storage"),
                 .target(name: "c-service-lambda-build"),
