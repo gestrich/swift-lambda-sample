@@ -1,7 +1,7 @@
 # Extract Workflows to Dedicated Targets
 
 **Date:** 2025-12-17
-**Status:** In Progress (Phases 1-2 Complete, Phase 4 Partially Complete)
+**Status:** In Progress (Phases 1-3 Complete, Phase 4 Partially Complete)
 
 ## Goal
 
@@ -194,6 +194,16 @@ Remove `sdk-github` from service-deploy-remote dependencies if only workflows us
 ```bash
 swift build --target service-deploy-remote
 ```
+
+### 3.4 Completion Notes ✅
+
+**Completed:** 2025-12-17
+
+- Workflows directory was already removed during Phase 1 (confirmed empty)
+- `sdk-github` **cannot** be removed from service-deploy-remote dependencies:
+  - `GitHubService/GitHubConfiguration.swift` uses `GitHubActionsConfiguration`
+  - `Models/DeploymentState.swift` uses `GitHubRunDetail`
+- Build verification passed: `swift build --target service-deploy-remote`
 
 ---
 
