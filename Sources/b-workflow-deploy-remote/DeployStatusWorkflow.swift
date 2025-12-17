@@ -1,7 +1,7 @@
 import Foundation
 import AWSSDK
 import CLISDK
-import d_sdk_github
+import GitHubSDK
 import c_service_deploy_remote
 
 /// Workflow for querying deployment and git status.
@@ -108,8 +108,8 @@ public struct DeployStatusWorkflow: Sendable {
         }
     }
 
-    /// Git status information (re-exported from d-sdk-github for convenience)
-    public typealias GitStatus = d_sdk_github.GitStatus
+    /// Git status information (re-exported from GitHubSDK for convenience)
+    public typealias GitStatus = GitHubSDK.GitStatus
 
     /// GitHub Actions status information
     public struct GitHubStatus: Sendable, Equatable {

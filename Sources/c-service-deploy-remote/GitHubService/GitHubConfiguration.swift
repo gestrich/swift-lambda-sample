@@ -7,7 +7,7 @@
 
 import Foundation
 import c_service_storage
-import d_sdk_github
+import GitHubSDK
 
 /// GitHub configuration for SwiftDeploy with file persistence
 /// This extends the SDK's GitHubActionsConfiguration with file loading/saving capabilities

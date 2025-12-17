@@ -1,6 +1,6 @@
 import Foundation
 import CLISDK
-import d_sdk_github
+import GitHubSDK
 import c_service_deploy_core
 import c_service_deploy_remote
 

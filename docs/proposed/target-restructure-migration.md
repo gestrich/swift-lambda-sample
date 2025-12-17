@@ -149,12 +149,12 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
   - [x] Update all imports in dependent targets
   - [x] Verify build succeeds
 
-- [ ] **GitHubSDK** (depends on CLISDK)
-  - [ ] Move `d-sdk-github/` to `sdks/GitHubSDK/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency reference to CLISDK
-  - [ ] Update all imports in dependent targets
-  - [ ] Verify build succeeds
+- [x] **GitHubSDK** (depends on CLISDK) ✅
+  - [x] Move `d-sdk-github/` to `sdks/GitHubSDK/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency reference to CLISDK
+  - [x] Update all imports in dependent targets
+  - [x] Verify build succeeds
 
 - [ ] **MinioSDK** (depends on DockerCLISDK)
   - [ ] Move `d-sdk-minio/` to `sdks/MinioSDK/`
@@ -462,3 +462,28 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `AWSSDK` becomes module name `AWSSDK` directly (PascalCase, no hyphens)
+
+### GitHubSDK Migration (Phase 1.7)
+
+**Key changes:**
+- Moved `Sources/d-sdk-github/` → `Sources/sdks/GitHubSDK/`
+- Updated Package.swift: renamed target from `d-sdk-github` to `GitHubSDK` with explicit path
+- Updated all dependency references from `.target(name: "d-sdk-github")` to `.target(name: "GitHubSDK")` (6 references in Package.swift: b-workflow-setup, b-workflow-deploy-remote, a-app-cli, c-service-deploy-remote, a-app-mac, c-service-deploy-remote-tests)
+- Updated all imports from `import d_sdk_github` to `import GitHubSDK` (11 files affected)
+- Fixed one typealias using fully qualified module name (`d_sdk_github.GitStatus` → `GitHubSDK.GitStatus`)
+
+**Files updated:**
+- `Sources/b-workflow-setup/DependencyStatusWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/DeployInitWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/DeployStatusWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/UpdateLambdaWorkflow.swift`
+- `Sources/b-workflow-deploy-remote/GitHubCIWorkflow.swift`
+- `Sources/a-app-mac/Models/DeploymentModel.swift`
+- `Sources/a-app-mac/Models/GitHubCIModel.swift`
+- `Sources/a-app-mac/UI/RemoteService/GitHubCISectionView.swift`
+- `Sources/c-service-deploy-remote/Models/DeploymentState.swift`
+- `Sources/c-service-deploy-remote/GitHubService/GitHubConfiguration.swift`
+- `Tests/c-service-deploy-remote-tests/GitHubCLITests.swift`
+
+**Module name behavior:**
+- `GitHubSDK` becomes module name `GitHubSDK` directly (PascalCase, no hyphens)

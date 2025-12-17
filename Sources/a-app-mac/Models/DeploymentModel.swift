@@ -2,7 +2,7 @@ import Foundation
 import AWSSDK
 import CLISDK
 import c_service_client
-import d_sdk_github
+import GitHubSDK
 import c_service_deploy_remote
 import b_workflow_deploy_remote
 import c_service_deploy_core

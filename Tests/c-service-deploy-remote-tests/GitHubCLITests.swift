@@ -1,5 +1,5 @@
 import CLISDK
-import d_sdk_github
+import GitHubSDK
 @testable import c_service_deploy_remote
 import Testing
 

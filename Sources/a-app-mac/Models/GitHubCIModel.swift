@@ -1,6 +1,6 @@
 import AppKit
 import CLISDK
-import d_sdk_github
+import GitHubSDK
 import Foundation
 import Observation
 import c_service_deploy_remote

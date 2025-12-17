@@ -1,6 +1,6 @@
 import Foundation
 import AWSSDK
-import d_sdk_github
+import GitHubSDK
 
 // MARK: - DeploymentSnapshot (Stable State)
 

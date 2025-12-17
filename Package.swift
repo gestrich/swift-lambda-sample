@@ -54,10 +54,11 @@ let package = Package(
             path: "Sources/sdks/AWSSDK"
         ),
         .target(
-            name: "d-sdk-github",
+            name: "GitHubSDK",
             dependencies: [
                 .target(name: "CLISDK"),
-            ]
+            ],
+            path: "Sources/sdks/GitHubSDK"
         ),
         .target(
             name: "DockerCLISDK",
@@ -133,7 +134,7 @@ let package = Package(
                 .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
-                .target(name: "d-sdk-github"),
+                .target(name: "GitHubSDK"),
                 .target(name: "c-service-setup"),
             ]
         ),
@@ -148,7 +149,7 @@ let package = Package(
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "AWSSDK"),
-                .target(name: "d-sdk-github"),
+                .target(name: "GitHubSDK"),
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-core"),
             ]
@@ -179,7 +180,7 @@ let package = Package(
                 .target(name: "c-service-deploy-core"),
                 .target(name: "AWSSDK"),
                 .target(name: "CLISDK"),
-                .target(name: "d-sdk-github"),
+                .target(name: "GitHubSDK"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
@@ -194,7 +195,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
-                .target(name: "d-sdk-github"),
+                .target(name: "GitHubSDK"),
                 .target(name: "c-service-deploy-core"),
             ]
         ),
@@ -230,7 +231,7 @@ let package = Package(
                 .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
-                .target(name: "d-sdk-github"),
+                .target(name: "GitHubSDK"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
@@ -246,7 +247,7 @@ let package = Package(
                 .target(name: "c-service-deploy-remote"),
                 .target(name: "c-service-deploy-local"),
                 .target(name: "c-service-lambda-build"),
-                .target(name: "d-sdk-github"),
+                .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "NodeCLISDK"),
             ]

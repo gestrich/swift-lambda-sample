@@ -3,7 +3,7 @@ import BrewCLISDK
 import NodeCLISDK
 import DockerCLISDK
 import AWSSDK
-import d_sdk_github
+import GitHubSDK
 import c_service_setup
 
 /// Workflow that checks all dependency statuses and yields progress
