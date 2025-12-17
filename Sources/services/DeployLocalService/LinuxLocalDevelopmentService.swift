@@ -235,7 +235,7 @@ public actor LinuxLocalDevelopmentService {
         let buildMsg = "🔨 Building Lambda for Linux (Docker)...\n"
         await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
-        let buildCmd = BuildScript.Build.lambda(target: "app-lambda")
+        let buildCmd = BuildScript.Build.lambda(target: "LambdaApp")
         let stream = await cliClient.stream(
             buildCmd,
             workingDirectory: workingDirectory,

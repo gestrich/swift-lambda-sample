@@ -264,18 +264,18 @@ Migration order: SDKs first (no dependencies on other project targets), then Ser
 
 ### Phase 4: Apps
 
-- [ ] **LambdaApp**
-  - [ ] Create `apps/` folder
-  - [ ] Move `a-app-lambda/` to `apps/LambdaApp/`
-  - [ ] Update Package.swift target name and path
-  - [ ] Update dependency references
-  - [ ] Update product name if desired
-  - [ ] **Update hardcoded target name references:**
-    - [ ] GitHub Actions workflows (`.github/workflows/*.yml`) - build scripts reference target name
-    - [ ] Swift code that launches/references the Lambda target by string (e.g., `swift build --product`)
-    - [ ] `build.sh` and any other shell scripts
-    - [ ] Documentation referencing the old target name
-  - [ ] Verify build succeeds
+- [x] **LambdaApp** ✅
+  - [x] Create `apps/` folder
+  - [x] Move `a-app-lambda/` to `apps/LambdaApp/`
+  - [x] Update Package.swift target name and path
+  - [x] Update dependency references
+  - [x] Update product name (renamed from `app-lambda` to `LambdaApp`)
+  - [x] **Update hardcoded target name references:**
+    - [x] GitHub Actions workflows (`.github/workflows/*.yml`) - build scripts reference target name
+    - [x] Swift code that launches/references the Lambda target by string (e.g., `swift build --product`)
+    - [x] `build.sh` and any other shell scripts
+    - [x] Documentation referencing the old target name
+  - [x] Verify build succeeds
 
 - [ ] **CLIApp**
   - [ ] Move `a-app-cli/` to `apps/CLIApp/`
@@ -888,3 +888,30 @@ CLISDK ◄── CLIMacrosSDK
 
 **Module name behavior:**
 - `DeployLocalLinuxFeature` becomes module name `DeployLocalLinuxFeature` directly (PascalCase, no hyphens)
+
+### LambdaApp Migration (Phase 4.1)
+
+**Key changes:**
+- Created `Sources/apps/` folder for app layer targets
+- Moved `Sources/a-app-lambda/` → `Sources/apps/LambdaApp/`
+- Updated Package.swift: renamed target from `a-app-lambda` to `LambdaApp` with explicit path
+- Updated Package.swift: renamed product from `app-lambda` to `LambdaApp`
+- Updated GitHub Actions workflow `.github/workflows/deploy_dev.yml`: `productName: LambdaApp`
+- Updated `build.sh` examples to use `LambdaApp` instead of `app-lambda`
+- Updated Swift code references to `"app-lambda"` → `"LambdaApp"` in:
+  - `Sources/services/DeployLocalService/XcodeLocalDevelopmentService.swift` (lambdaProductName constant)
+  - `Sources/services/DeployLocalService/LinuxLocalDevelopmentService.swift` (BuildScript.Build.lambda target)
+  - `Sources/features/DeployRemoteFeature/services/LambdaService/LambdaBuildService.swift` (BuildScript.Build.lambda target)
+  - `Sources/a-app-mac/Models/XcodeLocalModel.swift` (executable path for build detection)
+  - `Sources/services/LambdaBuildService/CLI/BuildScript.swift` (documentation examples)
+  - `Sources/services/LambdaBuildService/CLI/SwiftCLI.swift` (documentation example)
+
+**Product name change:**
+- Old: `app-lambda` (product name) → `a-app-lambda` (target name)
+- New: `LambdaApp` (both product and target name)
+- This is a breaking change for CI/CD pipelines referencing the old product name
+
+**Module name behavior:**
+- `LambdaApp` becomes module name `LambdaApp` directly (PascalCase, no hyphens)
+
+**Note:** This is the first app layer migration. The `apps/` folder now exists for subsequent app migrations (CLIApp, MacApp).

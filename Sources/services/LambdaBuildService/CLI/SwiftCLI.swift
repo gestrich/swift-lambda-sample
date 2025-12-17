@@ -23,7 +23,7 @@ public struct SwiftCLI {
     // MARK: - Build Commands
 
     /// Swift build command
-    /// Example: swift build --product app-lambda --show-bin-path
+    /// Example: swift build --product LambdaApp --show-bin-path
     @CLICommand
     public struct Build {
         /// Build a specific product

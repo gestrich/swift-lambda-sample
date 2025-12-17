@@ -100,7 +100,7 @@ public class LambdaBuildService {
         await output?.send(.stdout(commandID: .init(), text: buildMsg))
 
         // Stream the build output using typed command
-        let buildCmd = BuildScript.Build.lambda(target: "app-lambda")
+        let buildCmd = BuildScript.Build.lambda(target: "LambdaApp")
         let stream = await cliClient.stream(
             buildCmd,
             workingDirectory: workingDirectory,

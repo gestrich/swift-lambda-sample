@@ -10,8 +10,8 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "app-lambda",
-            targets: ["a-app-lambda"]
+            name: "LambdaApp",
+            targets: ["LambdaApp"]
         ),
         .executable(
             name: "app-cli",
@@ -196,7 +196,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "a-app-lambda",
+            name: "LambdaApp",
             dependencies: [
                 .product(name: "AWSLambdaRuntime", package: "swift-aws-lambda-runtime"),
                 .product(name: "AWSLambdaEvents", package: "swift-aws-lambda-events"),
@@ -206,7 +206,8 @@ let package = Package(
                 .product(name: "SotoSecretsManager", package: "soto"),
                 .product(name: "SotoDynamoDB", package: "soto"),
                 .target(name: "ClientService")
-            ]
+            ],
+            path: "Sources/apps/LambdaApp"
         ),
         .executableTarget(
             name: "a-app-mac",

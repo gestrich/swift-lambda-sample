@@ -159,7 +159,7 @@ public class XcodeLocalModel: LocalService {
         }
 
         for item in contents {
-            let executablePath = "\(debugDir)/\(item)/debug/app-lambda"
+            let executablePath = "\(debugDir)/\(item)/debug/LambdaApp"
             if FileManager.default.fileExists(atPath: executablePath) {
                 return true
             }
