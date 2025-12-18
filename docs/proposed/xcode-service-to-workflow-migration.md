@@ -252,24 +252,32 @@ Move Lambda process start logic into the workflow.
 
 ---
 
-### [ ] Phase 6: Migrate XcodeStopLambdaWorkflow
+### [x] Phase 6: Migrate XcodeStopLambdaWorkflow (COMPLETED)
 
 Move Lambda process stop logic into the workflow.
 
 **Tasks:**
-- [ ] 6.1: Add `CLIClient` dependency
-- [ ] 6.2: Create `Components` struct and `create()` factory
-- [ ] 6.3: Move `stopLambda()` logic (find PIDs on port, kill them)
-- [ ] 6.4: Move `isLambdaRunning()` logic (check port with `lsof`)
-- [ ] 6.5: Move `getProcessIDsOnPort()` helper logic
-- [ ] 6.6: Update CLI command
-- [ ] 6.7: Update MacApp model
-- [ ] 6.8: Add deprecated `init(service:)` for backward compatibility
+- [x] 6.1: Add `CLIClient` dependency
+- [x] 6.2: Create `Components` struct and `create()` factory
+- [x] 6.3: Move `stopLambda()` logic (find PIDs on port, kill them)
+- [x] 6.4: Move `isLambdaRunning()` logic (check port with `lsof`)
+- [x] 6.5: Move `getProcessIDsOnPort()` helper logic
+- [x] 6.6: Update CLI command
+- [x] 6.7: Update MacApp model
+- [x] 6.8: Add deprecated `init(service:)` for backward compatibility
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
-- `MacApp/Models/XcodeLocalModel.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift` - Added `Components`, `create()`, moved all Lambda stop logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StopCommand` to use factory
+- `MacApp/Models/XcodeLocalModel.swift` - Updated `stopLambda()` to use factory
+
+**Technical Notes:**
+- Workflow now contains all Lambda stop logic directly using `CLIClient`
+- Simpler than `XcodeStartLambdaWorkflow` - no build or service dependencies needed
+- Uses `lsof` to find process IDs and `kill` command to terminate them
+- Public `isLambdaRunning()` method available for status checks
+- Filters out current process PID to avoid self-termination
+- Deprecated `init(service:)` allows `XcodeStopAllWorkflow` to continue working until Phase 8 migration
 
 ---
 

@@ -193,8 +193,8 @@ public class XcodeLocalModel: LocalService {
         lambdaState.beginStop()
 
         do {
-            let workflow = XcodeStopLambdaWorkflow(service: developmentService)
-            for try await _ in workflow.stream() {
+            let components = XcodeStopLambdaWorkflow.create()
+            for try await _ in components.workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
             lambdaState.markStopped()
