@@ -171,8 +171,8 @@ public class LinuxLocalModel: LocalService {
         lambdaState.startLambda()
 
         do {
-            let workflow = LinuxStartLambdaWorkflow(service: developmentService)
-            for try await _ in workflow.stream() {
+            let components = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+            for try await _ in components.workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
             lambdaState.markRunning()

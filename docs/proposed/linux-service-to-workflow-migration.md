@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 5 Complete)
+**Status:** In Progress (Phase 6 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -243,18 +243,36 @@ Move Docker network setup logic into the workflow.
 
 ---
 
-### [ ] Phase 6: Migrate LinuxStartLambdaWorkflow
+### [x] Phase 6: Migrate LinuxStartLambdaWorkflow
 
 Move Lambda container start logic into the workflow.
 
+**Status:** Completed 2025-12-18
+
 **Tasks:**
-- [ ] 6.1: Add SDK dependencies (`DockerClient`, `CLIClient`)
-- [ ] 6.2: Create `Components` struct and `create()` factory
-- [ ] 6.3: Move `startLambda()` / `startDetached()` logic
-- [ ] 6.4: Move `waitForReady()` logic
-- [ ] 6.5: Move `getEnvironmentVariables()` logic (or use shared function)
-- [ ] 6.6: Update CLI command
-- [ ] 6.7: Remove unused methods from service
+- [x] 6.1: Add SDK dependencies (`DockerClient`, `CLIClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- [x] 6.2: Create `Components` struct and `create()` factory
+- [x] 6.3: Move `startLambda()` / `startDetached()` logic
+- [x] 6.4: Move `waitForReady()` logic
+- [x] 6.5: Move `getEnvironmentVariables()` logic (uses shared `createEnvironmentVariables` from DeployLocalService)
+- [x] 6.6: Update CLI command to use `LinuxStartLambdaWorkflow.create()`
+- [x] 6.7: Update MacApp model to use `LinuxStartLambdaWorkflow.create()`
+- [x] 6.8: Service methods kept for now (LinuxStartAllWorkflow still depends on them via deprecated initializer)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStartLambdaWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StartCommand` to use factory
+- `MacApp/Models/LinuxLocalModel.swift` - Updated `startLambda()` to use factory
+
+**Technical Notes:**
+- Workflow now owns all Lambda start logic including Docker startup, build check, container start, and readiness wait
+- `Components` struct includes `port` for consumers that need the configured port number
+- Added deprecated `init(service:)` for backward compatibility with `LinuxStartAllWorkflow` - will be removed in Phase 8
+- The deprecated initializer ignores the service parameter and creates its own clients
+- Uses `createEnvironmentVariables()` from `DeployLocalService` for environment variable generation
+- When Lambda is not built, delegates to `LinuxBuildWorkflow` to build first
+- Service methods (`startLambda()`, `startDetached()`, `waitForReady()`, `getEnvironmentVariables()`) kept in `LinuxLocalDevelopmentService` for other workflows - will be removed when all dependent workflows are migrated
+- Build produces expected deprecation warnings for `LinuxStartAllWorkflow` and `MacApp` usage of other workflows
 
 ---
 

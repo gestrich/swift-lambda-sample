@@ -345,10 +345,11 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxStartLambdaWorkflow(service: service)
+            let components = LinuxStartLambdaWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
 
-            for try await progress in workflow.stream() {
+            for try await progress in components.workflow.stream() {
                 printLinuxStartLambdaProgress(progress)
             }
         }
