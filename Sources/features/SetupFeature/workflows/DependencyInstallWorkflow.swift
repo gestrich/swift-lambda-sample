@@ -1,9 +1,10 @@
 import Foundation
 import CLISDK
 import BrewCLISDK
+import Uniflow
 
 /// Workflow that installs a specific dependency
-public struct DependencyInstallWorkflow: Sendable {
+public struct DependencyInstallWorkflow: StreamingWorkflow {
     private let cliClient: CLIClient
     private let brewClient: BrewClient
 
@@ -12,7 +13,7 @@ public struct DependencyInstallWorkflow: Sendable {
         self.brewClient = BrewClient(cliClient: cliClient)
     }
 
-    public struct Progress: Sendable {
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -35,23 +36,34 @@ public struct DependencyInstallWorkflow: Sendable {
         }
     }
 
-    /// Install a specific CLI tool
-    public func run(tool: CLITool) -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+
+    /// Options for the workflow
+    public struct Options: Sendable {
+        public let tool: CLITool
+
+        public init(tool: CLITool) {
+            self.tool = tool
+        }
+    }
+
+    /// Stream the install workflow for a specific CLI tool
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    continuation.yield(Progress(step: .preparing))
+                    continuation.yield(State(step: .preparing))
 
-                    continuation.yield(Progress(step: .installing))
-                    try await install(tool)
+                    continuation.yield(State(step: .installing))
+                    try await install(options.tool)
 
-                    continuation.yield(Progress(step: .verifying))
-                    let status = await verify(tool)
+                    continuation.yield(State(step: .verifying))
+                    let status = await verify(options.tool)
 
-                    continuation.yield(Progress(step: .complete, detail: .installed(status)))
+                    continuation.yield(State(step: .complete, detail: .installed(status)))
                     continuation.finish()
                 } catch {
-                    continuation.yield(Progress(step: .complete, detail: .failed(error.localizedDescription)))
+                    continuation.yield(State(step: .complete, detail: .failed(error.localizedDescription)))
                     continuation.finish(throwing: error)
                 }
             }

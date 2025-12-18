@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for building Lambda for Linux/Docker container development.
-public struct LinuxBuildWorkflow: Sendable {
+public struct LinuxBuildWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the build workflow.
-    public struct Progress: Sendable {
+    /// State updates from the build workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -32,6 +33,8 @@ public struct LinuxBuildWorkflow: Sendable {
         }
     }
 
+    public typealias Result = State
+
     /// Options for the build workflow.
     public struct Options: Sendable {
         public let clean: Bool
@@ -41,10 +44,10 @@ public struct LinuxBuildWorkflow: Sendable {
         }
     }
 
-    /// Run the build workflow.
+    /// Stream the build workflow.
     /// - Parameter options: Build options
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run(options: Options = Options()) -> AsyncThrowingStream<Progress, Error> {
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -58,7 +61,7 @@ public struct LinuxBuildWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let outputStream = CLIOutputStream()
 
@@ -70,7 +73,7 @@ public struct LinuxBuildWorkflow: Sendable {
                 case .stdout(_, let text), .stderr(_, let text):
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty {
-                        continuation.yield(Progress(step: .building, detail: .output(trimmed)))
+                        continuation.yield(State(step: .building, detail: .output(trimmed)))
                     }
                 case .exit, .command, .error:
                     break
@@ -81,14 +84,14 @@ public struct LinuxBuildWorkflow: Sendable {
         defer { outputTask.cancel() }
 
         if options.clean {
-            continuation.yield(Progress(step: .cleaning))
+            continuation.yield(State(step: .cleaning))
         }
 
-        continuation.yield(Progress(step: .building))
+        continuation.yield(State(step: .building))
 
         try await service.build(clean: options.clean, output: outputStream)
 
-        continuation.yield(Progress(step: .complete, detail: .buildPath("lambda/")))
+        continuation.yield(State(step: .complete, detail: .buildPath("lambda/")))
         continuation.finish()
     }
 }

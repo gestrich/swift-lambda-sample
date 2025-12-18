@@ -8,52 +8,63 @@ The project uses a four-layer architecture where dependencies flow downward:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                          APP (a-)                            │
-│       a-app-lambda  ·  a-app-mac  ·  a-app-cli               │
-│                                                              │
+│                           APPS                               │
+│           LambdaApp  ·  MacApp  ·  CLIApp                    │
 │   Entry points, I/O, @Observable models (where needed)       │
-└────────────────────────┬────────────────────────────────────┘
-                         │ uses
-                         ▼
+└──────────────────────────┬──────────────────────────────────┘
+                           │ uses
+                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       WORKFLOW (b-)                          │
-│     b-workflow-deploy-remote  ·  b-workflow-setup            │
-│                                                              │
+│                         FEATURES                             │
+│  DeployRemoteFeature · SetupFeature · DeployLocalXcodeFeature │
 │   Multi-step orchestration returning AsyncThrowingStream     │
-└────────────────────────┬────────────────────────────────────┘
-                         │ uses
-                         ▼
+│   Features combine workflow + service code in one target     │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ uses
+                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       SERVICE (c-)                           │
-│  c-service-deploy-remote · c-service-deploy-local · c-service-client │
-│                                                              │
+│                         SERVICES                             │
+│  DeployCoreService · DeployLocalService · ClientService      │
 │   Models, configuration, auth, stateful utilities            │
-└────────────────────────┬────────────────────────────────────┘
-                         │ uses
-                         ▼
+└──────────────────────────┬──────────────────────────────────┘
+                           │ uses
+                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                         SDK (d-)                             │
-│    d-sdk-aws  ·  d-sdk-github  ·  d-sdk-cli                  │
-│                                                              │
+│                           SDKS                               │
+│       AWSSDK  ·  GitHubSDK  ·  CLISDK  ·  DockerCLISDK       │
+│   Reusable utilities, not app-specific                       │
 │   Stateless clients and utilities                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Layer Definitions
 
-### Apps (`a-app-*`)
+### Apps (`Sources/apps/`)
 
 Entry points that handle I/O.
 
+| Target | Description |
+|--------|-------------|
+| `LambdaApp` | AWS Lambda handler entry point |
+| `MacApp` | macOS SwiftUI application |
+| `CLIApp` | Command-line interface tool |
+
 - Executable targets (apps, CLI tools, Lambda handlers)
 - Platform-specific I/O (SwiftUI views, terminal output, Lambda encoding)
-- `@Observable` models live here when needed (e.g., app-mac for SwiftUI)
+- `@Observable` models live here when needed (e.g., MacApp for SwiftUI)
 - CLI commands are parallel to Mac models—both are app-layer constructs
-- Minimal business logic; focus on I/O and calling workflows
+- Minimal business logic; focus on I/O and calling features
 
-### Workflows (`b-workflow-*`)
+### Features (`Sources/features/`)
 
-Multi-step orchestration operations.
+Multi-step orchestration operations. Features combine workflow logic and feature-specific service code in one target.
+
+| Target | Description |
+|--------|-------------|
+| `DeployRemoteFeature` | AWS deployment workflows |
+| `SetupFeature` | Setup and dependency workflows |
+| `DeployLocalXcodeFeature` | Xcode local development workflows |
+| `DeployLocalLinuxFeature` | Linux container development workflows |
 
 - Workflows are structs returning `AsyncThrowingStream<Progress, Error>`
 - Coordinate multiple SDK clients and services
@@ -61,18 +72,39 @@ Multi-step orchestration operations.
 - **Not** `@Observable`—that belongs in the app layer
 - Depend on services and SDKs, but never vice versa
 
-### Services (`c-service-*`)
+### Services (`Sources/services/`)
 
-Models, configuration, and stateful utilities.
+Models, configuration, and stateful utilities shared across features.
+
+| Target | Description |
+|--------|-------------|
+| `DeployCoreService` | Core deployment utilities and types |
+| `DeployLocalService` | Local development shared configuration |
+| `ClientService` | HTTP client utilities |
+| `StorageService` | Local file storage service |
+| `LambdaBuildService` | Lambda build utilities |
 
 - App-specific models and types
 - Configuration persistence (AWS auth, GitHub config)
 - Stateful utilities that don't orchestrate multi-step operations
-- Provide types and utilities used by workflows
+- Provide types and utilities used by features
 
-### SDKs (`d-sdk-*`)
+### SDKs (`Sources/sdks/`)
 
 Stateless reusable utilities.
+
+| Target | Description |
+|--------|-------------|
+| `AWSSDK` | AWS SDKs (CDK, CloudFormation, Lambda, S3) |
+| `GitHubSDK` | GitHub SDKs (Actions, Git) |
+| `CLISDK` | CLI utilities (process execution, streams) |
+| `CLIMacrosSDK` | Swift macros for CLI |
+| `DockerCLISDK` | Docker CLI utilities |
+| `BrewCLISDK` | Homebrew CLI utilities |
+| `NodeCLISDK` | Node.js CLI utilities |
+| `PostgreSQLSDK` | PostgreSQL database utilities |
+| `MinioSDK` | MinIO S3-compatible storage |
+| `DynamoDBSDK` | DynamoDB utilities |
 
 - Wrap external tools and services
 - **Stateless**—no internal state management
@@ -80,63 +112,86 @@ Stateless reusable utilities.
 - Can be extracted to separate packages
 - **Use `Sendable` structs** for clients, not actors or classes—no mutable state means no need for isolation
 
+## Source Code Structure
+
+Targets are organized by architectural layer in folders:
+
+```
+Sources/
+├── apps/                     # Entry points
+│   ├── CLIApp/               # CLI tool (deployment commands)
+│   ├── LambdaApp/            # AWS Lambda handler (entry point)
+│   └── MacApp/               # Mac app (SwiftUI views, @Observable models)
+├── features/                 # Feature modules (workflow + service combined)
+│   ├── DeployRemoteFeature/  # AWS deployment feature
+│   │   ├── workflows/        # DeployWorkflow, DestroyWorkflow, etc.
+│   │   └── services/         # Models, auth config, GitHub config
+│   ├── DeployLocalXcodeFeature/  # Xcode local development workflows
+│   ├── DeployLocalLinuxFeature/  # Linux container development workflows
+│   └── SetupFeature/         # Setup and dependency workflows
+├── services/                 # Shared service modules
+│   ├── DeployCoreService/    # Core deployment utilities
+│   ├── DeployLocalService/   # Local development services
+│   ├── ClientService/        # HTTP client utilities
+│   ├── StorageService/       # Local file storage service
+│   └── LambdaBuildService/   # Lambda build utilities
+└── sdks/                     # Low-level SDK modules
+    ├── AWSSDK/               # AWS SDKs (CDK, CloudFormation, Lambda, S3)
+    ├── CLISDK/               # CLI utilities (process execution, streams)
+    ├── CLIMacrosSDK/         # Swift macros for CLI
+    ├── DockerCLISDK/         # Docker CLI utilities
+    ├── GitHubSDK/            # GitHub SDKs (Actions, Git)
+    ├── MinioSDK/             # MinIO S3-compatible storage
+    ├── PostgreSQLSDK/        # PostgreSQL database utilities
+    └── ...                   # Other SDKs (BrewCLISDK, NodeCLISDK, DynamoDBSDK)
+```
+
 ## Target Naming
 
-Targets use a letter prefix (`a-`, `b-`, `c-`, `d-`) followed by layer and specificity:
+Targets use PascalCase names organized by folder:
 
 ```
-<letter>-<layer>-<area>[-<specific>]
+<Name><Layer>
 ```
 
-The letter prefix ensures alphabetical sorting matches the architectural hierarchy (top to bottom):
+The folder structure provides architectural hierarchy:
 
-| Prefix | Layer | Position |
+| Folder | Layer | Position |
 |--------|-------|----------|
-| `a-` | App | Top (entry points) |
-| `b-` | Workflow | Second |
-| `c-` | Service | Third |
-| `d-` | SDK | Bottom (reusable) |
+| `apps/` | App | Top (entry points) |
+| `features/` | Feature | Second |
+| `services/` | Service | Third |
+| `sdks/` | SDK | Bottom (reusable) |
 
 **Examples:**
 
-| Target | Letter | Layer | Area | Specific |
-|--------|--------|-------|------|----------|
-| `d-sdk-cli` | d | sdk | cli | - |
-| `d-sdk-cli-docker` | d | sdk | cli | docker |
-| `d-sdk-cli-macros` | d | sdk | cli | macros |
-| `d-sdk-aws` | d | sdk | aws | - |
-| `d-sdk-github` | d | sdk | github | - |
-| `c-service-deploy-remote` | c | service | deploy | remote |
-| `c-service-deploy-local` | c | service | deploy | local |
-| `c-service-storage` | c | service | storage | - |
-| `b-workflow-deploy-remote` | b | workflow | deploy | remote |
-| `b-workflow-setup` | b | workflow | setup | - |
-| `a-app-mac` | a | app | mac | - |
-| `a-app-cli` | a | app | cli | - |
-| `a-app-lambda` | a | app | lambda | - |
+| Target | Folder | Layer | Description |
+|--------|--------|-------|-------------|
+| `LambdaApp` | apps | App | Lambda entry point |
+| `MacApp` | apps | App | macOS application |
+| `CLIApp` | apps | App | CLI tool |
+| `DeployRemoteFeature` | features | Feature | AWS deployment |
+| `DeployLocalXcodeFeature` | features | Feature | Xcode local dev |
+| `SetupFeature` | features | Feature | Setup workflows |
+| `DeployCoreService` | services | Service | Core deployment |
+| `StorageService` | services | Service | Local storage |
+| `AWSSDK` | sdks | SDK | AWS utilities |
+| `CLISDK` | sdks | SDK | CLI utilities |
+| `DockerCLISDK` | sdks | SDK | Docker utilities |
 
 **Benefits:**
 
-1. **Architectural sorting**: `ls Sources/` shows targets in dependency order (top to bottom)
+1. **Architectural grouping**: `ls Sources/` shows the four layers clearly
    ```
-   a-app-cli
-   a-app-lambda
-   a-app-mac
-   b-workflow-deploy-remote
-   b-workflow-setup
-   c-service-deploy-local
-   c-service-deploy-remote
-   c-service-storage
-   d-sdk-aws
-   d-sdk-cli
-   d-sdk-cli-docker
-   d-sdk-cli-macros
-   d-sdk-github
+   apps/
+   features/
+   services/
+   sdks/
    ```
 
-2. **Layer visibility**: The prefix immediately identifies which architectural layer a target belongs to
+2. **Layer visibility**: The folder immediately identifies which architectural layer a target belongs to
 
-3. **Discoverability**: Finding all CLI-related SDKs is easy—look for `d-sdk-cli-*`
+3. **Discoverability**: Finding all SDK targets is easy—look in `sdks/`
 
 ## Key Principles
 
@@ -156,9 +211,9 @@ public struct CDKClient: Sendable {
 }
 ```
 
-### Workflows for Orchestration
+### Features for Orchestration
 
-Multi-step operations live in workflows that yield progress via streams.
+Multi-step operations live in features that yield progress via streams.
 
 ```swift
 public struct DeployWorkflow {
@@ -178,13 +233,13 @@ public struct DeployWorkflow {
 
 ### @Observable Only in App Layer
 
-`@Observable` models exist only where UI binding is needed (app-mac). They consume workflow streams.
+`@Observable` models exist only where UI binding is needed (MacApp). They consume workflow streams.
 
 ### Minimal Logic in Models (MV Pattern)
 
 Models should contain minimal logic—their role is to monitor workflow streams and update state for the UI. Business logic belongs in:
 
-- **Services (Workflows)**: Orchestration, multi-step operations, app-specific logic
+- **Features (Workflows)**: Orchestration, multi-step operations, app-specific logic
 - **SDKs (Clients)**: Reusable operations, external service interactions
 
 This keeps models thin and testable, with clear separation between state management and business logic.
@@ -345,8 +400,8 @@ struct DeployCommand: AsyncParsableCommand {
 
 ## Dependency Rules
 
-1. **Apps** depend on Workflows, Services, and SDKs
-2. **Workflows** depend on Services and SDKs
+1. **Apps** depend on Features, Services, and SDKs
+2. **Features** depend on Services and SDKs
 3. **Services** depend on other Services and SDKs
 4. **SDKs** depend only on other SDKs or external packages
 5. Never depend upward
@@ -355,7 +410,7 @@ struct DeployCommand: AsyncParsableCommand {
 
 **SDK**: Reusable, no app-specific logic, wraps external tool/service
 
-**Workflow**: Multi-step orchestration, coordinates SDKs and services, returns `AsyncThrowingStream`
+**Feature**: Multi-step orchestration, coordinates SDKs and services, returns `AsyncThrowingStream`
 
 **Service**: Models, configuration, stateful utilities that don't orchestrate
 

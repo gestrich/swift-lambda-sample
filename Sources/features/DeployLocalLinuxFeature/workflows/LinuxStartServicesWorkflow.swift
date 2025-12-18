@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for starting local services for Linux development.
-public struct LinuxStartServicesWorkflow: Sendable {
+public struct LinuxStartServicesWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the start services workflow.
-    public struct Progress: Sendable {
+    /// State updates from the start services workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -34,6 +35,8 @@ public struct LinuxStartServicesWorkflow: Sendable {
         }
     }
 
+    public typealias Result = State
+
     /// Options for the start services workflow.
     public struct Options: Sendable {
         public let services: Set<LocalServiceType>
@@ -49,10 +52,10 @@ public struct LinuxStartServicesWorkflow: Sendable {
         }
     }
 
-    /// Run the start services workflow.
+    /// Stream the start services workflow.
     /// - Parameter options: Service options specifying which services to start
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run(options: Options = .all) -> AsyncThrowingStream<Progress, Error> {
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -66,34 +69,34 @@ public struct LinuxStartServicesWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         // Start PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(Progress(step: .startingDatabase))
+            continuation.yield(State(step: .startingDatabase))
             try await service.startDatabase()
-            continuation.yield(Progress(step: .startingDatabase, detail: .serviceStarted(.database)))
+            continuation.yield(State(step: .startingDatabase, detail: .serviceStarted(.database)))
         }
 
         // Start MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(Progress(step: .startingS3))
+            continuation.yield(State(step: .startingS3))
             try await service.startS3()
-            continuation.yield(Progress(step: .startingS3, detail: .serviceStarted(.s3)))
+            continuation.yield(State(step: .startingS3, detail: .serviceStarted(.s3)))
 
             // Create bucket after S3 is running
-            continuation.yield(Progress(step: .creatingBucket))
+            continuation.yield(State(step: .creatingBucket))
             try await service.createBucket(bucketName: nil)
         }
 
         // Start DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(Progress(step: .startingDynamoDB))
+            continuation.yield(State(step: .startingDynamoDB))
             try await service.startDynamoDB()
-            continuation.yield(Progress(step: .startingDynamoDB, detail: .serviceStarted(.dynamodb)))
+            continuation.yield(State(step: .startingDynamoDB, detail: .serviceStarted(.dynamodb)))
         }
 
-        continuation.yield(Progress(step: .complete))
+        continuation.yield(State(step: .complete))
         continuation.finish()
     }
 }

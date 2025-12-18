@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for stopping Lambda and all services for Xcode development.
-public struct XcodeStopAllWorkflow: Sendable {
+public struct XcodeStopAllWorkflow: StreamingWorkflow {
     private let service: XcodeLocalDevelopmentService
 
     public init(service: XcodeLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the stop all workflow.
-    public struct Progress: Sendable {
+    /// State updates from the stop all workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -23,8 +24,8 @@ public struct XcodeStopAllWorkflow: Sendable {
 
         public enum Detail: Sendable {
             case output(String)
-            case lambdaProgress(XcodeStopLambdaWorkflow.Progress)
-            case servicesProgress(XcodeStopServicesWorkflow.Progress)
+            case lambdaState(XcodeStopLambdaWorkflow.State)
+            case servicesState(XcodeStopServicesWorkflow.State)
         }
 
         public init(step: Step, detail: Detail? = nil) {
@@ -33,9 +34,12 @@ public struct XcodeStopAllWorkflow: Sendable {
         }
     }
 
-    /// Run the stop all workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the stop all workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -48,29 +52,29 @@ public struct XcodeStopAllWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         // Stop Lambda first
-        continuation.yield(Progress(step: .stoppingLambda))
+        continuation.yield(State(step: .stoppingLambda))
         let lambdaWorkflow = XcodeStopLambdaWorkflow(service: service)
-        for try await lambdaProgress in lambdaWorkflow.run() {
-            continuation.yield(Progress(
+        for try await lambdaState in lambdaWorkflow.stream() {
+            continuation.yield(State(
                 step: .stoppingLambda,
-                detail: .lambdaProgress(lambdaProgress)
+                detail: .lambdaState(lambdaState)
             ))
         }
 
         // Then stop services
-        continuation.yield(Progress(step: .stoppingServices))
+        continuation.yield(State(step: .stoppingServices))
         let servicesWorkflow = XcodeStopServicesWorkflow(service: service)
-        for try await servicesProgress in servicesWorkflow.run() {
-            continuation.yield(Progress(
+        for try await servicesState in servicesWorkflow.stream(options: .all) {
+            continuation.yield(State(
                 step: .stoppingServices,
-                detail: .servicesProgress(servicesProgress)
+                detail: .servicesState(servicesState)
             ))
         }
 
-        continuation.yield(Progress(step: .complete))
+        continuation.yield(State(step: .complete))
         continuation.finish()
     }
 }

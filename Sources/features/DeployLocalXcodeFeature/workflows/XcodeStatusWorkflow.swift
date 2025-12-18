@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import DeployCoreService
+import Uniflow
 
 /// Workflow for checking the status of local development services (Xcode mode).
-public struct XcodeStatusWorkflow: Sendable {
+public struct XcodeStatusWorkflow: StreamingWorkflow {
     private let service: XcodeLocalDevelopmentService
 
     public init(service: XcodeLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the status workflow.
-    public struct Progress: Sendable {
+    /// State updates from the status workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -35,9 +36,12 @@ public struct XcodeStatusWorkflow: Sendable {
         }
     }
 
-    /// Run the status workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the status workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -50,16 +54,16 @@ public struct XcodeStatusWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
-        continuation.yield(Progress(step: .checkingLambda))
-        continuation.yield(Progress(step: .checkingS3))
-        continuation.yield(Progress(step: .checkingDatabase))
-        continuation.yield(Progress(step: .checkingDynamoDB))
+        continuation.yield(State(step: .checkingLambda))
+        continuation.yield(State(step: .checkingS3))
+        continuation.yield(State(step: .checkingDatabase))
+        continuation.yield(State(step: .checkingDynamoDB))
 
         let status = try await service.status()
 
-        continuation.yield(Progress(step: .complete, detail: .status(status)))
+        continuation.yield(State(step: .complete, detail: .status(status)))
         continuation.finish()
     }
 }

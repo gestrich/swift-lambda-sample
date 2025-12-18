@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for starting the Lambda as a native macOS process.
-public struct XcodeStartLambdaWorkflow: Sendable {
+public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
     private let service: XcodeLocalDevelopmentService
 
     public init(service: XcodeLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the start Lambda workflow.
-    public struct Progress: Sendable {
+    /// State updates from the start Lambda workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -33,9 +34,12 @@ public struct XcodeStartLambdaWorkflow: Sendable {
         }
     }
 
-    /// Run the start Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the start Lambda workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -48,7 +52,7 @@ public struct XcodeStartLambdaWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let outputStream = CLIOutputStream()
 
@@ -60,7 +64,7 @@ public struct XcodeStartLambdaWorkflow: Sendable {
                 case .stdout(_, let text), .stderr(_, let text):
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty {
-                        continuation.yield(Progress(step: .starting, detail: .output(trimmed)))
+                        continuation.yield(State(step: .starting, detail: .output(trimmed)))
                     }
                 case .exit, .command, .error:
                     break
@@ -71,21 +75,21 @@ public struct XcodeStartLambdaWorkflow: Sendable {
         defer { outputTask.cancel() }
 
         // Check if build exists
-        continuation.yield(Progress(step: .checkingBuild))
+        continuation.yield(State(step: .checkingBuild))
         let isBuilt = await service.isLambdaBuilt()
         if !isBuilt {
-            continuation.yield(Progress(step: .checkingBuild, detail: .output("Lambda not built, will build first")))
+            continuation.yield(State(step: .checkingBuild, detail: .output("Lambda not built, will build first")))
         }
 
         // Start Lambda (will build if needed)
-        continuation.yield(Progress(step: .starting))
+        continuation.yield(State(step: .starting))
         try await service.startLambda(output: outputStream)
 
         // Wait for ready
-        continuation.yield(Progress(step: .waitingForReady))
+        continuation.yield(State(step: .waitingForReady))
         try await service.waitForReady()
 
-        continuation.yield(Progress(step: .complete, detail: .port(8080)))
+        continuation.yield(State(step: .complete, detail: .port(8080)))
         continuation.finish()
     }
 }

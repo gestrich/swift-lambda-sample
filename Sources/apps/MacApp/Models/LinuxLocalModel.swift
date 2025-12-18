@@ -140,7 +140,7 @@ public class LinuxLocalModel: LocalService {
         do {
             let workflow = LinuxBuildWorkflow(service: developmentService)
             let options = LinuxBuildWorkflow.Options(clean: clean)
-            for try await _ in workflow.run(options: options) {
+            for try await _ in workflow.stream(options: options) {
                 // Workflow progress is consumed; UI updates via buildState
             }
             buildState.markSuccess()
@@ -172,7 +172,7 @@ public class LinuxLocalModel: LocalService {
 
         do {
             let workflow = LinuxStartLambdaWorkflow(service: developmentService)
-            for try await _ in workflow.run() {
+            for try await _ in workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
             lambdaState.markRunning()
@@ -187,7 +187,7 @@ public class LinuxLocalModel: LocalService {
 
         do {
             let workflow = LinuxStopLambdaWorkflow(service: developmentService)
-            for try await _ in workflow.run() {
+            for try await _ in workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
             lambdaState.markStopped()
@@ -204,7 +204,7 @@ public class LinuxLocalModel: LocalService {
         statusSubject.send(.starting)
 
         let workflow = LinuxStartAllWorkflow(service: developmentService)
-        for try await _ in workflow.run() {
+        for try await _ in workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markRunning()
@@ -219,7 +219,7 @@ public class LinuxLocalModel: LocalService {
         statusSubject.send(.stopping)
 
         let workflow = LinuxStopAllWorkflow(service: developmentService)
-        for try await _ in workflow.run() {
+        for try await _ in workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markStopped()
@@ -272,7 +272,7 @@ public class LinuxLocalModel: LocalService {
         let workflow = LinuxStatusWorkflow(service: developmentService)
         var result: DeploymentStatus = .stopped
 
-        for try await progress in workflow.run() {
+        for try await progress in workflow.stream() {
             if case .complete = progress.step,
                case .status(let status)? = progress.detail {
                 result = status
@@ -311,7 +311,7 @@ public class LinuxLocalModel: LocalService {
     /// Setup Docker network for Lambda container
     public func setupDockerNetwork() async throws {
         let workflow = LinuxSetupNetworkWorkflow(service: developmentService)
-        for try await _ in workflow.run() {
+        for try await _ in workflow.stream() {
             // Consume progress - could be extended to report to UI
         }
     }
@@ -319,7 +319,7 @@ public class LinuxLocalModel: LocalService {
     /// Run Lambda in interactive container
     public func runInteractive() async throws {
         let workflow = LinuxRunInteractiveWorkflow(service: developmentService)
-        for try await _ in workflow.run() {
+        for try await _ in workflow.stream() {
             // Consume progress - could be extended to report to UI
         }
     }

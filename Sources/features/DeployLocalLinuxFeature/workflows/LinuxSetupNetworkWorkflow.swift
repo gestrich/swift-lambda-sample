@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for setting up Docker network for container communication.
-public struct LinuxSetupNetworkWorkflow: Sendable {
+public struct LinuxSetupNetworkWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the setup network workflow.
-    public struct Progress: Sendable {
+    /// State updates from the setup network workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -33,9 +34,12 @@ public struct LinuxSetupNetworkWorkflow: Sendable {
         }
     }
 
-    /// Run the setup network workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the setup network workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -48,20 +52,20 @@ public struct LinuxSetupNetworkWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
-        continuation.yield(Progress(step: .creatingNetwork))
+        continuation.yield(State(step: .creatingNetwork))
 
         try await service.setupDockerNetwork()
 
-        continuation.yield(Progress(step: .creatingNetwork, detail: .networkCreated("lambda-linux")))
+        continuation.yield(State(step: .creatingNetwork, detail: .networkCreated("lambda-linux")))
 
-        continuation.yield(Progress(step: .connectingContainers))
-        continuation.yield(Progress(step: .connectingContainers, detail: .containerConnected("postgres-linux")))
-        continuation.yield(Progress(step: .connectingContainers, detail: .containerConnected("minio-linux")))
-        continuation.yield(Progress(step: .connectingContainers, detail: .containerConnected("dynamodb-linux")))
+        continuation.yield(State(step: .connectingContainers))
+        continuation.yield(State(step: .connectingContainers, detail: .containerConnected("postgres-linux")))
+        continuation.yield(State(step: .connectingContainers, detail: .containerConnected("minio-linux")))
+        continuation.yield(State(step: .connectingContainers, detail: .containerConnected("dynamodb-linux")))
 
-        continuation.yield(Progress(step: .complete))
+        continuation.yield(State(step: .complete))
         continuation.finish()
     }
 }

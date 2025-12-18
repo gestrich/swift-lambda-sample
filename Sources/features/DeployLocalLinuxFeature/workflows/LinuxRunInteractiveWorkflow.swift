@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for running interactive container shell.
-public struct LinuxRunInteractiveWorkflow: Sendable {
+public struct LinuxRunInteractiveWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the run interactive workflow.
-    public struct Progress: Sendable {
+    /// State updates from the run interactive workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -32,9 +33,12 @@ public struct LinuxRunInteractiveWorkflow: Sendable {
         }
     }
 
-    /// Run the interactive workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the interactive workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -47,24 +51,24 @@ public struct LinuxRunInteractiveWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
-        continuation.yield(Progress(step: .preparing))
+        continuation.yield(State(step: .preparing))
 
         // Check if Lambda is built
         let isBuilt = await service.isLambdaBuilt()
         if !isBuilt {
-            continuation.yield(Progress(step: .preparing, detail: .output("Lambda not built, building first...")))
+            continuation.yield(State(step: .preparing, detail: .output("Lambda not built, building first...")))
             try await service.build(output: nil)
         }
 
-        continuation.yield(Progress(step: .launching))
-        continuation.yield(Progress(step: .launching, detail: .output("Starting interactive container...")))
+        continuation.yield(State(step: .launching))
+        continuation.yield(State(step: .launching, detail: .output("Starting interactive container...")))
 
         // This will block until the user exits the container
         try await service.runInteractive()
 
-        continuation.yield(Progress(step: .complete))
+        continuation.yield(State(step: .complete))
         continuation.finish()
     }
 }

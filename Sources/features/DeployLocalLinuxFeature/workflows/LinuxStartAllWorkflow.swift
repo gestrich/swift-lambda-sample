@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for starting Lambda with all services for Linux development.
-public struct LinuxStartAllWorkflow: Sendable {
+public struct LinuxStartAllWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the start all workflow.
-    public struct Progress: Sendable {
+    /// State updates from the start all workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -25,9 +26,9 @@ public struct LinuxStartAllWorkflow: Sendable {
 
         public enum Detail: Sendable {
             case output(String)
-            case servicesProgress(LinuxStartServicesWorkflow.Progress)
-            case networkProgress(LinuxSetupNetworkWorkflow.Progress)
-            case lambdaProgress(LinuxStartLambdaWorkflow.Progress)
+            case servicesState(LinuxStartServicesWorkflow.State)
+            case networkState(LinuxSetupNetworkWorkflow.State)
+            case lambdaState(LinuxStartLambdaWorkflow.State)
             case port(Int)
         }
 
@@ -37,9 +38,12 @@ public struct LinuxStartAllWorkflow: Sendable {
         }
     }
 
-    /// Run the start all workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the start all workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -52,44 +56,44 @@ public struct LinuxStartAllWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         // Start services first
-        continuation.yield(Progress(step: .startingServices))
+        continuation.yield(State(step: .startingServices))
         let servicesWorkflow = LinuxStartServicesWorkflow(service: service)
-        for try await servicesProgress in servicesWorkflow.run() {
-            continuation.yield(Progress(
+        for try await servicesState in servicesWorkflow.stream(options: .all) {
+            continuation.yield(State(
                 step: .startingServices,
-                detail: .servicesProgress(servicesProgress)
+                detail: .servicesState(servicesState)
             ))
         }
 
         // Setup Docker network
-        continuation.yield(Progress(step: .setupNetwork))
+        continuation.yield(State(step: .setupNetwork))
         let networkWorkflow = LinuxSetupNetworkWorkflow(service: service)
-        for try await networkProgress in networkWorkflow.run() {
-            continuation.yield(Progress(
+        for try await networkState in networkWorkflow.stream() {
+            continuation.yield(State(
                 step: .setupNetwork,
-                detail: .networkProgress(networkProgress)
+                detail: .networkState(networkState)
             ))
         }
 
         // Then start Lambda container
-        continuation.yield(Progress(step: .startingLambda))
+        continuation.yield(State(step: .startingLambda))
         let lambdaWorkflow = LinuxStartLambdaWorkflow(service: service)
-        for try await lambdaProgress in lambdaWorkflow.run() {
-            continuation.yield(Progress(
+        for try await lambdaState in lambdaWorkflow.stream() {
+            continuation.yield(State(
                 step: .startingLambda,
-                detail: .lambdaProgress(lambdaProgress)
+                detail: .lambdaState(lambdaState)
             ))
         }
 
         // Wait for Lambda to be ready
-        continuation.yield(Progress(step: .waitingForReady))
+        continuation.yield(State(step: .waitingForReady))
         try await service.waitForReady()
 
         let port = await service.port
-        continuation.yield(Progress(step: .complete, detail: .port(port)))
+        continuation.yield(State(step: .complete, detail: .port(port)))
         continuation.finish()
     }
 }

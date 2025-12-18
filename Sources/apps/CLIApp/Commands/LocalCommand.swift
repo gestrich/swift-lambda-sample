@@ -49,7 +49,7 @@ extension LocalMacCommand {
             let workflow = XcodeBuildWorkflow(service: service)
             let options = XcodeBuildWorkflow.Options(clean: clean)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeBuildProgress(progress)
             }
         }
@@ -66,7 +66,7 @@ extension LocalMacCommand {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeStartLambdaWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printXcodeStartLambdaProgress(progress)
             }
         }
@@ -83,7 +83,7 @@ extension LocalMacCommand {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeStopLambdaWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printXcodeStopLambdaProgress(progress)
             }
         }
@@ -100,7 +100,7 @@ extension LocalMacCommand {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeStartAllWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printXcodeStartAllProgress(progress)
             }
         }
@@ -117,7 +117,7 @@ extension LocalMacCommand {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeStopAllWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printXcodeStopAllProgress(progress)
             }
         }
@@ -135,7 +135,7 @@ extension LocalMacCommand {
             let workflow = XcodeStartServicesWorkflow(service: service)
             let options = XcodeStartServicesWorkflow.Options.only(.database)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -153,7 +153,7 @@ extension LocalMacCommand {
             let workflow = XcodeStopServicesWorkflow(service: service)
             let options = XcodeStopServicesWorkflow.Options.only(.database)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeStopServicesProgress(progress)
             }
         }
@@ -171,7 +171,7 @@ extension LocalMacCommand {
             let workflow = XcodeStartServicesWorkflow(service: service)
             let options = XcodeStartServicesWorkflow.Options.only(.dynamodb)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -189,7 +189,7 @@ extension LocalMacCommand {
             let workflow = XcodeStopServicesWorkflow(service: service)
             let options = XcodeStopServicesWorkflow.Options.only(.dynamodb)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeStopServicesProgress(progress)
             }
         }
@@ -207,7 +207,7 @@ extension LocalMacCommand {
             let workflow = XcodeStartServicesWorkflow(service: service)
             let options = XcodeStartServicesWorkflow.Options.only(.s3)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -225,7 +225,7 @@ extension LocalMacCommand {
             let workflow = XcodeStopServicesWorkflow(service: service)
             let options = XcodeStopServicesWorkflow.Options.only(.s3)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeStopServicesProgress(progress)
             }
         }
@@ -242,7 +242,7 @@ extension LocalMacCommand {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeTestWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printXcodeTestProgress(progress)
             }
         }
@@ -259,7 +259,7 @@ extension LocalMacCommand {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeStatusWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printXcodeStatusProgress(progress)
             }
         }
@@ -275,8 +275,9 @@ extension LocalMacCommand {
         func run() async throws {
             let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = XcodeCopyConfigWorkflow(service: service)
+            let options = XcodeCopyConfigWorkflow.Options()
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream(options: options) {
                 printXcodeCopyConfigProgress(progress)
             }
         }
@@ -329,7 +330,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxBuildWorkflow(service: service)
             let options = LinuxBuildWorkflow.Options(clean: clean)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxBuildProgress(progress)
             }
         }
@@ -346,7 +347,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxStartLambdaWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxStartLambdaProgress(progress)
             }
         }
@@ -363,7 +364,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxStopLambdaWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxStopLambdaProgress(progress)
             }
         }
@@ -380,7 +381,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxStartAllWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxStartAllProgress(progress)
             }
         }
@@ -397,7 +398,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxStopAllWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxStopAllProgress(progress)
             }
         }
@@ -415,7 +416,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxStartServicesWorkflow(service: service)
             let options = LinuxStartServicesWorkflow.Options.only(.database)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxStartServicesProgress(progress)
             }
         }
@@ -433,7 +434,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxStopServicesWorkflow(service: service)
             let options = LinuxStopServicesWorkflow.Options.only(.database)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -451,7 +452,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxStartServicesWorkflow(service: service)
             let options = LinuxStartServicesWorkflow.Options.only(.dynamodb)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxStartServicesProgress(progress)
             }
         }
@@ -469,7 +470,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxStopServicesWorkflow(service: service)
             let options = LinuxStopServicesWorkflow.Options.only(.dynamodb)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -487,7 +488,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxStartServicesWorkflow(service: service)
             let options = LinuxStartServicesWorkflow.Options.only(.s3)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxStartServicesProgress(progress)
             }
         }
@@ -505,7 +506,7 @@ extension LocalLinuxCommand {
             let workflow = LinuxStopServicesWorkflow(service: service)
             let options = LinuxStopServicesWorkflow.Options.only(.s3)
 
-            for try await progress in workflow.run(options: options) {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -522,7 +523,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxTestWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxTestProgress(progress)
             }
         }
@@ -539,7 +540,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxStatusWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxStatusProgress(progress)
             }
         }
@@ -556,7 +557,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxSetupNetworkWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxSetupNetworkProgress(progress)
             }
         }
@@ -573,7 +574,7 @@ extension LocalLinuxCommand {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxRunInteractiveWorkflow(service: service)
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream() {
                 printLinuxRunInteractiveProgress(progress)
             }
         }
@@ -589,8 +590,9 @@ extension LocalLinuxCommand {
         func run() async throws {
             let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
             let workflow = LinuxCopyConfigWorkflow(service: service)
+            let options = LinuxCopyConfigWorkflow.Options()
 
-            for try await progress in workflow.run() {
+            for try await progress in workflow.stream(options: options) {
                 printLinuxCopyConfigProgress(progress)
             }
         }
@@ -618,7 +620,7 @@ private func printStatus(_ status: DeploymentStatus, mode: String) {
 
 // MARK: - Xcode Progress Printers
 
-private func printXcodeBuildProgress(_ progress: XcodeBuildWorkflow.Progress) {
+private func printXcodeBuildProgress(_ progress: XcodeBuildWorkflow.State) {
     switch progress.step {
     case .cleaning:
         print("🧹 Cleaning build artifacts...")
@@ -637,7 +639,7 @@ private func printXcodeBuildProgress(_ progress: XcodeBuildWorkflow.Progress) {
     }
 }
 
-private func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.Progress) {
+private func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.State) {
     switch progress.step {
     case .checkingBuild:
         if case .output(let text) = progress.detail {
@@ -662,7 +664,7 @@ private func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.
     }
 }
 
-private func printXcodeStopLambdaProgress(_ progress: XcodeStopLambdaWorkflow.Progress) {
+private func printXcodeStopLambdaProgress(_ progress: XcodeStopLambdaWorkflow.State) {
     switch progress.step {
     case .checking:
         print("🔍 Checking Lambda status...")
@@ -685,7 +687,7 @@ private func printXcodeStopLambdaProgress(_ progress: XcodeStopLambdaWorkflow.Pr
     }
 }
 
-private func printXcodeStartServicesProgress(_ progress: XcodeStartServicesWorkflow.Progress) {
+private func printXcodeStartServicesProgress(_ progress: XcodeStartServicesWorkflow.State) {
     switch progress.step {
     case .startingDatabase:
         if case .serviceStarted(_) = progress.detail {
@@ -712,7 +714,7 @@ private func printXcodeStartServicesProgress(_ progress: XcodeStartServicesWorkf
     }
 }
 
-private func printXcodeStopServicesProgress(_ progress: XcodeStopServicesWorkflow.Progress) {
+private func printXcodeStopServicesProgress(_ progress: XcodeStopServicesWorkflow.State) {
     switch progress.step {
     case .stoppingDatabase:
         if case .serviceStopped(_) = progress.detail {
@@ -737,16 +739,16 @@ private func printXcodeStopServicesProgress(_ progress: XcodeStopServicesWorkflo
     }
 }
 
-private func printXcodeStartAllProgress(_ progress: XcodeStartAllWorkflow.Progress) {
+private func printXcodeStartAllProgress(_ progress: XcodeStartAllWorkflow.State) {
     switch progress.step {
     case .startingServices:
-        if case .servicesProgress(let servicesProgress) = progress.detail {
+        if case .servicesState(let servicesProgress) = progress.detail {
             printXcodeStartServicesProgress(servicesProgress)
         } else {
             print("🔄 Starting services...")
         }
     case .startingLambda:
-        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+        if case .lambdaState(let lambdaProgress) = progress.detail {
             printXcodeStartLambdaProgress(lambdaProgress)
         } else {
             print("🔄 Starting Lambda...")
@@ -763,16 +765,16 @@ private func printXcodeStartAllProgress(_ progress: XcodeStartAllWorkflow.Progre
     }
 }
 
-private func printXcodeStopAllProgress(_ progress: XcodeStopAllWorkflow.Progress) {
+private func printXcodeStopAllProgress(_ progress: XcodeStopAllWorkflow.State) {
     switch progress.step {
     case .stoppingLambda:
-        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+        if case .lambdaState(let lambdaProgress) = progress.detail {
             printXcodeStopLambdaProgress(lambdaProgress)
         } else {
             print("🔄 Stopping Lambda...")
         }
     case .stoppingServices:
-        if case .servicesProgress(let servicesProgress) = progress.detail {
+        if case .servicesState(let servicesProgress) = progress.detail {
             printXcodeStopServicesProgress(servicesProgress)
         } else {
             print("🔄 Stopping services...")
@@ -783,7 +785,7 @@ private func printXcodeStopAllProgress(_ progress: XcodeStopAllWorkflow.Progress
     }
 }
 
-private func printXcodeTestProgress(_ progress: XcodeTestWorkflow.Progress) {
+private func printXcodeTestProgress(_ progress: XcodeTestWorkflow.State) {
     switch progress.step {
     case .checkingLambda:
         if case .output(let text) = progress.detail {
@@ -821,7 +823,7 @@ private func printXcodeTestProgress(_ progress: XcodeTestWorkflow.Progress) {
     }
 }
 
-private func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.Progress) {
+private func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.State) {
     switch progress.step {
     case .copying:
         if case .copiedFile(let file) = progress.detail {
@@ -840,7 +842,7 @@ private func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.Pr
 
 // MARK: - Linux Progress Printers
 
-private func printLinuxBuildProgress(_ progress: LinuxBuildWorkflow.Progress) {
+private func printLinuxBuildProgress(_ progress: LinuxBuildWorkflow.State) {
     switch progress.step {
     case .cleaning:
         print("🧹 Cleaning build artifacts...")
@@ -859,7 +861,7 @@ private func printLinuxBuildProgress(_ progress: LinuxBuildWorkflow.Progress) {
     }
 }
 
-private func printLinuxStartLambdaProgress(_ progress: LinuxStartLambdaWorkflow.Progress) {
+private func printLinuxStartLambdaProgress(_ progress: LinuxStartLambdaWorkflow.State) {
     switch progress.step {
     case .checkingBuild:
         if case .output(let text) = progress.detail {
@@ -884,7 +886,7 @@ private func printLinuxStartLambdaProgress(_ progress: LinuxStartLambdaWorkflow.
     }
 }
 
-private func printLinuxStopLambdaProgress(_ progress: LinuxStopLambdaWorkflow.Progress) {
+private func printLinuxStopLambdaProgress(_ progress: LinuxStopLambdaWorkflow.State) {
     switch progress.step {
     case .checking:
         print("🔍 Checking Lambda container status...")
@@ -907,7 +909,7 @@ private func printLinuxStopLambdaProgress(_ progress: LinuxStopLambdaWorkflow.Pr
     }
 }
 
-private func printLinuxStartServicesProgress(_ progress: LinuxStartServicesWorkflow.Progress) {
+private func printLinuxStartServicesProgress(_ progress: LinuxStartServicesWorkflow.State) {
     switch progress.step {
     case .startingDatabase:
         if case .serviceStarted(_) = progress.detail {
@@ -934,7 +936,7 @@ private func printLinuxStartServicesProgress(_ progress: LinuxStartServicesWorkf
     }
 }
 
-private func printLinuxStopServicesProgress(_ progress: LinuxStopServicesWorkflow.Progress) {
+private func printLinuxStopServicesProgress(_ progress: LinuxStopServicesWorkflow.State) {
     switch progress.step {
     case .stoppingDatabase:
         if case .serviceStopped(_) = progress.detail {
@@ -959,22 +961,22 @@ private func printLinuxStopServicesProgress(_ progress: LinuxStopServicesWorkflo
     }
 }
 
-private func printLinuxStartAllProgress(_ progress: LinuxStartAllWorkflow.Progress) {
+private func printLinuxStartAllProgress(_ progress: LinuxStartAllWorkflow.State) {
     switch progress.step {
     case .startingServices:
-        if case .servicesProgress(let servicesProgress) = progress.detail {
+        if case .servicesState(let servicesProgress) = progress.detail {
             printLinuxStartServicesProgress(servicesProgress)
         } else {
             print("🔄 Starting services...")
         }
     case .setupNetwork:
-        if case .networkProgress(let networkProgress) = progress.detail {
+        if case .networkState(let networkProgress) = progress.detail {
             printLinuxSetupNetworkProgress(networkProgress)
         } else {
             print("🌐 Setting up Docker network...")
         }
     case .startingLambda:
-        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+        if case .lambdaState(let lambdaProgress) = progress.detail {
             printLinuxStartLambdaProgress(lambdaProgress)
         } else {
             print("🔄 Starting Lambda container...")
@@ -991,16 +993,16 @@ private func printLinuxStartAllProgress(_ progress: LinuxStartAllWorkflow.Progre
     }
 }
 
-private func printLinuxStopAllProgress(_ progress: LinuxStopAllWorkflow.Progress) {
+private func printLinuxStopAllProgress(_ progress: LinuxStopAllWorkflow.State) {
     switch progress.step {
     case .stoppingLambda:
-        if case .lambdaProgress(let lambdaProgress) = progress.detail {
+        if case .lambdaState(let lambdaProgress) = progress.detail {
             printLinuxStopLambdaProgress(lambdaProgress)
         } else {
             print("🔄 Stopping Lambda container...")
         }
     case .stoppingServices:
-        if case .servicesProgress(let servicesProgress) = progress.detail {
+        if case .servicesState(let servicesProgress) = progress.detail {
             printLinuxStopServicesProgress(servicesProgress)
         } else {
             print("🔄 Stopping services...")
@@ -1011,7 +1013,7 @@ private func printLinuxStopAllProgress(_ progress: LinuxStopAllWorkflow.Progress
     }
 }
 
-private func printLinuxTestProgress(_ progress: LinuxTestWorkflow.Progress) {
+private func printLinuxTestProgress(_ progress: LinuxTestWorkflow.State) {
     switch progress.step {
     case .checkingLambda:
         if case .output(let text) = progress.detail {
@@ -1049,7 +1051,7 @@ private func printLinuxTestProgress(_ progress: LinuxTestWorkflow.Progress) {
     }
 }
 
-private func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.Progress) {
+private func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.State) {
     switch progress.step {
     case .copying:
         if case .copiedFile(let file) = progress.detail {
@@ -1066,7 +1068,7 @@ private func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.Pr
     }
 }
 
-private func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflow.Progress) {
+private func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflow.State) {
     switch progress.step {
     case .creatingNetwork:
         if case .networkCreated(let name) = progress.detail {
@@ -1085,7 +1087,7 @@ private func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflo
     }
 }
 
-private func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWorkflow.Progress) {
+private func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWorkflow.State) {
     switch progress.step {
     case .preparing:
         if case .output(let text) = progress.detail {
@@ -1106,7 +1108,7 @@ private func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWor
 
 // MARK: - Status Progress Printers
 
-private func printXcodeStatusProgress(_ progress: XcodeStatusWorkflow.Progress) {
+private func printXcodeStatusProgress(_ progress: XcodeStatusWorkflow.State) {
     switch progress.step {
     case .checkingLambda:
         print("🔍 Checking Lambda status...")
@@ -1123,7 +1125,7 @@ private func printXcodeStatusProgress(_ progress: XcodeStatusWorkflow.Progress) 
     }
 }
 
-private func printLinuxStatusProgress(_ progress: LinuxStatusWorkflow.Progress) {
+private func printLinuxStatusProgress(_ progress: LinuxStatusWorkflow.State) {
     switch progress.step {
     case .checkingLambda:
         print("🔍 Checking Lambda container status...")

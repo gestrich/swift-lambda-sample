@@ -41,10 +41,10 @@ public final class DependencyStatusModel {
         state = .checking(prior: prior)
 
         do {
-            for try await progress in statusWorkflow.run() {
-                if case .complete = progress.step,
-                   case .snapshot(let snapshot) = progress.detail {
-                    state = .ready(snapshot)
+            for try await state in statusWorkflow.stream(options: .all) {
+                if case .complete = state.step,
+                   case .snapshot(let snapshot) = state.detail {
+                    self.state = .ready(snapshot)
                 }
             }
         } catch {
@@ -62,8 +62,9 @@ public final class DependencyStatusModel {
         state = .installing(tool, prior: prior)
 
         do {
-            for try await progress in installWorkflow.run(tool: tool) {
-                if case .complete = progress.step {
+            let options = DependencyInstallWorkflow.Options(tool: tool)
+            for try await state in installWorkflow.stream(options: options) {
+                if case .complete = state.step {
                     await checkAll()
                     return
                 }
@@ -189,9 +190,10 @@ public final class DependencyStatusModel {
         state = .checking(prior: prior)
 
         do {
-            for try await progress in statusWorkflow.run(tools: [tool]) {
-                if case .complete = progress.step,
-                   case .snapshot(let newSnapshot) = progress.detail {
+            let options = DependencyStatusWorkflow.Options(tools: [tool])
+            for try await workflowState in statusWorkflow.stream(options: options) {
+                if case .complete = workflowState.step,
+                   case .snapshot(let newSnapshot) = workflowState.detail {
                     var statuses = prior?.statuses ?? [:]
                     for (key, value) in newSnapshot.statuses {
                         statuses[key] = value

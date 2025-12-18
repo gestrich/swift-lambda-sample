@@ -141,7 +141,7 @@ public class XcodeLocalModel: LocalService {
         do {
             let workflow = XcodeBuildWorkflow(service: developmentService)
             let options = XcodeBuildWorkflow.Options(clean: clean)
-            for try await _ in workflow.run(options: options) {
+            for try await _ in workflow.stream(options: options) {
                 // Workflow progress is consumed; UI updates via buildState
             }
             buildState.markSuccess()
@@ -179,7 +179,7 @@ public class XcodeLocalModel: LocalService {
 
         do {
             let workflow = XcodeStartLambdaWorkflow(service: developmentService)
-            for try await _ in workflow.run() {
+            for try await _ in workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
             lambdaState.markRunning()
@@ -194,7 +194,7 @@ public class XcodeLocalModel: LocalService {
 
         do {
             let workflow = XcodeStopLambdaWorkflow(service: developmentService)
-            for try await _ in workflow.run() {
+            for try await _ in workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
             lambdaState.markStopped()
@@ -211,7 +211,7 @@ public class XcodeLocalModel: LocalService {
         statusSubject.send(.starting)
 
         let workflow = XcodeStartAllWorkflow(service: developmentService)
-        for try await _ in workflow.run() {
+        for try await _ in workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markRunning()
@@ -226,7 +226,7 @@ public class XcodeLocalModel: LocalService {
         statusSubject.send(.stopping)
 
         let workflow = XcodeStopAllWorkflow(service: developmentService)
-        for try await _ in workflow.run() {
+        for try await _ in workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markStopped()
@@ -279,7 +279,7 @@ public class XcodeLocalModel: LocalService {
         let workflow = XcodeStatusWorkflow(service: developmentService)
         var result: DeploymentStatus = .stopped
 
-        for try await progress in workflow.run() {
+        for try await progress in workflow.stream() {
             if case .complete = progress.step,
                case .status(let status)? = progress.detail {
                 result = status

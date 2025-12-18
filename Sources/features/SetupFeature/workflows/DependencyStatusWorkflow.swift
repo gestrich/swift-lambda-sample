@@ -4,9 +4,10 @@ import NodeCLISDK
 import DockerCLISDK
 import AWSSDK
 import GitHubSDK
+import Uniflow
 
 /// Workflow that checks all dependency statuses and yields progress
-public struct DependencyStatusWorkflow: Sendable {
+public struct DependencyStatusWorkflow: StreamingWorkflow {
     private let cliClient: CLIClient
     private let brewClient: BrewClient
     private let nodeClient: NodeClient
@@ -21,7 +22,7 @@ public struct DependencyStatusWorkflow: Sendable {
         self.awsCLIClient = AWSCLIClient(cliClient: cliClient)
     }
 
-    public struct Progress: Sendable {
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -41,26 +42,34 @@ public struct DependencyStatusWorkflow: Sendable {
         }
     }
 
-    /// Run the workflow checking all CLI tools
-    public func run() -> AsyncThrowingStream<Progress, Error> {
-        run(tools: CLITool.allCases)
+    public typealias Result = State
+
+    /// Options for the workflow
+    public struct Options: Sendable {
+        public let tools: [CLITool]
+
+        public init(tools: [CLITool] = CLITool.allCases) {
+            self.tools = tools
+        }
+
+        public static let all = Options(tools: CLITool.allCases)
     }
 
-    /// Run the workflow checking specific CLI tools
-    public func run(tools: [CLITool]) -> AsyncThrowingStream<Progress, Error> {
+    /// Stream the workflow checking CLI tools
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 var statuses: [CLITool: CLIToolStatus] = [:]
 
-                for tool in tools {
-                    continuation.yield(Progress(step: .checking(tool)))
+                for tool in options.tools {
+                    continuation.yield(State(step: .checking(tool)))
                     let status = await checkTool(tool)
                     statuses[tool] = status
-                    continuation.yield(Progress(step: .checking(tool), detail: .status(status)))
+                    continuation.yield(State(step: .checking(tool), detail: .status(status)))
                 }
 
                 let snapshot = DependencySnapshot(statuses: statuses)
-                continuation.yield(Progress(step: .complete, detail: .snapshot(snapshot)))
+                continuation.yield(State(step: .complete, detail: .snapshot(snapshot)))
                 continuation.finish()
             }
         }

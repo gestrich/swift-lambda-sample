@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for testing local Lambda endpoints (Linux mode).
-public struct LinuxTestWorkflow: Sendable {
+public struct LinuxTestWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the test workflow.
-    public struct Progress: Sendable {
+    /// State updates from the test workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -36,9 +37,12 @@ public struct LinuxTestWorkflow: Sendable {
         }
     }
 
-    /// Run the test workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the test workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -51,38 +55,38 @@ public struct LinuxTestWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         // Check if Lambda container is running
-        continuation.yield(Progress(step: .checkingLambda))
+        continuation.yield(State(step: .checkingLambda))
         let isRunning = try await service.isRunning()
         if !isRunning {
-            continuation.yield(Progress(
+            continuation.yield(State(
                 step: .checkingLambda,
                 detail: .output("Lambda container is not running, will start it")
             ))
             try await service.startLambda(output: nil)
             try await service.waitForReady()
         }
-        continuation.yield(Progress(step: .checkingLambda, detail: .output("Lambda container is running")))
+        continuation.yield(State(step: .checkingLambda, detail: .output("Lambda container is running")))
 
         // Run the tests via the service
-        continuation.yield(Progress(step: .testingFileUpload))
-        continuation.yield(Progress(step: .testingFileUpload, detail: .testPassed("File upload")))
+        continuation.yield(State(step: .testingFileUpload))
+        continuation.yield(State(step: .testingFileUpload, detail: .testPassed("File upload")))
 
-        continuation.yield(Progress(step: .testingFileList))
-        continuation.yield(Progress(step: .testingFileList, detail: .testPassed("File list")))
+        continuation.yield(State(step: .testingFileList))
+        continuation.yield(State(step: .testingFileList, detail: .testPassed("File list")))
 
-        continuation.yield(Progress(step: .testingFileDownload))
-        continuation.yield(Progress(step: .testingFileDownload, detail: .testPassed("File download")))
+        continuation.yield(State(step: .testingFileDownload))
+        continuation.yield(State(step: .testingFileDownload, detail: .testPassed("File download")))
 
-        continuation.yield(Progress(step: .testingDatabaseInit))
-        continuation.yield(Progress(step: .testingDatabaseInit, detail: .testPassed("Database init")))
+        continuation.yield(State(step: .testingDatabaseInit))
+        continuation.yield(State(step: .testingDatabaseInit, detail: .testPassed("Database init")))
 
         // Actually run the full test suite
         try await service.testLambda()
 
-        continuation.yield(Progress(step: .complete))
+        continuation.yield(State(step: .complete))
         continuation.finish()
     }
 }

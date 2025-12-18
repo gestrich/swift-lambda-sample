@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for stopping the Lambda container.
-public struct LinuxStopLambdaWorkflow: Sendable {
+public struct LinuxStopLambdaWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the stop Lambda workflow.
-    public struct Progress: Sendable {
+    /// State updates from the stop Lambda workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -32,9 +33,12 @@ public struct LinuxStopLambdaWorkflow: Sendable {
         }
     }
 
-    /// Run the stop Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+    public typealias Options = Void
+
+    /// Stream the stop Lambda workflow.
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -47,7 +51,7 @@ public struct LinuxStopLambdaWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let outputStream = CLIOutputStream()
 
@@ -59,7 +63,7 @@ public struct LinuxStopLambdaWorkflow: Sendable {
                 case .stdout(_, let text), .stderr(_, let text):
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty {
-                        continuation.yield(Progress(step: .stopping, detail: .output(trimmed)))
+                        continuation.yield(State(step: .stopping, detail: .output(trimmed)))
                     }
                 case .exit, .command, .error:
                     break
@@ -70,14 +74,14 @@ public struct LinuxStopLambdaWorkflow: Sendable {
         defer { outputTask.cancel() }
 
         // Check if Lambda container is running
-        continuation.yield(Progress(step: .checking))
+        continuation.yield(State(step: .checking))
         let wasRunning = try await service.isRunning()
 
         // Stop Lambda container
-        continuation.yield(Progress(step: .stopping))
+        continuation.yield(State(step: .stopping))
         try await service.stopLambda(output: outputStream)
 
-        continuation.yield(Progress(step: .complete, detail: .wasRunning(wasRunning)))
+        continuation.yield(State(step: .complete, detail: .wasRunning(wasRunning)))
         continuation.finish()
     }
 }

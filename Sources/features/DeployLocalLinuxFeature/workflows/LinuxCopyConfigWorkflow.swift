@@ -1,17 +1,18 @@
 import Foundation
 import DeployLocalService
 import CLISDK
+import Uniflow
 
 /// Workflow for copying configuration files to `~/.swiftSampleDemo/`.
-public struct LinuxCopyConfigWorkflow: Sendable {
+public struct LinuxCopyConfigWorkflow: StreamingWorkflow {
     private let service: LinuxLocalDevelopmentService
 
     public init(service: LinuxLocalDevelopmentService) {
         self.service = service
     }
 
-    /// Progress updates from the copy config workflow.
-    public struct Progress: Sendable {
+    /// State updates from the copy config workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -31,14 +32,25 @@ public struct LinuxCopyConfigWorkflow: Sendable {
         }
     }
 
-    /// Run the copy config workflow.
-    /// - Parameter sourcePath: Optional source path for the config file
-    /// - Returns: AsyncThrowingStream that yields Progress updates
-    public func run(sourcePath: String? = nil) -> AsyncThrowingStream<Progress, Error> {
+    public typealias Result = State
+
+    /// Options for the copy config workflow.
+    public struct Options: Sendable {
+        public let sourcePath: String?
+
+        public init(sourcePath: String? = nil) {
+            self.sourcePath = sourcePath
+        }
+    }
+
+    /// Stream the copy config workflow.
+    /// - Parameter options: Copy config options
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(sourcePath: sourcePath, continuation: continuation)
+                    try await runWorkflow(sourcePath: options.sourcePath, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -48,9 +60,9 @@ public struct LinuxCopyConfigWorkflow: Sendable {
 
     private func runWorkflow(
         sourcePath: String?,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
-        continuation.yield(Progress(step: .copying))
+        continuation.yield(State(step: .copying))
 
         try await service.copyConfig(sourcePath: sourcePath)
 
@@ -58,8 +70,8 @@ public struct LinuxCopyConfigWorkflow: Sendable {
         let homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
         let destPath = "\(homeDirectory)/.swiftSampleDemo/"
 
-        continuation.yield(Progress(step: .copying, detail: .copiedFile("swiftLambdaDemo.json")))
-        continuation.yield(Progress(step: .complete, detail: .destinationPath(destPath)))
+        continuation.yield(State(step: .copying, detail: .copiedFile("swiftLambdaDemo.json")))
+        continuation.yield(State(step: .complete, detail: .destinationPath(destPath)))
         continuation.finish()
     }
 }

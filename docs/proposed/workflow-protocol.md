@@ -1,6 +1,6 @@
 # Workflow Protocol Standardization
 
-**Status:** In Progress (Phase 1 Complete)
+**Status:** In Progress (Phase 2 Complete)
 **Created:** 2025-12-17
 **Related:** [workflow-refactor.md](workflow-refactor.md), [layered-architecture.md](../architecture/layered-architecture.md)
 
@@ -148,9 +148,9 @@ Most workflows in this codebase are `StreamingWorkflow` since they perform multi
 
 **Verification:** ✅ Build succeeds, both protocols compile, features can import Uniflow.
 
-### Phase 2: Migrate Simple Workflows (Category 1)
+### Phase 2: Migrate Simple Workflows (Category 1) ✅ COMPLETED
 
-These workflows have `run(options:)` returning a stream. Migration involves conforming to `StreamingWorkflow` and renaming the method:
+These workflows have `run(options:)` returning a stream. Migration involved conforming to `StreamingWorkflow` and renaming the method.
 
 **Pattern:**
 ```swift
@@ -162,7 +162,7 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 // run(options:) provided by StreamingWorkflow extension
 ```
 
-**Workflows (~24 total):**
+**Migrated Workflows (24 total):**
 
 | Feature | Workflows |
 |---------|-----------|
@@ -170,31 +170,25 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 | `DeployLocalLinuxFeature` | `LinuxBuildWorkflow`, `LinuxStartAllWorkflow`, `LinuxStartServicesWorkflow`, `LinuxStartLambdaWorkflow`, `LinuxStopAllWorkflow`, `LinuxStopServicesWorkflow`, `LinuxStopLambdaWorkflow`, `LinuxStatusWorkflow`, `LinuxTestWorkflow`, `LinuxSetupNetworkWorkflow`, `LinuxRunInteractiveWorkflow`, `LinuxCopyConfigWorkflow` |
 | `SetupFeature` | `DependencyInstallWorkflow`, `DependencyStatusWorkflow` |
 
-**Changes per workflow:**
-1. Add `import Uniflow` and `StreamingWorkflow` protocol conformance
-2. Rename `run(options:)` to `stream(options:)`
-3. Rename `Progress` struct to `State` for consistency across all streaming workflows
+**Changes made per workflow:**
+1. Added `import Uniflow` and `StreamingWorkflow` protocol conformance
+2. Renamed `run(options:)` to `stream(options:)`
+3. Renamed `Progress` struct to `State` for consistency
+4. Added `typealias Result = State` for default `run()` implementation
+5. Updated nested state references (e.g., `servicesProgress` → `servicesState`)
 
-**Example transformation:**
-```swift
-// Before
-public struct XcodeBuildWorkflow: Sendable {
-    public struct Progress: Sendable { ... }
-    public func run(options: Options) -> AsyncThrowingStream<Progress, Error>
-}
+**Callers updated:**
+- `Sources/apps/CLIApp/Commands/LocalCommand.swift` - All workflow calls use `stream()`, type references updated to `State`
+- `Sources/apps/MacApp/Models/XcodeLocalModel.swift` - Updated to use `stream()`
+- `Sources/apps/MacApp/Models/LinuxLocalModel.swift` - Updated to use `stream()`
+- `Sources/apps/MacApp/Models/DependencyStatusModel.swift` - Updated to use `stream(options:)`
 
-// After
-import Uniflow
+**Technical notes:**
+- Workflows with `Options = Void` can use the convenience `stream()` method without arguments
+- Workflows embedding other workflows' state now reference `.State` instead of `.Progress` (e.g., `XcodeStartAllWorkflow.State.Detail.servicesState`)
+- The default `run()` implementation consumes the stream and returns the last state
 
-public struct XcodeBuildWorkflow: StreamingWorkflow {
-    public struct State: Sendable { ... }  // renamed from Progress
-    public struct Options: Sendable { ... }
-    public func stream(options: Options) -> AsyncThrowingStream<State, Error>
-    // run(options:) provided by StreamingWorkflow extension
-}
-```
-
-**Verification:** All workflows compile with protocol conformance. CLI commands continue to work.
+**Verification:** ✅ Build succeeds. All CLI commands and Mac app models compile and use the new API.
 
 ### Phase 3: Migrate Extra-Parameter Workflows (Category 2)
 
