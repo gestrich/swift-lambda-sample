@@ -132,11 +132,12 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeStartServicesWorkflow(service: service)
+            let components = XcodeStartServicesWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = XcodeStartServicesWorkflow.Options.only(.database)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -168,11 +169,12 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeStartServicesWorkflow(service: service)
+            let components = XcodeStartServicesWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = XcodeStartServicesWorkflow.Options.only(.dynamodb)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -204,11 +206,12 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeStartServicesWorkflow(service: service)
+            let components = XcodeStartServicesWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = XcodeStartServicesWorkflow.Options.only(.s3)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }

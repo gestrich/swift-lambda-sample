@@ -170,7 +170,7 @@ Move build logic directly into the workflow.
 
 ---
 
-### [ ] Phase 3: Migrate XcodeStartServicesWorkflow
+### [x] Phase 3: Migrate XcodeStartServicesWorkflow (COMPLETED)
 
 Move service start logic directly into the workflow.
 
@@ -178,16 +178,23 @@ Move service start logic directly into the workflow.
 **Target:** Workflow directly uses `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`
 
 **Tasks:**
-- [ ] 3.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`, `DockerClient`, `LocalStorageService`)
-- [ ] 3.2: Create `Components` struct and `create()` factory
-- [ ] 3.3: Move `ensureDockerRunning()` / `startDockerDesktop()` logic
-- [ ] 3.4: Move service start logic into workflow
-- [ ] 3.5: Update CLI command to use workflow factory
-- [ ] 3.6: Add deprecated `init(service:)` for backward compatibility with `XcodeStartAllWorkflow`
+- [x] 3.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`, `DockerClient`, `LocalStorageService`)
+- [x] 3.2: Create `Components` struct and `create()` factory
+- [x] 3.3: Move `ensureDockerRunning()` / `startDockerDesktop()` logic
+- [x] 3.4: Move service start logic into workflow
+- [x] 3.5: Update CLI command to use workflow factory
+- [x] 3.6: Add deprecated `init(service:)` for backward compatibility with `XcodeStartAllWorkflow`
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStartServicesWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStartServicesWorkflow.swift` - Added `Components`, `create()`, moved all service start logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StartDatabaseCommand`, `StartDynamoDBCommand`, `StartS3Command` to use factory
+
+**Technical Notes:**
+- Workflow now contains all service start logic directly using SDK clients (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- Added `Components` struct exposing all clients for potential reuse by other workflows
+- Deprecated `init(service:)` allows `XcodeStartAllWorkflow` to continue working until Phase 7 migration
+- Docker Desktop auto-start logic (`startDockerDesktop()`) moved directly into workflow
+- Uses `.xcode` configuration variants for all SDK clients (distinct from `.linux` variants)
 
 ---
 
