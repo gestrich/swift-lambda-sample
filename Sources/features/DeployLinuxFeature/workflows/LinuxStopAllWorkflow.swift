@@ -1,5 +1,7 @@
 import Foundation
 import CLISDK
+import DeployCoreService
+import DeployLocalService
 import Uniflow
 
 /// Workflow for stopping Lambda and all services for Linux development.
@@ -24,29 +26,7 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
         return Components(workflow: workflow)
     }
 
-    /// State updates from the stop all workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case stoppingLambda
-            case stoppingServices
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case lambdaState(LinuxStopLambdaWorkflow.State)
-            case servicesState(LinuxStopServicesWorkflow.State)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = LinuxWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
@@ -67,27 +47,66 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Stop Lambda container first
-        continuation.yield(State(step: .stoppingLambda))
+        continuation.yield(.stoppingLambda(LinuxWorkflowState.LambdaProgress(
+            step: .stopping,
+            startTime: startTime
+        )))
         let lambdaComponents = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            continuation.yield(State(
-                step: .stoppingLambda,
-                detail: .lambdaState(lambdaState)
-            ))
+            continuation.yield(.stoppingLambda(LinuxWorkflowState.LambdaProgress(
+                step: mapLambdaStep(lambdaState.step),
+                startTime: startTime
+            )))
         }
 
         // Then stop services
-        continuation.yield(State(step: .stoppingServices))
+        continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(
+            step: .stopping,
+            startTime: startTime
+        )))
         let servicesComponents = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            continuation.yield(State(
-                step: .stoppingServices,
-                detail: .servicesState(servicesState)
-            ))
+            let currentService = mapServiceStep(servicesState.step)
+            continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(
+                step: .stopping,
+                startTime: startTime,
+                currentService: currentService
+            )))
         }
 
-        continuation.yield(State(step: .complete))
+        // Complete with snapshot (all stopped)
+        let status = DeploymentStatus(
+            lambdaState: .stopped,
+            s3State: .stopped,
+            postgresState: .stopped,
+            dynamodbState: .stopped
+        )
+        let snapshot = LinuxSnapshot(
+            serviceStatus: status,
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
+    }
+
+    // MARK: - State Mapping Helpers
+
+    private func mapLambdaStep(_ step: LinuxStopLambdaWorkflow.State.Step) -> LinuxWorkflowState.LambdaProgress.Step {
+        switch step {
+        case .checking, .stopping: return .stopping
+        case .complete: return .stopping
+        }
+    }
+
+    private func mapServiceStep(_ step: LinuxStopServicesWorkflow.State.Step) -> LocalServiceType? {
+        switch step {
+        case .stoppingDatabase: return .database
+        case .stoppingS3: return .s3
+        case .stoppingDynamoDB: return .dynamodb
+        case .complete: return nil
+        }
     }
 }

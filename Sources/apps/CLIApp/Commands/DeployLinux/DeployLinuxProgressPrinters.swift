@@ -170,23 +170,37 @@ func printLinuxStartAllProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStopAllProgress(_ progress: LinuxStopAllWorkflow.State) {
-    switch progress.step {
-    case .stoppingLambda:
-        if case .lambdaState(let lambdaProgress) = progress.detail {
-            printLinuxStopLambdaProgress(lambdaProgress)
-        } else {
-            print("🔄 Stopping Lambda container...")
+func printLinuxStopAllProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .stoppingLambda(let lambdaProgress):
+        switch lambdaProgress.step {
+        case .stopping:
+            print("🛑 Stopping Lambda container...")
+        case .starting, .waitingForReady:
+            break
         }
-    case .stoppingServices:
-        if case .servicesState(let servicesProgress) = progress.detail {
-            printLinuxStopServicesProgress(servicesProgress)
+    case .stoppingServices(let servicesProgress):
+        if let service = servicesProgress.currentService {
+            switch service {
+            case .database:
+                print("🐘 Stopping PostgreSQL...")
+            case .s3:
+                print("📦 Stopping MinIO S3...")
+            case .dynamodb:
+                print("⚡ Stopping DynamoDB...")
+            }
         } else {
             print("🔄 Stopping services...")
         }
-    case .complete:
+    case .completed(let snapshot):
         print("")
-        print("✅ All Lambda container and services stopped")
+        if snapshot.isAllStopped {
+            print("✅ All Lambda container and services stopped")
+        } else {
+            print("✅ Workflow complete")
+        }
+    default:
+        break
     }
 }
 

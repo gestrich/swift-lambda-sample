@@ -393,17 +393,28 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ---
 
-### Phase 5: Update LinuxStopAllWorkflow to Yield LinuxWorkflowState
+### Phase 5: Update LinuxStopAllWorkflow to Yield LinuxWorkflowState ✅ COMPLETED
 
 **Tasks:**
-- [ ] 5.1: Update `LinuxStopAllWorkflow.State` to be `LinuxWorkflowState`
-- [ ] 5.2: Update `stream()` to yield appropriate states
-- [ ] 5.3: Update CLI command
-- [ ] 5.4: Build verification
+- [x] 5.1: Update `LinuxStopAllWorkflow.State` to be `LinuxWorkflowState`
+- [x] 5.2: Update `stream()` to yield appropriate states
+- [x] 5.3: Update CLI progress printer
+- [x] 5.4: Build verification
 
-**Files to modify:**
+**Files modified:**
 - `Sources/features/DeployLinuxFeature/workflows/LinuxStopAllWorkflow.swift`
-- `Sources/apps/CLIApp/Commands/LocalCommand.swift`
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxProgressPrinters.swift`
+
+**Technical Notes:**
+- Changed `LinuxStopAllWorkflow.State` from nested struct to `typealias State = LinuxWorkflowState`
+- Added imports for `DeployCoreService` and `DeployLocalService` to access `DeploymentStatus` and `LocalServiceType`
+- Workflow now yields:
+  - `.stoppingLambda(LambdaProgress)` - with step `.stopping`
+  - `.stoppingServices(ServicesProgress)` - with `currentService` indicating which service is stopping
+  - `.completed(LinuxSnapshot)` - with all services marked as stopped
+- Added mapping helper methods to convert sub-workflow states to `LinuxWorkflowState` progress types
+- CLI progress printer updated to switch on `LinuxWorkflowState` enum cases
+- Sub-workflows (`LinuxStopLambdaWorkflow`, `LinuxStopServicesWorkflow`) still use their own internal `State` types - consumed and mapped in `LinuxStopAllWorkflow`
 
 ---
 
