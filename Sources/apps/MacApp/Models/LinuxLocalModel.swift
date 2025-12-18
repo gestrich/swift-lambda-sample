@@ -5,20 +5,27 @@ import Foundation
 import StorageService
 import DeployLocalService
 import DeployCoreService
+import DockerCLISDK
+import DynamoDBSDK
 import LambdaBuildService
+import MinioSDK
+import PostgreSQLSDK
 import DeployLocalLinuxFeature
 
 /// Observable model for Linux container development workflow
-/// Holds UI state and delegates operations to LinuxLocalDevelopmentService
+/// Holds UI state and delegates operations to workflow factories
 /// Conforms to LocalService for polymorphic usage
 @MainActor
 public class LinuxLocalModel: LocalService {
-    private let developmentService: LinuxLocalDevelopmentService
     public let cliClient: CLIClient
     private let storageService: LocalStorageService
 
-    // Lambda configuration (for endpoint display)
-    private let lambdaHostPort = 8081
+    // SDK clients for direct service operations
+    private let dockerClient: DockerClient
+    private let postgresClient: PostgreSQLClient
+    private let minioClient: MinIOClient
+    private let dynamodbClient: DynamoDBClient
+    private let config: LinuxContainerConfig
 
     // Working directory
     private let workingDirectory: String
@@ -55,20 +62,20 @@ public class LinuxLocalModel: LocalService {
 
     public static let detailText = "Docker container build - matches AWS Lambda environment"
 
-    public var port: Int { lambdaHostPort }
+    public var port: Int { config.hostPort }
 
     public var endpoint: String {
-        "http://localhost:\(lambdaHostPort)/invoke"
+        "http://localhost:\(config.hostPort)/invoke"
     }
 
     public var endpointLabel: String { "Local Lambda Endpoint" }
 
     public var endpointHelpText: String {
-        "Make sure local Lambda container is running on port \(lambdaHostPort)"
+        "Make sure local Lambda container is running on port \(config.hostPort)"
     }
 
     public var apiClient: APIClient {
-        APIClient(localPort: lambdaHostPort, serviceName: Self.displayName)
+        APIClient(localPort: config.hostPort, serviceName: Self.displayName)
     }
 
     public var isConfigured: Bool { true }
@@ -76,8 +83,28 @@ public class LinuxLocalModel: LocalService {
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.developmentService = LinuxLocalDevelopmentService(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
+        self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
+
+        let dockerClient = DockerClient(cliClient: cliClient)
+        self.dockerClient = dockerClient
+
+        self.postgresClient = PostgreSQLClient(
+            dockerClient: dockerClient,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+        )
+        self.minioClient = MinIOClient(
+            dockerClient: dockerClient,
+            networkName: config.networkName,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+        )
+        self.dynamodbClient = DynamoDBClient(
+            dockerClient: dockerClient,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        )
 
         refreshBuildStatus()
     }
@@ -85,39 +112,63 @@ public class LinuxLocalModel: LocalService {
     // MARK: - Service Management
 
     public func startAllServices() async throws {
-        try await developmentService.startAllServices()
+        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .all) {
+            // Consume workflow progress
+        }
     }
 
     public func stopAllServices() async throws {
-        try await developmentService.stopAllServices()
+        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .all) {
+            // Consume workflow progress
+        }
     }
 
     public func startS3() async throws {
-        try await developmentService.startS3()
+        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.s3)) {
+            // Consume workflow progress
+        }
     }
 
     public func createBucket(bucketName: String? = nil) async throws {
-        try await developmentService.createBucket(bucketName: bucketName)
+        try await minioClient.createBucket(bucketName: bucketName)
     }
 
     public func stopS3() async throws {
-        try await developmentService.stopS3()
+        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.s3)) {
+            // Consume workflow progress
+        }
     }
 
     public func startDatabase() async throws {
-        try await developmentService.startDatabase()
+        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.database)) {
+            // Consume workflow progress
+        }
     }
 
     public func stopDatabase() async throws {
-        try await developmentService.stopDatabase()
+        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.database)) {
+            // Consume workflow progress
+        }
     }
 
     public func startDynamoDB() async throws {
-        try await developmentService.startDynamoDB()
+        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
+            // Consume workflow progress
+        }
     }
 
     public func stopDynamoDB() async throws {
-        try await developmentService.stopDynamoDB()
+        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
+            // Consume workflow progress
+        }
     }
 
     public var s3DataDirectory: String {
@@ -161,7 +212,8 @@ public class LinuxLocalModel: LocalService {
     }
 
     public func deleteBuild() async throws {
-        try await developmentService.deleteBuild()
+        let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
+        try await components.workflow.deleteBuild()
         buildState.clear()
     }
 
@@ -259,11 +311,46 @@ public class LinuxLocalModel: LocalService {
     // MARK: - Testing
 
     public func waitForReady(maxAttempts: Int = 30) async throws {
-        try await developmentService.waitForReady(maxAttempts: maxAttempts)
+        let isRunning = try await dockerClient.containerIsRunning(name: config.containerName)
+        guard isRunning else {
+            throw DeployError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
+        }
+
+        var attempts = 0
+        var ready = false
+
+        while attempts < maxAttempts && !ready {
+            let portCheck = try await cliClient.executeForResult(
+                Lsof(port: ":\(config.hostPort)"),
+                printCommand: false
+            )
+
+            if portCheck.isSuccess && !portCheck.stdout.isEmpty {
+                ready = true
+                break
+            }
+
+            try await Task.sleep(for: .seconds(1))
+            attempts += 1
+        }
+
+        if !ready {
+            let logsResult = try await cliClient.execute(
+                command: "docker",
+                arguments: ["logs", config.containerName],
+                printCommand: false
+            )
+            throw DeployError.testFailed(
+                message: "Lambda failed to be ready on port \(config.hostPort) after \(maxAttempts) seconds. Logs: \(logsResult.stdout) \(logsResult.stderr)"
+            )
+        }
     }
 
     public func testLambda() async throws {
-        try await developmentService.testLambda()
+        let components = LinuxTestWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: ()) {
+            // Consume workflow progress
+        }
     }
 
     // MARK: - Status
