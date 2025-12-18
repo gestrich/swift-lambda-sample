@@ -25,17 +25,6 @@ public struct XcodeStopServicesWorkflow: StreamingWorkflow {
         self.dynamodbClient = dynamodbClient
     }
 
-    /// Backward-compatible initializer for XcodeStopAllWorkflow.
-    /// - Parameter service: The Xcode local development service (ignored, clients created internally)
-    @available(*, deprecated, message: "Use XcodeStopServicesWorkflow.create() instead")
-    public init(service: XcodeLocalDevelopmentService) {
-        let workingDirectory = FileManager.default.currentDirectoryPath
-        let components = Self.create(workingDirectory: workingDirectory)
-        self.postgresClient = components.postgresClient
-        self.minioClient = components.minioClient
-        self.dynamodbClient = components.dynamodbClient
-    }
-
     /// Components needed for stopping services.
     public struct Components: Sendable {
         public let workflow: XcodeStopServicesWorkflow

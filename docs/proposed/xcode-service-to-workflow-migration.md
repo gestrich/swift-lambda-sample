@@ -310,24 +310,30 @@ This workflow orchestrates other workflows. Remove direct service dependency.
 
 ---
 
-### [ ] Phase 8: Migrate XcodeStopAllWorkflow
+### [x] Phase 8: Migrate XcodeStopAllWorkflow (COMPLETED)
 
 This workflow orchestrates other workflows. Remove direct service dependency.
 
 **Tasks:**
-- [ ] 8.1: Remove `service` dependency
-- [ ] 8.2: Create `Components` struct and `create()` factory method
-- [ ] 8.3: Update to use workflow factories for sub-workflows
-- [ ] 8.4: Update CLI command
-- [ ] 8.5: Update MacApp model
-- [ ] 8.6: Remove deprecated initializers from dependent workflows
+- [x] 8.1: Remove `service` dependency (now uses `workingDirectory`)
+- [x] 8.2: Create `Components` struct and `create()` factory method
+- [x] 8.3: Update to use workflow factories for sub-workflows
+- [x] 8.4: Update CLI command
+- [x] 8.5: Update MacApp model
+- [x] 8.6: Remove deprecated initializers from dependent workflows
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStopAllWorkflow.swift`
-- `DeployLocalXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift` (remove deprecated init)
-- `DeployLocalXcodeFeature/workflows/XcodeStopServicesWorkflow.swift` (remove deprecated init)
-- `CLIApp/Commands/LocalCommand.swift`
-- `MacApp/Models/XcodeLocalModel.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStopAllWorkflow.swift` - Added `Components`, `create()`, now orchestrates sub-workflows using their factories
+- `DeployLocalXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift` - Removed deprecated `init(service:)`, removed unused `DeployLocalService` import
+- `DeployLocalXcodeFeature/workflows/XcodeStopServicesWorkflow.swift` - Removed deprecated `init(service:)`
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StopAllCommand` to use factory
+- `MacApp/Models/XcodeLocalModel.swift` - Updated `stopWithServices()` to use factory
+
+**Technical Notes:**
+- Workflow now orchestrates sub-workflows using their `create()` factories
+- Mirrors the pattern used in `XcodeStartAllWorkflow` (Phase 7)
+- Simple state machine: `stoppingLambda`, `stoppingServices`, and `complete` steps
+- Lambda is stopped first, then services (reverse order of start)
 
 ---
 

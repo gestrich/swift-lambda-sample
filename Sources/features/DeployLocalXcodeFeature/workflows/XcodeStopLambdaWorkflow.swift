@@ -1,7 +1,6 @@
 import Foundation
 import CLISDK
 import DeployCoreService
-import DeployLocalService
 import Uniflow
 
 /// Workflow for stopping the Lambda process.
@@ -15,14 +14,6 @@ public struct XcodeStopLambdaWorkflow: StreamingWorkflow {
 
     public init(cliClient: CLIClient) {
         self.cliClient = cliClient
-    }
-
-    /// Backward-compatible initializer for XcodeStopAllWorkflow.
-    /// - Parameter service: The Xcode local development service (ignored, clients created internally)
-    @available(*, deprecated, message: "Use XcodeStopLambdaWorkflow.create() instead")
-    public init(service: XcodeLocalDevelopmentService) {
-        let components = Self.create()
-        self.cliClient = components.cliClient
     }
 
     /// Components needed for stopping Lambda.

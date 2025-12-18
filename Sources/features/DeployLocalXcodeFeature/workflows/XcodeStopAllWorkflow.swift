@@ -1,14 +1,28 @@
 import Foundation
-import DeployLocalService
 import CLISDK
+import DeployLocalService
 import Uniflow
 
 /// Workflow for stopping Lambda and all services for Xcode development.
+/// Orchestrates XcodeStopLambdaWorkflow and XcodeStopServicesWorkflow.
 public struct XcodeStopAllWorkflow: StreamingWorkflow {
-    private let service: XcodeLocalDevelopmentService
+    private let workingDirectory: String
 
-    public init(service: XcodeLocalDevelopmentService) {
-        self.service = service
+    public init(workingDirectory: String) {
+        self.workingDirectory = workingDirectory
+    }
+
+    /// Components needed for stop all operations.
+    public struct Components: Sendable {
+        public let workflow: XcodeStopAllWorkflow
+    }
+
+    /// Creates a workflow and associated components.
+    /// - Parameter workingDirectory: The working directory for the workflow
+    /// - Returns: Components containing the workflow
+    public static func create(workingDirectory: String) -> Components {
+        let workflow = XcodeStopAllWorkflow(workingDirectory: workingDirectory)
+        return Components(workflow: workflow)
     }
 
     /// State updates from the stop all workflow.
@@ -56,8 +70,8 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
     ) async throws {
         // Stop Lambda first
         continuation.yield(State(step: .stoppingLambda))
-        let lambdaWorkflow = XcodeStopLambdaWorkflow(service: service)
-        for try await lambdaState in lambdaWorkflow.stream() {
+        let lambdaComponents = XcodeStopLambdaWorkflow.create()
+        for try await lambdaState in lambdaComponents.workflow.stream() {
             continuation.yield(State(
                 step: .stoppingLambda,
                 detail: .lambdaState(lambdaState)
@@ -66,8 +80,8 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
 
         // Then stop services
         continuation.yield(State(step: .stoppingServices))
-        let servicesWorkflow = XcodeStopServicesWorkflow(service: service)
-        for try await servicesState in servicesWorkflow.stream(options: .all) {
+        let servicesComponents = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await servicesState in servicesComponents.workflow.stream(options: .all) {
             continuation.yield(State(
                 step: .stoppingServices,
                 detail: .servicesState(servicesState)

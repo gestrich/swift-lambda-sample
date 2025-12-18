@@ -116,10 +116,11 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeStopAllWorkflow(service: service)
+            let components = XcodeStopAllWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
 
-            for try await progress in workflow.stream() {
+            for try await progress in components.workflow.stream() {
                 printXcodeStopAllProgress(progress)
             }
         }
