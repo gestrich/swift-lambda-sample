@@ -74,7 +74,7 @@ Sources/apps/CLIApp/Commands/
 **Completed:** 2025-12-18
 **Notes:** Directories created, build verified successful. Empty directories are included by git when files are added in subsequent phases.
 
-#### Phase 2: Migrate AWS Commands
+#### Phase 2: Migrate AWS Commands ✅ COMPLETED
 
 Move existing files (no code changes needed):
 - `AWSCommand.swift` → `AWS/AWSCommand.swift`
@@ -84,6 +84,9 @@ Move existing files (no code changes needed):
 - `TearDownCommand.swift` → `AWS/TearDownCommand.swift`
 - `UpdateLambdaCommand.swift` → `AWS/UpdateLambdaCommand.swift`
 - `UploadLambdaCommand.swift` → `AWS/UploadLambdaCommand.swift`
+
+**Completed:** 2025-12-18
+**Notes:** All 7 AWS command files moved to `Commands/AWS/` using `git mv` to preserve history. Build verified successful. CLI commands work correctly (`swift run CLIApp aws --help` shows all subcommands).
 
 #### Phase 3: Split LocalCommand.swift
 
