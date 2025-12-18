@@ -5,7 +5,6 @@ import DynamoDBSDK
 import MinioSDK
 import PostgreSQLSDK
 import StorageService
-import DeployLocalService
 import Uniflow
 
 /// Workflow for starting Lambda with all services for Linux development.

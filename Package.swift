@@ -252,6 +252,7 @@ let package = Package(
             dependencies: [
                 .target(name: "DeployRemoteFeature"),
                 .target(name: "DeployLocalService"),
+                .target(name: "DeployLocalLinuxFeature"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),
