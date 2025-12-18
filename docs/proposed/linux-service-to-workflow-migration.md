@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 10 Complete)
+**Status:** In Progress (Phase 11 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -395,16 +395,33 @@ Move test logic directly into the workflow.
 
 ---
 
-### [ ] Phase 11: Migrate LinuxStatusWorkflow
+### [x] Phase 11: Migrate LinuxStatusWorkflow
 
 Move status checking logic into the workflow.
 
+**Status:** Completed 2025-12-18
+
 **Tasks:**
-- [ ] 11.1: Add SDK dependencies (`DockerClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
-- [ ] 11.2: Create `Components` struct and `create()` factory
-- [ ] 11.3: Move `status()` logic
-- [ ] 11.4: Update CLI command
-- [ ] 11.5: Remove unused methods from service
+- [x] 11.1: Add SDK dependencies (`DockerClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- [x] 11.2: Create `Components` struct and `create()` factory
+- [x] 11.3: Move `status()` logic (checking Lambda, S3, PostgreSQL, DynamoDB status)
+- [x] 11.4: Update CLI command (`StatusCommand`) to use factory
+- [x] 11.5: Update MacApp model (`status()`) to use factory
+- [x] 11.6: Service methods kept for now (other workflows may still depend on them)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStatusWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StatusCommand` to use factory
+- `MacApp/Models/LinuxLocalModel.swift` - Updated `status()` to use factory
+
+**Technical Notes:**
+- Workflow now owns all status checking logic using SDK clients directly (`DockerClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- `Components` struct pattern matches other migrated workflows for consistency
+- Status checks are performed sequentially with progress updates for each service
+- The workflow yields intermediate status details (`.lambdaStatus`, `.serviceStatus`) in addition to the final `.status` result
+- Removed `DeployLocalService` import for service dependency (now uses SDK clients directly)
+- Service method (`status()`) in `LinuxLocalDevelopmentService` can now be removed since no workflows depend on it
+- MacApp still uses deprecated `LinuxSetupNetworkWorkflow(service:)` in `setupDockerNetwork()` - will be addressed when that method is migrated
 
 ---
 
