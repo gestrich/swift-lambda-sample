@@ -24,7 +24,7 @@ extension DeployRemoteCommand {
                 cliClient: cliClient
             )
 
-            let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
+            let options = UpdateLambdaWorkflow.Options(skipPush: skipPush, prior: nil)
 
             for try await state in workflow.stream(options: options) {
                 switch state {

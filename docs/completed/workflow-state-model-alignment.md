@@ -476,14 +476,12 @@ public struct DeployWorkflow {
 @MainActor @Observable
 public class DeploymentModel {
     public private(set) var state: ModelState = .uninitialized
-    public private(set) var lastOperationError: Error?
 
     // MARK: - Deploy Operations
 
     public func deploy(options: DeployWorkflow.Options, output: CLIOutputStream? = nil) async {
         guard state.canDeploy else { return }
 
-        lastOperationError = nil
         let prior = state.snapshot  // App layer captures prior (its concern)
 
         let workflow = DeployWorkflow(cdkClient: cdkClient, cfClient: cfClient, stackName: stackName)
@@ -493,12 +491,7 @@ public class DeploymentModel {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            lastOperationError = error
-            state = .ready(DeploymentSnapshot(
-                status: .failed(reason: error.localizedDescription),
-                outputs: prior?.outputs,
-                infrastructure: prior?.infrastructure
-            ))
+            state = ModelState(error: error, preserving: prior)
         }
     }
 
@@ -517,6 +510,11 @@ public class DeploymentModel {
             } else {
                 self = .operating(workflowState, prior: prior)
             }
+        }
+
+        /// Construct a failed state from a caught error
+        public init(error: Error, preserving prior: DeploymentSnapshot?) {
+            self = .ready(.failed(reason: error.localizedDescription, preserving: prior))
         }
 
         public var snapshot: DeploymentSnapshot? {
@@ -564,9 +562,8 @@ do {
 }
 ```
 
-**After (7 lines):**
+**After (6 lines):**
 ```swift
-lastOperationError = nil
 let prior = state.snapshot
 
 do {

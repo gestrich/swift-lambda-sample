@@ -141,8 +141,7 @@ public func refresh() async {
             state = ModelState(from: workflowState, prior: prior)
         }
     } catch {
-        lastOperationError = error
-        state = .ready(.failed(reason: error.localizedDescription, preserving: prior))
+        state = ModelState(error: error, preserving: prior)
     }
 }
 ```
@@ -200,9 +199,8 @@ Updated `DeployRemoteModel.refresh()` to use `RefreshWorkflow`:
 - Replaced direct `cfClient.queryState()` call with `RefreshWorkflow.stream(options: ())`
 - Removed inline switch logic for handling deploying/destroying states (now handled by workflow)
 - Removed manual error handling for `DeploymentError.credentialExpired` (workflow handles via `DeploymentSnapshot.from()`)
-- Added `lastOperationError = nil` reset at start of refresh (consistent with other operations)
 - Deleted `resumeMonitoring()` private method (absorbed into RefreshWorkflow)
-- Method reduced from 40 lines to 16 lines
+- Method reduced from 40 lines to 15 lines
 - Build verified: `swift build` succeeds
 
 ### Phase 4: gitClient Removed

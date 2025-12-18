@@ -24,9 +24,6 @@ public class DeployRemoteModel {
     /// Single source of truth for all model state
     public private(set) var state: ModelState = .uninitialized
 
-    /// Last error from a workflow (kept separate for error display after operation completes)
-    public private(set) var lastOperationError: Error?
-
     // MARK: - Configuration
 
     /// Stack name being managed
@@ -141,7 +138,6 @@ public class DeployRemoteModel {
     public func refresh() async {
         guard state.isIdle else { return }
 
-        lastOperationError = nil
         let prior = state.snapshot
         state = .loading(prior: prior)
 
@@ -152,8 +148,7 @@ public class DeployRemoteModel {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            lastOperationError = error
-            state = .ready(.failed(reason: error.localizedDescription, preserving: prior))
+            state = ModelState(error: error, preserving: prior)
         }
     }
 
@@ -163,7 +158,6 @@ public class DeployRemoteModel {
     public func deploy(options: DeployWorkflow.Options) async {
         guard state.canDeploy else { return }
 
-        lastOperationError = nil
         let prior = state.snapshot
 
         let workflow = DeployWorkflow(
@@ -177,8 +171,7 @@ public class DeployRemoteModel {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            lastOperationError = error
-            state = .ready(.failed(reason: error.localizedDescription, preserving: prior))
+            state = ModelState(error: error, preserving: prior)
         }
     }
 
@@ -195,7 +188,6 @@ public class DeployRemoteModel {
     public func destroy(output: CLIOutputStream? = nil) async {
         guard state.canDestroy else { return }
 
-        lastOperationError = nil
         let prior = state.snapshot
 
         let workflow = DestroyWorkflow(
@@ -210,8 +202,7 @@ public class DeployRemoteModel {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            lastOperationError = error
-            state = .ready(.failed(reason: error.localizedDescription, preserving: prior))
+            state = ModelState(error: error, preserving: prior)
         }
     }
 
@@ -221,7 +212,6 @@ public class DeployRemoteModel {
     public func updateLambdaCode(skipPush: Bool = false) async throws {
         guard state.isIdle else { return }
 
-        lastOperationError = nil
         let prior = state.snapshot
 
         let workflow = try UpdateLambdaWorkflow.create(
@@ -229,25 +219,14 @@ public class DeployRemoteModel {
             cliClient: cliClient
         )
 
-        let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
+        let options = UpdateLambdaWorkflow.Options(skipPush: skipPush, prior: prior)
 
         do {
             for try await workflowState in workflow.stream(options: options) {
                 state = ModelState(from: workflowState, prior: prior)
             }
-            // Stream finished without .completed - restore prior state
-            if let snapshot = prior {
-                state = .ready(snapshot)
-            } else {
-                state = .ready(.notDeployed)
-            }
         } catch {
-            lastOperationError = error
-            if let snapshot = prior {
-                state = .ready(snapshot)
-            } else {
-                state = .ready(.failed(reason: error.localizedDescription))
-            }
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }
@@ -272,7 +251,7 @@ public class DeployRemoteModel {
         /// Active workflow in progress (uses WorkflowState from service layer)
         case operating(WorkflowState, prior: DeploymentSnapshot?)
 
-        // MARK: - Convenience Initializer
+        // MARK: - Convenience Initializers
 
         /// Construct ModelState from a workflow state plus app-layer prior.
         /// This is the key integration point between workflows and the model.
@@ -282,6 +261,11 @@ public class DeployRemoteModel {
             } else {
                 self = .operating(workflowState, prior: prior)
             }
+        }
+
+        /// Construct a failed ModelState from a caught error.
+        public init(error: Error, preserving prior: DeploymentSnapshot?) {
+            self = .ready(.failed(reason: error.localizedDescription, preserving: prior))
         }
 
         // MARK: - Convenience Accessors

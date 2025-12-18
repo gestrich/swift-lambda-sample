@@ -197,7 +197,7 @@ public struct DeployInitWorkflow: StreamingWorkflow, Sendable {
             projectRoot: projectRoot,
             cliClient: cliClient
         )
-        let updateOptions = UpdateLambdaWorkflow.Options(skipPush: options.skipPush)
+        let updateOptions = UpdateLambdaWorkflow.Options(skipPush: options.skipPush, prior: nil)
 
         for try await lambdaState in updateLambdaWorkflow.stream(options: updateOptions) {
             continuation.yield(State(

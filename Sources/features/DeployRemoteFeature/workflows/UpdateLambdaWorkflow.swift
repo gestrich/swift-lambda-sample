@@ -53,32 +53,28 @@ public struct UpdateLambdaWorkflow: StreamingWorkflow, Sendable {
         )
     }
 
-    // Note: This workflow yields WorkflowState.updatingLambda for progress.
-    // On completion, it finishes the stream without yielding .completed
-    // since Lambda updates don't change infrastructure state.
-    // The app layer restores the prior snapshot on stream completion.
-
     /// Options for the update lambda workflow.
     public struct Options: Sendable {
         public let skipPush: Bool
         public let workflowName: String
         public let timeoutMinutes: Int
+        public let prior: DeploymentSnapshot?
 
         public init(
             skipPush: Bool = false,
             workflowName: String = "Dev Deploy",
-            timeoutMinutes: Int = 10
+            timeoutMinutes: Int = 10,
+            prior: DeploymentSnapshot?
         ) {
             self.skipPush = skipPush
             self.workflowName = workflowName
             self.timeoutMinutes = timeoutMinutes
+            self.prior = prior
         }
     }
 
     /// Stream the update lambda workflow, yielding state updates.
     /// - Returns: AsyncThrowingStream that yields WorkflowState updates.
-    ///   Note: This workflow finishes without yielding `.completed` since
-    ///   Lambda updates don't change infrastructure state.
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -114,6 +110,7 @@ public struct UpdateLambdaWorkflow: StreamingWorkflow, Sendable {
                 startTime: startTime
             )
 
+            continuation.yield(.completed(options.prior ?? .notDeployed))
             continuation.finish()
             return
         }
@@ -158,6 +155,7 @@ public struct UpdateLambdaWorkflow: StreamingWorkflow, Sendable {
             )
         }
 
+        continuation.yield(.completed(options.prior ?? .notDeployed))
         continuation.finish()
     }
 
