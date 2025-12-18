@@ -177,6 +177,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
+                .target(name: "ClientService"),
             ],
             path: "Sources/features/DeployLocalXcodeFeature"
         ),

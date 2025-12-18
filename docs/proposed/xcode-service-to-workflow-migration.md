@@ -337,25 +337,30 @@ This workflow orchestrates other workflows. Remove direct service dependency.
 
 ---
 
-### [ ] Phase 9: Migrate XcodeTestWorkflow
+### [x] Phase 9: Migrate XcodeTestWorkflow (COMPLETED)
 
 Move test logic directly into the workflow.
 
 **Tasks:**
-- [ ] 9.1: Add SDK dependencies (`CLIClient` for Lambda status check)
-- [ ] 9.2: Add `ClientService` dependency for `APIClient`
-- [ ] 9.3: Create `Components` struct and `create()` factory
-- [ ] 9.4: Move `performLocalLambdaTests()` logic
-- [ ] 9.5: Move `isLambdaRunning()` check logic
-- [ ] 9.6: Update CLI command
+- [x] 9.1: Add SDK dependencies (`CLIClient` for Lambda status check)
+- [x] 9.2: Add `ClientService` dependency for `APIClient`
+- [x] 9.3: Create `Components` struct and `create()` factory
+- [x] 9.4: Move `performLocalLambdaTests()` logic
+- [x] 9.5: Move `isLambdaRunning()` check logic
+- [x] 9.6: Update CLI command
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeTestWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeTestWorkflow.swift` - Added `Components`, `create()`, moved all test logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `TestCommand` to use factory
+- `Package.swift` - Added `ClientService` dependency to `DeployLocalXcodeFeature`
 
 **Technical Notes:**
-- `APIClient` is `@MainActor`, so creation needs to happen on MainActor
+- Workflow now contains all test logic directly using `CLIClient` and `APIClient`
+- `APIClient` is `@MainActor`, so creation uses `await MainActor.run { ... }`
 - Tests: file upload, file list, file download, database init
+- Requires Lambda to already be running (no auto-start behavior - clearer error message instead)
+- Deprecated `init(service:)` retained for backward compatibility
+- Uses `lsof` to check if Lambda is running on the expected port
 
 ---
 
