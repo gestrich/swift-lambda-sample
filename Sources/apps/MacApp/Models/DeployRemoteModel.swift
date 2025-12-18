@@ -14,7 +14,7 @@ import DeployCoreService
 /// - Service layer (workflows): Multi-step orchestration, returns AsyncThrowingStream
 /// - SDK layer (clients): Stateless execute/query operations
 @MainActor @Observable
-public class DeploymentModel {
+public class DeployRemoteModel {
     // MARK: - Unified State Machine
 
     /// Single source of truth for all model state

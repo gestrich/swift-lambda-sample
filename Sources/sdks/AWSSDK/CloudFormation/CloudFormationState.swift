@@ -41,7 +41,7 @@ public struct DeployedStack: Sendable, Equatable {
 ///
 /// - `CloudFormationClient.queryState()` return type
 /// - `CloudFormationClient.monitorStream()` yields
-/// - `DeploymentModel.deploymentState` for stable state display
+/// - `DeployRemoteModel.deploymentState` for stable state display
 ///
 /// ## Progress Type Hierarchy
 ///

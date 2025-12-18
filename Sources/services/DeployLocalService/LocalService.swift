@@ -4,8 +4,8 @@ import Foundation
 import DeployCoreService
 
 /// Combined protocol for local Lambda services (Xcode and Linux)
-/// Both XcodeLocalModel and LinuxLocalModel conform to this protocol.
-/// Remote AWS deployments use DeploymentModel (in app-mac) which uses workflows.
+/// Both DeployXcodeModel and DeployLocalModel conform to this protocol.
+/// Remote AWS deployments use DeployRemoteModel (in app-mac) which uses workflows.
 @MainActor
 public protocol LocalService: AnyObject, LambdaService {
     // MARK: - Docker Services (PostgreSQL + MinIO/S3)

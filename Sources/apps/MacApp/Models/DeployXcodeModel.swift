@@ -5,27 +5,19 @@ import Foundation
 import StorageService
 import DeployLocalService
 import DeployCoreService
-import DockerCLISDK
-import DynamoDBSDK
 import LambdaBuildService
-import MinioSDK
-import PostgreSQLSDK
-import DeployLocalLinuxFeature
+import DeployLocalXcodeFeature
 
-/// Observable model for Linux container development workflow
-/// Holds UI state and delegates operations to workflow factories
+/// Observable model for native macOS Xcode development workflow
+/// Holds UI state and delegates operations to Xcode workflows
 /// Conforms to LocalService for polymorphic usage
 @MainActor
-public class LinuxLocalModel: LocalService {
+public class DeployXcodeModel: LocalService {
     public let cliClient: CLIClient
     private let storageService: LocalStorageService
 
-    // SDK clients for direct service operations
-    private let dockerClient: DockerClient
-    private let postgresClient: PostgreSQLClient
-    private let minioClient: MinIOClient
-    private let dynamodbClient: DynamoDBClient
-    private let config: LinuxContainerConfig
+    // Lambda configuration (for endpoint display)
+    private let lambdaHostPort = 8080
 
     // Working directory
     private let workingDirectory: String
@@ -56,26 +48,26 @@ public class LinuxLocalModel: LocalService {
 
     // MARK: - LambdaService Protocol
 
-    public static let persistenceKey = "localLinux"
+    public static let persistenceKey = "localXcode"
 
-    public static let displayName = "Local Linux (Container)"
+    public static let displayName = "Local Xcode (Native)"
 
-    public static let detailText = "Docker container build - matches AWS Lambda environment"
+    public static let detailText = "Native macOS build - fast iteration, best for development"
 
-    public var port: Int { config.hostPort }
+    public var port: Int { lambdaHostPort }
 
     public var endpoint: String {
-        "http://localhost:\(config.hostPort)/invoke"
+        "http://localhost:\(lambdaHostPort)/invoke"
     }
 
     public var endpointLabel: String { "Local Lambda Endpoint" }
 
     public var endpointHelpText: String {
-        "Make sure local Lambda container is running on port \(config.hostPort)"
+        "Make sure local Lambda is running on port \(lambdaHostPort)"
     }
 
     public var apiClient: APIClient {
-        APIClient(localPort: config.hostPort, serviceName: Self.displayName)
+        APIClient(localPort: lambdaHostPort, serviceName: Self.displayName)
     }
 
     public var isConfigured: Bool { true }
@@ -84,103 +76,84 @@ public class LinuxLocalModel: LocalService {
         self.workingDirectory = workingDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
-        self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
 
-        let dockerClient = DockerClient(cliClient: cliClient)
-        self.dockerClient = dockerClient
-
-        self.postgresClient = PostgreSQLClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
-        )
-        self.minioClient = MinIOClient(
-            dockerClient: dockerClient,
-            networkName: config.networkName,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
-        )
-        self.dynamodbClient = DynamoDBClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
-        )
-
+        // Check for existing build artifacts
         refreshBuildStatus()
     }
 
     // MARK: - Service Management
 
     public func startAllServices() async throws {
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .all) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func stopAllServices() async throws {
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .all) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func startS3() async throws {
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .only(.s3)) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func createBucket(bucketName: String? = nil) async throws {
-        try await minioClient.createBucket(bucketName: bucketName)
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        try await components.minioClient.createBucket(bucketName: bucketName)
     }
 
     public func stopS3() async throws {
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .only(.s3)) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func startDatabase() async throws {
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .only(.database)) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func stopDatabase() async throws {
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .only(.database)) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func startDynamoDB() async throws {
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public func stopDynamoDB() async throws {
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     public var s3DataDirectory: String {
-        storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+        storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
     }
 
     public var postgresDataDirectory: String {
-        storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+        storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
     }
 
     public var dynamodbDataDirectory: String {
-        storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
     }
 
     // MARK: - Build
@@ -189,8 +162,8 @@ public class LinuxLocalModel: LocalService {
         buildState.startBuild()
 
         do {
-            let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-            let options = LinuxBuildWorkflow.Options(clean: clean)
+            let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
+            let options = XcodeBuildWorkflow.Options(clean: clean)
             for try await _ in components.workflow.stream(options: options) {
                 // Workflow progress is consumed; UI updates via buildState
             }
@@ -202,17 +175,23 @@ public class LinuxLocalModel: LocalService {
     }
 
     public func isLambdaBuilt() -> Bool {
-        let lambdaDir = "\(workingDirectory)/lambda"
-        let bootstrapPath = "\(lambdaDir)/bootstrap"
-        let lambdaZipPath = "\(workingDirectory)/lambda.zip"
+        // Check synchronously using a known path pattern
+        let debugDir = "\(workingDirectory)/.build"
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: debugDir) else {
+            return false
+        }
 
-        return FileManager.default.fileExists(atPath: lambdaDir) &&
-               FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: lambdaZipPath)
+        for item in contents {
+            let executablePath = "\(debugDir)/\(item)/debug/LambdaApp"
+            if FileManager.default.fileExists(atPath: executablePath) {
+                return true
+            }
+        }
+        return false
     }
 
     public func deleteBuild() async throws {
-        let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
         try await components.workflow.deleteBuild()
         buildState.clear()
     }
@@ -223,7 +202,7 @@ public class LinuxLocalModel: LocalService {
         lambdaState.startLambda()
 
         do {
-            let components = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+            let components = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
             for try await _ in components.workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
@@ -238,7 +217,7 @@ public class LinuxLocalModel: LocalService {
         lambdaState.beginStop()
 
         do {
-            let components = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
+            let components = XcodeStopLambdaWorkflow.create()
             for try await _ in components.workflow.stream() {
                 // Workflow progress is consumed; UI updates via lambdaState
             }
@@ -255,7 +234,7 @@ public class LinuxLocalModel: LocalService {
 
         statusSubject.send(.starting)
 
-        let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartAllWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
@@ -270,7 +249,7 @@ public class LinuxLocalModel: LocalService {
 
         statusSubject.send(.stopping)
 
-        let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopAllWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
@@ -280,7 +259,7 @@ public class LinuxLocalModel: LocalService {
     }
 
     public func startIfNecessary() async {
-        print("🔄 LinuxLocalModel.startIfNecessary called")
+        print("🔄 DeployXcodeModel.startIfNecessary called")
 
         isTransitioning = true
 
@@ -311,52 +290,38 @@ public class LinuxLocalModel: LocalService {
     // MARK: - Testing
 
     public func waitForReady(maxAttempts: Int = 30) async throws {
-        let isRunning = try await dockerClient.containerIsRunning(name: config.containerName)
-        guard isRunning else {
-            throw DeployError.testFailed(message: "Lambda container '\(config.containerName)' is not running")
-        }
-
+        // Use XcodeStatusWorkflow to check if Lambda is running
+        let statusComponents = XcodeStatusWorkflow.create()
         var attempts = 0
         var ready = false
 
         while attempts < maxAttempts && !ready {
-            let portCheck = try await cliClient.executeForResult(
-                Lsof(port: ":\(config.hostPort)"),
-                printCommand: false
-            )
-
-            if portCheck.isSuccess && !portCheck.stdout.isEmpty {
+            if await statusComponents.workflow.isLambdaRunning() {
                 ready = true
                 break
             }
-
             try await Task.sleep(for: .seconds(1))
             attempts += 1
         }
 
         if !ready {
-            let logsResult = try await cliClient.execute(
-                command: "docker",
-                arguments: ["logs", config.containerName],
-                printCommand: false
-            )
             throw DeployError.testFailed(
-                message: "Lambda failed to be ready on port \(config.hostPort) after \(maxAttempts) seconds. Logs: \(logsResult.stdout) \(logsResult.stderr)"
+                message: "Lambda failed to be ready on port \(lambdaHostPort) after \(maxAttempts) seconds"
             )
         }
     }
 
     public func testLambda() async throws {
-        let components = LinuxTestWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeTestWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream(options: ()) {
-            // Consume workflow progress
+            // Workflow progress is consumed
         }
     }
 
     // MARK: - Status
 
     public func status() async throws -> DeploymentStatus {
-        let components = LinuxStatusWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStatusWorkflow.create()
         var result: DeploymentStatus = .stopped
 
         for try await progress in components.workflow.stream() {
@@ -390,24 +355,6 @@ public class LinuxLocalModel: LocalService {
                 statusSubject.send(.stopped)
             }
             isLoadingStatusSubject.send(false)
-        }
-    }
-
-    // MARK: - Linux-Specific Methods
-
-    /// Setup Docker network for Lambda container
-    public func setupDockerNetwork() async throws {
-        let components = LinuxSetupNetworkWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
-            // Consume progress - could be extended to report to UI
-        }
-    }
-
-    /// Run Lambda in interactive container
-    public func runInteractive() async throws {
-        let components = LinuxRunInteractiveWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
-            // Consume progress - could be extended to report to UI
         }
     }
 }

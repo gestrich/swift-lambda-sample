@@ -6,9 +6,9 @@ import Foundation
 // MARK: - Protocol
 
 /// Protocol for Lambda services (local development environments)
-/// XcodeLocalModel and LinuxLocalModel conform to this protocol,
+/// DeployXcodeModel and DeployLocalModel conform to this protocol,
 /// enabling polymorphic usage and consistent CLI/UI experiences.
-/// Note: Remote AWS deployments use DeploymentModel (in app-mac) which uses workflows.
+/// Note: Remote AWS deployments use DeployRemoteModel (in app-mac) which uses workflows.
 @MainActor
 public protocol LambdaService {
     /// Unique key for persistence (used for saving/restoring mode selection)
