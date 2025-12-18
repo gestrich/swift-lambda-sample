@@ -282,11 +282,12 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeCopyConfigWorkflow(service: service)
+            let components = XcodeCopyConfigWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = XcodeCopyConfigWorkflow.Options()
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printXcodeCopyConfigProgress(progress)
             }
         }

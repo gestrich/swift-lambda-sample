@@ -391,19 +391,26 @@ Move status checking logic into the workflow.
 
 ---
 
-### [ ] Phase 11: Migrate XcodeCopyConfigWorkflow
+### [x] Phase 11: Migrate XcodeCopyConfigWorkflow (COMPLETED)
 
 Move config copy logic into the workflow.
 
 **Tasks:**
-- [ ] 11.1: Add `LocalStorageService` dependency
-- [ ] 11.2: Create `Components` struct and `create()` factory
-- [ ] 11.3: Move `copyConfig()` logic
-- [ ] 11.4: Update CLI command
+- [x] 11.1: Add `LocalStorageService` dependency
+- [x] 11.2: Create `Components` struct and `create()` factory
+- [x] 11.3: Move `copyConfig()` logic
+- [x] 11.4: Update CLI command
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeCopyConfigWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeCopyConfigWorkflow.swift` - Added `Components`, `create()`, moved all copy config logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `CopyConfigCommand` to use factory
+
+**Technical Notes:**
+- Workflow now contains all copy config logic directly using `LocalStorageService`
+- Mirrors the pattern used in `LinuxCopyConfigWorkflow`
+- Uses `AppConfigFileKey` from `DeployLocalService` for consistent file path resolution
+- Source path defaults to `{workingDirectory}/{AppConfigFileKey.filename}` if not specified
+- Destination path is determined by `storageService.filePath(for: AppConfigFileKey.self)`
 
 ---
 
