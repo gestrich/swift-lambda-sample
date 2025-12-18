@@ -3,7 +3,7 @@ import Foundation
 import AWSSDK
 import DeployRemoteFeature
 
-extension AWSCommand {
+extension DeployRemoteCommand {
     struct UploadLambdaCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "upload-lambda",

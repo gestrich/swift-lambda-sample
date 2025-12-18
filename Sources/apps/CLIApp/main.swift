@@ -9,9 +9,9 @@ struct FeatureDeployCLI: AsyncParsableCommand {
         abstract: "CLI tool for managing Swift Lambda deployments",
         version: "2.0.0",
         subcommands: [
-            AWSCommand.self,
-            LocalLinuxCommand.self,
-            LocalMacCommand.self
+            DeployRemoteCommand.self,
+            DeployLinuxCommand.self,
+            DeployXcodeCommand.self
         ]
     )
 }

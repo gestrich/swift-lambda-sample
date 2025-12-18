@@ -3,7 +3,7 @@ import Foundation
 import CLISDK
 import DeployRemoteFeature
 
-extension AWSCommand {
+extension DeployRemoteCommand {
     struct UpdateLambdaCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "update-lambda",

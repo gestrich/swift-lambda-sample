@@ -2,7 +2,7 @@ import ArgumentParser
 import AWSSDK
 import DeployRemoteFeature
 
-extension AWSCommand {
+extension DeployRemoteCommand {
     struct DeployInitCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "deploy-init",

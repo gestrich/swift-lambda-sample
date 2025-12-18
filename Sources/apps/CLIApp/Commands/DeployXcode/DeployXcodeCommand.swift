@@ -4,12 +4,12 @@ import DeployLocalService
 import DeployCoreService
 import DeployXcodeFeature
 
-// MARK: - Local Mac Command (Native macOS)
+// MARK: - Deploy Xcode Command (Native macOS)
 
 /// Native macOS development workflow (fast iteration)
-struct LocalMacCommand: AsyncParsableCommand {
+struct DeployXcodeCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "local-mac",
+        commandName: "deploy-xcode",
         abstract: "Native macOS development workflow (fast iteration)",
         subcommands: [
             BuildCommand.self,
@@ -30,9 +30,9 @@ struct LocalMacCommand: AsyncParsableCommand {
     )
 }
 
-// MARK: - Local Mac Subcommands
+// MARK: - Deploy Xcode Subcommands
 
-extension LocalMacCommand {
+extension DeployXcodeCommand {
     /// Build Lambda for macOS (native)
     struct BuildCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(

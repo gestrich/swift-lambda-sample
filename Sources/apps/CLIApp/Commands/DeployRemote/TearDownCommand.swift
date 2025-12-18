@@ -3,7 +3,7 @@ import AWSSDK
 import DeployRemoteFeature
 import DeployCoreService
 
-extension AWSCommand {
+extension DeployRemoteCommand {
     struct TearDownCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "tear-down",

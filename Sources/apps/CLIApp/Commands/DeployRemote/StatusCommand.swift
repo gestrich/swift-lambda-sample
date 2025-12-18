@@ -4,7 +4,7 @@ import DeployRemoteFeature
 import AWSSDK
 import CLISDK
 
-extension AWSCommand {
+extension DeployRemoteCommand {
     struct StatusCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "status",

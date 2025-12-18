@@ -4,7 +4,7 @@ import AWSSDK
 import DeployRemoteFeature
 
 /// Top-level command for all AWS operations
-struct AWSCommand: AsyncParsableCommand {
+struct DeployRemoteCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "aws",
         abstract: "AWS deployment and management operations",

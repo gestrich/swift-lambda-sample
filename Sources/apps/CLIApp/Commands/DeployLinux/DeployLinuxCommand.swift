@@ -4,12 +4,12 @@ import DeployLocalService
 import DeployCoreService
 import DeployLinuxFeature
 
-// MARK: - Local Linux Command (Container)
+// MARK: - Deploy Linux Command (Container)
 
 /// Linux container deployment workflow (AWS Lambda compatible)
-struct LocalLinuxCommand: AsyncParsableCommand {
+struct DeployLinuxCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "local-linux",
+        commandName: "deploy-linux",
         abstract: "Linux container deployment workflow (AWS Lambda compatible)",
         subcommands: [
             BuildCommand.self,
@@ -32,9 +32,9 @@ struct LocalLinuxCommand: AsyncParsableCommand {
     )
 }
 
-// MARK: - Local Linux Subcommands
+// MARK: - Deploy Linux Subcommands
 
-extension LocalLinuxCommand {
+extension DeployLinuxCommand {
     /// Build Lambda for Linux (Docker-based)
     struct BuildCommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
