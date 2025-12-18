@@ -170,7 +170,7 @@ let package = Package(
             path: "Sources/features/DeployRemoteFeature"
         ),
         .target(
-            name: "DeployLocalXcodeFeature",
+            name: "DeployXcodeFeature",
             dependencies: [
                 .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
@@ -179,24 +179,24 @@ let package = Package(
                 .target(name: "LambdaBuildService"),
                 .target(name: "ClientService"),
             ],
-            path: "Sources/features/DeployLocalXcodeFeature"
+            path: "Sources/features/DeployXcodeFeature"
         ),
         .target(
-            name: "DeployLocalLinuxFeature",
+            name: "DeployLinuxFeature",
             dependencies: [
                 .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
             ],
-            path: "Sources/features/DeployLocalLinuxFeature"
+            path: "Sources/features/DeployLinuxFeature"
         ),
         .executableTarget(
             name: "CLIApp",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "DeployRemoteFeature"),
-                .target(name: "DeployLocalXcodeFeature"),
-                .target(name: "DeployLocalLinuxFeature"),
+                .target(name: "DeployXcodeFeature"),
+                .target(name: "DeployLinuxFeature"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "AWSSDK"),
@@ -227,8 +227,8 @@ let package = Package(
             dependencies: [
                 .target(name: "ClientService"),
                 .target(name: "DeployRemoteFeature"),
-                .target(name: "DeployLocalXcodeFeature"),
-                .target(name: "DeployLocalLinuxFeature"),
+                .target(name: "DeployXcodeFeature"),
+                .target(name: "DeployLinuxFeature"),
                 .target(name: "SetupFeature"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
@@ -255,7 +255,7 @@ let package = Package(
             dependencies: [
                 .target(name: "DeployRemoteFeature"),
                 .target(name: "DeployLocalService"),
-                .target(name: "DeployLocalLinuxFeature"),
+                .target(name: "DeployLinuxFeature"),
                 .target(name: "LambdaBuildService"),
                 .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),

@@ -10,7 +10,7 @@ import DynamoDBSDK
 import LambdaBuildService
 import MinioSDK
 import PostgreSQLSDK
-import DeployLocalLinuxFeature
+import DeployLinuxFeature
 
 /// Observable model for Linux container development workflow
 /// Holds UI state and delegates operations to workflow factories

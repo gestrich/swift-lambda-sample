@@ -9,7 +9,7 @@ import Foundation
 import CLISDK
 @testable import DeployRemoteFeature
 @testable import DeployLocalService
-@testable import DeployLocalLinuxFeature
+@testable import DeployLinuxFeature
 import Testing
 
 @Suite("Linux Lambda Container Integration Tests")

@@ -6,7 +6,7 @@ import StorageService
 import DeployLocalService
 import DeployCoreService
 import LambdaBuildService
-import DeployLocalXcodeFeature
+import DeployXcodeFeature
 
 /// Observable model for native macOS Xcode development workflow
 /// Holds UI state and delegates operations to Xcode workflows

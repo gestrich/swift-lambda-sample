@@ -2,8 +2,8 @@ import ArgumentParser
 import Foundation
 import DeployLocalService
 import DeployCoreService
-import DeployLocalXcodeFeature
-import DeployLocalLinuxFeature
+import DeployXcodeFeature
+import DeployLinuxFeature
 
 // MARK: - Local Mac Command (Native macOS)
 
