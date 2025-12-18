@@ -176,7 +176,7 @@ Also remove from initializer and any related setup code.
 | 1 | Create `RefreshWorkflow` | `Sources/features/DeployRemoteFeature/workflows/RefreshWorkflow.swift` | ✅ Complete |
 | 2 | Update `refresh()` in model | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | ✅ Complete |
 | 3 | Remove `resumeMonitoring()` | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | ✅ Complete (done in Phase 2) |
-| 4 | Remove `gitClient` from model | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | Pending |
+| 4 | Remove `gitClient` from model | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | ✅ Complete |
 | 5 | Run tests and verify | `swift build`, manual testing | Pending |
 
 ## Technical Notes
@@ -203,6 +203,16 @@ Updated `DeployRemoteModel.refresh()` to use `RefreshWorkflow`:
 - Added `lastOperationError = nil` reset at start of refresh (consistent with other operations)
 - Deleted `resumeMonitoring()` private method (absorbed into RefreshWorkflow)
 - Method reduced from 40 lines to 16 lines
+- Build verified: `swift build` succeeds
+
+### Phase 4: gitClient Removed
+
+Removed unused `gitClient` from `DeployRemoteModel`:
+
+- Removed `private let gitClient: GitClient` property declaration (was at line 48)
+- Removed `self.gitClient = GitClient(repoPath: projectRoot, cliClient: cli)` initialization (was at line 83)
+- The `GitHubSDK` import is still required for `GitHubActionsConfiguration` type
+- `gitClient` was stored but never used - likely leftover from when git operations were planned to be in the model
 - Build verified: `swift build` succeeds
 
 ## Dependencies

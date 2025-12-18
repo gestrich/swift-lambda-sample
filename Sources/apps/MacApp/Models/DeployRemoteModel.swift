@@ -45,7 +45,6 @@ public class DeployRemoteModel {
 
     private let cdkClient: CDKClient
     private let cfClient: CloudFormationClient
-    private let gitClient: GitClient
     public let cliClient: CLIClient
 
     // MARK: - Initialization
@@ -79,8 +78,6 @@ public class DeployRemoteModel {
             credentialProvider: credentialProvider,
             cliClient: cli
         )
-
-        self.gitClient = GitClient(repoPath: projectRoot, cliClient: cli)
     }
 
     /// Convenience initializer that loads configs from disk
