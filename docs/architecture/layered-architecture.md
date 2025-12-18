@@ -66,7 +66,7 @@ Multi-step orchestration operations. Features combine workflow logic and feature
 | `DeployLocalXcodeFeature` | Xcode local development workflows |
 | `DeployLocalLinuxFeature` | Linux container development workflows |
 
-- Workflows are structs returning `AsyncThrowingStream<Progress, Error>`
+- Workflows are structs conforming to `Workflow` or `StreamingWorkflow` protocols (from `Uniflow`)
 - Coordinate multiple SDK clients and services
 - App-specific business logic and orchestration
 - **Not** `@Observable`—that belongs in the app layer
@@ -105,6 +105,7 @@ Stateless reusable utilities.
 | `PostgreSQLSDK` | PostgreSQL database utilities |
 | `MinioSDK` | MinIO S3-compatible storage |
 | `DynamoDBSDK` | DynamoDB utilities |
+| `Uniflow` | Workflow protocol definitions |
 
 - Wrap external tools and services
 - **Stateless**—no internal state management
@@ -211,19 +212,66 @@ public struct CDKClient: Sendable {
 }
 ```
 
-### Features for Orchestration
+### Workflow Protocols (Uniflow)
 
-Multi-step operations live in features that yield progress via streams.
+The `Uniflow` SDK defines two protocols for workflow execution:
+
+**`Workflow`** — Base protocol with a single `run(options:)` method:
 
 ```swift
-public struct DeployWorkflow {
-    public func run(options: Options) -> AsyncThrowingStream<Progress, Error> {
+public protocol Workflow: Sendable {
+    associatedtype Options: Sendable = Void
+    associatedtype Result: Sendable
+
+    func run(options: Options) async throws -> Result
+}
+```
+
+**`StreamingWorkflow`** — Extends `Workflow` with streaming state updates:
+
+```swift
+public protocol StreamingWorkflow: Workflow {
+    associatedtype State: Sendable
+
+    func stream(options: Options) -> AsyncThrowingStream<State, Error>
+}
+```
+
+When `Result == State`, `StreamingWorkflow` provides a default `run()` implementation that consumes the stream and returns the last state.
+
+**When to use each:**
+
+| Protocol | Use When | Example |
+|----------|----------|---------|
+| `Workflow` | Single result, no intermediate progress | Status checks, configuration loading |
+| `StreamingWorkflow` | Multi-step with progress updates | Deployments, builds, installations |
+
+Most workflows in this codebase conform to `StreamingWorkflow` since they perform multi-step operations.
+
+### Features for Orchestration
+
+Multi-step operations live in features as `StreamingWorkflow` conformers.
+
+```swift
+import Uniflow
+
+public struct DeployWorkflow: StreamingWorkflow {
+    public typealias State = WorkflowState
+    public typealias Result = State
+
+    public struct Options: Sendable {
+        public let infrastructure: InfrastructureShape
+        public let requireApproval: Bool
+    }
+
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
-                // Coordinate SDK clients, yield progress
-                for try await cdkProgress in cdkClient.deployStream(options: opts) {
-                    continuation.yield(...)
+                continuation.yield(.deploying(.starting))
+                for try await cdkState in cdkClient.deployStream(options: opts) {
+                    continuation.yield(.deploying(.cdkProgress(cdkState)))
                 }
+                continuation.yield(.completed(snapshot))
                 continuation.finish()
             }
         }
@@ -380,23 +428,32 @@ class Model {
 
 #### CLI Commands
 
-CLI commands use workflows directly without the `@Observable` wrapper:
+CLI commands use workflows directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:
 
 ```swift
 struct DeployCommand: AsyncParsableCommand {
     func run() async throws {
-        for try await workflowState in workflow.run(options: opts) {
-            print(workflowState)
+        // Use stream() when you want progress output
+        for try await state in workflow.stream(options: opts) {
+            printProgress(state)
         }
+    }
+}
+
+struct QuickCheckCommand: AsyncParsableCommand {
+    func run() async throws {
+        // Use run() when you only care about the final result
+        let result = try await workflow.run(options: opts)
+        print(result)
     }
 }
 ```
 
 ## Data Flow
 
-**CLI**: `Workflow stream → print progress`
+**CLI**: `workflow.stream() → print progress` or `workflow.run() → print result`
 
-**Mac App**: `Workflow stream → @Observable model → View`
+**Mac App**: `workflow.stream() → @Observable model → View`
 
 ## Dependency Rules
 

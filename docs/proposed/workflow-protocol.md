@@ -1,6 +1,6 @@
 # Workflow Protocol Standardization
 
-**Status:** In Progress (Phase 6 Complete)
+**Status:** Complete (All Phases Done)
 **Created:** 2025-12-17
 **Related:** [workflow-refactor.md](workflow-refactor.md), [layered-architecture.md](../architecture/layered-architecture.md)
 
@@ -425,11 +425,30 @@ The spec recommended using the SDK client directly (Option 2), but after examini
 
 **Verification:** ✅ Build succeeds. All CLI commands and Mac app compile and use the new API.
 
-### Phase 7: Documentation and Cleanup
+### Phase 7: Documentation and Cleanup ✅ COMPLETED
 
-1. Update `docs/architecture/layered-architecture.md` to document the `Workflow` protocol
-2. Add code examples showing both `stream()` and `run()` usage patterns
-3. Remove any deprecated methods or backward-compatibility shims
+**Changes made:**
+
+1. Updated `docs/architecture/layered-architecture.md`:
+   - Added `Uniflow` to SDKs table with description "Workflow protocol definitions"
+   - Updated Features bullet point to reference `Workflow` and `StreamingWorkflow` protocols
+   - Added new "Workflow Protocols (Uniflow)" section documenting both protocols with:
+     - Protocol definitions
+     - Default implementation behavior (when `Result == State`)
+     - "When to use each" table
+   - Updated "Features for Orchestration" example to show `StreamingWorkflow` conformance pattern
+   - Updated "CLI Commands" section with examples of both `stream()` and `run()` usage
+   - Updated "Data Flow" section to show `workflow.stream()` and `workflow.run()` patterns
+
+2. Checked for deprecated methods or backward-compatibility shims:
+   - No `Progress` typealiases remaining (all renamed to `State`)
+   - No old `run(options:)` method signatures in workflow files
+   - No `@available(*deprecated)` annotations to clean up
+   - All 32 workflows properly conform to `StreamingWorkflow`
+
+3. No backward-compatibility shims were present to remove.
+
+**Verification:** ✅ Build succeeds with no warnings.
 
 ## Migration Strategy
 
