@@ -64,10 +64,11 @@ extension LocalMacCommand {
         )
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeStartLambdaWorkflow(service: service)
+            let components = XcodeStartLambdaWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
 
-            for try await progress in workflow.stream() {
+            for try await progress in components.workflow.stream() {
                 printXcodeStartLambdaProgress(progress)
             }
         }
@@ -669,6 +670,12 @@ private func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.
         } else {
             print("🔍 Checking build...")
         }
+    case .building:
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("🔨 Building Lambda...")
+        }
     case .starting:
         if case .output(let text) = progress.detail {
             print("  \(text)")
@@ -676,7 +683,11 @@ private func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.
             print("🚀 Starting Lambda...")
         }
     case .waitingForReady:
-        print("⏳ Waiting for Lambda to be ready...")
+        if case .output(let text) = progress.detail {
+            print("  \(text)")
+        } else {
+            print("⏳ Waiting for Lambda to be ready...")
+        }
     case .complete:
         if case .port(let port) = progress.detail {
             print("✅ Lambda running on port \(port)")

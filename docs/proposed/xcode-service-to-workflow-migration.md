@@ -221,33 +221,34 @@ Move service stop logic directly into the workflow.
 
 ---
 
-### [ ] Phase 5: Migrate XcodeStartLambdaWorkflow
+### [x] Phase 5: Migrate XcodeStartLambdaWorkflow (COMPLETED)
 
 Move Lambda process start logic into the workflow.
 
-**Current:** Workflow calls `service.startLambda()`, `service.waitForReady()`
-**Target:** Workflow directly uses `CLIClient` to start process and check port
-
 **Tasks:**
-- [ ] 5.1: Add SDK dependencies (`CLIClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient` for env vars)
-- [ ] 5.2: Create `Components` struct and `create()` factory
-- [ ] 5.3: Move `startLambda()` logic (spawn process with environment variables)
-- [ ] 5.4: Move `waitForReady()` logic (poll port with `lsof`)
-- [ ] 5.5: Move `getExecutablePath()` logic (or reuse from XcodeBuildWorkflow)
-- [ ] 5.6: Move `getLambdaEnvironmentVariables()` logic (uses `createEnvironmentVariables` from DeployLocalService)
-- [ ] 5.7: Update CLI command
-- [ ] 5.8: Update MacApp model
-- [ ] 5.9: Add deprecated `init(service:)` for backward compatibility
+- [x] 5.1: Add SDK dependencies (`CLIClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`, `DockerClient` for env vars)
+- [x] 5.2: Create `Components` struct and `create()` factory
+- [x] 5.3: Move `startLambda()` logic (spawn process with environment variables)
+- [x] 5.4: Move `waitForReady()` logic (poll port with `lsof`)
+- [x] 5.5: Move `getExecutablePath()` and `isLambdaBuilt()` logic
+- [x] 5.6: Move `getLambdaEnvironmentVariables()` logic (uses `createEnvironmentVariables` from DeployLocalService)
+- [x] 5.7: Update CLI command to use factory
+- [x] 5.8: Update MacApp model to use factory
+- [x] 5.9: Add deprecated `init(service:)` for backward compatibility with `XcodeStartAllWorkflow`
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
-- `MacApp/Models/XcodeLocalModel.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift` - Added `Components`, `create()`, moved all Lambda start logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StartCommand` to use factory, added `.building` case to print function
+- `MacApp/Models/XcodeLocalModel.swift` - Updated `startLambda()` to use factory
 
 **Technical Notes:**
+- Workflow now contains all Lambda start logic directly using `CLIClient` and SDK clients
+- Added new `.building` step to State to show build progress when Lambda not already built
 - Lambda is started as a background process using shell: `env VAR=value ./executable > /tmp/lambda.log 2>&1 &`
 - Port checking uses `lsof -i :8080` to verify Lambda is listening
-- Environment variables come from `createEnvironmentVariables()` in DeployLocalService
+- Environment variables come from `createEnvironmentVariables()` in DeployLocalService with `.xcode` context
+- `DockerClient` created internally in `create()` factory for SDK client initialization
+- Deprecated `init(service:)` allows `XcodeStartAllWorkflow` to continue working until Phase 7 migration
 
 ---
 
