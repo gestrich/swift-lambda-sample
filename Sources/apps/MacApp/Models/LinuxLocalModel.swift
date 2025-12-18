@@ -203,8 +203,8 @@ public class LinuxLocalModel: LocalService {
 
         statusSubject.send(.starting)
 
-        let workflow = LinuxStartAllWorkflow(service: developmentService)
-        for try await _ in workflow.stream() {
+        let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markRunning()

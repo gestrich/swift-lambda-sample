@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 7 Complete)
+**Status:** In Progress (Phase 8 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -306,14 +306,32 @@ Move Lambda container stop logic into the workflow.
 
 ---
 
-### [ ] Phase 8: Migrate LinuxStartAllWorkflow
+### [x] Phase 8: Migrate LinuxStartAllWorkflow
 
-This workflow already orchestrates other workflows. Verify it doesn't need direct service access.
+This workflow orchestrates other workflows. Removed direct service dependency.
+
+**Status:** Completed 2025-12-18
 
 **Tasks:**
-- [ ] 8.1: Remove `service` dependency (should only use other workflows)
-- [ ] 8.2: Update to use workflow factories for sub-workflows
-- [ ] 8.3: Move any remaining direct service calls into child workflows
+- [x] 8.1: Remove `service` dependency (now only uses other workflows)
+- [x] 8.2: Create `Components` struct and `create()` factory method
+- [x] 8.3: Update to use workflow factories for sub-workflows
+- [x] 8.4: Update CLI command (`StartAllCommand`) to use factory
+- [x] 8.5: Update MacApp model (`startWithServices()`) to use factory
+- [x] 8.6: Remove `waitingForReady` step from State (now handled by `LinuxStartLambdaWorkflow`)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStartAllWorkflow.swift` - Complete rewrite using workflow factories
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StartAllCommand` to use factory, removed `waitingForReady` case from print function
+- `MacApp/Models/LinuxLocalModel.swift` - Updated `startWithServices()` to use factory
+
+**Technical Notes:**
+- Workflow no longer has a `service` dependency - only orchestrates other workflows
+- Uses `LinuxStartServicesWorkflow.create()`, `LinuxSetupNetworkWorkflow.create()`, and `LinuxStartLambdaWorkflow.create()` factories
+- Removed `waitingForReady` step since `LinuxStartLambdaWorkflow` already handles readiness check internally
+- `Components` struct exposes `port` from `LinuxContainerConfig` for consumers that need it
+- Deprecated initializers can now be removed from `LinuxStartServicesWorkflow`, `LinuxSetupNetworkWorkflow`, and `LinuxStartLambdaWorkflow` (was kept for this workflow)
+- MacApp still uses deprecated `LinuxSetupNetworkWorkflow(service:)` in `setupDockerNetwork()` - will be addressed when that method is migrated
 
 ---
 
