@@ -310,16 +310,16 @@ public class LinuxLocalModel: LocalService {
 
     /// Setup Docker network for Lambda container
     public func setupDockerNetwork() async throws {
-        let workflow = LinuxSetupNetworkWorkflow(service: developmentService)
-        for try await _ in workflow.stream() {
+        let components = LinuxSetupNetworkWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream() {
             // Consume progress - could be extended to report to UI
         }
     }
 
     /// Run Lambda in interactive container
     public func runInteractive() async throws {
-        let workflow = LinuxRunInteractiveWorkflow(service: developmentService)
-        for try await _ in workflow.stream() {
+        let components = LinuxRunInteractiveWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream() {
             // Consume progress - could be extended to report to UI
         }
     }

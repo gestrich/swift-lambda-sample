@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 12 Complete)
+**Status:** In Progress (Phase 13 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -449,21 +449,42 @@ Move config copy logic into the workflow.
 - Source path defaults to `{workingDirectory}/{AppConfigFileKey.filename}` when not provided
 - Removed `DeployLocalService` import for service dependency (now uses `LocalStorageService` and `AppConfigFileKey` from DeployLocalService)
 - Service method (`copyConfig()`) in `LinuxLocalDevelopmentService` can be removed once all dependent workflows are migrated
-- MacApp still uses deprecated `LinuxSetupNetworkWorkflow(service:)` in `setupDockerNetwork()` - unrelated to this phase
+- MacApp's deprecated initializer usage was fixed in Phase 13
 
 ---
 
-### [ ] Phase 13: Migrate LinuxRunInteractiveWorkflow
+### [x] Phase 13: Migrate LinuxRunInteractiveWorkflow
 
 Move interactive container logic into the workflow.
 
+**Status:** Completed 2025-12-18
+
 **Tasks:**
-- [ ] 13.1: Add `DockerClient` dependency
-- [ ] 13.2: Create `Components` struct and `create()` factory
-- [ ] 13.3: Move `runInteractive()` logic
-- [ ] 13.4: Move `printRunCommand()` logic
-- [ ] 13.5: Update CLI command
-- [ ] 13.6: Remove unused methods from service
+- [x] 13.1: Add SDK dependencies (`DockerClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- [x] 13.2: Create `Components` struct and `create()` factory
+- [x] 13.3: Move `runInteractive()` logic
+- [x] 13.4: Move `printRunCommand()` logic (now returns `String` instead of printing)
+- [x] 13.5: Update CLI command (`RunInteractiveCommand`) to use factory
+- [x] 13.6: Update MacApp model (`runInteractive()`) to use factory
+- [x] 13.7: Remove deprecated initializers from `LinuxSetupNetworkWorkflow`, `LinuxStartServicesWorkflow`, and `LinuxStartLambdaWorkflow`
+- [x] 13.8: Update MacApp `setupDockerNetwork()` to use factory
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxRunInteractiveWorkflow.swift` - Complete rewrite with SDK clients
+- `DeployLocalLinuxFeature/workflows/LinuxSetupNetworkWorkflow.swift` - Removed deprecated `init(service:)`
+- `DeployLocalLinuxFeature/workflows/LinuxStartServicesWorkflow.swift` - Removed deprecated `init(service:)`
+- `DeployLocalLinuxFeature/workflows/LinuxStartLambdaWorkflow.swift` - Removed deprecated `init(service:)`
+- `CLIApp/Commands/LocalCommand.swift` - Updated `RunInteractiveCommand` to use factory
+- `MacApp/Models/LinuxLocalModel.swift` - Updated `runInteractive()` and `setupDockerNetwork()` to use factories
+
+**Technical Notes:**
+- Workflow now owns all interactive container logic using SDK clients directly
+- `Components` struct pattern matches other migrated workflows for consistency
+- Requires `PostgreSQLClient`, `MinIOClient`, and `DynamoDBClient` to generate environment variables via `createEnvironmentVariables()` from `DeployLocalService`
+- `printRunCommand()` changed from `void` (printing) to returning `String` for better composability
+- When Lambda is not built, delegates to `LinuxBuildWorkflow.create()` to build first
+- Removed all deprecated `init(service:)` initializers since MacApp now uses factories
+- Service methods (`runInteractive()`, `printRunCommand()`) remain in `LinuxLocalDevelopmentService` but are no longer used by any workflow
 
 ---
 

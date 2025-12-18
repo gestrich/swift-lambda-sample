@@ -31,23 +31,6 @@ public struct LinuxSetupNetworkWorkflow: StreamingWorkflow {
         self.dynamodbContainerName = dynamodbContainerName
     }
 
-    /// Legacy initializer for backward compatibility.
-    /// Will be removed when all dependent workflows are migrated.
-    @available(*, deprecated, message: "Use LinuxSetupNetworkWorkflow.create(workingDirectory:) instead")
-    public init(service: LinuxLocalDevelopmentService) {
-        let workingDirectory = FileManager.default.currentDirectoryPath
-        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        let dockerClient = DockerClient(cliClient: cliClient)
-        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
-
-        self.dockerClient = dockerClient
-        self.config = config
-        self.postgresContainerName = PostgreSQLConfig.linux.containerName
-        self.minioContainerName = MinIOConfig.linux.containerName
-        self.dynamodbContainerName = DynamoDBLocalConfig.linux.containerName
-        _ = service
-    }
-
     /// Components needed for network setup.
     public struct Components: Sendable {
         public let workflow: LinuxSetupNetworkWorkflow

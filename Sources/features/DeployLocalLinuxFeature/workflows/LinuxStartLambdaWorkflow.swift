@@ -89,15 +89,6 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
         return Components(workflow: workflow, port: config.hostPort)
     }
 
-    /// Backward compatibility initializer for LinuxStartAllWorkflow.
-    /// - Parameter service: The service (ignored - creates own clients)
-    @available(*, deprecated, message: "Use LinuxStartLambdaWorkflow.create() instead")
-    public init(service: LinuxLocalDevelopmentService) {
-        let workingDirectory = FileManager.default.currentDirectoryPath
-        let components = Self.create(workingDirectory: workingDirectory)
-        self = components.workflow
-    }
-
     /// State updates from the start Lambda workflow.
     public struct State: Sendable {
         public let step: Step

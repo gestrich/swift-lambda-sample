@@ -32,39 +32,6 @@ public struct LinuxStartServicesWorkflow: StreamingWorkflow {
         self.dynamodbClient = dynamodbClient
     }
 
-    /// Legacy initializer for backward compatibility with LinuxStartAllWorkflow.
-    /// Will be removed in Phase 8 when LinuxStartAllWorkflow is migrated.
-    @available(*, deprecated, message: "Use LinuxStartServicesWorkflow.create(workingDirectory:) instead")
-    public init(service: LinuxLocalDevelopmentService) {
-        // This initializer creates its own clients, ignoring the service parameter.
-        // The service is only used to maintain API compatibility.
-        let workingDirectory = FileManager.default.currentDirectoryPath
-        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        let dockerClient = DockerClient(cliClient: cliClient)
-        let storageService = LocalStorageService()
-        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
-
-        self.cliClient = cliClient
-        self.dockerClient = dockerClient
-        self.postgresClient = PostgreSQLClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
-        )
-        self.minioClient = MinIOClient(
-            dockerClient: dockerClient,
-            networkName: config.networkName,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
-        )
-        self.dynamodbClient = DynamoDBClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
-        )
-        _ = service // Silence unused parameter warning
-    }
-
     /// Components needed for starting services.
     public struct Components: Sendable {
         public let workflow: LinuxStartServicesWorkflow
