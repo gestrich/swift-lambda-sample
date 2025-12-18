@@ -1,7 +1,7 @@
 # Model and Feature Target Renaming Specification
 
 **Date**: 2025-12-18
-**Status**: In Progress
+**Status**: Completed
 **Scope**: Rename model types and feature targets for consistency
 
 ## Objective
@@ -140,15 +140,30 @@ Rename app-layer model types and feature targets to follow a consistent naming c
 
 **Build verification**: Passed (`swift build` succeeded)
 
-### Phase 3: Documentation Updates
+### Phase 3: Documentation Updates ✅ COMPLETED
 
-Update all references in documentation files:
-- `docs/architecture/layered-architecture.md`
-- `docs/completed/local-development-workflows.md`
-- `docs/completed/workflow-state-model-alignment.md`
-- `docs/completed/deployment-architecture-improvements.md`
-- `docs/proposed/` - multiple files
-- `CLAUDE.md`
+**Completed**: 2025-12-18
+
+Updated references to new feature and model names in active documentation:
+
+**Files updated:**
+- `docs/architecture/layered-architecture.md`:
+  - Updated features diagram: `DeployLocalXcodeFeature` → `DeployXcodeFeature`
+  - Updated features table: `DeployLocalXcodeFeature` → `DeployXcodeFeature`, `DeployLocalLinuxFeature` → `DeployLinuxFeature`
+  - Updated source code structure: directory names updated
+  - Updated target naming examples table
+- `docs/proposed/workflow-protocol.md`:
+  - Updated feature names in dependency list
+  - Updated workflow feature mapping table
+  - Updated model file paths (`XcodeLocalModel.swift` → `DeployXcodeModel.swift`, `LinuxLocalModel.swift` → `DeployLocalModel.swift`)
+  - Updated `DeploymentModel.swift` → `DeployRemoteModel.swift` references
+- `CLAUDE.md`:
+  - Updated features diagram
+  - Updated source code structure directory names
+
+**Note on historical documentation:** Files in `docs/completed/` and some `docs/proposed/` files contain references to old names in their historical context (describing what was changed at that time). These references were intentionally left unchanged as they accurately document the state of the codebase at the time those changes were made.
+
+**Build verification**: Passed (`swift build` succeeded)
 
 ## Verification
 

@@ -103,7 +103,7 @@ This project follows a **four-layer architecture** (App-Feature-Service-SDK) whe
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         FEATURES                             │
-│  DeployRemoteFeature · SetupFeature · DeployLocalXcodeFeature │
+│   DeployRemoteFeature · SetupFeature · DeployXcodeFeature    │
 │   Multi-step orchestration returning AsyncThrowingStream     │
 │   Features combine workflow + service code in one target     │
 └──────────────────────────┬──────────────────────────────────┘
@@ -144,8 +144,8 @@ Sources/
 │   ├── DeployRemoteFeature/  # AWS deployment feature
 │   │   ├── workflows/        # DeployWorkflow, DestroyWorkflow, etc.
 │   │   └── services/         # Models, auth config, GitHub config
-│   ├── DeployLocalXcodeFeature/  # Xcode local development workflows
-│   ├── DeployLocalLinuxFeature/  # Linux container development workflows
+│   ├── DeployXcodeFeature/  # Xcode local development workflows
+│   ├── DeployLinuxFeature/  # Linux container development workflows
 │   └── SetupFeature/         # Setup and dependency workflows
 ├── services/                 # Shared service modules
 │   ├── DeployCoreService/    # Core deployment utilities

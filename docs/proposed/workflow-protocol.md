@@ -142,8 +142,8 @@ Most workflows in this codebase are `StreamingWorkflow` since they perform multi
 
 **Uniflow added as dependency** to all feature targets that define workflows:
 - `DeployRemoteFeature`
-- `DeployLocalXcodeFeature`
-- `DeployLocalLinuxFeature`
+- `DeployXcodeFeature`
+- `DeployLinuxFeature`
 - `SetupFeature`
 
 **Verification:** ✅ Build succeeds, both protocols compile, features can import Uniflow.
@@ -166,8 +166,8 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 
 | Feature | Workflows |
 |---------|-----------|
-| `DeployLocalXcodeFeature` | `XcodeBuildWorkflow`, `XcodeStartAllWorkflow`, `XcodeStartServicesWorkflow`, `XcodeStartLambdaWorkflow`, `XcodeStopAllWorkflow`, `XcodeStopServicesWorkflow`, `XcodeStopLambdaWorkflow`, `XcodeStatusWorkflow`, `XcodeTestWorkflow`, `XcodeCopyConfigWorkflow` |
-| `DeployLocalLinuxFeature` | `LinuxBuildWorkflow`, `LinuxStartAllWorkflow`, `LinuxStartServicesWorkflow`, `LinuxStartLambdaWorkflow`, `LinuxStopAllWorkflow`, `LinuxStopServicesWorkflow`, `LinuxStopLambdaWorkflow`, `LinuxStatusWorkflow`, `LinuxTestWorkflow`, `LinuxSetupNetworkWorkflow`, `LinuxRunInteractiveWorkflow`, `LinuxCopyConfigWorkflow` |
+| `DeployXcodeFeature` | `XcodeBuildWorkflow`, `XcodeStartAllWorkflow`, `XcodeStartServicesWorkflow`, `XcodeStartLambdaWorkflow`, `XcodeStopAllWorkflow`, `XcodeStopServicesWorkflow`, `XcodeStopLambdaWorkflow`, `XcodeStatusWorkflow`, `XcodeTestWorkflow`, `XcodeCopyConfigWorkflow` |
+| `DeployLinuxFeature` | `LinuxBuildWorkflow`, `LinuxStartAllWorkflow`, `LinuxStartServicesWorkflow`, `LinuxStartLambdaWorkflow`, `LinuxStopAllWorkflow`, `LinuxStopServicesWorkflow`, `LinuxStopLambdaWorkflow`, `LinuxStatusWorkflow`, `LinuxTestWorkflow`, `LinuxSetupNetworkWorkflow`, `LinuxRunInteractiveWorkflow`, `LinuxCopyConfigWorkflow` |
 | `SetupFeature` | `DependencyInstallWorkflow`, `DependencyStatusWorkflow` |
 
 **Changes made per workflow:**
@@ -179,8 +179,8 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 
 **Callers updated:**
 - `Sources/apps/CLIApp/Commands/LocalCommand.swift` - All workflow calls use `stream()`, type references updated to `State`
-- `Sources/apps/MacApp/Models/XcodeLocalModel.swift` - Updated to use `stream()`
-- `Sources/apps/MacApp/Models/LinuxLocalModel.swift` - Updated to use `stream()`
+- `Sources/apps/MacApp/Models/DeployXcodeModel.swift` - Updated to use `stream()`
+- `Sources/apps/MacApp/Models/DeployLocalModel.swift` - Updated to use `stream()`
 - `Sources/apps/MacApp/Models/DependencyStatusModel.swift` - Updated to use `stream(options:)`
 
 **Technical notes:**
@@ -228,7 +228,7 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 - `Sources/apps/CLIApp/Commands/DeployCommand.swift` - Uses `stream(options:)`
 - `Sources/apps/CLIApp/Commands/TearDownCommand.swift` - Uses `stream(options:)`
 - `Sources/features/DeployRemoteFeature/workflows/DeployInitWorkflow.swift` - Uses `stream(options:)`
-- `Sources/apps/MacApp/Models/DeploymentModel.swift` - Uses `stream(options:)`, passes output in options
+- `Sources/apps/MacApp/Models/DeployRemoteModel.swift` - Uses `stream(options:)`, passes output in options
 - `Sources/apps/MacApp/UI/RemoteService/CDKInfrastructureSectionView.swift` - Passes output in options
 
 **Technical notes:**
@@ -416,7 +416,7 @@ The spec recommended using the SDK client directly (Option 2), but after examini
 - `Sources/apps/CLIApp/Commands/DeployInitCommand.swift` - Uses `stream(options:)`, renamed helper methods to `printState`, `printDeployState`, `printLambdaState`
 - `Sources/apps/CLIApp/Commands/StatusCommand.swift` - Uses `stream()`, renamed helper method to `printState`
 - `Sources/apps/CLIApp/Commands/UpdateLambdaCommand.swift` - Uses `stream(options:)`
-- `Sources/apps/MacApp/Models/DeploymentModel.swift` - Uses `stream(options:)` for `UpdateLambdaWorkflow`
+- `Sources/apps/MacApp/Models/DeployRemoteModel.swift` - Uses `stream(options:)` for `UpdateLambdaWorkflow`
 
 **Technical notes:**
 - `DeployStatusWorkflow` uses `Options = Void` since it has no configurable parameters

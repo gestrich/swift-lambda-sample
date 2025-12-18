@@ -16,7 +16,7 @@ The project uses a four-layer architecture where dependencies flow downward:
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         FEATURES                             │
-│  DeployRemoteFeature · SetupFeature · DeployLocalXcodeFeature │
+│   DeployRemoteFeature · SetupFeature · DeployXcodeFeature    │
 │   Multi-step orchestration returning AsyncThrowingStream     │
 │   Features combine workflow + service code in one target     │
 └──────────────────────────┬──────────────────────────────────┘
@@ -63,8 +63,8 @@ Multi-step orchestration operations. Features combine workflow logic and feature
 |--------|-------------|
 | `DeployRemoteFeature` | AWS deployment workflows |
 | `SetupFeature` | Setup and dependency workflows |
-| `DeployLocalXcodeFeature` | Xcode local development workflows |
-| `DeployLocalLinuxFeature` | Linux container development workflows |
+| `DeployXcodeFeature` | Xcode local development workflows |
+| `DeployLinuxFeature` | Linux container development workflows |
 
 - Workflows are structs conforming to `Workflow` or `StreamingWorkflow` protocols (from `Uniflow`)
 - Coordinate multiple SDK clients and services
@@ -127,8 +127,8 @@ Sources/
 │   ├── DeployRemoteFeature/  # AWS deployment feature
 │   │   ├── workflows/        # DeployWorkflow, DestroyWorkflow, etc.
 │   │   └── services/         # Models, auth config, GitHub config
-│   ├── DeployLocalXcodeFeature/  # Xcode local development workflows
-│   ├── DeployLocalLinuxFeature/  # Linux container development workflows
+│   ├── DeployXcodeFeature/  # Xcode local development workflows
+│   ├── DeployLinuxFeature/  # Linux container development workflows
 │   └── SetupFeature/         # Setup and dependency workflows
 ├── services/                 # Shared service modules
 │   ├── DeployCoreService/    # Core deployment utilities
@@ -172,7 +172,7 @@ The folder structure provides architectural hierarchy:
 | `MacApp` | apps | App | macOS application |
 | `CLIApp` | apps | App | CLI tool |
 | `DeployRemoteFeature` | features | Feature | AWS deployment |
-| `DeployLocalXcodeFeature` | features | Feature | Xcode local dev |
+| `DeployXcodeFeature` | features | Feature | Xcode local dev |
 | `SetupFeature` | features | Feature | Setup workflows |
 | `DeployCoreService` | services | Service | Core deployment |
 | `StorageService` | services | Service | Local storage |
