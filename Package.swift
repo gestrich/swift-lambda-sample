@@ -175,6 +175,8 @@ let package = Package(
                 .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
+                .target(name: "DeployCoreService"),
+                .target(name: "LambdaBuildService"),
             ],
             path: "Sources/features/DeployLocalXcodeFeature"
         ),

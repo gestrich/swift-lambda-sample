@@ -139,9 +139,9 @@ public class XcodeLocalModel: LocalService {
         buildState.startBuild()
 
         do {
-            let workflow = XcodeBuildWorkflow(service: developmentService)
+            let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
             let options = XcodeBuildWorkflow.Options(clean: clean)
-            for try await _ in workflow.stream(options: options) {
+            for try await _ in components.workflow.stream(options: options) {
                 // Workflow progress is consumed; UI updates via buildState
             }
             buildState.markSuccess()

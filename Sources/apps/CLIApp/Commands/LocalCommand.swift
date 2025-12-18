@@ -45,11 +45,12 @@ extension LocalMacCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let service = XcodeLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = XcodeBuildWorkflow(service: service)
+            let components = XcodeBuildWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = XcodeBuildWorkflow.Options(clean: clean)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printXcodeBuildProgress(progress)
             }
         }
