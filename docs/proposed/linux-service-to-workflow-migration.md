@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 2 Complete)
+**Status:** In Progress (Phase 3 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -155,21 +155,35 @@ Move build logic directly into the workflow.
 
 ---
 
-### [ ] Phase 3: Migrate LinuxStartServicesWorkflow
+### [x] Phase 3: Migrate LinuxStartServicesWorkflow
 
 Move service start logic directly into the workflow.
+
+**Status:** Completed 2025-12-18
 
 **Current:** Workflow calls `service.startDatabase()`, `service.startS3()`, etc.
 **Target:** Workflow directly uses `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`
 
 **Tasks:**
-- [ ] 3.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`, `DockerClient`, `LocalStorageService`)
-- [ ] 3.2: Create `Components` struct and `create()` factory
-- [ ] 3.3: Move `ensureDockerRunning()` / `startDockerDesktop()` logic (or make DockerClient handle this)
-- [ ] 3.4: Move service start logic into workflow
-- [ ] 3.5: Move `createBucket()` logic
-- [ ] 3.6: Update CLI command to use workflow factory
-- [ ] 3.7: Remove unused methods from service
+- [x] 3.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`, `DockerClient`, `LocalStorageService`)
+- [x] 3.2: Create `Components` struct and `create()` factory
+- [x] 3.3: Move `ensureDockerRunning()` / `startDockerDesktop()` logic
+- [x] 3.4: Move service start logic into workflow
+- [x] 3.5: Move `createBucket()` logic
+- [x] 3.6: Update CLI command to use workflow factory
+- [x] 3.7: Service methods kept for now (LinuxStartAllWorkflow still depends on them)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStartServicesWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StartDatabaseCommand`, `StartDynamoDBCommand`, `StartS3Command` to use factory
+
+**Technical Notes:**
+- Workflow now owns all service start logic including Docker startup and bucket creation
+- `Components` struct pattern matches `LinuxBuildWorkflow` and `DestroyWorkflow` for consistency
+- Added deprecated `init(service:)` for backward compatibility with `LinuxStartAllWorkflow` - will be removed in Phase 8
+- The deprecated initializer ignores the service parameter and creates its own clients
+- Service methods (`startDatabase()`, `startS3()`, `startDynamoDB()`, `createBucket()`) kept in `LinuxLocalDevelopmentService` for other workflows - will be removed when all dependent workflows are migrated
+- Build produces expected deprecation warning for `LinuxStartAllWorkflow` usage
 
 ---
 
