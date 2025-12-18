@@ -360,9 +360,8 @@ public class DeployLinuxModel: LocalService {
         var result: DeploymentStatus = .stopped
 
         for try await progress in components.workflow.stream() {
-            if case .complete = progress.step,
-               case .status(let status)? = progress.detail {
-                result = status
+            if case .completed(let snapshot) = progress {
+                result = snapshot.serviceStatus
             }
         }
         return result

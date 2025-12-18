@@ -319,18 +319,26 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ---
 
-### Phase 2: Update LinuxStatusWorkflow to Yield LinuxWorkflowState
+### Phase 2: Update LinuxStatusWorkflow to Yield LinuxWorkflowState ✅ COMPLETED
 
 **Tasks:**
-- [ ] 2.1: Update `LinuxStatusWorkflow.State` to be `LinuxWorkflowState`
-- [ ] 2.2: Update `stream()` to yield `LinuxWorkflowState.checkingStatus(...)` during progress
-- [ ] 2.3: Update `stream()` to yield `LinuxWorkflowState.completed(LinuxSnapshot)` on completion
-- [ ] 2.4: Update CLI command to handle new state type
-- [ ] 2.5: Build verification
+- [x] 2.1: Update `LinuxStatusWorkflow.State` to be `LinuxWorkflowState`
+- [x] 2.2: Update `stream()` to yield `LinuxWorkflowState.checkingStatus(...)` during progress
+- [x] 2.3: Update `stream()` to yield `LinuxWorkflowState.completed(LinuxSnapshot)` on completion
+- [x] 2.4: Update CLI command to handle new state type
+- [x] 2.5: Build verification
 
-**Files to modify:**
+**Files modified:**
 - `Sources/features/DeployLinuxFeature/workflows/LinuxStatusWorkflow.swift`
-- `Sources/apps/CLIApp/Commands/LocalCommand.swift`
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxProgressPrinters.swift`
+- `Sources/apps/MacApp/Models/DeployLinuxModel.swift`
+
+**Technical Notes:**
+- Removed the nested `State` struct and `Detail` enum from `LinuxStatusWorkflow`, now uses `LinuxWorkflowState` directly
+- Workflow yields `LinuxWorkflowState.checkingStatus(StatusProgress)` during each check step
+- Workflow yields `LinuxWorkflowState.completed(LinuxSnapshot)` on completion with the full snapshot
+- CLI progress printer updated to switch on `LinuxWorkflowState` enum cases instead of old step/detail pattern
+- `DeployLinuxModel.status()` updated to extract `serviceStatus` from completed snapshot instead of using old detail pattern
 
 ---
 

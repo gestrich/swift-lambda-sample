@@ -273,19 +273,22 @@ func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWorkflow.St
     }
 }
 
-func printLinuxStatusProgress(_ progress: LinuxStatusWorkflow.State) {
-    switch progress.step {
-    case .checkingLambda:
-        print("🔍 Checking Lambda container status...")
-    case .checkingS3:
-        print("🔍 Checking S3 status...")
-    case .checkingDatabase:
-        print("🔍 Checking PostgreSQL status...")
-    case .checkingDynamoDB:
-        print("🔍 Checking DynamoDB status...")
-    case .complete:
-        if case .status(let status) = progress.detail {
-            printStatus(status, mode: "Linux (Container)")
+func printLinuxStatusProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .checkingStatus(let statusProgress):
+        switch statusProgress.step {
+        case .checkingLambda:
+            print("🔍 Checking Lambda container status...")
+        case .checkingS3:
+            print("🔍 Checking S3 status...")
+        case .checkingDatabase:
+            print("🔍 Checking PostgreSQL status...")
+        case .checkingDynamoDB:
+            print("🔍 Checking DynamoDB status...")
         }
+    case .completed(let snapshot):
+        printStatus(snapshot.serviceStatus, mode: "Linux (Container)")
+    default:
+        break
     }
 }

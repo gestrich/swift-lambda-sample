@@ -74,37 +74,13 @@ public struct LinuxStatusWorkflow: StreamingWorkflow {
         return Components(workflow: workflow)
     }
 
-    /// State updates from the status workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingLambda
-            case checkingS3
-            case checkingDatabase
-            case checkingDynamoDB
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case serviceStatus(LocalServiceType, ServiceState)
-            case lambdaStatus(ServiceState)
-            case status(DeploymentStatus)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = LinuxWorkflowState
+    public typealias Result = LinuxWorkflowState
     public typealias Options = Void
 
     /// Stream the status workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    public func stream(options: Void) -> AsyncThrowingStream<LinuxWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -117,29 +93,39 @@ public struct LinuxStatusWorkflow: StreamingWorkflow {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<LinuxWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Check Lambda container status
-        continuation.yield(State(step: .checkingLambda))
+        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+            step: .checkingLambda,
+            startTime: startTime
+        )))
         let lambdaRunning = try await isLambdaRunning()
-        continuation.yield(State(step: .checkingLambda, detail: .lambdaStatus(lambdaRunning ? .running : .stopped)))
 
         // Check S3 (MinIO) status
-        continuation.yield(State(step: .checkingS3))
+        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+            step: .checkingS3,
+            startTime: startTime
+        )))
         let s3Running = try await minioClient.isRunning()
-        continuation.yield(State(step: .checkingS3, detail: .serviceStatus(.s3, s3Running ? .running : .stopped)))
 
         // Check PostgreSQL status
-        continuation.yield(State(step: .checkingDatabase))
+        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+            step: .checkingDatabase,
+            startTime: startTime
+        )))
         let postgresRunning = try await postgresClient.isRunning()
-        continuation.yield(State(step: .checkingDatabase, detail: .serviceStatus(.database, postgresRunning ? .running : .stopped)))
 
         // Check DynamoDB status
-        continuation.yield(State(step: .checkingDynamoDB))
+        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+            step: .checkingDynamoDB,
+            startTime: startTime
+        )))
         let dynamodbRunning = try await dynamodbClient.isRunning()
-        continuation.yield(State(step: .checkingDynamoDB, detail: .serviceStatus(.dynamodb, dynamodbRunning ? .running : .stopped)))
 
-        // Create final status
+        // Create final snapshot
         let status = DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
             s3State: s3Running ? .running : .stopped,
@@ -147,7 +133,12 @@ public struct LinuxStatusWorkflow: StreamingWorkflow {
             dynamodbState: dynamodbRunning ? .running : .stopped
         )
 
-        continuation.yield(State(step: .complete, detail: .status(status)))
+        let snapshot = LinuxSnapshot(
+            serviceStatus: status,
+            buildStatus: .notBuilt
+        )
+
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
