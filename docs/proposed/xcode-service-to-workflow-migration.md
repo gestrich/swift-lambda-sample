@@ -364,22 +364,30 @@ Move test logic directly into the workflow.
 
 ---
 
-### [ ] Phase 10: Migrate XcodeStatusWorkflow
+### [x] Phase 10: Migrate XcodeStatusWorkflow (COMPLETED)
 
 Move status checking logic into the workflow.
 
 **Tasks:**
-- [ ] 10.1: Add SDK dependencies (`CLIClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
-- [ ] 10.2: Create `Components` struct and `create()` factory
-- [ ] 10.3: Move `status()` logic
-- [ ] 10.4: Move `isLambdaRunning()` logic (port check with `lsof`)
-- [ ] 10.5: Update CLI command
-- [ ] 10.6: Update MacApp model
+- [x] 10.1: Add SDK dependencies (`CLIClient`, `PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- [x] 10.2: Create `Components` struct and `create()` factory
+- [x] 10.3: Move `status()` logic
+- [x] 10.4: Move `isLambdaRunning()` logic (port check with `lsof`)
+- [x] 10.5: Update CLI command
+- [x] 10.6: Update MacApp model
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStatusWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
-- `MacApp/Models/XcodeLocalModel.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStatusWorkflow.swift` - Added `Components`, `create()`, moved all status check logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StatusCommand` to use factory
+- `MacApp/Models/XcodeLocalModel.swift` - Updated `status()` to use factory
+
+**Technical Notes:**
+- Workflow now contains all status checking logic directly using SDK clients (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- Lambda status is checked via `lsof` to detect native process on port 8080
+- Each service check yields intermediate state updates for real-time feedback
+- Public `isLambdaRunning()` method available for other status checks
+- Uses `.xcode` configuration variants for all SDK clients (consistent with other workflows)
+- No `workingDirectory` parameter needed since status checks don't require it
 
 ---
 

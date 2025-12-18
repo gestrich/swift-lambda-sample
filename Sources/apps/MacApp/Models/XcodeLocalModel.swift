@@ -276,10 +276,10 @@ public class XcodeLocalModel: LocalService {
     // MARK: - Status
 
     public func status() async throws -> DeploymentStatus {
-        let workflow = XcodeStatusWorkflow(service: developmentService)
+        let components = XcodeStatusWorkflow.create()
         var result: DeploymentStatus = .stopped
 
-        for try await progress in workflow.stream() {
+        for try await progress in components.workflow.stream() {
             if case .complete = progress.step,
                case .status(let status)? = progress.detail {
                 result = status
