@@ -140,58 +140,18 @@ public class DeployRemoteModel {
     // MARK: - Refresh Operations
 
     /// Refresh deployment state from AWS
-    /// If an operation is in progress, automatically starts monitoring it.
+    /// If an operation is in progress, automatically starts monitoring it via RefreshWorkflow.
     public func refresh() async {
         guard state.isIdle else { return }
 
+        lastOperationError = nil
         let prior = state.snapshot
         state = .loading(prior: prior)
 
-        do {
-            let queriedState = try await cfClient.queryState(stackName: stackName)
-
-            // Check if an operation is in progress and resume monitoring
-            switch queriedState {
-            case .deploying, .destroying:
-                await resumeMonitoring(initialState: queriedState, prior: prior)
-            default:
-                state = .ready(DeploymentSnapshot.from(queriedState))
-            }
-        } catch let error as DeploymentError {
-            if case .credentialExpired(let message) = error {
-                state = .ready(DeploymentSnapshot(
-                    status: .credentialExpired(message: message),
-                    outputs: nil,
-                    infrastructure: nil
-                ))
-            } else {
-                state = .ready(DeploymentSnapshot(
-                    status: .failed(reason: error.localizedDescription),
-                    outputs: nil,
-                    infrastructure: nil
-                ))
-            }
-        } catch {
-            state = .ready(DeploymentSnapshot(
-                status: .failed(reason: error.localizedDescription),
-                outputs: nil,
-                infrastructure: nil
-            ))
-        }
-    }
-
-    /// Resume monitoring an in-progress CloudFormation operation.
-    /// Called when refresh() detects a deploy or destroy is already running.
-    private func resumeMonitoring(initialState: CloudFormationState, prior: DeploymentSnapshot?) async {
-        lastOperationError = nil
-
-        let workflow = ResumeMonitoringWorkflow(
-            cfClient: cfClient,
-            stackName: stackName
-        )
+        let workflow = RefreshWorkflow(cfClient: cfClient, stackName: stackName)
 
         do {
-            for try await workflowState in workflow.run(initialState: initialState) {
+            for try await workflowState in workflow.stream(options: ()) {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {

@@ -174,8 +174,8 @@ Also remove from initializer and any related setup code.
 | Step | Description | Files | Status |
 |------|-------------|-------|--------|
 | 1 | Create `RefreshWorkflow` | `Sources/features/DeployRemoteFeature/workflows/RefreshWorkflow.swift` | ✅ Complete |
-| 2 | Update `refresh()` in model | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | Pending |
-| 3 | Remove `resumeMonitoring()` | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | Pending |
+| 2 | Update `refresh()` in model | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | ✅ Complete |
+| 3 | Remove `resumeMonitoring()` | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | ✅ Complete (done in Phase 2) |
 | 4 | Remove `gitClient` from model | `Sources/apps/MacApp/Models/DeployRemoteModel.swift` | Pending |
 | 5 | Run tests and verify | `swift build`, manual testing | Pending |
 
@@ -192,6 +192,18 @@ Created `RefreshWorkflow` at `Sources/features/DeployRemoteFeature/workflows/Ref
 - For stable states (deployed, notDeployed, failed, credentialExpired): yields `.completed(snapshot)` immediately
 - For in-progress operations (deploying, destroying): delegates to `ResumeMonitoringWorkflow`
 - Build verified: `swift build` succeeds with no new warnings
+
+### Phase 2: Model refresh() Updated
+
+Updated `DeployRemoteModel.refresh()` to use `RefreshWorkflow`:
+
+- Replaced direct `cfClient.queryState()` call with `RefreshWorkflow.stream(options: ())`
+- Removed inline switch logic for handling deploying/destroying states (now handled by workflow)
+- Removed manual error handling for `DeploymentError.credentialExpired` (workflow handles via `DeploymentSnapshot.from()`)
+- Added `lastOperationError = nil` reset at start of refresh (consistent with other operations)
+- Deleted `resumeMonitoring()` private method (absorbed into RefreshWorkflow)
+- Method reduced from 40 lines to 16 lines
+- Build verified: `swift build` succeeds
 
 ## Dependencies
 
