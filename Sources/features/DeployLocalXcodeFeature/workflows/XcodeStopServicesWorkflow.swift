@@ -1,14 +1,86 @@
 import Foundation
-import DeployLocalService
 import CLISDK
+import DeployLocalService
+import DockerCLISDK
+import DynamoDBSDK
+import MinioSDK
+import PostgreSQLSDK
+import StorageService
 import Uniflow
 
 /// Workflow for stopping local services for Xcode development.
+/// Contains all service stop logic directly, using SDK clients.
 public struct XcodeStopServicesWorkflow: StreamingWorkflow {
-    private let service: XcodeLocalDevelopmentService
+    private let postgresClient: PostgreSQLClient
+    private let minioClient: MinIOClient
+    private let dynamodbClient: DynamoDBClient
 
+    public init(
+        postgresClient: PostgreSQLClient,
+        minioClient: MinIOClient,
+        dynamodbClient: DynamoDBClient
+    ) {
+        self.postgresClient = postgresClient
+        self.minioClient = minioClient
+        self.dynamodbClient = dynamodbClient
+    }
+
+    /// Backward-compatible initializer for XcodeStopAllWorkflow.
+    /// - Parameter service: The Xcode local development service (ignored, clients created internally)
+    @available(*, deprecated, message: "Use XcodeStopServicesWorkflow.create() instead")
     public init(service: XcodeLocalDevelopmentService) {
-        self.service = service
+        let workingDirectory = FileManager.default.currentDirectoryPath
+        let components = Self.create(workingDirectory: workingDirectory)
+        self.postgresClient = components.postgresClient
+        self.minioClient = components.minioClient
+        self.dynamodbClient = components.dynamodbClient
+    }
+
+    /// Components needed for stopping services.
+    public struct Components: Sendable {
+        public let workflow: XcodeStopServicesWorkflow
+        public let postgresClient: PostgreSQLClient
+        public let minioClient: MinIOClient
+        public let dynamodbClient: DynamoDBClient
+    }
+
+    /// Creates a workflow and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the workflow
+    /// - Returns: Components containing the workflow and clients
+    public static func create(workingDirectory: String) -> Components {
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        let dockerClient = DockerClient(cliClient: cliClient)
+        let storageService = LocalStorageService()
+
+        let postgresClient = PostgreSQLClient(
+            dockerClient: dockerClient,
+            config: .xcode,
+            dataDirectory: storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
+        )
+        let minioClient = MinIOClient(
+            dockerClient: dockerClient,
+            networkName: "lambda-xcode",
+            config: .xcode,
+            dataDirectory: storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
+        )
+        let dynamodbClient = DynamoDBClient(
+            dockerClient: dockerClient,
+            config: .xcode,
+            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
+        )
+
+        let workflow = XcodeStopServicesWorkflow(
+            postgresClient: postgresClient,
+            minioClient: minioClient,
+            dynamodbClient: dynamodbClient
+        )
+
+        return Components(
+            workflow: workflow,
+            postgresClient: postgresClient,
+            minioClient: minioClient,
+            dynamodbClient: dynamodbClient
+        )
     }
 
     /// State updates from the stop services workflow.
@@ -73,21 +145,21 @@ public struct XcodeStopServicesWorkflow: StreamingWorkflow {
         // Stop PostgreSQL
         if options.services.contains(.database) {
             continuation.yield(State(step: .stoppingDatabase))
-            try await service.stopDatabase()
+            try await postgresClient.stop()
             continuation.yield(State(step: .stoppingDatabase, detail: .serviceStopped(.database)))
         }
 
         // Stop MinIO S3
         if options.services.contains(.s3) {
             continuation.yield(State(step: .stoppingS3))
-            try await service.stopS3()
+            try await minioClient.stop()
             continuation.yield(State(step: .stoppingS3, detail: .serviceStopped(.s3)))
         }
 
         // Stop DynamoDB Local
         if options.services.contains(.dynamodb) {
             continuation.yield(State(step: .stoppingDynamoDB))
-            try await service.stopDynamoDB()
+            try await dynamodbClient.stop()
             continuation.yield(State(step: .stoppingDynamoDB, detail: .serviceStopped(.dynamodb)))
         }
 

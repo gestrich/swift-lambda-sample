@@ -198,20 +198,26 @@ Move service start logic directly into the workflow.
 
 ---
 
-### [ ] Phase 4: Migrate XcodeStopServicesWorkflow
+### [x] Phase 4: Migrate XcodeStopServicesWorkflow (COMPLETED)
 
 Move service stop logic directly into the workflow.
 
 **Tasks:**
-- [ ] 4.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
-- [ ] 4.2: Create `Components` struct and `create()` factory
-- [ ] 4.3: Move stop logic into workflow
-- [ ] 4.4: Update CLI commands
-- [ ] 4.5: Add deprecated `init(service:)` for backward compatibility with `XcodeStopAllWorkflow`
+- [x] 4.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- [x] 4.2: Create `Components` struct and `create()` factory
+- [x] 4.3: Move stop logic into workflow
+- [x] 4.4: Update CLI commands
+- [x] 4.5: Add deprecated `init(service:)` for backward compatibility with `XcodeStopAllWorkflow`
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStopServicesWorkflow.swift`
-- `CLIApp/Commands/LocalCommand.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStopServicesWorkflow.swift` - Added `Components`, `create()`, moved all service stop logic
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StopDatabaseCommand`, `StopDynamoDBCommand`, `StopS3Command` to use factory
+
+**Technical Notes:**
+- Workflow now contains all service stop logic directly using SDK clients (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- Simpler than `XcodeStartServicesWorkflow` - no Docker startup checks needed for stop operations
+- Deprecated `init(service:)` allows `XcodeStopAllWorkflow` to continue working until Phase 8 migration
+- Uses `.xcode` configuration variants for all SDK clients (consistent with start workflow)
 
 ---
 
