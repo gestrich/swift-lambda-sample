@@ -299,17 +299,23 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ## Migration Phases
 
-### Phase 1: Create LinuxDeploymentState Types
+### Phase 1: Create LinuxDeploymentState Types ✅ COMPLETED
 
 **Tasks:**
-- [ ] 1.1: Create `DeployLinuxFeature/services/Models/LinuxDeploymentState.swift`
-- [ ] 1.2: Define `LinuxSnapshot` struct (parallel to `DeploymentSnapshot`)
-- [ ] 1.3: Define `LinuxWorkflowState` enum (parallel to `WorkflowState`)
-- [ ] 1.4: Define progress types (`BuildProgress`, `ServicesProgress`, `LambdaProgress`, `StatusProgress`)
-- [ ] 1.5: Build verification
+- [x] 1.1: Create `DeployLinuxFeature/services/Models/LinuxDeploymentState.swift`
+- [x] 1.2: Define `LinuxSnapshot` struct (parallel to `DeploymentSnapshot`)
+- [x] 1.3: Define `LinuxWorkflowState` enum (parallel to `WorkflowState`)
+- [x] 1.4: Define progress types (`BuildProgress`, `ServicesProgress`, `LambdaProgress`, `StatusProgress`, `TestProgress`)
+- [x] 1.5: Build verification
 
-**Files to create:**
+**Files created:**
 - `Sources/features/DeployLinuxFeature/services/Models/LinuxDeploymentState.swift`
+
+**Technical Notes:**
+- Added `Equatable` conformance to `DeploymentStatus` in `DeployCoreService/LambdaService.swift` to enable `LinuxSnapshot` Equatable synthesis
+- `LinuxSnapshot.BuildStatus` is a nested enum (not using external `BuildState` from `LambdaBuildService`) to keep the state self-contained
+- Added `TestProgress` for the test workflow in addition to the spec'd progress types
+- `LinuxSnapshot` uses `DeploymentStatus` from `DeployCoreService` for service states (reusing existing type rather than duplicating)
 
 ---
 

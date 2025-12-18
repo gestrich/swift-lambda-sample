@@ -99,7 +99,7 @@ public enum ServiceState: String, Sendable, CustomStringConvertible {
 }
 
 /// Status of all deployment services
-public struct DeploymentStatus: Sendable {
+public struct DeploymentStatus: Sendable, Equatable {
     public let lambdaState: ServiceState
     public let s3State: ServiceState
     public let postgresState: ServiceState
