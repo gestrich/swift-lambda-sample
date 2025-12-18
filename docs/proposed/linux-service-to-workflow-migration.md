@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 9 Complete)
+**Status:** In Progress (Phase 10 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -366,20 +366,32 @@ This workflow orchestrates other workflows. Removed direct service dependency.
 
 ---
 
-### [ ] Phase 10: Migrate LinuxTestWorkflow
+### [x] Phase 10: Migrate LinuxTestWorkflow
 
 Move test logic directly into the workflow.
 
-**Current:** Workflow calls `service.testLambda()`
-**Target:** Workflow directly uses `APIClient`
+**Status:** Completed 2025-12-18
 
 **Tasks:**
-- [ ] 10.1: Add `APIClient` dependency (from ClientService)
-- [ ] 10.2: Create `Components` struct and `create()` factory
-- [ ] 10.3: Move `performLocalLambdaTests()` logic
-- [ ] 10.4: Move `isRunning()` check logic
-- [ ] 10.5: Update CLI command
-- [ ] 10.6: Remove unused methods from service
+- [x] 10.1: Add `DockerClient` dependency for `isRunning()` check
+- [x] 10.2: Create `Components` struct and `create()` factory
+- [x] 10.3: Move `performLocalLambdaTests()` logic using `APIClient` from ClientService
+- [x] 10.4: Move `isRunning()` check logic using `DockerClient`
+- [x] 10.5: Update CLI command (`TestCommand`) to use factory
+- [x] 10.6: Service methods kept for now (LinuxStatusWorkflow still depends on `isRunning()` and `testLambda()`)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxTestWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated `TestCommand` to use factory
+
+**Technical Notes:**
+- Workflow now owns all test logic using `DockerClient` (for container status) and `APIClient` (for endpoint testing)
+- `Components` struct exposes `port` from `LinuxContainerConfig` for consumers that need it
+- When Lambda is not running, delegates to `LinuxStartLambdaWorkflow.create()` to start it first
+- `APIClient` is created on MainActor due to its `@MainActor` annotation
+- Removed `DeployLocalService` import (no longer needed by LinuxTestWorkflow)
+- Service methods (`testLambda()`, `performLocalLambdaTests()`, `isRunning()`) kept in `LinuxLocalDevelopmentService` for other workflows - will be removed when all dependent workflows are migrated
+- MacApp still uses deprecated `LinuxSetupNetworkWorkflow(service:)` in `setupDockerNetwork()` - will be addressed when that method is migrated
 
 ---
 

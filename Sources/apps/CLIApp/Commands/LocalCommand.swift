@@ -530,10 +530,11 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxTestWorkflow(service: service)
+            let components = LinuxTestWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
 
-            for try await progress in workflow.stream() {
+            for try await progress in components.workflow.stream() {
                 printLinuxTestProgress(progress)
             }
         }
