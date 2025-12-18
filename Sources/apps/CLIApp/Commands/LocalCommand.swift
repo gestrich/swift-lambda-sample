@@ -432,11 +432,12 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxStopServicesWorkflow(service: service)
+            let components = LinuxStopServicesWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = LinuxStopServicesWorkflow.Options.only(.database)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -469,11 +470,12 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxStopServicesWorkflow(service: service)
+            let components = LinuxStopServicesWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = LinuxStopServicesWorkflow.Options.only(.dynamodb)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -506,11 +508,12 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxStopServicesWorkflow(service: service)
+            let components = LinuxStopServicesWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = LinuxStopServicesWorkflow.Options.only(.s3)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }

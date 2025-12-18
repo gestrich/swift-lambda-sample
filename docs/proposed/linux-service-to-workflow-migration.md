@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 3 Complete)
+**Status:** In Progress (Phase 4 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -187,16 +187,30 @@ Move service start logic directly into the workflow.
 
 ---
 
-### [ ] Phase 4: Migrate LinuxStopServicesWorkflow
+### [x] Phase 4: Migrate LinuxStopServicesWorkflow
 
 Move service stop logic directly into the workflow.
 
+**Status:** Completed 2025-12-18
+
 **Tasks:**
-- [ ] 4.1: Add SDK dependencies
-- [ ] 4.2: Create `Components` struct and `create()` factory
-- [ ] 4.3: Move stop logic into workflow
-- [ ] 4.4: Update CLI command
-- [ ] 4.5: Remove unused methods from service
+- [x] 4.1: Add SDK dependencies (`PostgreSQLClient`, `MinIOClient`, `DynamoDBClient`)
+- [x] 4.2: Create `Components` struct and `create()` factory
+- [x] 4.3: Move stop logic into workflow
+- [x] 4.4: Update CLI commands (`StopDatabaseCommand`, `StopDynamoDBCommand`, `StopS3Command`)
+- [x] 4.5: Service methods kept for now (LinuxStopAllWorkflow still depends on them)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStopServicesWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated stop commands to use factory
+
+**Technical Notes:**
+- Workflow now owns all service stop logic using SDK clients directly
+- `Components` struct pattern matches `LinuxStartServicesWorkflow` and `DestroyWorkflow` for consistency
+- Added deprecated `init(service:)` for backward compatibility with `LinuxStopAllWorkflow` - will be removed in Phase 9
+- The deprecated initializer ignores the service parameter and creates its own clients
+- Service methods (`stopDatabase()`, `stopS3()`, `stopDynamoDB()`) kept in `LinuxLocalDevelopmentService` for other workflows - will be removed when all dependent workflows are migrated
+- Build produces expected deprecation warning for `LinuxStopAllWorkflow` usage
 
 ---
 

@@ -1,14 +1,107 @@
 import Foundation
-import DeployLocalService
 import CLISDK
+import DeployLocalService
+import DockerCLISDK
+import DynamoDBSDK
+import MinioSDK
+import PostgreSQLSDK
+import StorageService
 import Uniflow
 
 /// Workflow for stopping local services for Linux development.
+/// Contains all service stop logic directly, using SDK clients.
 public struct LinuxStopServicesWorkflow: StreamingWorkflow {
-    private let service: LinuxLocalDevelopmentService
+    private let postgresClient: PostgreSQLClient
+    private let minioClient: MinIOClient
+    private let dynamodbClient: DynamoDBClient
 
+    public init(
+        postgresClient: PostgreSQLClient,
+        minioClient: MinIOClient,
+        dynamodbClient: DynamoDBClient
+    ) {
+        self.postgresClient = postgresClient
+        self.minioClient = minioClient
+        self.dynamodbClient = dynamodbClient
+    }
+
+    /// Legacy initializer for backward compatibility with LinuxStopAllWorkflow.
+    /// Will be removed in Phase 9 when LinuxStopAllWorkflow is migrated.
+    @available(*, deprecated, message: "Use LinuxStopServicesWorkflow.create(workingDirectory:) instead")
     public init(service: LinuxLocalDevelopmentService) {
-        self.service = service
+        // This initializer creates its own clients, ignoring the service parameter.
+        // The service is only used to maintain API compatibility.
+        let workingDirectory = FileManager.default.currentDirectoryPath
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        let dockerClient = DockerClient(cliClient: cliClient)
+        let storageService = LocalStorageService()
+        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
+
+        self.postgresClient = PostgreSQLClient(
+            dockerClient: dockerClient,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+        )
+        self.minioClient = MinIOClient(
+            dockerClient: dockerClient,
+            networkName: config.networkName,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+        )
+        self.dynamodbClient = DynamoDBClient(
+            dockerClient: dockerClient,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        )
+        _ = service // Silence unused parameter warning
+    }
+
+    /// Components needed for stopping services.
+    public struct Components: Sendable {
+        public let workflow: LinuxStopServicesWorkflow
+        public let postgresClient: PostgreSQLClient
+        public let minioClient: MinIOClient
+        public let dynamodbClient: DynamoDBClient
+    }
+
+    /// Creates a workflow and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the workflow
+    /// - Returns: Components containing the workflow and clients
+    public static func create(workingDirectory: String) -> Components {
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
+        let dockerClient = DockerClient(cliClient: cliClient)
+        let storageService = LocalStorageService()
+        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
+
+        let postgresClient = PostgreSQLClient(
+            dockerClient: dockerClient,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+        )
+        let minioClient = MinIOClient(
+            dockerClient: dockerClient,
+            networkName: config.networkName,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+        )
+        let dynamodbClient = DynamoDBClient(
+            dockerClient: dockerClient,
+            config: .linux,
+            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        )
+
+        let workflow = LinuxStopServicesWorkflow(
+            postgresClient: postgresClient,
+            minioClient: minioClient,
+            dynamodbClient: dynamodbClient
+        )
+
+        return Components(
+            workflow: workflow,
+            postgresClient: postgresClient,
+            minioClient: minioClient,
+            dynamodbClient: dynamodbClient
+        )
     }
 
     /// State updates from the stop services workflow.
@@ -73,21 +166,21 @@ public struct LinuxStopServicesWorkflow: StreamingWorkflow {
         // Stop PostgreSQL
         if options.services.contains(.database) {
             continuation.yield(State(step: .stoppingDatabase))
-            try await service.stopDatabase()
+            try await postgresClient.stop()
             continuation.yield(State(step: .stoppingDatabase, detail: .serviceStopped(.database)))
         }
 
         // Stop MinIO S3
         if options.services.contains(.s3) {
             continuation.yield(State(step: .stoppingS3))
-            try await service.stopS3()
+            try await minioClient.stop()
             continuation.yield(State(step: .stoppingS3, detail: .serviceStopped(.s3)))
         }
 
         // Stop DynamoDB Local
         if options.services.contains(.dynamodb) {
             continuation.yield(State(step: .stoppingDynamoDB))
-            try await service.stopDynamoDB()
+            try await dynamodbClient.stop()
             continuation.yield(State(step: .stoppingDynamoDB, detail: .serviceStopped(.dynamodb)))
         }
 
