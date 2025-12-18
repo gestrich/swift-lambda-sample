@@ -326,11 +326,12 @@ extension LocalLinuxCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxBuildWorkflow(service: service)
+            let components = LinuxBuildWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = LinuxBuildWorkflow.Options(clean: clean)
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printLinuxBuildProgress(progress)
             }
         }

@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 1 Complete)
+**Status:** In Progress (Phase 2 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -124,50 +124,34 @@ Extract types that workflows will need to share.
 
 ---
 
-### [ ] Phase 2: Migrate LinuxBuildWorkflow
+### [x] Phase 2: Migrate LinuxBuildWorkflow
 
 Move build logic directly into the workflow.
 
-**Current:** Workflow calls `service.build(clean:output:)`
-**Target:** Workflow directly uses `CLIClient` to run build script
+**Status:** Completed 2025-12-18
 
 **Tasks:**
-- [ ] 2.1: Add SDK dependencies to LinuxBuildWorkflow (`CLIClient`, `DockerClient`)
-- [ ] 2.2: Create `Components` struct and `create()` factory
-- [ ] 2.3: Move `build()` logic into workflow's `runWorkflow()`
-- [ ] 2.4: Move `isLambdaBuilt()` logic (simple FileManager check)
-- [ ] 2.5: Move `deleteBuild()` logic
-- [ ] 2.6: Update CLI command to use `LinuxBuildWorkflow.create()`
-- [ ] 2.7: Remove unused methods from service
+- [x] 2.1: Add SDK dependencies to LinuxBuildWorkflow (`CLIClient`, `DockerClient`)
+- [x] 2.2: Create `Components` struct and `create()` factory
+- [x] 2.3: Move `build()` logic into workflow's `runWorkflow()`
+- [x] 2.4: Move `isLambdaBuilt()` logic (simple FileManager check)
+- [x] 2.5: Move `deleteBuild()` logic
+- [x] 2.6: Update CLI command to use `LinuxBuildWorkflow.create()`
+- [x] 2.7: Update MacApp model to use `LinuxBuildWorkflow.create()`
+- [x] 2.8: Service methods kept for now (other workflows still depend on them)
 
-**Before:**
-```swift
-struct LinuxBuildWorkflow {
-    let service: LinuxLocalDevelopmentService
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxBuildWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated to use `LinuxBuildWorkflow.create()`
+- `MacApp/Models/LinuxLocalModel.swift` - Updated to use `LinuxBuildWorkflow.create()`
 
-    func runWorkflow(...) async throws {
-        try await service.build(clean: options.clean, output: outputStream)
-    }
-}
-```
-
-**After:**
-```swift
-struct LinuxBuildWorkflow {
-    let cliClient: CLIClient
-    let workingDirectory: String
-
-    struct Components { ... }
-    static func create(workingDirectory: String) -> Components { ... }
-
-    func runWorkflow(...) async throws {
-        // Build logic directly here
-        let buildCmd = BuildScript.Build.lambda(target: "LambdaApp")
-        let stream = await cliClient.stream(buildCmd, ...)
-        // ...
-    }
-}
-```
+**Technical Notes:**
+- Workflow now owns all build logic including Docker startup, clean, and build streaming
+- `Components` struct pattern matches `DestroyWorkflow` for consistency
+- `isLambdaBuilt()` and `deleteBuild()` moved to workflow as instance methods
+- Service methods (`build()`, `isLambdaBuilt()`, `deleteBuild()`) kept in `LinuxLocalDevelopmentService` because `LinuxStartLambdaWorkflow` and `LinuxRunInteractiveWorkflow` still depend on them - will be removed in Phases 6 and 13
+- Removed `DeployLocalService` import (no longer needed by LinuxBuildWorkflow)
+- Added `DockerCLISDK`, `LambdaBuildService`, `DeployCoreService` imports for SDK access
 
 ---
 

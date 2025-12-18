@@ -138,9 +138,9 @@ public class LinuxLocalModel: LocalService {
         buildState.startBuild()
 
         do {
-            let workflow = LinuxBuildWorkflow(service: developmentService)
+            let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
             let options = LinuxBuildWorkflow.Options(clean: clean)
-            for try await _ in workflow.stream(options: options) {
+            for try await _ in components.workflow.stream(options: options) {
                 // Workflow progress is consumed; UI updates via buildState
             }
             buildState.markSuccess()
