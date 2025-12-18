@@ -561,10 +561,11 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxSetupNetworkWorkflow(service: service)
+            let components = LinuxSetupNetworkWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
 
-            for try await progress in workflow.stream() {
+            for try await progress in components.workflow.stream() {
                 printLinuxSetupNetworkProgress(progress)
             }
         }
@@ -1078,15 +1079,23 @@ private func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.St
 private func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflow.State) {
     switch progress.step {
     case .creatingNetwork:
-        if case .networkCreated(let name) = progress.detail {
+        switch progress.detail {
+        case .networkCreated(let name):
             print("✅ Network '\(name)' created")
-        } else {
+        case .output(let message):
+            print("  ✓ \(message)")
+        default:
             print("🌐 Creating Docker network...")
         }
     case .connectingContainers:
-        if case .containerConnected(let name) = progress.detail {
+        switch progress.detail {
+        case .containerConnected(let name):
             print("  🔗 Connected \(name)")
-        } else {
+        case .containerSkipped(let name, let reason):
+            print("  ⚠️  Skipped \(name) (\(reason))")
+        case .output(let message):
+            print("  ✓ \(message)")
+        default:
             print("🔗 Connecting containers to network...")
         }
     case .complete:

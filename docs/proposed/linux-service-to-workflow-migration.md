@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 4 Complete)
+**Status:** In Progress (Phase 5 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -214,20 +214,32 @@ Move service stop logic directly into the workflow.
 
 ---
 
-### [ ] Phase 5: Migrate LinuxSetupNetworkWorkflow
+### [x] Phase 5: Migrate LinuxSetupNetworkWorkflow
 
 Move Docker network setup logic into the workflow.
 
-**Current:** Workflow calls `service.setupDockerNetwork()`
-**Target:** Workflow directly uses `DockerClient`
+**Status:** Completed 2025-12-18
 
 **Tasks:**
-- [ ] 5.1: Add `DockerClient` dependency
-- [ ] 5.2: Create `Components` struct and `create()` factory
-- [ ] 5.3: Move `setupDockerNetwork()` logic
-- [ ] 5.4: Move `connectContainerToNetwork()` logic
-- [ ] 5.5: Update CLI command
-- [ ] 5.6: Remove unused methods from service
+- [x] 5.1: Add `DockerClient` dependency
+- [x] 5.2: Create `Components` struct and `create()` factory
+- [x] 5.3: Move `setupDockerNetwork()` logic
+- [x] 5.4: Move `connectContainerToNetwork()` logic
+- [x] 5.5: Update CLI command to use `LinuxSetupNetworkWorkflow.create()`
+- [x] 5.6: Service methods kept for now (LinuxStartAllWorkflow still depends on them)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxSetupNetworkWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated `SetupNetworkCommand` to use factory and improved progress printing
+
+**Technical Notes:**
+- Workflow now owns all network setup logic using `DockerClient` directly
+- `Components` struct pattern matches other migrated workflows for consistency
+- Added deprecated `init(service:)` for backward compatibility with `LinuxStartAllWorkflow` - will be removed in Phase 8
+- Container names obtained from SDK config enums: `PostgreSQLConfig.linux.containerName`, `MinIOConfig.linux.containerName`, `DynamoDBLocalConfig.linux.containerName`
+- Added `containerSkipped` detail case to report when containers are not running during network setup
+- Service methods (`setupDockerNetwork()`, `connectContainerToNetwork()`) kept in `LinuxLocalDevelopmentService` - will be removed when all dependent workflows are migrated
+- Build produces expected deprecation warning for `LinuxStartAllWorkflow` and `MacApp` usage
 
 ---
 
