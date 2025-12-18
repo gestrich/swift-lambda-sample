@@ -319,7 +319,7 @@ struct ServicesView: View {
 
     @ViewBuilder
     private var remoteDetailView: some View {
-        if let remoteService = model.remoteService {
+        if let remoteService = model.remoteModel {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     DeploymentExplainer(

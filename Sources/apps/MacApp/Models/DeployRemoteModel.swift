@@ -15,6 +15,10 @@ import DeployCoreService
 /// - SDK layer (clients): Stateless execute/query operations
 @MainActor @Observable
 public class DeployRemoteModel {
+    // MARK: - Persistence Key
+
+    public static let persistenceKey = "remote"
+
     // MARK: - Unified State Machine
 
     /// Single source of truth for all model state

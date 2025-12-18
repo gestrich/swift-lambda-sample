@@ -13,13 +13,13 @@ class AppModel {
     // MARK: - Services (Eager Initialization)
 
     /// Remote service is optional - nil if AWS config is missing
-    let remoteService: DeployRemoteModel?
+    let remoteModel: DeployRemoteModel?
 
     /// Error from failed remote service initialization (nil if service was created successfully)
     let remoteServiceError: Error?
 
     let xcodeLocalService: DeployXcodeModel
-    let linuxLocalService: DeployLocalModel
+    let linuxLocalService: DeployLinuxModel
 
     /// Model for checking dependency installation status
     let dependencyStatusModel: DependencyStatusModel
@@ -33,7 +33,7 @@ class AppModel {
         switch mode {
         case .localXcode: return xcodeLocalModel
         case .localLinux: return linuxLocalModel
-        case .remote: return nil
+        case .remoteModel: return nil
         case .unconfigured: return nil
         }
     }
@@ -67,9 +67,9 @@ class AppModel {
         }
 
         let xcode = DeployXcodeModel(workingDirectory: projectDirectory)
-        let linux = DeployLocalModel(workingDirectory: projectDirectory)
+        let linux = DeployLinuxModel(workingDirectory: projectDirectory)
 
-        self.remoteService = remote
+        self.remoteModel = remote
         self.remoteServiceError = remoteError
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
@@ -81,20 +81,22 @@ class AppModel {
         self.linuxLocalModel = LocalServicesModel(service: linux)
 
         // Load mode from UserDefaults and use pre-created services
-        let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? "remote"
+        let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? DeployRemoteModel.persistenceKey
         let initialMode: ConnectionMode
         switch savedKey {
-        case DeployXcodeModel.persistenceKey:
-            initialMode = .localXcode(xcode)
-        case DeployLocalModel.persistenceKey:
-            initialMode = .localLinux(linux)
-        default:
-            // Fall back to Xcode mode if remote service failed to initialize
+        case DeployRemoteModel.persistenceKey:
             if let remote {
-                initialMode = .remote(remote)
+                initialMode = .remoteModel(remote)
             } else {
                 initialMode = .localXcode(xcode)
             }
+        case DeployXcodeModel.persistenceKey:
+            initialMode = .localXcode(xcode)
+        case DeployLinuxModel.persistenceKey:
+            initialMode = .localLinux(linux)
+        default:
+            // Fall back to Xcode mode for unknown keys
+            initialMode = .localXcode(xcode)
         }
         self.mode = initialMode
 
@@ -116,9 +118,9 @@ class AppModel {
             print("🔄 Found localModel, calling startIfNecessary")
             await localModel.startIfNecessary()
             print("🔄 startIfNecessary completed")
-        } else if let remoteService {
+        } else if let remoteModel {
             print("🔄 No localModel (remote mode), calling refresh")
-            await remoteService.refresh()
+            await remoteModel.refresh()
         }
     }
 
@@ -151,8 +153,8 @@ class AppModel {
     // MARK: - Mode Setters (for Picker binding)
 
     func setRemote() {
-        guard let remoteService else { return }
-        mode = .remote(remoteService)
+        guard let remoteModel else { return }
+        mode = .remoteModel(remoteModel)
     }
 
     func setLocalXcode() {
@@ -168,7 +170,7 @@ class AppModel {
     /// Whether the current service is configured and ready to use
     var isConfigured: Bool {
         switch mode {
-        case .remote(let service):
+        case .remoteModel(let service):
             return service.state.isConfigured
         case .localXcode(let service):
             return service.isConfigured
@@ -182,7 +184,7 @@ class AppModel {
     /// Refresh status for the current service
     func refreshStatus() {
         switch mode {
-        case .remote(let service):
+        case .remoteModel(let service):
             Task { await service.refresh() }
         case .localXcode(let service):
             service.refreshStatus()
@@ -203,17 +205,17 @@ class AppModel {
 /// Connection mode for the API - simple enum holding service references
 @MainActor
 enum ConnectionMode {
-    case remote(DeployRemoteModel)
+    case remoteModel(DeployRemoteModel)
     case localXcode(DeployXcodeModel)
-    case localLinux(DeployLocalModel)
+    case localLinux(DeployLinuxModel)
     case unconfigured
 
     /// Persistence key for saving/restoring mode selection
     var persistenceKey: String {
         switch self {
-        case .remote: return "remote"
+        case .remoteModel: return DeployRemoteModel.persistenceKey
         case .localXcode: return DeployXcodeModel.persistenceKey
-        case .localLinux: return DeployLocalModel.persistenceKey
+        case .localLinux: return DeployLinuxModel.persistenceKey
         case .unconfigured: return "unconfigured"
         }
     }
@@ -223,7 +225,7 @@ enum ConnectionMode {
         switch self {
         case .localXcode(let service): return service
         case .localLinux(let service): return service
-        case .remote: return nil
+        case .remoteModel: return nil
         case .unconfigured: return nil
         }
     }

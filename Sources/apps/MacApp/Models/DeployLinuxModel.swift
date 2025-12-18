@@ -16,7 +16,7 @@ import DeployLinuxFeature
 /// Holds UI state and delegates operations to workflow factories
 /// Conforms to LocalService for polymorphic usage
 @MainActor
-public class DeployLocalModel: LocalService {
+public class DeployLinuxModel: LocalService {
     public let cliClient: CLIClient
     private let storageService: LocalStorageService
 
