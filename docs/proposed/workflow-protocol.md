@@ -1,6 +1,6 @@
 # Workflow Protocol Standardization
 
-**Status:** In Progress (Phase 4 Complete)
+**Status:** In Progress (Phase 5 Complete)
 **Created:** 2025-12-17
 **Related:** [workflow-refactor.md](workflow-refactor.md), [layered-architecture.md](../architecture/layered-architecture.md)
 
@@ -320,20 +320,23 @@ Per the design decision on one-shot queries, `getStatus()` was moved to a dedica
 
 **Verification:** ✅ Build succeeds. All CLI commands and Mac app compile and use the new API.
 
-### Phase 5: Migrate Inline-Parameter Workflows (Category 4)
+### Phase 5: Migrate Inline-Parameter Workflows (Category 4) ✅ COMPLETED
 
-**Current:** `CloudWatchLogsWorkflow`
+**Workflow:** `CloudWatchLogsWorkflow`
+
+**Previous signature:**
 ```swift
 public func stream(since: String, pollInterval: Duration, maxEntries: Int) -> AsyncThrowingStream<State, Error>
 public func fetch(since: String) async throws -> [CloudWatchLogEntry]
 ```
 
-**Change:** Create `Options` struct for streaming:
-
+**New signature (StreamingWorkflow conformance):**
 ```swift
 import Uniflow
 
 public struct CloudWatchLogsWorkflow: StreamingWorkflow {
+    public typealias Result = State
+
     public struct Options: Sendable {
         public let since: String
         public let pollInterval: Duration
@@ -348,46 +351,38 @@ public struct CloudWatchLogsWorkflow: StreamingWorkflow {
 
     // Protocol conformance - streaming logs
     public func stream(options: Options) -> AsyncThrowingStream<State, Error>
+
+    // Kept as convenience method (see rationale below)
+    public func fetch(since: String) async throws -> [CloudWatchLogEntry]
 }
 ```
 
-#### Handling One-Shot Queries (`fetch`)
+#### Decision on One-Shot Query (`fetch`)
 
-The `fetch(since:)` method is a **one-shot query** - it makes a single call and returns results. This raises the question: how should one-shot operations fit into the protocol hierarchy?
-
-**Options:**
-
-1. **Make it a `Workflow` conformer** - Create `CloudWatchLogsFetchWorkflow: Workflow` with just `run()`. This keeps all operations in the workflow abstraction.
-
-2. **Use SDK client directly** - Remove the wrapper entirely. Callers use `CloudWatchLogsClient.fetchLogs()` from the SDK layer.
-
-3. **Keep as extra method** - The `CloudWatchLogsWorkflow` conforms to `StreamingWorkflow` but also has a `fetch()` convenience method.
-
-**Recommendation:** Option 2 - Use the SDK client directly.
+The spec recommended using the SDK client directly (Option 2), but after examining the codebase, **Option 3 (keep as extra method)** was chosen.
 
 **Rationale:**
-- `fetch()` is a thin wrapper around `CloudWatchLogsClient.fetchLogs()` with no meaningful orchestration
-- The `Workflow` abstraction is valuable when there's orchestration logic, dependency injection benefits, or testability concerns
-- For simple SDK calls, the wrapper adds indirection without benefit
-- If orchestration is needed later (retry logic, caching, etc.), a `Workflow` conformer can be added then
+- `CloudWatchLogsModel` only holds the workflow, not the underlying client, `logGroup`, or `credentialProvider`
+- Adopting Option 2 would require significant model refactoring to inject additional dependencies
+- The `fetch()` method encapsulates the same orchestration context (client, logGroup, credentials) as `stream()`
+- Keeping `fetch()` as a convenience method maintains backward compatibility with minimal changes
 
-**When a one-shot `Workflow` makes sense:**
-- The operation has non-trivial logic (retries, fallbacks, composition)
-- You want consistent dependency injection patterns
-- Testing benefits from the workflow abstraction
+**Changes made:**
+1. Added `import Uniflow` and `StreamingWorkflow` protocol conformance
+2. Created `Options` struct with `since`, `pollInterval`, and `maxEntries` parameters
+3. Updated `stream()` signature from inline parameters to `stream(options:)`
+4. Added `typealias Result = State` for default `run()` implementation
+5. Kept `fetch(since:)` as a convenience method (unchanged)
 
-**Migration:**
-```swift
-// Before (on workflow)
-let entries = try await workflow.fetch(since: "5m")
+**Callers updated:**
+- `Sources/apps/MacApp/Models/CloudWatchLogsModel.swift` - Uses `CloudWatchLogsWorkflow.Options(since:)` with `stream(options:)`
 
-// After (use SDK client directly)
-let entries = try await cloudWatchClient.fetchLogs(
-    logGroup: logGroup,
-    since: "5m",
-    credentialProvider: credentialProvider
-)
-```
+**Technical notes:**
+- The `Options` struct uses default values for `pollInterval` (.seconds(3)) and `maxEntries` (1000), matching the previous defaults
+- The `fetch()` method remains unchanged since it's a simple one-shot query, not a streaming operation
+- The model creates an `Options` instance inline when starting streaming
+
+**Verification:** ✅ Build succeeds. MacApp compiles and uses the new API.
 
 ### Phase 6: Update Remaining DeployRemote Workflows
 

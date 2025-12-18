@@ -1,10 +1,33 @@
 import Foundation
 import AWSSDK
 import CLISDK
+import Uniflow
 
 /// Workflow for streaming CloudWatch logs from Lambda.
 /// Orchestrates log fetching and yields state updates with accumulated entries.
-public struct CloudWatchLogsWorkflow: Sendable {
+public struct CloudWatchLogsWorkflow: StreamingWorkflow, Sendable {
+    public typealias Result = State
+
+    // MARK: - Options
+
+    public struct Options: Sendable {
+        public let since: String
+        public let pollInterval: Duration
+        public let maxEntries: Int
+
+        public init(
+            since: String,
+            pollInterval: Duration = .seconds(3),
+            maxEntries: Int = 1000
+        ) {
+            self.since = since
+            self.pollInterval = pollInterval
+            self.maxEntries = maxEntries
+        }
+    }
+
+    // MARK: - Properties
+
     private let client: CloudWatchLogsClient
     private let logGroup: String
     private let credentialProvider: AWSCredentialProvider
@@ -41,16 +64,9 @@ public struct CloudWatchLogsWorkflow: Sendable {
     }
 
     /// Stream logs with polling, yielding accumulated entries.
-    /// - Parameters:
-    ///   - since: Time period to fetch logs from (e.g., "5m", "1h")
-    ///   - pollInterval: How often to poll for new logs (default: 3 seconds)
-    ///   - maxEntries: Maximum entries to keep (older entries trimmed)
+    /// - Parameter options: Configuration for streaming (since, pollInterval, maxEntries)
     /// - Returns: AsyncThrowingStream of State updates
-    public func stream(
-        since: String,
-        pollInterval: Duration = .seconds(3),
-        maxEntries: Int = 1000
-    ) -> AsyncThrowingStream<State, Error> {
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 continuation.yield(.started)
@@ -59,14 +75,14 @@ public struct CloudWatchLogsWorkflow: Sendable {
                 do {
                     for try await entry in client.tailLogs(
                         logGroup: logGroup,
-                        since: since,
+                        since: options.since,
                         credentialProvider: credentialProvider,
-                        pollInterval: pollInterval
+                        pollInterval: options.pollInterval
                     ) {
                         guard !Task.isCancelled else { break }
 
                         entries.append(entry)
-                        entries = Self.trimIfNeeded(entries, maxCount: maxEntries)
+                        entries = Self.trimIfNeeded(entries, maxCount: options.maxEntries)
                         continuation.yield(.streaming(entries: entries))
                     }
                     continuation.yield(.stopped(entries: entries))

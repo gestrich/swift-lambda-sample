@@ -77,7 +77,8 @@ public final class CloudWatchLogsModel {
 
         streamTask = Task {
             do {
-                for try await workflowState in workflow.stream(since: sincePeriod) {
+                let options = CloudWatchLogsWorkflow.Options(since: sincePeriod)
+                for try await workflowState in workflow.stream(options: options) {
                     guard !Task.isCancelled else { break }
 
                     switch workflowState {
