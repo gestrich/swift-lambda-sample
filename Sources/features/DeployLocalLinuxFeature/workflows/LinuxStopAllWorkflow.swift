@@ -1,14 +1,27 @@
 import Foundation
-import DeployLocalService
 import CLISDK
 import Uniflow
 
 /// Workflow for stopping Lambda and all services for Linux development.
+/// Orchestrates LinuxStopLambdaWorkflow and LinuxStopServicesWorkflow.
 public struct LinuxStopAllWorkflow: StreamingWorkflow {
-    private let service: LinuxLocalDevelopmentService
+    private let workingDirectory: String
 
-    public init(service: LinuxLocalDevelopmentService) {
-        self.service = service
+    public init(workingDirectory: String) {
+        self.workingDirectory = workingDirectory
+    }
+
+    /// Components needed for stop all operations.
+    public struct Components: Sendable {
+        public let workflow: LinuxStopAllWorkflow
+    }
+
+    /// Creates a workflow and associated components.
+    /// - Parameter workingDirectory: The working directory for the workflow
+    /// - Returns: Components containing the workflow
+    public static func create(workingDirectory: String) -> Components {
+        let workflow = LinuxStopAllWorkflow(workingDirectory: workingDirectory)
+        return Components(workflow: workflow)
     }
 
     /// State updates from the stop all workflow.
@@ -56,8 +69,8 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
     ) async throws {
         // Stop Lambda container first
         continuation.yield(State(step: .stoppingLambda))
-        let lambdaWorkflow = LinuxStopLambdaWorkflow(service: service)
-        for try await lambdaState in lambdaWorkflow.stream() {
+        let lambdaComponents = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
+        for try await lambdaState in lambdaComponents.workflow.stream() {
             continuation.yield(State(
                 step: .stoppingLambda,
                 detail: .lambdaState(lambdaState)
@@ -66,8 +79,8 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
 
         // Then stop services
         continuation.yield(State(step: .stoppingServices))
-        let servicesWorkflow = LinuxStopServicesWorkflow(service: service)
-        for try await servicesState in servicesWorkflow.stream(options: .all) {
+        let servicesComponents = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await servicesState in servicesComponents.workflow.stream(options: .all) {
             continuation.yield(State(
                 step: .stoppingServices,
                 detail: .servicesState(servicesState)

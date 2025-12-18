@@ -218,8 +218,8 @@ public class LinuxLocalModel: LocalService {
 
         statusSubject.send(.stopping)
 
-        let workflow = LinuxStopAllWorkflow(service: developmentService)
-        for try await _ in workflow.stream() {
+        let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markStopped()

@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 8 Complete)
+**Status:** In Progress (Phase 9 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -335,11 +335,34 @@ This workflow orchestrates other workflows. Removed direct service dependency.
 
 ---
 
-### [ ] Phase 9: Migrate LinuxStopAllWorkflow
+### [x] Phase 9: Migrate LinuxStopAllWorkflow
+
+This workflow orchestrates other workflows. Removed direct service dependency.
+
+**Status:** Completed 2025-12-18
 
 **Tasks:**
-- [ ] 9.1: Remove `service` dependency
-- [ ] 9.2: Update to use workflow factories for sub-workflows
+- [x] 9.1: Remove `service` dependency (now only uses other workflows)
+- [x] 9.2: Create `Components` struct and `create()` factory method
+- [x] 9.3: Update to use workflow factories for sub-workflows
+- [x] 9.4: Update CLI command (`StopAllCommand`) to use factory
+- [x] 9.5: Update MacApp model (`stopWithServices()`) to use factory
+- [x] 9.6: Remove deprecated initializers from `LinuxStopLambdaWorkflow` and `LinuxStopServicesWorkflow`
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStopAllWorkflow.swift` - Complete rewrite using workflow factories
+- `DeployLocalLinuxFeature/workflows/LinuxStopLambdaWorkflow.swift` - Removed deprecated `init(service:)`
+- `DeployLocalLinuxFeature/workflows/LinuxStopServicesWorkflow.swift` - Removed deprecated `init(service:)`
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StopAllCommand` to use factory
+- `MacApp/Models/LinuxLocalModel.swift` - Updated `stopWithServices()` to use factory
+
+**Technical Notes:**
+- Workflow no longer has a `service` dependency - only orchestrates other workflows
+- Uses `LinuxStopLambdaWorkflow.create()` and `LinuxStopServicesWorkflow.create()` factories
+- `Components` struct pattern matches `LinuxStartAllWorkflow` for consistency
+- Removed `DeployLocalService` import from `LinuxStopAllWorkflow` (no longer needed)
+- Deprecated initializers removed from `LinuxStopLambdaWorkflow` and `LinuxStopServicesWorkflow` (no longer needed)
+- MacApp still uses deprecated `LinuxSetupNetworkWorkflow(service:)` in `setupDockerNetwork()` - will be addressed when that method is migrated
 
 ---
 
