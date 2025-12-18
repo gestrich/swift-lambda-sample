@@ -28,6 +28,11 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
+        // MARK: - Uniflow
+        .target(
+            name: "Uniflow",
+            path: "Sources/sdks/Uniflow"
+        ),
         // MARK: - CLI Macros
         .macro(
             name: "CLIMacrosSDK",
@@ -109,6 +114,7 @@ let package = Package(
         .target(
             name: "SetupFeature",
             dependencies: [
+                .target(name: "Uniflow"),
                 .target(name: "CLISDK"),
                 .target(name: "BrewCLISDK"),
                 .target(name: "NodeCLISDK"),
@@ -151,6 +157,7 @@ let package = Package(
         .target(
             name: "DeployRemoteFeature",
             dependencies: [
+                .target(name: "Uniflow"),
                 .target(name: "CLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
@@ -165,6 +172,7 @@ let package = Package(
         .target(
             name: "DeployLocalXcodeFeature",
             dependencies: [
+                .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
             ],
@@ -173,6 +181,7 @@ let package = Package(
         .target(
             name: "DeployLocalLinuxFeature",
             dependencies: [
+                .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
                 .target(name: "CLISDK"),
             ],
