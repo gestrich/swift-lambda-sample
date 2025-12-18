@@ -40,7 +40,7 @@ extension AWSCommand {
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await state in components.workflow.run(options: options) {
+            for try await state in components.workflow.stream(options: options) {
                 switch state {
                 case .deploying(let progress):
                     switch progress.step {

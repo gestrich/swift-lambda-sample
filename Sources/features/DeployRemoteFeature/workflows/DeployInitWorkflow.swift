@@ -173,7 +173,7 @@ public struct DeployInitWorkflow: Sendable {
         var apiUrl: String?
         var finalOutputs: CDKStackOutputs?
 
-        for try await workflowState in deployComponents.workflow.run(options: deployOptions) {
+        for try await workflowState in deployComponents.workflow.stream(options: deployOptions) {
             continuation.yield(Progress(
                 step: .deployingInfrastructure,
                 detail: .deployProgress(workflowState)

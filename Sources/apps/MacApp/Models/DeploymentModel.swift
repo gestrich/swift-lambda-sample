@@ -199,7 +199,7 @@ public class DeploymentModel {
     // MARK: - Deploy Operations
 
     /// Deploy infrastructure with specified configuration
-    public func deploy(options: DeployWorkflow.Options, output: CLIOutputStream? = nil) async {
+    public func deploy(options: DeployWorkflow.Options) async {
         guard state.canDeploy else { return }
 
         lastOperationError = nil
@@ -212,7 +212,7 @@ public class DeploymentModel {
         )
 
         do {
-            for try await workflowState in workflow.run(options: options, output: output) {
+            for try await workflowState in workflow.stream(options: options) {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
@@ -224,8 +224,8 @@ public class DeploymentModel {
     /// Update infrastructure maintaining current configuration
     public func updateInfrastructure(output: CLIOutputStream? = nil) async {
         let shape = state.snapshot?.infrastructure?.shape ?? .minimal
-        let options = DeployWorkflow.Options(infrastructure: shape)
-        await deploy(options: options, output: output)
+        let options = DeployWorkflow.Options(infrastructure: shape, output: output)
+        await deploy(options: options)
     }
 
     // MARK: - Destroy Operations
@@ -243,8 +243,9 @@ public class DeploymentModel {
             stackName: stackName
         )
 
+        let options = DestroyWorkflow.Options(output: output)
         do {
-            for try await workflowState in workflow.run(output: output) {
+            for try await workflowState in workflow.stream(options: options) {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {

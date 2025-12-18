@@ -558,8 +558,7 @@ struct CDKInfrastructureSectionView: View {
                         showOutput()
                         Task {
                             await service.deploy(
-                                options: .init(withPostgres: false, withNATGateway: false),
-                                output: stream
+                                options: .init(withPostgres: false, withNATGateway: false, output: stream)
                             )
                         }
                     } label: {
@@ -570,8 +569,7 @@ struct CDKInfrastructureSectionView: View {
                         showOutput()
                         Task {
                             await service.deploy(
-                                options: .init(withPostgres: true, withNATGateway: false),
-                                output: stream
+                                options: .init(withPostgres: true, withNATGateway: false, output: stream)
                             )
                         }
                     } label: {
@@ -582,8 +580,7 @@ struct CDKInfrastructureSectionView: View {
                         showOutput()
                         Task {
                             await service.deploy(
-                                options: .init(withPostgres: true, withNATGateway: true),
-                                output: stream
+                                options: .init(withPostgres: true, withNATGateway: true, output: stream)
                             )
                         }
                     } label: {

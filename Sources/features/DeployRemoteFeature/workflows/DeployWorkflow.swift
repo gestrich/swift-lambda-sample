@@ -1,10 +1,13 @@
 import Foundation
 import AWSSDK
 import CLISDK
+import Uniflow
 
 /// Workflow for deploying CDK infrastructure.
 /// Orchestrates CDK deployment and CloudFormation monitoring, returning progress via stream.
-public struct DeployWorkflow: Sendable {
+public struct DeployWorkflow: StreamingWorkflow {
+    public typealias State = WorkflowState
+    public typealias Result = State
     private let cdkClient: CDKClient
     private let cfClient: CloudFormationClient
     private let stackName: String
@@ -70,26 +73,31 @@ public struct DeployWorkflow: Sendable {
     public struct Options: Sendable {
         public let infrastructure: InfrastructureShape
         public let requireApproval: Bool
+        public let output: CLIOutputStream?
 
         public init(
             infrastructure: InfrastructureShape = .minimal,
-            requireApproval: Bool = false
+            requireApproval: Bool = false,
+            output: CLIOutputStream? = nil
         ) {
             self.infrastructure = infrastructure
             self.requireApproval = requireApproval
+            self.output = output
         }
 
         /// Convenience initializer for backward compatibility
         public init(
             withPostgres: Bool = false,
             withNATGateway: Bool = false,
-            requireApproval: Bool = false
+            requireApproval: Bool = false,
+            output: CLIOutputStream? = nil
         ) {
             self.infrastructure = InfrastructureShape(
                 hasDatabase: withPostgres,
                 hasNATGateway: withNATGateway
             )
             self.requireApproval = requireApproval
+            self.output = output
         }
 
         public static var minimal: Options {
@@ -117,21 +125,15 @@ public struct DeployWorkflow: Sendable {
         }
     }
 
-    /// Run the deploy workflow
-    /// - Parameters:
-    ///   - options: Deployment options
-    ///   - output: Optional CLI output stream for raw command output
-    /// - Returns: AsyncThrowingStream that yields WorkflowState updates
-    public func run(
-        options: Options,
-        output: CLIOutputStream? = nil
-    ) -> AsyncThrowingStream<WorkflowState, Error> {
+    /// Stream the deploy workflow, yielding state updates during execution.
+    /// - Parameter options: Deployment options (including optional output stream)
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
                     try await runWorkflow(
                         options: options,
-                        output: output,
                         continuation: continuation
                     )
                 } catch {
@@ -143,9 +145,9 @@ public struct DeployWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        output: CLIOutputStream?,
-        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let output = options.output
         let startTime = Date()
 
         // Phase 1: CDK Deploy (building + deploying)

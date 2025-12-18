@@ -1,10 +1,13 @@
 import Foundation
 import AWSSDK
 import CLISDK
+import Uniflow
 
 /// Workflow for destroying CDK infrastructure.
 /// Orchestrates CDK destroy and CloudFormation monitoring, returning progress via stream.
-public struct DestroyWorkflow: Sendable {
+public struct DestroyWorkflow: StreamingWorkflow {
+    public typealias State = WorkflowState
+    public typealias Result = State
     private let cdkClient: CDKClient
     private let cfClient: CloudFormationClient
     private let stackName: String
@@ -70,9 +73,12 @@ public struct DestroyWorkflow: Sendable {
     public struct Options: Sendable {
         /// Skip confirmation prompts (force destroy)
         public let force: Bool
+        /// Optional CLI output stream for raw command output
+        public let output: CLIOutputStream?
 
-        public init(force: Bool = true) {
+        public init(force: Bool = true, output: CLIOutputStream? = nil) {
             self.force = force
+            self.output = output
         }
 
         func toCDKOptions() -> CDKClient.DestroyOptions {
@@ -80,21 +86,15 @@ public struct DestroyWorkflow: Sendable {
         }
     }
 
-    /// Run the destroy workflow
-    /// - Parameters:
-    ///   - options: Destroy options
-    ///   - output: Optional CLI output stream for raw command output
-    /// - Returns: AsyncThrowingStream that yields WorkflowState updates
-    public func run(
-        options: Options = Options(),
-        output: CLIOutputStream? = nil
-    ) -> AsyncThrowingStream<WorkflowState, Error> {
+    /// Stream the destroy workflow, yielding state updates during execution.
+    /// - Parameter options: Destroy options (including optional output stream)
+    /// - Returns: AsyncThrowingStream that yields State updates
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
                     try await runWorkflow(
                         options: options,
-                        output: output,
                         continuation: continuation
                     )
                 } catch {
@@ -106,9 +106,9 @@ public struct DestroyWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        output: CLIOutputStream?,
-        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let output = options.output
         let startTime = Date()
 
         // Phase 1: CDK Destroy

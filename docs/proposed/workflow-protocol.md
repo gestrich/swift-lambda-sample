@@ -1,6 +1,6 @@
 # Workflow Protocol Standardization
 
-**Status:** In Progress (Phase 2 Complete)
+**Status:** In Progress (Phase 3 Complete)
 **Created:** 2025-12-17
 **Related:** [workflow-refactor.md](workflow-refactor.md), [layered-architecture.md](../architecture/layered-architecture.md)
 
@@ -190,17 +190,16 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 
 **Verification:** ✅ Build succeeds. All CLI commands and Mac app models compile and use the new API.
 
-### Phase 3: Migrate Extra-Parameter Workflows (Category 2)
+### Phase 3: Migrate Extra-Parameter Workflows (Category 2) ✅ COMPLETED
 
 **Workflows:** `DeployWorkflow`, `DestroyWorkflow`
 
-**Current signature:**
+**Previous signature:**
 ```swift
 public func run(options: Options, output: CLIOutputStream?) -> AsyncThrowingStream<WorkflowState, Error>
 ```
 
-**Change:** Move `output` into `Options` struct:
-
+**New signature (StreamingWorkflow conformance):**
 ```swift
 public struct Options: Sendable {
     public let infrastructure: InfrastructureShape
@@ -215,14 +214,29 @@ public struct Options: Sendable {
 }
 
 // Now conforms to StreamingWorkflow protocol
-public func stream(options: Options) -> AsyncThrowingStream<WorkflowState, Error>
+public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 ```
 
-**Update callers:**
-- `DeployCommand` - pass `output` in options
-- `DeploymentModel` - pass `output` in options
+**Changes made per workflow:**
+1. Added `import Uniflow` and `StreamingWorkflow` protocol conformance
+2. Renamed `run(options:output:)` to `stream(options:)`
+3. Moved `output: CLIOutputStream?` parameter into `Options` struct
+4. Added `typealias State = WorkflowState` and `typealias Result = State`
+5. Updated private `runWorkflow` method to extract `output` from `options`
 
-**Verification:** Build succeeds. Deploy commands work as before.
+**Callers updated:**
+- `Sources/apps/CLIApp/Commands/DeployCommand.swift` - Uses `stream(options:)`
+- `Sources/apps/CLIApp/Commands/TearDownCommand.swift` - Uses `stream(options:)`
+- `Sources/features/DeployRemoteFeature/workflows/DeployInitWorkflow.swift` - Uses `stream(options:)`
+- `Sources/apps/MacApp/Models/DeploymentModel.swift` - Uses `stream(options:)`, passes output in options
+- `Sources/apps/MacApp/UI/RemoteService/CDKInfrastructureSectionView.swift` - Passes output in options
+
+**Technical notes:**
+- `DestroyWorkflow.Options` now includes `output` parameter with default `nil`
+- `DeployWorkflow.Options` convenience initializers updated to include `output` parameter
+- Both workflows use `typealias State = WorkflowState` so existing `WorkflowState.DeployProgress` and `WorkflowState.DestroyProgress` references continue to work
+
+**Verification:** ✅ Build succeeds. All CLI commands and Mac app compile and use the new API.
 
 ### Phase 4: Split Multi-Operation Workflows (Category 3)
 
