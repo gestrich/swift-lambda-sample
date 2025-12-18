@@ -172,7 +172,7 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
         let options = LinuxBuildWorkflow.Options(clean: false)
 
         for try await buildState in buildComponents.workflow.stream(options: options) {
-            if case .output(let text) = buildState.detail {
+            if case .building(let progress) = buildState, let text = progress.output {
                 continuation.yield(State(step: .checkingBuild, detail: .output(text)))
             }
         }

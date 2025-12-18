@@ -50,29 +50,9 @@ public struct LinuxBuildWorkflow: StreamingWorkflow {
         return Components(workflow: workflow)
     }
 
-    /// State updates from the build workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case cleaning
-            case building
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case buildPath(String)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    /// State type alias - workflows yield LinuxWorkflowState
+    public typealias State = LinuxWorkflowState
+    public typealias Result = LinuxWorkflowState
 
     /// Options for the build workflow.
     public struct Options: Sendable {
@@ -85,8 +65,8 @@ public struct LinuxBuildWorkflow: StreamingWorkflow {
 
     /// Stream the build workflow.
     /// - Parameter options: Build options
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    public func stream(options: Options) -> AsyncThrowingStream<LinuxWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -100,8 +80,10 @@ public struct LinuxBuildWorkflow: StreamingWorkflow {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<LinuxWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Ensure Docker is running
         if !(await dockerClient.isDockerRunning()) {
             try await startDockerDesktop()
@@ -109,13 +91,13 @@ public struct LinuxBuildWorkflow: StreamingWorkflow {
 
         // Clean if requested
         if options.clean {
-            continuation.yield(State(step: .cleaning))
+            continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .cleaning, startTime: startTime)))
             let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
             _ = try await cliClient.execute(rmCmd, workingDirectory: workingDirectory, printCommand: false)
         }
 
         // Build
-        continuation.yield(State(step: .building))
+        continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime)))
 
         let buildCmd = BuildScript.Build.lambda(target: "LambdaApp")
         let stream = await cliClient.stream(buildCmd, workingDirectory: workingDirectory, printCommand: false)
@@ -126,7 +108,7 @@ public struct LinuxBuildWorkflow: StreamingWorkflow {
             case .stdout(_, let text), .stderr(_, let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    continuation.yield(State(step: .building, detail: .output(trimmed)))
+                    continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime, output: trimmed)))
                 }
             case .exit(_, let code):
                 exitCode = code
@@ -139,7 +121,11 @@ public struct LinuxBuildWorkflow: StreamingWorkflow {
             throw BuildError.failed(exitCode: exitCode)
         }
 
-        continuation.yield(State(step: .complete, detail: .buildPath(lambdaDir)))
+        let snapshot = LinuxSnapshot(
+            serviceStatus: .stopped,
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 

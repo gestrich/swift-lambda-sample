@@ -3,22 +3,23 @@ import DeployLinuxFeature
 
 // MARK: - Linux Progress Printers
 
-func printLinuxBuildProgress(_ progress: LinuxBuildWorkflow.State) {
-    switch progress.step {
-    case .cleaning:
-        print("🧹 Cleaning build artifacts...")
-    case .building:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
-            print("🐳 Building Lambda for Linux (Docker)...")
+func printLinuxBuildProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .building(let buildProgress):
+        switch buildProgress.step {
+        case .cleaning:
+            print("🧹 Cleaning build artifacts...")
+        case .building:
+            if let output = buildProgress.output {
+                print("  \(output)")
+            } else {
+                print("🐳 Building Lambda for Linux (Docker)...")
+            }
         }
-    case .complete:
-        if case .buildPath(let path) = progress.detail {
-            print("✅ Build complete: \(path)")
-        } else {
-            print("✅ Build complete")
-        }
+    case .completed:
+        print("✅ Build complete")
+    default:
+        break
     }
 }
 

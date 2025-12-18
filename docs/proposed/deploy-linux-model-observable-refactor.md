@@ -342,18 +342,26 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ---
 
-### Phase 3: Update LinuxBuildWorkflow to Yield LinuxWorkflowState
+### Phase 3: Update LinuxBuildWorkflow to Yield LinuxWorkflowState ✅ COMPLETED
 
 **Tasks:**
-- [ ] 3.1: Update `LinuxBuildWorkflow.State` to be `LinuxWorkflowState`
-- [ ] 3.2: Update `stream()` to yield `LinuxWorkflowState.building(...)` during progress
-- [ ] 3.3: Update `stream()` to yield `LinuxWorkflowState.completed(LinuxSnapshot)` on completion
-- [ ] 3.4: Update CLI command to handle new state type
-- [ ] 3.5: Build verification
+- [x] 3.1: Update `LinuxBuildWorkflow.State` to be `LinuxWorkflowState`
+- [x] 3.2: Update `stream()` to yield `LinuxWorkflowState.building(...)` during progress
+- [x] 3.3: Update `stream()` to yield `LinuxWorkflowState.completed(LinuxSnapshot)` on completion
+- [x] 3.4: Update CLI command to handle new state type
+- [x] 3.5: Build verification
 
-**Files to modify:**
+**Files modified:**
 - `Sources/features/DeployLinuxFeature/workflows/LinuxBuildWorkflow.swift`
-- `Sources/apps/CLIApp/Commands/LocalCommand.swift`
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxProgressPrinters.swift`
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStartLambdaWorkflow.swift` (downstream fix)
+
+**Technical Notes:**
+- Changed `LinuxBuildWorkflow.State` from a nested struct with `Step`/`Detail` enums to `typealias State = LinuxWorkflowState`
+- Workflow now yields `.building(BuildProgress)` states with `startTime` and optional `output` for build output
+- On completion, yields `.completed(LinuxSnapshot)` with `serviceStatus: .stopped` and `buildStatus: .available`
+- CLI progress printer now switches on `LinuxWorkflowState` enum cases
+- Fixed downstream consumer `LinuxStartLambdaWorkflow.buildLambda()` to extract output from `LinuxWorkflowState.building` case
 
 ---
 
