@@ -183,7 +183,7 @@ struct GitHubCISectionView: View {
     }
 
     @ViewBuilder
-    private func snapshotIcon(for snapshot: GitHubCIWorkflow.Snapshot) -> some View {
+    private func snapshotIcon(for snapshot: GitHubCISnapshot) -> some View {
         switch snapshot.status {
         case .idle(let lastRun):
             if let run = lastRun {
@@ -256,7 +256,7 @@ struct GitHubCISectionView: View {
     }
 
     @ViewBuilder
-    private func snapshotText(for snapshot: GitHubCIWorkflow.Snapshot) -> some View {
+    private func snapshotText(for snapshot: GitHubCISnapshot) -> some View {
         switch snapshot.status {
         case .idle(let lastRun):
             if let run = lastRun {

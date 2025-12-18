@@ -1,6 +1,6 @@
 # Workflow Protocol Standardization
 
-**Status:** In Progress (Phase 3 Complete)
+**Status:** In Progress (Phase 4 Complete)
 **Created:** 2025-12-17
 **Related:** [workflow-refactor.md](workflow-refactor.md), [layered-architecture.md](../architecture/layered-architecture.md)
 
@@ -238,19 +238,20 @@ public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 
 **Verification:** ✅ Build succeeds. All CLI commands and Mac app compile and use the new API.
 
-### Phase 4: Split Multi-Operation Workflows (Category 3)
+### Phase 4: Split Multi-Operation Workflows (Category 3) ✅ COMPLETED
 
-**Current:** `GitHubCIWorkflow` has multiple operations:
+**Previous:** `GitHubCIWorkflow` had multiple operations:
 - `pushAndDeploy(timeoutMinutes:)` - Push commits and monitor deployment
 - `monitorRun(runId:, timeoutMinutes:)` - Monitor existing run
 - `getStatus()` - One-shot status query
 
-**Proposed split:**
+**New structure:**
 
-#### 4.1 `GitHubPushAndDeployWorkflow`
+#### 4.1 `GitHubPushAndDeployWorkflow` (StreamingWorkflow)
 ```swift
 public struct GitHubPushAndDeployWorkflow: StreamingWorkflow {
     public typealias State = GitHubCIState
+    public typealias Result = State
 
     public struct Options: Sendable {
         public let timeoutMinutes: Int
@@ -261,48 +262,63 @@ public struct GitHubPushAndDeployWorkflow: StreamingWorkflow {
 }
 ```
 
-#### 4.2 `GitHubMonitorRunWorkflow`
+#### 4.2 `GitHubMonitorRunWorkflow` (StreamingWorkflow)
 ```swift
 public struct GitHubMonitorRunWorkflow: StreamingWorkflow {
     public typealias State = GitHubCIState
+    public typealias Result = State
 
     public struct Options: Sendable {
         public let runId: String
         public let timeoutMinutes: Int
+        public init(runId: String, timeoutMinutes: Int = 10) { ... }
     }
 
     public func stream(options: Options) -> AsyncThrowingStream<State, Error>
 }
 ```
 
-#### 4.3 Keep shared types
-Move shared types to a common location:
-- `GitHubCIState` (renamed from `GitHubCIWorkflow.State`)
-- `GitHubCIProgress` (renamed from `GitHubCIWorkflow.DeployProgress`)
-- `GitStatus`, `Snapshot`, `StatusSnapshot`
+#### 4.3 `GitHubStatusQuery` (one-shot query, not a workflow)
+```swift
+public struct GitHubStatusQuery: Sendable {
+    public func execute() async throws -> GitHubCIStatusSnapshot
+}
+```
 
-#### 4.4 Handle `getStatus()` one-shot query
+Per the design decision on one-shot queries, `getStatus()` was moved to a dedicated query struct rather than conforming to `Workflow`. This keeps the workflow abstraction focused on multi-step operations.
 
-Similar to `CloudWatchLogsWorkflow.fetch()`, the `getStatus()` method is a one-shot query, not a streaming operation. Per the design decision on one-shot queries:
+#### 4.4 Shared types in `GitHubCITypes.swift`
+- `GitHubCIState` - Streamed state enum (`.deploying`, `.completed`)
+- `GitHubCISnapshot` - Complete operation result
+- `GitHubCIStatusSnapshot` - Lightweight status for refresh operations
+- `GitHubCIGitStatus` - Git repository status
+- `GitHubCIDeployProgress` - Progress during deployment
+- `GitHubCIStep` - Deployment step enumeration
+- `GitHubCIWorkflowError` - Error types
 
-**Options:**
-1. Keep `getStatus()` on one of the new workflows as a convenience method
-2. Move to `GitHubCLIClient` or create a dedicated status query
+**Files created:**
+- `Sources/features/DeployRemoteFeature/workflows/GitHubPushAndDeployWorkflow.swift`
+- `Sources/features/DeployRemoteFeature/workflows/GitHubMonitorRunWorkflow.swift`
+- `Sources/features/DeployRemoteFeature/services/GitHubCITypes.swift`
+- `Sources/features/DeployRemoteFeature/services/GitHubStatusQuery.swift`
 
-**Recommendation:** Move status query logic to `GitHubCLIClient` in the SDK layer, or provide it as a static factory method that doesn't require workflow instantiation.
+**Files deleted:**
+- `Sources/features/DeployRemoteFeature/workflows/GitHubCIWorkflow.swift`
 
-**Files:**
-- Create: `Sources/features/DeployRemoteFeature/workflows/GitHubPushAndDeployWorkflow.swift`
-- Create: `Sources/features/DeployRemoteFeature/workflows/GitHubMonitorRunWorkflow.swift`
-- Delete: `Sources/features/DeployRemoteFeature/workflows/GitHubCIWorkflow.swift` (after migration)
-- Create: `Sources/features/DeployRemoteFeature/services/GitHubCITypes.swift` - Shared types
+**Callers updated:**
+- `Sources/apps/MacApp/Models/GitHubCIModel.swift` - Now uses three separate components:
+  - `GitHubPushAndDeployWorkflow` for push & deploy operations
+  - `GitHubMonitorRunWorkflow` for monitoring existing runs
+  - `GitHubStatusQuery` for status refresh
+- `Sources/apps/MacApp/UI/RemoteService/GitHubCISectionView.swift` - Updated type references from `GitHubCIWorkflow.Snapshot` to `GitHubCISnapshot`
 
-**Update callers:**
-- `UpdateLambdaWorkflow` - Use `GitHubPushAndDeployWorkflow`
-- `ResumeMonitoringWorkflow` - Use `GitHubMonitorRunWorkflow`
-- `DeploymentModel` / Mac app - Update to use new workflow types
+**Technical notes:**
+- The `GitHubCIModel` convenience initializer creates all three components from a single `GitHubConfiguration`
+- Shared clients (`GitHubCLIClient`, `GitClient`) are passed to each component
+- All types are top-level in their respective files (not nested in workflow structs) for easier access
+- `WorkflowRunInfo` extension for parsing `GitHubWorkflowRun` remains in `GitHubCITypes.swift`
 
-**Verification:** Build succeeds. Lambda update and monitoring work as before.
+**Verification:** ✅ Build succeeds. All CLI commands and Mac app compile and use the new API.
 
 ### Phase 5: Migrate Inline-Parameter Workflows (Category 4)
 

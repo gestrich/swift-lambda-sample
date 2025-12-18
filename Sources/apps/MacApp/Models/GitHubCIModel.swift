@@ -6,11 +6,11 @@ import Observation
 import DeployRemoteFeature
 
 /// Observable model for GitHub CI operations.
-/// This is a thin model that uses GitHubCIWorkflow and maintains observable state.
+/// This is a thin model that uses GitHub CI workflows and maintains observable state.
 ///
 /// Per the layered architecture:
 /// - App layer (this model): @Observable state + UI coordination
-/// - Service layer (workflow): Multi-step orchestration, returns AsyncThrowingStream
+/// - Service layer (workflows): Multi-step orchestration, returns AsyncThrowingStream
 /// - SDK layer (clients): Stateless execute/query operations
 @MainActor
 @Observable
@@ -27,33 +27,56 @@ public final class GitHubCIModel {
 
     // MARK: - Private
 
-    private let workflow: GitHubCIWorkflow
+    private let pushAndDeployWorkflow: GitHubPushAndDeployWorkflow
+    private let monitorRunWorkflow: GitHubMonitorRunWorkflow
+    private let statusQuery: GitHubStatusQuery
 
     // MARK: - Init
 
-    /// Initialize with a workflow and configuration.
+    /// Initialize with workflows and configuration.
     /// Note: Does NOT automatically refresh status. Call `refresh()` explicitly after init.
-    public init(workflow: GitHubCIWorkflow, repository: String, branch: String) {
-        self.workflow = workflow
+    public init(
+        pushAndDeployWorkflow: GitHubPushAndDeployWorkflow,
+        monitorRunWorkflow: GitHubMonitorRunWorkflow,
+        statusQuery: GitHubStatusQuery,
+        repository: String,
+        branch: String
+    ) {
+        self.pushAndDeployWorkflow = pushAndDeployWorkflow
+        self.monitorRunWorkflow = monitorRunWorkflow
+        self.statusQuery = statusQuery
         self.repository = repository
         self.branch = branch
     }
 
-    /// Convenience initializer that creates the workflow from configuration.
+    /// Convenience initializer that creates the workflows from configuration.
     public convenience init(projectRoot: String, config: GitHubConfiguration, cliClient: CLIClient) {
         let ghClient = GitHubCLIClient(repository: config.repository, cliClient: cliClient)
         let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
 
-        let workflow = GitHubCIWorkflow(
+        let pushAndDeployWorkflow = GitHubPushAndDeployWorkflow(
             ghClient: ghClient,
             gitClient: gitClient,
-            repository: config.repository,
+            branch: config.branch,
+            workflowName: config.workflowName
+        )
+
+        let monitorRunWorkflow = GitHubMonitorRunWorkflow(
+            ghClient: ghClient,
+            gitClient: gitClient
+        )
+
+        let statusQuery = GitHubStatusQuery(
+            ghClient: ghClient,
+            gitClient: gitClient,
             branch: config.branch,
             workflowName: config.workflowName
         )
 
         self.init(
-            workflow: workflow,
+            pushAndDeployWorkflow: pushAndDeployWorkflow,
+            monitorRunWorkflow: monitorRunWorkflow,
+            statusQuery: statusQuery,
             repository: config.repository,
             branch: config.branch
         )
@@ -75,20 +98,20 @@ public final class GitHubCIModel {
         state = .loading(prior: prior)
 
         do {
-            let statusSnapshot = try await workflow.getStatus()
+            let statusSnapshot = try await statusQuery.execute()
 
             // Check if a workflow run is in progress and resume monitoring
             if let inProgressId = statusSnapshot.inProgressRunId {
                 await monitorRun(runId: inProgressId, timeoutMinutes: 20)
             } else {
-                state = .ready(GitHubCIWorkflow.Snapshot.idle(
+                state = .ready(GitHubCISnapshot.idle(
                     lastRun: statusSnapshot.latestRun,
                     gitStatus: statusSnapshot.gitStatus
                 ))
             }
         } catch {
             print("Failed to refresh GitHub CI status: \(error)")
-            state = .ready(GitHubCIWorkflow.Snapshot.failed(
+            state = .ready(GitHubCISnapshot.failed(
                 runId: "",
                 reason: error.localizedDescription,
                 gitStatus: prior?.gitStatus ?? .empty
@@ -105,11 +128,12 @@ public final class GitHubCIModel {
         let prior = state.snapshot
 
         do {
-            for try await workflowState in workflow.pushAndDeploy(timeoutMinutes: timeoutMinutes) {
+            let options = GitHubPushAndDeployWorkflow.Options(timeoutMinutes: timeoutMinutes)
+            for try await workflowState in pushAndDeployWorkflow.stream(options: options) {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            state = .ready(GitHubCIWorkflow.Snapshot.failed(
+            state = .ready(GitHubCISnapshot.failed(
                 runId: "",
                 reason: error.localizedDescription,
                 gitStatus: prior?.gitStatus ?? .empty
@@ -122,11 +146,12 @@ public final class GitHubCIModel {
         let prior = state.snapshot
 
         do {
-            for try await workflowState in workflow.monitorRun(runId: runId, timeoutMinutes: timeoutMinutes) {
+            let options = GitHubMonitorRunWorkflow.Options(runId: runId, timeoutMinutes: timeoutMinutes)
+            for try await workflowState in monitorRunWorkflow.stream(options: options) {
                 state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            state = .ready(GitHubCIWorkflow.Snapshot.failed(
+            state = .ready(GitHubCISnapshot.failed(
                 runId: runId,
                 reason: error.localizedDescription,
                 gitStatus: prior?.gitStatus ?? .empty
@@ -145,19 +170,19 @@ public final class GitHubCIModel {
     // MARK: - Nested Types
 
     /// Unified state machine for the GitHub CI model.
-    /// Uses service-layer types (GitHubCIWorkflow.State, Snapshot) for actual state,
+    /// Uses service-layer types (GitHubCIState, GitHubCISnapshot) for actual state,
     /// while ModelState handles app-layer concerns (loading, prior preservation).
     public enum ModelState: Equatable {
         case uninitialized
-        case loading(prior: GitHubCIWorkflow.Snapshot?)
-        case ready(GitHubCIWorkflow.Snapshot)
-        case operating(GitHubCIWorkflow.State, prior: GitHubCIWorkflow.Snapshot?)
+        case loading(prior: GitHubCISnapshot?)
+        case ready(GitHubCISnapshot)
+        case operating(GitHubCIState, prior: GitHubCISnapshot?)
 
         // MARK: - Convenience Initializer
 
         /// Construct ModelState from a workflow state plus app-layer prior.
         /// This is the key integration point between workflows and the model.
-        public init(from workflowState: GitHubCIWorkflow.State, prior: GitHubCIWorkflow.Snapshot?) {
+        public init(from workflowState: GitHubCIState, prior: GitHubCISnapshot?) {
             if let snapshot = workflowState.completedSnapshot {
                 self = .ready(snapshot)
             } else {
@@ -167,7 +192,7 @@ public final class GitHubCIModel {
 
         // MARK: - Convenience Accessors
 
-        public var snapshot: GitHubCIWorkflow.Snapshot? {
+        public var snapshot: GitHubCISnapshot? {
             switch self {
             case .uninitialized: return nil
             case .loading(let prior): return prior
@@ -176,7 +201,7 @@ public final class GitHubCIModel {
             }
         }
 
-        public var workflowState: GitHubCIWorkflow.State? {
+        public var workflowState: GitHubCIState? {
             if case .operating(let state, _) = self { return state }
             return nil
         }
@@ -234,7 +259,7 @@ public final class GitHubCIModel {
 
         // MARK: - Git Status Accessors
 
-        public var gitStatus: GitHubCIWorkflow.GitStatus {
+        public var gitStatus: GitHubCIGitStatus {
             snapshot?.gitStatus ?? .empty
         }
 
