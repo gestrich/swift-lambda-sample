@@ -32,19 +32,6 @@ public struct XcodeStartServicesWorkflow: StreamingWorkflow {
         self.dynamodbClient = dynamodbClient
     }
 
-    /// Backward-compatible initializer for XcodeStartAllWorkflow.
-    /// - Parameter service: The Xcode local development service (ignored, clients created internally)
-    @available(*, deprecated, message: "Use XcodeStartServicesWorkflow.create() instead")
-    public init(service: XcodeLocalDevelopmentService) {
-        let workingDirectory = FileManager.default.currentDirectoryPath
-        let components = Self.create(workingDirectory: workingDirectory)
-        self.cliClient = components.cliClient
-        self.dockerClient = components.dockerClient
-        self.postgresClient = components.postgresClient
-        self.minioClient = components.minioClient
-        self.dynamodbClient = components.dynamodbClient
-    }
-
     /// Components needed for starting services.
     public struct Components: Sendable {
         public let workflow: XcodeStartServicesWorkflow

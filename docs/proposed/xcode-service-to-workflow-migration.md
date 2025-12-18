@@ -281,25 +281,32 @@ Move Lambda process stop logic into the workflow.
 
 ---
 
-### [ ] Phase 7: Migrate XcodeStartAllWorkflow
+### [x] Phase 7: Migrate XcodeStartAllWorkflow (COMPLETED)
 
 This workflow orchestrates other workflows. Remove direct service dependency.
 
 **Tasks:**
-- [ ] 7.1: Remove `service` dependency (now only uses other workflows)
-- [ ] 7.2: Create `Components` struct and `create()` factory method
-- [ ] 7.3: Update to use workflow factories for sub-workflows
-- [ ] 7.4: Move `setupNetworkAndBucket()` logic inline (Docker network + bucket creation)
-- [ ] 7.5: Update CLI command
-- [ ] 7.6: Update MacApp model
-- [ ] 7.7: Remove deprecated initializers from dependent workflows
+- [x] 7.1: Remove `service` dependency (now only uses other workflows)
+- [x] 7.2: Create `Components` struct and `create()` factory method
+- [x] 7.3: Update to use workflow factories for sub-workflows
+- [x] 7.4: `setupNetworkAndBucket()` logic not needed - bucket creation handled by `XcodeStartServicesWorkflow`, network only needed for Linux mode
+- [x] 7.5: Update CLI command
+- [x] 7.6: Update MacApp model
+- [x] 7.7: Remove deprecated initializers from dependent workflows
 
-**Files to modify:**
-- `DeployLocalXcodeFeature/workflows/XcodeStartAllWorkflow.swift`
-- `DeployLocalXcodeFeature/workflows/XcodeStartServicesWorkflow.swift` (remove deprecated init)
-- `DeployLocalXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift` (remove deprecated init)
-- `CLIApp/Commands/LocalCommand.swift`
-- `MacApp/Models/XcodeLocalModel.swift`
+**Files modified:**
+- `DeployLocalXcodeFeature/workflows/XcodeStartAllWorkflow.swift` - Added `Components`, `create()`, now orchestrates sub-workflows using their factories
+- `DeployLocalXcodeFeature/workflows/XcodeStartServicesWorkflow.swift` - Removed deprecated `init(service:)`
+- `DeployLocalXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift` - Removed deprecated `init(service:)`
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StartAllCommand` to use factory
+- `MacApp/Models/XcodeLocalModel.swift` - Updated `startWithServices()` to use factory
+
+**Technical Notes:**
+- Workflow now orchestrates sub-workflows using their `create()` factories
+- Removed `.waitingForReady` step since `XcodeStartLambdaWorkflow` already includes wait-for-ready logic
+- Docker network setup (`setupNetworkAndBucket`) was only needed for Linux mode where containers communicate - Xcode mode uses native processes on localhost that can reach MinIO directly
+- Bucket creation is already handled by `XcodeStartServicesWorkflow` after starting MinIO
+- Simplified state machine: only `startingServices`, `startingLambda`, and `complete` steps
 
 ---
 

@@ -37,19 +37,6 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
         self.workingDirectory = workingDirectory
     }
 
-    /// Backward-compatible initializer for XcodeStartAllWorkflow.
-    /// - Parameter service: The Xcode local development service (ignored, clients created internally)
-    @available(*, deprecated, message: "Use XcodeStartLambdaWorkflow.create() instead")
-    public init(service: XcodeLocalDevelopmentService) {
-        let workingDirectory = FileManager.default.currentDirectoryPath
-        let components = Self.create(workingDirectory: workingDirectory)
-        self.cliClient = components.cliClient
-        self.postgresClient = components.postgresClient
-        self.minioClient = components.minioClient
-        self.dynamodbClient = components.dynamodbClient
-        self.workingDirectory = workingDirectory
-    }
-
     /// Components needed for starting Lambda.
     public struct Components: Sendable {
         public let workflow: XcodeStartLambdaWorkflow

@@ -210,8 +210,8 @@ public class XcodeLocalModel: LocalService {
 
         statusSubject.send(.starting)
 
-        let workflow = XcodeStartAllWorkflow(service: developmentService)
-        for try await _ in workflow.stream() {
+        let components = XcodeStartAllWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream() {
             // Workflow progress is consumed; UI updates via statusSubject
         }
         lambdaState.markRunning()

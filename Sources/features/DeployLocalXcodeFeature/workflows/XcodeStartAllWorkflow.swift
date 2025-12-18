@@ -1,14 +1,36 @@
 import Foundation
-import DeployLocalService
 import CLISDK
+import DeployCoreService
+import DeployLocalService
+import DockerCLISDK
+import DynamoDBSDK
+import MinioSDK
+import PostgreSQLSDK
+import StorageService
 import Uniflow
 
 /// Workflow for starting Lambda with all services for Xcode development.
+/// Orchestrates XcodeStartServicesWorkflow and XcodeStartLambdaWorkflow.
 public struct XcodeStartAllWorkflow: StreamingWorkflow {
-    private let service: XcodeLocalDevelopmentService
+    private let workingDirectory: String
+    private let lambdaHostPort = 8080
 
-    public init(service: XcodeLocalDevelopmentService) {
-        self.service = service
+    public init(workingDirectory: String) {
+        self.workingDirectory = workingDirectory
+    }
+
+    /// Components needed for start all operations.
+    public struct Components: Sendable {
+        public let workflow: XcodeStartAllWorkflow
+        public let port: Int
+    }
+
+    /// Creates a workflow and associated components.
+    /// - Parameter workingDirectory: The working directory for the workflow
+    /// - Returns: Components containing the workflow and configuration
+    public static func create(workingDirectory: String) -> Components {
+        let workflow = XcodeStartAllWorkflow(workingDirectory: workingDirectory)
+        return Components(workflow: workflow, port: 8080)
     }
 
     /// State updates from the start all workflow.
@@ -19,7 +41,6 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
         public enum Step: Sendable, Equatable {
             case startingServices
             case startingLambda
-            case waitingForReady
             case complete
         }
 
@@ -58,29 +79,26 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
     ) async throws {
         // Start services first
         continuation.yield(State(step: .startingServices))
-        let servicesWorkflow = XcodeStartServicesWorkflow(service: service)
-        for try await servicesState in servicesWorkflow.stream(options: .all) {
+        let servicesComponents = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await servicesState in servicesComponents.workflow.stream(options: .all) {
             continuation.yield(State(
                 step: .startingServices,
                 detail: .servicesState(servicesState)
             ))
         }
 
-        // Then start Lambda
+        // Start Lambda (includes build if needed and waitForReady)
         continuation.yield(State(step: .startingLambda))
-        let lambdaWorkflow = XcodeStartLambdaWorkflow(service: service)
-        for try await lambdaState in lambdaWorkflow.stream() {
+        let lambdaComponents = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+        for try await lambdaState in lambdaComponents.workflow.stream() {
             continuation.yield(State(
                 step: .startingLambda,
                 detail: .lambdaState(lambdaState)
             ))
         }
 
-        // Wait for Lambda to be ready
-        continuation.yield(State(step: .waitingForReady))
-        try await service.waitForReady()
-
-        continuation.yield(State(step: .complete, detail: .port(8080)))
+        // Complete with port info
+        continuation.yield(State(step: .complete, detail: .port(lambdaHostPort)))
         continuation.finish()
     }
 }
