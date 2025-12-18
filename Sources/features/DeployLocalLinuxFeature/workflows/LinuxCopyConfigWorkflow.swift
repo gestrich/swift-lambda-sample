@@ -1,14 +1,40 @@
 import Foundation
-import DeployLocalService
 import CLISDK
+import DeployLocalService
+import StorageService
 import Uniflow
 
 /// Workflow for copying configuration files to `~/.swiftSampleDemo/`.
+/// Contains all copy config logic directly, using LocalStorageService.
 public struct LinuxCopyConfigWorkflow: StreamingWorkflow {
-    private let service: LinuxLocalDevelopmentService
+    private let storageService: LocalStorageService
+    private let workingDirectory: String
 
-    public init(service: LinuxLocalDevelopmentService) {
-        self.service = service
+    public init(
+        storageService: LocalStorageService,
+        workingDirectory: String
+    ) {
+        self.storageService = storageService
+        self.workingDirectory = workingDirectory
+    }
+
+    /// Components needed for copy config operations.
+    public struct Components: Sendable {
+        public let workflow: LinuxCopyConfigWorkflow
+    }
+
+    /// Creates a workflow and associated components by instantiating required services.
+    /// - Parameter workingDirectory: The working directory for the workflow
+    /// - Returns: Components containing the workflow
+    public static func create(workingDirectory: String) -> Components {
+        let storageService = LocalStorageService()
+
+        let workflow = LinuxCopyConfigWorkflow(
+            storageService: storageService,
+            workingDirectory: workingDirectory
+        )
+
+        return Components(workflow: workflow)
     }
 
     /// State updates from the copy config workflow.
@@ -64,14 +90,34 @@ public struct LinuxCopyConfigWorkflow: StreamingWorkflow {
     ) async throws {
         continuation.yield(State(step: .copying))
 
-        try await service.copyConfig(sourcePath: sourcePath)
+        // Ensure base directory exists
+        try storageService.ensureDirectoryExists(at: storageService.baseDataDirectory)
 
-        // Get destination path for detail
-        let homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
-        let destPath = "\(homeDirectory)/.swiftSampleDemo/"
+        // Determine source and destination paths
+        let appConfigSource: String
+        if let customPath = sourcePath {
+            appConfigSource = customPath
+        } else {
+            appConfigSource = "\(workingDirectory)/\(AppConfigFileKey.filename)"
+        }
+        let appConfigDest = storageService.filePath(for: AppConfigFileKey.self)
 
-        continuation.yield(State(step: .copying, detail: .copiedFile("swiftLambdaDemo.json")))
-        continuation.yield(State(step: .complete, detail: .destinationPath(destPath)))
+        // Verify source file exists
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: appConfigSource) else {
+            throw CLIClientError.invalidWorkingDirectory("App config file not found at: \(appConfigSource)")
+        }
+
+        // Remove existing destination file if present
+        if fm.fileExists(atPath: appConfigDest) {
+            try fm.removeItem(atPath: appConfigDest)
+        }
+
+        // Copy file
+        try fm.copyItem(atPath: appConfigSource, toPath: appConfigDest)
+
+        continuation.yield(State(step: .copying, detail: .copiedFile(AppConfigFileKey.filename)))
+        continuation.yield(State(step: .complete, detail: .destinationPath(storageService.baseDataDirectory + "/")))
         continuation.finish()
     }
 }

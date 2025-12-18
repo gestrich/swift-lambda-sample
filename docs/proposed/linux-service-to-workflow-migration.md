@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 11 Complete)
+**Status:** In Progress (Phase 12 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -425,16 +425,31 @@ Move status checking logic into the workflow.
 
 ---
 
-### [ ] Phase 12: Migrate LinuxCopyConfigWorkflow
+### [x] Phase 12: Migrate LinuxCopyConfigWorkflow
 
 Move config copy logic into the workflow.
 
+**Status:** Completed 2025-12-18
+
 **Tasks:**
-- [ ] 12.1: Add `LocalStorageService` dependency
-- [ ] 12.2: Create `Components` struct and `create()` factory
-- [ ] 12.3: Move `copyConfig()` logic
-- [ ] 12.4: Update CLI command
-- [ ] 12.5: Remove unused methods from service
+- [x] 12.1: Add `LocalStorageService` dependency
+- [x] 12.2: Create `Components` struct and `create()` factory
+- [x] 12.3: Move `copyConfig()` logic
+- [x] 12.4: Update CLI command (`CopyConfigCommand`) to use factory
+- [x] 12.5: Service method kept for now (LinuxRunInteractiveWorkflow may still depend on it)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxCopyConfigWorkflow.swift` - Complete rewrite with LocalStorageService
+- `CLIApp/Commands/LocalCommand.swift` - Updated `CopyConfigCommand` to use factory
+
+**Technical Notes:**
+- Workflow now owns all config copy logic using `LocalStorageService` directly
+- `Components` struct pattern matches other migrated workflows for consistency
+- Uses `FileManager.default` inside the async method rather than storing it as a property (to maintain Sendable conformance)
+- Source path defaults to `{workingDirectory}/{AppConfigFileKey.filename}` when not provided
+- Removed `DeployLocalService` import for service dependency (now uses `LocalStorageService` and `AppConfigFileKey` from DeployLocalService)
+- Service method (`copyConfig()`) in `LinuxLocalDevelopmentService` can be removed once all dependent workflows are migrated
+- MacApp still uses deprecated `LinuxSetupNetworkWorkflow(service:)` in `setupDockerNetwork()` - unrelated to this phase
 
 ---
 

@@ -601,11 +601,12 @@ extension LocalLinuxCommand {
         )
 
         func run() async throws {
-            let service = LinuxLocalDevelopmentService(workingDirectory: FileManager.default.currentDirectoryPath)
-            let workflow = LinuxCopyConfigWorkflow(service: service)
+            let components = LinuxCopyConfigWorkflow.create(
+                workingDirectory: FileManager.default.currentDirectoryPath
+            )
             let options = LinuxCopyConfigWorkflow.Options()
 
-            for try await progress in workflow.stream(options: options) {
+            for try await progress in components.workflow.stream(options: options) {
                 printLinuxCopyConfigProgress(progress)
             }
         }
