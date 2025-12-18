@@ -1,6 +1,6 @@
 # Linux Service to Workflow Migration
 
-**Status:** In Progress (Phase 6 Complete)
+**Status:** In Progress (Phase 7 Complete)
 **Created:** 2025-12-18
 **Related:** [workflow-role-exploration.md](workflow-role-exploration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -276,16 +276,33 @@ Move Lambda container start logic into the workflow.
 
 ---
 
-### [ ] Phase 7: Migrate LinuxStopLambdaWorkflow
+### [x] Phase 7: Migrate LinuxStopLambdaWorkflow
 
 Move Lambda container stop logic into the workflow.
 
+**Status:** Completed 2025-12-18
+
 **Tasks:**
-- [ ] 7.1: Add `DockerClient` dependency
-- [ ] 7.2: Create `Components` struct and `create()` factory
-- [ ] 7.3: Move `stopLambda()` logic
-- [ ] 7.4: Update CLI command
-- [ ] 7.5: Remove unused methods from service
+- [x] 7.1: Add `DockerClient` dependency
+- [x] 7.2: Create `Components` struct and `create()` factory
+- [x] 7.3: Move `stopLambda()` and `isRunning()` logic
+- [x] 7.4: Update CLI command to use `LinuxStopLambdaWorkflow.create()`
+- [x] 7.5: Update MacApp model to use `LinuxStopLambdaWorkflow.create()`
+- [x] 7.6: Service methods kept for now (LinuxStopAllWorkflow still depends on them via deprecated initializer)
+
+**Files modified:**
+- `DeployLocalLinuxFeature/workflows/LinuxStopLambdaWorkflow.swift` - Complete rewrite with SDK clients
+- `CLIApp/Commands/LocalCommand.swift` - Updated `StopCommand` to use factory
+- `MacApp/Models/LinuxLocalModel.swift` - Updated `stopLambda()` to use factory
+
+**Technical Notes:**
+- Workflow now owns all Lambda stop logic using `DockerClient` directly
+- `Components` struct pattern matches other migrated workflows for consistency
+- Added deprecated `init(service:)` for backward compatibility with `LinuxStopAllWorkflow` - will be removed in Phase 9
+- The deprecated initializer ignores the service parameter and creates its own clients
+- Removed `DeployLocalService` import (no longer needed by LinuxStopLambdaWorkflow)
+- Service methods (`stopLambda()`, `isRunning()`) kept in `LinuxLocalDevelopmentService` for other workflows - will be removed when all dependent workflows are migrated
+- Build produces expected deprecation warning for `LinuxStopAllWorkflow` usage
 
 ---
 
