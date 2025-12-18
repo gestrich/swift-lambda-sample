@@ -1,6 +1,6 @@
 # Xcode Service to Workflow Migration
 
-**Status:** In Progress
+**Status:** Phases 1-12 Complete - Ready for Final Cleanup (Phase 13)
 **Created:** 2025-12-18
 **Related:** [linux-service-to-workflow-migration.md](linux-service-to-workflow-migration.md), [workflow-protocol.md](workflow-protocol.md)
 
@@ -414,18 +414,34 @@ Move config copy logic into the workflow.
 
 ---
 
-### [ ] Phase 12: Delete XcodeLocalDevelopmentService
+### [x] Phase 12: Delete XcodeLocalDevelopmentService (COMPLETED)
 
 After all logic has been migrated.
 
 **Tasks:**
-- [ ] 12.1: Verify no remaining references to `XcodeLocalDevelopmentService`
-- [ ] 12.2: Delete `XcodeLocalDevelopmentService.swift`
-- [ ] 12.3: Update any remaining consumers (MacApp model, tests)
-- [ ] 12.4: Ensure shared types in `DeployLocalService` are still accessible
+- [x] 12.1: Verify no remaining references to `XcodeLocalDevelopmentService`
+- [x] 12.2: Delete `XcodeLocalDevelopmentService.swift`
+- [x] 12.3: Update any remaining consumers (MacApp model, tests)
+- [x] 12.4: Ensure shared types in `DeployLocalService` are still accessible
 
-**Files to delete:**
+**Files deleted:**
 - `DeployLocalXcodeFeature/services/XcodeLocalDevelopmentService.swift`
+- `DeployLocalXcodeFeature/services/` (empty directory removed)
+
+**Files modified:**
+- `MacApp/Models/XcodeLocalModel.swift` - Removed `XcodeLocalDevelopmentService` dependency, now uses workflows directly:
+  - Service start/stop methods use `XcodeStartServicesWorkflow` and `XcodeStopServicesWorkflow` with `Options.only(...)` for selective operations
+  - `deleteBuild()` uses `XcodeBuildWorkflow.create().workflow.deleteBuild()`
+  - `waitForReady()` uses `XcodeStatusWorkflow.create().workflow.isLambdaRunning()` in a polling loop
+  - `testLambda()` uses `XcodeTestWorkflow.create().workflow.stream()`
+  - `createBucket()` uses components from `XcodeStartServicesWorkflow.create()` to access `minioClient.createBucket()`
+- `DeployLocalXcodeFeature/workflows/XcodeTestWorkflow.swift` - Removed deprecated `init(service:)` initializer
+
+**Technical Notes:**
+- `XcodeLocalModel` no longer holds any reference to `XcodeLocalDevelopmentService`
+- All service operations now go through workflow factories which create their own SDK clients
+- Shared types (`LocalServiceType`, `LambdaExecutionContext`, `createEnvironmentVariables()`, storage keys) remain in `DeployLocalService`
+- The model uses workflow `Components` structs to access SDK clients when needed (e.g., for `createBucket()`)
 
 ---
 

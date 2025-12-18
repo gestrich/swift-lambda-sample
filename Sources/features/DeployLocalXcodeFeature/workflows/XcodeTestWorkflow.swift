@@ -190,11 +190,4 @@ public struct XcodeTestWorkflow: StreamingWorkflow {
         }
     }
 
-    // MARK: - Deprecated Initializer
-
-    @available(*, deprecated, message: "Use XcodeTestWorkflow.create() factory instead")
-    public init(service: XcodeLocalDevelopmentService) {
-        self.cliClient = CLIClient(defaultWorkingDirectory: FileManager.default.currentDirectoryPath)
-        self.lambdaHostPort = 8080
-    }
 }

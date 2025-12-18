@@ -9,11 +9,10 @@ import LambdaBuildService
 import DeployLocalXcodeFeature
 
 /// Observable model for native macOS Xcode development workflow
-/// Holds UI state and delegates operations to XcodeLocalDevelopmentService
+/// Holds UI state and delegates operations to Xcode workflows
 /// Conforms to LocalService for polymorphic usage
 @MainActor
 public class XcodeLocalModel: LocalService {
-    private let developmentService: XcodeLocalDevelopmentService
     public let cliClient: CLIClient
     private let storageService: LocalStorageService
 
@@ -76,7 +75,6 @@ public class XcodeLocalModel: LocalService {
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.developmentService = XcodeLocalDevelopmentService(workingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
 
         // Check for existing build artifacts
@@ -86,39 +84,64 @@ public class XcodeLocalModel: LocalService {
     // MARK: - Service Management
 
     public func startAllServices() async throws {
-        try await developmentService.startAllServices()
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .all) {
+            // Workflow progress is consumed
+        }
     }
 
     public func stopAllServices() async throws {
-        try await developmentService.stopAllServices()
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .all) {
+            // Workflow progress is consumed
+        }
     }
 
     public func startS3() async throws {
-        try await developmentService.startS3()
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.s3)) {
+            // Workflow progress is consumed
+        }
     }
 
     public func createBucket(bucketName: String? = nil) async throws {
-        try await developmentService.createBucket(bucketName: bucketName)
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        try await components.minioClient.createBucket(bucketName: bucketName)
     }
 
     public func stopS3() async throws {
-        try await developmentService.stopS3()
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.s3)) {
+            // Workflow progress is consumed
+        }
     }
 
     public func startDatabase() async throws {
-        try await developmentService.startDatabase()
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.database)) {
+            // Workflow progress is consumed
+        }
     }
 
     public func stopDatabase() async throws {
-        try await developmentService.stopDatabase()
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.database)) {
+            // Workflow progress is consumed
+        }
     }
 
     public func startDynamoDB() async throws {
-        try await developmentService.startDynamoDB()
+        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
+            // Workflow progress is consumed
+        }
     }
 
     public func stopDynamoDB() async throws {
-        try await developmentService.stopDynamoDB()
+        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
+            // Workflow progress is consumed
+        }
     }
 
     public var s3DataDirectory: String {
@@ -168,7 +191,8 @@ public class XcodeLocalModel: LocalService {
     }
 
     public func deleteBuild() async throws {
-        try await developmentService.deleteBuild()
+        let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
+        try await components.workflow.deleteBuild()
         buildState.clear()
     }
 
@@ -266,11 +290,32 @@ public class XcodeLocalModel: LocalService {
     // MARK: - Testing
 
     public func waitForReady(maxAttempts: Int = 30) async throws {
-        try await developmentService.waitForReady(maxAttempts: maxAttempts)
+        // Use XcodeStatusWorkflow to check if Lambda is running
+        let statusComponents = XcodeStatusWorkflow.create()
+        var attempts = 0
+        var ready = false
+
+        while attempts < maxAttempts && !ready {
+            if await statusComponents.workflow.isLambdaRunning() {
+                ready = true
+                break
+            }
+            try await Task.sleep(for: .seconds(1))
+            attempts += 1
+        }
+
+        if !ready {
+            throw DeployError.testFailed(
+                message: "Lambda failed to be ready on port \(lambdaHostPort) after \(maxAttempts) seconds"
+            )
+        }
     }
 
     public func testLambda() async throws {
-        try await developmentService.testLambda()
+        let components = XcodeTestWorkflow.create(workingDirectory: workingDirectory)
+        for try await _ in components.workflow.stream(options: ()) {
+            // Workflow progress is consumed
+        }
     }
 
     // MARK: - Status
