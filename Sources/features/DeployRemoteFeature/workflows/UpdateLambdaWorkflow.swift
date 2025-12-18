@@ -2,10 +2,13 @@ import Foundation
 import CLISDK
 import GitHubSDK
 import DeployCoreService
+import Uniflow
 
 /// Workflow for updating Lambda code via GitHub Actions.
-/// Orchestrates git operations and workflow monitoring, returning progress via stream.
-public struct UpdateLambdaWorkflow: Sendable {
+/// Orchestrates git operations and workflow monitoring, yielding state updates via stream.
+public struct UpdateLambdaWorkflow: StreamingWorkflow, Sendable {
+    public typealias State = WorkflowState
+    public typealias Result = State
     private let gitClient: GitClient
     private let ghClient: GitHubCLIClient
     private let branch: String
@@ -72,11 +75,11 @@ public struct UpdateLambdaWorkflow: Sendable {
         }
     }
 
-    /// Run the update lambda workflow.
+    /// Stream the update lambda workflow, yielding state updates.
     /// - Returns: AsyncThrowingStream that yields WorkflowState updates.
     ///   Note: This workflow finishes without yielding `.completed` since
     ///   Lambda updates don't change infrastructure state.
-    public func run(options: Options = Options()) -> AsyncThrowingStream<WorkflowState, Error> {
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -90,7 +93,7 @@ public struct UpdateLambdaWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
@@ -163,7 +166,7 @@ public struct UpdateLambdaWorkflow: Sendable {
     private func triggerAndWaitForCompletion(
         workflowName: String,
         timeoutMinutes: Int,
-        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation,
+        continuation: AsyncThrowingStream<State, Error>.Continuation,
         startTime: Date
     ) async throws {
         let beforeRunId = try await ghClient.getLatestWorkflowRun(branch: branch, workflow: self.workflowName)?.id
@@ -209,7 +212,7 @@ public struct UpdateLambdaWorkflow: Sendable {
     private func monitorUntilComplete(
         runId: String,
         timeoutMinutes: Int,
-        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation,
+        continuation: AsyncThrowingStream<State, Error>.Continuation,
         startTime: Date
     ) async throws {
         let pollInterval: Duration = .seconds(10)

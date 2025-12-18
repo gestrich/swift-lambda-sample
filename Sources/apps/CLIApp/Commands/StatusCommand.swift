@@ -35,13 +35,13 @@ extension AWSCommand {
                 cliClient: cliClient
             )
 
-            for try await progress in components.workflow.run() {
-                printProgress(progress)
+            for try await state in components.workflow.stream() {
+                printState(state)
             }
         }
 
-        private func printProgress(_ progress: DeployStatusWorkflow.Progress) {
-            guard let detail = progress.detail else { return }
+        private func printState(_ state: DeployStatusWorkflow.State) {
+            guard let detail = state.detail else { return }
 
             switch detail {
             case .gitStatus(let status):

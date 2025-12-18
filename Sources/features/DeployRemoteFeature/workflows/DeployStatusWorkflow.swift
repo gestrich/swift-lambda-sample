@@ -2,10 +2,13 @@ import Foundation
 import AWSSDK
 import CLISDK
 import GitHubSDK
+import Uniflow
 
 /// Workflow for querying deployment and git status.
 /// Orchestrates git status, GitHub Actions status, and CloudFormation stack queries.
-public struct DeployStatusWorkflow: Sendable {
+public struct DeployStatusWorkflow: StreamingWorkflow, Sendable {
+    public typealias Options = Void
+    public typealias Result = State
     private let gitClient: GitClient
     private let ghClient: GitHubCLIClient?
     private let cfClient: CloudFormationClient
@@ -79,8 +82,8 @@ public struct DeployStatusWorkflow: Sendable {
         )
     }
 
-    /// Progress updates from the status workflow.
-    public struct Progress: Sendable {
+    /// State updates from the status workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -168,8 +171,8 @@ public struct DeployStatusWorkflow: Sendable {
         }
     }
 
-    /// Run the status workflow.
-    public func run() -> AsyncThrowingStream<Progress, Error> {
+    /// Stream the status workflow, yielding state updates.
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -182,24 +185,24 @@ public struct DeployStatusWorkflow: Sendable {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         // Phase 1: Git status
-        continuation.yield(Progress(step: .checkingGit))
+        continuation.yield(State(step: .checkingGit))
         let gitStatus = try await fetchGitStatus()
-        continuation.yield(Progress(step: .checkingGit, detail: .gitStatus(gitStatus)))
+        continuation.yield(State(step: .checkingGit, detail: .gitStatus(gitStatus)))
 
         // Phase 2: GitHub Actions status
-        continuation.yield(Progress(step: .checkingGitHub))
+        continuation.yield(State(step: .checkingGitHub))
         let githubStatus = await fetchGitHubStatus(continuation: continuation)
 
         // Phase 3: CloudFormation stack status
-        continuation.yield(Progress(step: .checkingStack))
+        continuation.yield(State(step: .checkingStack))
         let stackStatus = await fetchStackStatus(continuation: continuation)
 
         // Complete with full status
         let fullStatus = Status(git: gitStatus, github: githubStatus, stack: stackStatus)
-        continuation.yield(Progress(step: .complete, detail: .status(fullStatus)))
+        continuation.yield(State(step: .complete, detail: .status(fullStatus)))
         continuation.finish()
     }
 
@@ -216,10 +219,10 @@ public struct DeployStatusWorkflow: Sendable {
     }
 
     private func fetchGitHubStatus(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async -> GitHubStatus? {
         guard let ghClient, let repository, let branch else {
-            continuation.yield(Progress(step: .checkingGitHub, detail: .githubNotConfigured))
+            continuation.yield(State(step: .checkingGitHub, detail: .githubNotConfigured))
             return nil
         }
 
@@ -232,7 +235,7 @@ public struct DeployStatusWorkflow: Sendable {
                     latestRunStatus: "none",
                     latestRunConclusion: nil
                 )
-                continuation.yield(Progress(step: .checkingGitHub, detail: .githubStatus(githubStatus)))
+                continuation.yield(State(step: .checkingGitHub, detail: .githubStatus(githubStatus)))
                 return githubStatus
             }
             let githubStatus = GitHubStatus(
@@ -241,25 +244,25 @@ public struct DeployStatusWorkflow: Sendable {
                 latestRunStatus: run.status,
                 latestRunConclusion: run.conclusion
             )
-            continuation.yield(Progress(step: .checkingGitHub, detail: .githubStatus(githubStatus)))
+            continuation.yield(State(step: .checkingGitHub, detail: .githubStatus(githubStatus)))
             return githubStatus
         } catch {
-            continuation.yield(Progress(step: .checkingGitHub, detail: .githubError(error.localizedDescription)))
+            continuation.yield(State(step: .checkingGitHub, detail: .githubError(error.localizedDescription)))
             return nil
         }
     }
 
     private func fetchStackStatus(
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async -> StackStatus {
         do {
             let state = try await cfClient.queryState(stackName: stackName)
             let stackStatus = StackStatus(from: state)
-            continuation.yield(Progress(step: .checkingStack, detail: .stackStatus(stackStatus)))
+            continuation.yield(State(step: .checkingStack, detail: .stackStatus(stackStatus)))
             return stackStatus
         } catch {
             let errorMessage = error.localizedDescription
-            continuation.yield(Progress(step: .checkingStack, detail: .stackError(errorMessage)))
+            continuation.yield(State(step: .checkingStack, detail: .stackError(errorMessage)))
             return .unknown(state: errorMessage)
         }
     }

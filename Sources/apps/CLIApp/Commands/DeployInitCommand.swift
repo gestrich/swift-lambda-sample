@@ -59,11 +59,11 @@ extension AWSCommand {
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await progress in components.workflow.run(options: options) {
-                printProgress(progress, newConfig: options)
+            for try await state in components.workflow.stream(options: options) {
+                printState(state, newConfig: options)
 
-                if case .complete = progress.step,
-                   case .outputs(let outputs) = progress.detail {
+                if case .complete = state.step,
+                   case .outputs(let outputs) = state.detail {
                     finalOutputs = outputs
                 }
             }
@@ -78,17 +78,17 @@ extension AWSCommand {
             print("\n🎉 Deployment completed successfully!")
         }
 
-        private func printProgress(_ progress: DeployInitWorkflow.Progress, newConfig: DeployInitWorkflow.Options) {
-            switch progress.step {
+        private func printState(_ state: DeployInitWorkflow.State, newConfig: DeployInitWorkflow.Options) {
+            switch state.step {
             case .checkingSafety:
-                if case .safetyCheckPassed = progress.detail {
+                if case .safetyCheckPassed = state.detail {
                     print("✅ Safety check passed")
                 } else {
                     print("🔒 Checking safety...")
                 }
 
             case .checkingConfiguration:
-                if case .existingConfiguration(let config) = progress.detail {
+                if case .existingConfiguration(let config) = state.detail {
                     print("\n⚠️  WARNING: Stack already exists!")
                     print("   Current configuration:")
                     print("     Database: \(config.hasDatabase ? "YES" : "NO")")
@@ -100,19 +100,19 @@ extension AWSCommand {
                 }
 
             case .deployingInfrastructure:
-                if case .deployProgress(let deployProgress) = progress.detail {
-                    printDeployProgress(deployProgress)
+                if case .deployState(let deployState) = state.detail {
+                    printDeployState(deployState)
                 }
 
             case .updatingLambda:
-                if case .lambdaProgress(let lambdaProgress) = progress.detail {
-                    printLambdaProgress(lambdaProgress)
+                if case .lambdaState(let lambdaState) = state.detail {
+                    printLambdaState(lambdaState)
                 } else {
                     print("\n📦 Updating Lambda code...")
                 }
 
             case .initializingDatabase:
-                if case .databaseResponse(let response) = progress.detail {
+                if case .databaseResponse(let response) = state.detail {
                     print("   Response: \(response)")
                     print("   ✓ Database initialized successfully")
                 } else {
@@ -120,7 +120,7 @@ extension AWSCommand {
                 }
 
             case .verifyingDeployment:
-                if case .healthCheckResponse(let response) = progress.detail {
+                if case .healthCheckResponse(let response) = state.detail {
                     print("   Response: \(response)")
                     print("   ✅ Health check passed")
                 } else {
@@ -133,7 +133,7 @@ extension AWSCommand {
             }
         }
 
-        private func printDeployProgress(_ state: WorkflowState) {
+        private func printDeployState(_ state: WorkflowState) {
             switch state {
             case .deploying(let progress):
                 switch progress.step {
@@ -157,7 +157,7 @@ extension AWSCommand {
             }
         }
 
-        private func printLambdaProgress(_ state: WorkflowState) {
+        private func printLambdaState(_ state: WorkflowState) {
             guard case .updatingLambda(let progress) = state else { return }
 
             switch progress.step {

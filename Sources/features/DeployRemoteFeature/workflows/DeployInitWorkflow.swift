@@ -3,10 +3,12 @@ import AWSSDK
 import CLISDK
 import GitHubSDK
 import DeployCoreService
+import Uniflow
 
 /// Workflow for initial deployment - setting infrastructure configuration.
 /// Orchestrates safety checks, CDK deployment, Lambda update, database init, and verification.
-public struct DeployInitWorkflow: Sendable {
+public struct DeployInitWorkflow: StreamingWorkflow, Sendable {
+    public typealias Result = State
     private let deployComponents: DeployWorkflow.Components
     private let cliClient: CLIClient
     private let projectRoot: String
@@ -63,8 +65,8 @@ public struct DeployInitWorkflow: Sendable {
         )
     }
 
-    /// Progress updates from the deploy-init workflow.
-    public struct Progress: Sendable {
+    /// State updates from the deploy-init workflow.
+    public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
 
@@ -81,8 +83,8 @@ public struct DeployInitWorkflow: Sendable {
         public enum Detail: Sendable {
             case safetyCheckPassed
             case existingConfiguration(ExistingConfiguration)
-            case deployProgress(WorkflowState)
-            case lambdaProgress(WorkflowState)
+            case deployState(WorkflowState)
+            case lambdaState(WorkflowState)
             case databaseResponse(String)
             case healthCheckResponse(String)
             case outputs(CDKStackOutputs?)
@@ -122,8 +124,8 @@ public struct DeployInitWorkflow: Sendable {
         }
     }
 
-    /// Run the deploy-init workflow.
-    public func run(options: Options) -> AsyncThrowingStream<Progress, Error> {
+    /// Stream the deploy-init workflow, yielding state updates.
+    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -137,34 +139,34 @@ public struct DeployInitWorkflow: Sendable {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<Progress, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let cfClient = deployComponents.cfClient
         let stackName = deployComponents.stackName
 
         // Phase 1: Safety check - prevent accidental database deletion
-        continuation.yield(Progress(step: .checkingSafety))
+        continuation.yield(State(step: .checkingSafety))
         try await checkDatabaseSafety(
             cfClient: cfClient,
             stackName: stackName,
             withPostgres: options.withPostgres
         )
-        continuation.yield(Progress(step: .checkingSafety, detail: .safetyCheckPassed))
+        continuation.yield(State(step: .checkingSafety, detail: .safetyCheckPassed))
 
         // Phase 2: Check and report existing configuration
-        continuation.yield(Progress(step: .checkingConfiguration))
+        continuation.yield(State(step: .checkingConfiguration))
         if let existingConfig = try await checkExistingConfiguration(
             cfClient: cfClient,
             stackName: stackName
         ) {
-            continuation.yield(Progress(
+            continuation.yield(State(
                 step: .checkingConfiguration,
                 detail: .existingConfiguration(existingConfig)
             ))
         }
 
         // Phase 3: Deploy infrastructure
-        continuation.yield(Progress(step: .deployingInfrastructure))
+        continuation.yield(State(step: .deployingInfrastructure))
         let deployOptions = DeployWorkflow.Options(
             withPostgres: options.withPostgres,
             withNATGateway: options.withNATGateway
@@ -174,9 +176,9 @@ public struct DeployInitWorkflow: Sendable {
         var finalOutputs: CDKStackOutputs?
 
         for try await workflowState in deployComponents.workflow.stream(options: deployOptions) {
-            continuation.yield(Progress(
+            continuation.yield(State(
                 step: .deployingInfrastructure,
-                detail: .deployProgress(workflowState)
+                detail: .deployState(workflowState)
             ))
 
             if case .completed(let snapshot) = workflowState {
@@ -190,40 +192,40 @@ public struct DeployInitWorkflow: Sendable {
         }
 
         // Phase 4: Update Lambda code via GitHub Actions
-        continuation.yield(Progress(step: .updatingLambda))
+        continuation.yield(State(step: .updatingLambda))
         let updateLambdaWorkflow = try UpdateLambdaWorkflow.create(
             projectRoot: projectRoot,
             cliClient: cliClient
         )
         let updateOptions = UpdateLambdaWorkflow.Options(skipPush: options.skipPush)
 
-        for try await lambdaState in updateLambdaWorkflow.run(options: updateOptions) {
-            continuation.yield(Progress(
+        for try await lambdaState in updateLambdaWorkflow.stream(options: updateOptions) {
+            continuation.yield(State(
                 step: .updatingLambda,
-                detail: .lambdaProgress(lambdaState)
+                detail: .lambdaState(lambdaState)
             ))
         }
 
         // Phase 5: Initialize database if Postgres is included
         if options.withPostgres {
-            continuation.yield(Progress(step: .initializingDatabase))
+            continuation.yield(State(step: .initializingDatabase))
             let response = try await initializeDatabase(apiUrl: apiUrl)
-            continuation.yield(Progress(
+            continuation.yield(State(
                 step: .initializingDatabase,
                 detail: .databaseResponse(response)
             ))
         }
 
         // Phase 6: Verify deployment
-        continuation.yield(Progress(step: .verifyingDeployment))
+        continuation.yield(State(step: .verifyingDeployment))
         let healthResponse = try await verifyDeployment(apiUrl: apiUrl)
-        continuation.yield(Progress(
+        continuation.yield(State(
             step: .verifyingDeployment,
             detail: .healthCheckResponse(healthResponse)
         ))
 
         // Complete
-        continuation.yield(Progress(step: .complete, detail: .outputs(finalOutputs)))
+        continuation.yield(State(step: .complete, detail: .outputs(finalOutputs)))
         continuation.finish()
     }
 

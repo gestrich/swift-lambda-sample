@@ -271,7 +271,7 @@ public class DeploymentModel {
         let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
         do {
-            for try await workflowState in workflow.run(options: options) {
+            for try await workflowState in workflow.stream(options: options) {
                 state = ModelState(from: workflowState, prior: prior)
             }
             // Stream finished without .completed - restore prior state

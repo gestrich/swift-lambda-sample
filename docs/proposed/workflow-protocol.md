@@ -1,6 +1,6 @@
 # Workflow Protocol Standardization
 
-**Status:** In Progress (Phase 5 Complete)
+**Status:** In Progress (Phase 6 Complete)
 **Created:** 2025-12-17
 **Related:** [workflow-refactor.md](workflow-refactor.md), [layered-architecture.md](../architecture/layered-architecture.md)
 
@@ -384,16 +384,46 @@ The spec recommended using the SDK client directly (Option 2), but after examini
 
 **Verification:** ✅ Build succeeds. MacApp compiles and uses the new API.
 
-### Phase 6: Update Remaining DeployRemote Workflows
+### Phase 6: Update Remaining DeployRemote Workflows ✅ COMPLETED
 
 **Workflows:** `DeployInitWorkflow`, `DeployStatusWorkflow`, `UpdateLambdaWorkflow`
 
-Apply the same pattern:
-1. Rename `run(options:)` to `stream(options:)`
-2. Add protocol conformance
-3. Ensure `Options` struct exists
+**Changes made per workflow:**
 
-**Verification:** All DeployRemoteFeature workflows conform to protocol.
+#### 6.1 `DeployInitWorkflow`
+1. Added `import Uniflow` and `StreamingWorkflow` protocol conformance
+2. Renamed `run(options:)` to `stream(options:)`
+3. Renamed `Progress` struct to `State`
+4. Added `typealias Result = State`
+5. Renamed nested detail cases: `deployProgress` → `deployState`, `lambdaProgress` → `lambdaState`
+6. Updated internal workflow call from `run(options:)` to `stream(options:)` for `UpdateLambdaWorkflow`
+
+#### 6.2 `DeployStatusWorkflow`
+1. Added `import Uniflow` and `StreamingWorkflow` protocol conformance
+2. Added `typealias Options = Void` (workflow has no options)
+3. Renamed `run()` to `stream(options:)` (uses `stream()` convenience method from protocol)
+4. Renamed `Progress` struct to `State`
+5. Added `typealias Result = State`
+
+#### 6.3 `UpdateLambdaWorkflow`
+1. Added `import Uniflow` and `StreamingWorkflow` protocol conformance
+2. Renamed `run(options:)` to `stream(options:)`
+3. Added `typealias State = WorkflowState` (uses existing type)
+4. Added `typealias Result = State`
+5. Removed default argument `Options()` from method signature (now provided by protocol extension)
+
+**Callers updated:**
+- `Sources/apps/CLIApp/Commands/DeployInitCommand.swift` - Uses `stream(options:)`, renamed helper methods to `printState`, `printDeployState`, `printLambdaState`
+- `Sources/apps/CLIApp/Commands/StatusCommand.swift` - Uses `stream()`, renamed helper method to `printState`
+- `Sources/apps/CLIApp/Commands/UpdateLambdaCommand.swift` - Uses `stream(options:)`
+- `Sources/apps/MacApp/Models/DeploymentModel.swift` - Uses `stream(options:)` for `UpdateLambdaWorkflow`
+
+**Technical notes:**
+- `DeployStatusWorkflow` uses `Options = Void` since it has no configurable parameters
+- `UpdateLambdaWorkflow` uses `typealias State = WorkflowState` to align with the shared workflow state type
+- The detail case renames in `DeployInitWorkflow.State.Detail` (`deployProgress` → `deployState`, `lambdaProgress` → `lambdaState`) follow the convention established in Phase 2
+
+**Verification:** ✅ Build succeeds. All CLI commands and Mac app compile and use the new API.
 
 ### Phase 7: Documentation and Cleanup
 

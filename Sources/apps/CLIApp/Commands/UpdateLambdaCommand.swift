@@ -26,7 +26,7 @@ extension AWSCommand {
 
             let options = UpdateLambdaWorkflow.Options(skipPush: skipPush)
 
-            for try await state in workflow.run(options: options) {
+            for try await state in workflow.stream(options: options) {
                 switch state {
                 case .updatingLambda(let progress):
                     switch progress.step {
