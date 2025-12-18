@@ -365,17 +365,31 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ---
 
-### Phase 4: Update LinuxStartAllWorkflow to Yield LinuxWorkflowState
+### Phase 4: Update LinuxStartAllWorkflow to Yield LinuxWorkflowState ✅ COMPLETED
 
 **Tasks:**
-- [ ] 4.1: Update `LinuxStartAllWorkflow.State` to be `LinuxWorkflowState`
-- [ ] 4.2: Update `stream()` to yield appropriate states during progress
-- [ ] 4.3: Update CLI command
-- [ ] 4.4: Build verification
+- [x] 4.1: Update `LinuxStartAllWorkflow.State` to be `LinuxWorkflowState`
+- [x] 4.2: Update `stream()` to yield appropriate states during progress
+- [x] 4.3: Update CLI progress printer
+- [x] 4.4: Build verification
 
-**Files to modify:**
+**Files modified:**
+- `Sources/features/DeployLinuxFeature/services/Models/LinuxDeploymentState.swift`
 - `Sources/features/DeployLinuxFeature/workflows/LinuxStartAllWorkflow.swift`
-- `Sources/apps/CLIApp/Commands/LocalCommand.swift`
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxProgressPrinters.swift`
+
+**Technical Notes:**
+- Added `settingUpNetwork(NetworkProgress)` case to `LinuxWorkflowState` for the Docker network setup phase
+- Added `NetworkProgress` struct with `creatingNetwork` and `connectingContainers` steps plus optional `message`
+- Changed `LinuxStartAllWorkflow.State` from nested struct to `typealias State = LinuxWorkflowState`
+- Workflow now yields:
+  - `.startingServices(ServicesProgress)` - with `currentService` indicating which service is starting
+  - `.settingUpNetwork(NetworkProgress)` - with optional message for network setup details
+  - `.startingLambda(LambdaProgress)` - with step indicating starting/waitingForReady
+  - `.completed(LinuxSnapshot)` - with all services marked as running
+- Added mapping helper methods to convert sub-workflow states to `LinuxWorkflowState` progress types
+- CLI progress printer updated to switch on `LinuxWorkflowState` enum cases
+- Sub-workflows (`LinuxStartServicesWorkflow`, `LinuxSetupNetworkWorkflow`, `LinuxStartLambdaWorkflow`) still use their own internal `State` types - consumed and mapped in `LinuxStartAllWorkflow`
 
 ---
 

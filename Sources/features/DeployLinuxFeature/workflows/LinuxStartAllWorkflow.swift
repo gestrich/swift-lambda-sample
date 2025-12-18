@@ -1,5 +1,7 @@
 import Foundation
 import CLISDK
+import DeployCoreService
+import DeployLocalService
 import DockerCLISDK
 import DynamoDBSDK
 import MinioSDK
@@ -31,32 +33,7 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
         return Components(workflow: workflow, port: config.hostPort)
     }
 
-    /// State updates from the start all workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case startingServices
-            case setupNetwork
-            case startingLambda
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case servicesState(LinuxStartServicesWorkflow.State)
-            case networkState(LinuxSetupNetworkWorkflow.State)
-            case lambdaState(LinuxStartLambdaWorkflow.State)
-            case port(Int)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = LinuxWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
@@ -77,39 +54,102 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Start services first
-        continuation.yield(State(step: .startingServices))
+        continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(
+            step: .starting,
+            startTime: startTime
+        )))
         let servicesComponents = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            continuation.yield(State(
-                step: .startingServices,
-                detail: .servicesState(servicesState)
-            ))
+            let currentService = mapServiceStep(servicesState.step)
+            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(
+                step: .starting,
+                startTime: startTime,
+                currentService: currentService
+            )))
         }
 
         // Setup Docker network
-        continuation.yield(State(step: .setupNetwork))
+        continuation.yield(.settingUpNetwork(LinuxWorkflowState.NetworkProgress(
+            step: .creatingNetwork,
+            startTime: startTime
+        )))
         let networkComponents = LinuxSetupNetworkWorkflow.create(workingDirectory: workingDirectory)
         for try await networkState in networkComponents.workflow.stream() {
-            continuation.yield(State(
-                step: .setupNetwork,
-                detail: .networkState(networkState)
-            ))
+            let networkStep = mapNetworkStep(networkState.step)
+            let message = mapNetworkDetail(networkState.detail)
+            continuation.yield(.settingUpNetwork(LinuxWorkflowState.NetworkProgress(
+                step: networkStep,
+                startTime: startTime,
+                message: message
+            )))
         }
 
         // Start Lambda container (includes waitForReady)
-        continuation.yield(State(step: .startingLambda))
+        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(
+            step: .starting,
+            startTime: startTime
+        )))
         let lambdaComponents = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            continuation.yield(State(
-                step: .startingLambda,
-                detail: .lambdaState(lambdaState)
-            ))
+            let lambdaStep = mapLambdaStep(lambdaState.step)
+            continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(
+                step: lambdaStep,
+                startTime: startTime
+            )))
         }
 
-        // Complete with port info
-        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
-        continuation.yield(State(step: .complete, detail: .port(config.hostPort)))
+        // Complete with snapshot
+        let status = DeploymentStatus(
+            lambdaState: .running,
+            s3State: .running,
+            postgresState: .running,
+            dynamodbState: .running
+        )
+        let snapshot = LinuxSnapshot(
+            serviceStatus: status,
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
+    }
+
+    // MARK: - State Mapping Helpers
+
+    private func mapServiceStep(_ step: LinuxStartServicesWorkflow.State.Step) -> LocalServiceType? {
+        switch step {
+        case .startingDatabase: return .database
+        case .startingS3, .creatingBucket: return .s3
+        case .startingDynamoDB: return .dynamodb
+        case .complete: return nil
+        }
+    }
+
+    private func mapNetworkStep(_ step: LinuxSetupNetworkWorkflow.State.Step) -> LinuxWorkflowState.NetworkProgress.Step {
+        switch step {
+        case .creatingNetwork: return .creatingNetwork
+        case .connectingContainers: return .connectingContainers
+        case .complete: return .connectingContainers
+        }
+    }
+
+    private func mapNetworkDetail(_ detail: LinuxSetupNetworkWorkflow.State.Detail?) -> String? {
+        switch detail {
+        case .output(let msg): return msg
+        case .networkCreated(let name): return "Network '\(name)' created"
+        case .containerConnected(let name): return "Connected \(name)"
+        case .containerSkipped(let name, let reason): return "Skipped \(name) (\(reason))"
+        case nil: return nil
+        }
+    }
+
+    private func mapLambdaStep(_ step: LinuxStartLambdaWorkflow.State.Step) -> LinuxWorkflowState.LambdaProgress.Step {
+        switch step {
+        case .checkingBuild, .starting: return .starting
+        case .waitingForReady: return .waitingForReady
+        case .complete: return .starting
+        }
     }
 }

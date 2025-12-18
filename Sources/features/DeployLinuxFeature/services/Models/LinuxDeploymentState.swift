@@ -119,6 +119,7 @@ public enum LinuxWorkflowState: Sendable, Equatable {
     case building(BuildProgress)
     case startingServices(ServicesProgress)
     case stoppingServices(ServicesProgress)
+    case settingUpNetwork(NetworkProgress)
     case startingLambda(LambdaProgress)
     case stoppingLambda(LambdaProgress)
     case checkingStatus(StatusProgress)
@@ -163,6 +164,26 @@ public enum LinuxWorkflowState: Sendable, Equatable {
             self.step = step
             self.startTime = startTime
             self.currentService = currentService
+        }
+    }
+
+    // MARK: - Network Progress
+
+    /// Progress info for Docker network setup operations
+    public struct NetworkProgress: Sendable, Equatable {
+        public let step: Step
+        public let startTime: Date
+        public let message: String?
+
+        public enum Step: Sendable, Equatable {
+            case creatingNetwork
+            case connectingContainers
+        }
+
+        public init(step: Step, startTime: Date, message: String? = nil) {
+            self.step = step
+            self.startTime = startTime
+            self.message = message
         }
     }
 
@@ -239,6 +260,7 @@ public enum LinuxWorkflowState: Sendable, Equatable {
         case .building(let p): return p.startTime
         case .startingServices(let p): return p.startTime
         case .stoppingServices(let p): return p.startTime
+        case .settingUpNetwork(let p): return p.startTime
         case .startingLambda(let p): return p.startTime
         case .stoppingLambda(let p): return p.startTime
         case .checkingStatus(let p): return p.startTime
