@@ -429,41 +429,27 @@ public func startAllServices() async throws {
 }
 ```
 
-- [ ] **Phase 8: Simplify refresh()**
+- [x] **Phase 8: Simplify refresh()** ✅ COMPLETED
 
-**Before:**
+Removed obsolete `lambdaState` synchronization logic from `refresh()`. The unified `state` property is now the single source of truth.
+
+**Implementation notes:**
+- Removed manual `lambdaState.setRunning()` and `lambdaState.clear()` calls from `refresh()`
+- The `state.snapshot` already contains the correct `lambdaState` from the workflow
+- Kept `@discardableResult` and return type for backward compatibility (protocol requirement)
+- Added doc comment explaining workflow-driven state updates
+- `isTransitioning` property is no longer used (cleanup deferred to Phase 11)
+- Build verified successful
+
+**Changes made (lines 507-527):**
 ```swift
+/// Refresh deployment status from Docker.
+/// Uses workflow-driven state updates - the unified `state` property is the source of truth.
 @discardableResult
 public func refresh() async -> DeploymentStatus? {
-    guard !isTransitioning else { return nil }
-    isLoadingStatus = true
-    defer { isLoadingStatus = false }
+    guard isIdle else { return nil }
 
-    do {
-        let newStatus = try await self.status()
-        currentStatus = newStatus
-
-        // Sync lambdaState with actual running state (for app restart scenarios)
-        if newStatus.lambdaState == .running && lambdaState.status == .stopped {
-            lambdaState.setRunning()
-        } else if newStatus.lambdaState == .stopped && lambdaState.status == .running {
-            lambdaState.clear()
-        }
-
-        return newStatus
-    } catch {
-        currentStatus = .stopped
-        return nil
-    }
-}
-```
-
-**After:**
-```swift
-public func refresh() async {
-    guard state.isIdle else { return }
-
-    let prior = state.snapshot
+    let prior = snapshot
     state = .loading(prior: prior)
 
     let components = LinuxStatusWorkflow.create(workingDirectory: workingDirectory)
@@ -472,8 +458,10 @@ public func refresh() async {
         for try await workflowState in components.workflow.stream() {
             state = ModelState(from: workflowState, prior: prior)
         }
+        return state.snapshot?.serviceStatus
     } catch {
         state = ModelState(error: error, preserving: prior)
+        return nil
     }
 }
 ```

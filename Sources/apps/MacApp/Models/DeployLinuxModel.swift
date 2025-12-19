@@ -504,6 +504,8 @@ public class DeployLinuxModel: LocalService {
         return result
     }
 
+    /// Refresh deployment status from Docker.
+    /// Uses workflow-driven state updates - the unified `state` property is the source of truth.
     @discardableResult
     public func refresh() async -> DeploymentStatus? {
         guard isIdle else { return nil }
@@ -517,16 +519,6 @@ public class DeployLinuxModel: LocalService {
             for try await workflowState in components.workflow.stream() {
                 state = ModelState(from: workflowState, prior: prior)
             }
-
-            // Sync lambdaState with actual running state (for app restart scenarios)
-            if let snapshot = state.snapshot {
-                if snapshot.lambdaState == .running && lambdaState.status == .stopped {
-                    lambdaState.setRunning()
-                } else if snapshot.lambdaState == .stopped && lambdaState.status == .running {
-                    lambdaState.clear()
-                }
-            }
-
             return state.snapshot?.serviceStatus
         } catch {
             state = ModelState(error: error, preserving: prior)
