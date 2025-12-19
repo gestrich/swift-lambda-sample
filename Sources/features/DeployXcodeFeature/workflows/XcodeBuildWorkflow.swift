@@ -38,29 +38,8 @@ public struct XcodeBuildWorkflow: StreamingWorkflow {
         return Components(workflow: workflow)
     }
 
-    /// State updates from the build workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case cleaning
-            case building
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case buildPath(String)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
 
     /// Options for the build workflow.
     public struct Options: Sendable {
@@ -73,8 +52,8 @@ public struct XcodeBuildWorkflow: StreamingWorkflow {
 
     /// Stream the build workflow.
     /// - Parameter options: Build options
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Options) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -88,11 +67,16 @@ public struct XcodeBuildWorkflow: StreamingWorkflow {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Clean if requested
         if options.clean {
-            continuation.yield(State(step: .cleaning))
+            continuation.yield(.building(XcodeWorkflowState.BuildProgress(
+                step: .cleaning,
+                startTime: startTime
+            )))
             _ = try await cliClient.execute(
                 SwiftCLI.Package.Clean(),
                 workingDirectory: workingDirectory,
@@ -101,7 +85,10 @@ public struct XcodeBuildWorkflow: StreamingWorkflow {
         }
 
         // Build
-        continuation.yield(State(step: .building))
+        continuation.yield(.building(XcodeWorkflowState.BuildProgress(
+            step: .building,
+            startTime: startTime
+        )))
 
         let buildCommand = SwiftCLI.Build(product: lambdaProductName)
         let stream = await cliClient.stream(
@@ -116,7 +103,11 @@ public struct XcodeBuildWorkflow: StreamingWorkflow {
             case .stdout(_, let text), .stderr(_, let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    continuation.yield(State(step: .building, detail: .output(trimmed)))
+                    continuation.yield(.building(XcodeWorkflowState.BuildProgress(
+                        step: .building,
+                        startTime: startTime,
+                        output: trimmed
+                    )))
                 }
             case .exit(_, let code):
                 exitCode = code
@@ -129,10 +120,12 @@ public struct XcodeBuildWorkflow: StreamingWorkflow {
             throw BuildError.failed(exitCode: exitCode)
         }
 
-        // Get the executable path for the detail
-        let executablePath = try await getExecutablePath()
-
-        continuation.yield(State(step: .complete, detail: .buildPath(executablePath)))
+        // Build completed successfully - yield completed snapshot
+        let snapshot = XcodeSnapshot(
+            serviceStatus: .stopped,
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
