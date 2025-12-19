@@ -466,22 +466,31 @@ public func refresh() async -> DeploymentStatus? {
 }
 ```
 
-- [ ] **Phase 9: Simplify startIfNecessary()**
+- [x] **Phase 9: Simplify startIfNecessary()** ✅ COMPLETED
 
-**After:**
+Simplified `startIfNecessary()` method to use workflow-driven state pattern consistently.
+
+**Implementation notes:**
+- Removed debug print statements (no longer needed with unified state)
+- Simplified guard to combine snapshot check with `canStart`: `guard let snapshot = snapshot, snapshot.canStart else { return }`
+- Uses `try?` for `startWithServices()` since errors are already captured in `state` via `ModelState(error:preserving:)`
+- Relies on `startWithServices()` to handle errors and update state appropriately
+- Method is now concise and delegates all state management to workflow-driven operations
+- Build verified successful
+
+**Changes made (lines 425-436):**
 ```swift
+/// Start services if needed based on current state.
+/// Refreshes status first, then starts services if any are stopped.
+/// Uses workflow-driven state updates - errors are captured in state.
 public func startIfNecessary() async {
-    guard state.isIdle else { return }
+    guard isIdle else { return }
 
-    // First refresh to get current status
     await refresh()
 
-    // Check if any service needs starting
-    guard let snapshot = state.snapshot else { return }
+    guard let snapshot = snapshot, snapshot.canStart else { return }
 
-    if snapshot.canStart {
-        await startWithServices()
-    }
+    try? await startWithServices()
 }
 ```
 

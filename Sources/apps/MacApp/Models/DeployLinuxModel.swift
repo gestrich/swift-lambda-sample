@@ -422,27 +422,17 @@ public class DeployLinuxModel: LocalService {
         }
     }
 
+    /// Start services if needed based on current state.
+    /// Refreshes status first, then starts services if any are stopped.
+    /// Uses workflow-driven state updates - errors are captured in state.
     public func startIfNecessary() async {
-        print("🔄 DeployLocalModel.startIfNecessary called")
         guard isIdle else { return }
 
         await refresh()
 
-        guard let snapshot = snapshot else { return }
+        guard let snapshot = snapshot, snapshot.canStart else { return }
 
-        print("🔄 Lambda state: \(snapshot.lambdaState), S3: \(snapshot.s3State), Postgres: \(snapshot.postgresState), DynamoDB: \(snapshot.dynamodbState)")
-
-        if snapshot.canStart {
-            print("🔄 Starting services (some are stopped)...")
-            do {
-                try await startWithServices()
-            } catch {
-                print("⚠️ Failed to start services: \(error)")
-                state = ModelState(error: error, preserving: snapshot)
-            }
-        } else {
-            print("🔄 All services already running, skipping start")
-        }
+        try? await startWithServices()
     }
 
     // MARK: - Testing
