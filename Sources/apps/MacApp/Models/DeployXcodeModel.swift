@@ -190,18 +190,24 @@ public class DeployXcodeModel: LocalService {
 
     // MARK: - Build
 
+    /// Build Lambda for macOS.
+    /// Uses workflow-driven state updates.
+    /// - Parameters:
+    ///   - clean: Whether to perform a clean build
+    ///   - output: Ignored - provided for protocol conformance
     public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
-        buildState.startBuild()
+        guard canBuild else { return }
+        let prior = snapshot
+
+        let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
+        let options = XcodeBuildWorkflow.Options(clean: clean)
 
         do {
-            let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
-            let options = XcodeBuildWorkflow.Options(clean: clean)
-            for try await _ in components.workflow.stream(options: options) {
-                // Workflow progress is consumed; UI updates via buildState
+            for try await workflowState in components.workflow.stream(options: options) {
+                state = ModelState(from: workflowState, prior: prior)
             }
-            buildState.markSuccess()
         } catch {
-            buildState.markFailed(exitCode: 1)
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }

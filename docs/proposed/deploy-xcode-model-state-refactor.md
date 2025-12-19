@@ -410,15 +410,22 @@ public var operationStartTime: Date? { state.operationStartTime }
 
 ### Phase 10: Refactor Build Operation
 
-[ ] **Refactor `build()` to use workflow-driven state**
+[x] **Refactor `build()` to use workflow-driven state** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 10.1: Replace `buildState.startBuild()`, `markSuccess()`, `markFailed()` with `ModelState` updates
-- [ ] 10.2: Add `guard canBuild else { return }` guard
-- [ ] 10.3: Capture `prior = snapshot` before workflow
-- [ ] 10.4: Iterate workflow yields and update state
-- [ ] 10.5: On error: update state and rethrow
-- [ ] 10.6: Build verification
+- [x] 10.1: Replace `buildState.startBuild()`, `markSuccess()`, `markFailed()` with `ModelState` updates
+- [x] 10.2: Add `guard canBuild else { return }` guard
+- [x] 10.3: Capture `prior = snapshot` before workflow
+- [x] 10.4: Iterate workflow yields and update state
+- [x] 10.5: On error: update state and rethrow
+- [x] 10.6: Build verification
+
+**Technical Notes:**
+- Removed all `buildState.startBuild()`, `buildState.markSuccess()`, and `buildState.markFailed()` calls
+- Build operation now follows the exact same pattern as `startWithServices()` and `stopWithServices()`
+- Uses `guard canBuild else { return }` to prevent building during other operations
+- State transitions: `.operating(workflowState, prior: prior)` during build, `.ready(snapshot)` on completion
+- Error handling captures error in state via `ModelState(error:preserving:)` before rethrowing
 
 ```swift
 public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
