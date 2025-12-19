@@ -84,8 +84,8 @@ let dataDir = storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
 - Accessing config files in the shared data directory
 
 **Key protocols**:
-- `StoragePathKey` - For directories (e.g., service data with workflow isolation)
-- `StorageFileKey` - For files (e.g., config files, no workflow subdivision)
+- `StoragePathKey` - For directories (e.g., service data with use case isolation)
+- `StorageFileKey` - For files (e.g., config files, no use case subdivision)
 
 ## Project Structure
 
@@ -105,7 +105,7 @@ This project follows a **four-layer architecture** (App-Feature-Service-SDK) whe
 │                         FEATURES                             │
 │   DeployRemoteFeature · SetupFeature · DeployXcodeFeature    │
 │   Multi-step orchestration returning AsyncThrowingStream     │
-│   Features combine workflow + service code in one target     │
+│   Features combine use case + service code in one target     │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
@@ -126,7 +126,7 @@ This project follows a **four-layer architecture** (App-Feature-Service-SDK) whe
 
 **Key Principles:**
 - **Apps handle I/O** — Entry points, SwiftUI views, CLI argument parsing.
-- **Features orchestrate** — Multi-step operations returning `AsyncThrowingStream`. Features combine workflow + service code.
+- **Features orchestrate** — Multi-step operations returning `AsyncThrowingStream`. Features combine use case + service code.
 - **Services provide models** — Configuration, auth, types used by features.
 - **SDKs are reusable** — Could be extracted to separate packages.
 
@@ -140,13 +140,13 @@ Sources/
 │   ├── CLIApp/               # CLI tool (deployment commands)
 │   ├── LambdaApp/            # AWS Lambda handler (entry point)
 │   └── MacApp/               # Mac app (SwiftUI views, @Observable models)
-├── features/                 # Feature modules (workflow + service combined)
+├── features/                 # Feature modules (use case + service combined)
 │   ├── DeployRemoteFeature/  # AWS deployment feature
-│   │   ├── workflows/        # DeployWorkflow, DestroyWorkflow, etc.
+│   │   ├── usecases/         # DeployUseCase, DestroyUseCase, etc.
 │   │   └── services/         # Models, auth config, GitHub config
-│   ├── DeployXcodeFeature/  # Xcode local development workflows
-│   ├── DeployLinuxFeature/  # Linux container development workflows
-│   └── SetupFeature/         # Setup and dependency workflows
+│   ├── DeployXcodeFeature/  # Xcode local development use cases
+│   ├── DeployLinuxFeature/  # Linux container development use cases
+│   └── SetupFeature/         # Setup and dependency use cases
 ├── services/                 # Shared service modules
 │   ├── DeployCoreService/    # Core deployment utilities
 │   ├── DeployLocalService/   # Local development services

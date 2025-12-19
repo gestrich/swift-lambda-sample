@@ -18,14 +18,14 @@ The project uses a four-layer architecture where dependencies flow downward:
 │                         FEATURES                            │
 │   DeployRemoteFeature · SetupFeature · DeployXcodeFeature   │
 │   Multi-step orchestration returning AsyncThrowingStream    │
-│   Features combine workflow + service code in one target    │
+│   Features combine use case + service code in one target    │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                         SERVICES                            │
 │  DeployCoreService · DeployLocalService · ClientService     │
-│   Models, configuration, auth, shared workflow utilities    │
+│   Models, configuration, auth, shared use case utilities    │
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
                            ▼
@@ -59,20 +59,20 @@ Entry points that handle I/O.
 
 #### @Observable Only in App Layer
 
-`@Observable` models exist only where UI binding is needed (MacApp). They consume workflow streams.
+`@Observable` models exist only where UI binding is needed (MacApp). They consume use case streams.
 
 #### Minimal Logic in Models (MV Pattern)
 
-Models should contain minimal logic—their role is to monitor workflow streams and update state for the UI. Business logic belongs in:
+Models should contain minimal logic—their role is to monitor use case streams and update state for the UI. Business logic belongs in:
 
-- **Features (Workflows)**: Orchestration, multi-step operations, app-specific logic
+- **Features (Use Cases)**: Orchestration, multi-step operations, app-specific logic
 - **SDKs (Clients)**: Reusable operations, external service interactions
 
 This keeps models thin and testable, with clear separation between state management and business logic.
 
-#### Model → Workflow State Flow
+#### Model → Use Case State Flow
 
-When consuming workflow streams, models should do the minimum work necessary: receive state from the workflow and assign it directly to a state enum. Avoid excessive translations, mapping, or reconstruction of state in the model layer.
+When consuming use case streams, models should do the minimum work necessary: receive state from the use case and assign it directly to a state enum. Avoid excessive translations, mapping, or reconstruction of state in the model layer.
 
 **Preferred pattern:**
 ```swift
@@ -83,9 +83,9 @@ class DeploymentModel {
     func deploy() {
         let prior = state.snapshot
         Task {
-            for try await workflowState in workflow.run(options: opts) {
+            for try await useCaseState in useCase.run(options: opts) {
                 // Direct assignment—no transformation
-                state = ModelState(from: workflowState, prior: prior)
+                state = ModelState(from: useCaseState, prior: prior)
             }
         }
     }
@@ -94,8 +94,8 @@ class DeploymentModel {
 
 **Avoid this pattern:**
 ```swift
-// Don't manually reconstruct state from workflow progress
-for try await progress in workflow.run(options: opts) {
+// Don't manually reconstruct state from use case progress
+for try await progress in useCase.run(options: opts) {
     // Excessive mapping and transformation
     let outputs = progress.detail?.outputs ?? prior?.outputs
     let infrastructure = progress.detail?.infrastructure ?? prior?.infrastructure
@@ -103,7 +103,7 @@ for try await progress in workflow.run(options: opts) {
         outputs: outputs?.allOutputs ?? [:],
         infrastructure: infrastructure?.detected ?? DetectedInfrastructure()
     )
-    state = .operating(RunningWorkflow(
+    state = .operating(RunningUseCase(
         kind: .deploying(progress),
         startTime: startTime,
         prior: prior
@@ -114,32 +114,32 @@ for try await progress in workflow.run(options: opts) {
 }
 ```
 
-The workflow should yield state that the model can use directly. If the model needs to do complex mapping, that's a signal the workflow should be returning better-structured state.
+The use case should yield state that the model can use directly. If the model needs to do complex mapping, that's a signal the use case should be returning better-structured state.
 
 #### State Ownership
 
-**Workflows own state data; models own state transitions.**
+**Use cases own state data; models own state transitions.**
 
-- Workflows define and return snapshot types (e.g., `DeploymentSnapshot`, `GitHubCISnapshot`)
+- Use cases define and return snapshot types (e.g., `DeploymentSnapshot`, `GitHubCISnapshot`)
 - Models define their enum cases for app-layer concerns (`uninitialized`, `loading`, `operating`, `ready`)
-- Associated values in model state should come directly from workflow types
+- Associated values in model state should come directly from use case types
 
 ```swift
 // Model defines enum cases (app-layer concerns)
 enum ModelState {
     case uninitialized
-    case loading(prior: WorkflowSnapshot?)
-    case ready(WorkflowSnapshot)           // ← Associated value from workflow
-    case operating(WorkflowState, prior: WorkflowSnapshot?)  // ← From workflow
+    case loading(prior: UseCaseSnapshot?)
+    case ready(UseCaseSnapshot)           // ← Associated value from use case
+    case operating(UseCaseState, prior: UseCaseSnapshot?)  // ← From use case
 }
 ```
 
-**Code smell**: Switching on workflow state to create model state with similar cases.
+**Code smell**: Switching on use case state to create model state with similar cases.
 
 ```swift
 // ❌ Bad: Redundant transformation
-for try await workflowState in workflow.run() {
-    switch workflowState {
+for try await useCaseState in useCase.run() {
+    switch useCaseState {
     case .deploying(let progress):
         state = .operating(step: progress.step, startTime: progress.startTime)
     case .completed(let runId):
@@ -150,19 +150,19 @@ for try await workflowState in workflow.run() {
 }
 
 // ✅ Good: Direct assignment via init
-for try await workflowState in workflow.run() {
-    state = ModelState(from: workflowState, prior: prior)
+for try await useCaseState in useCase.run() {
+    state = ModelState(from: useCaseState, prior: prior)
 }
 ```
 
-The `ModelState.init(from:prior:)` should be trivial—typically just checking if the workflow completed:
+The `ModelState.init(from:prior:)` should be trivial—typically just checking if the use case completed:
 
 ```swift
-init(from workflowState: WorkflowState, prior: Snapshot?) {
-    if let snapshot = workflowState.completedSnapshot {
+init(from useCaseState: UseCaseState, prior: Snapshot?) {
+    if let snapshot = useCaseState.completedSnapshot {
         self = .ready(snapshot)
     } else {
-        self = .operating(workflowState, prior: prior)
+        self = .operating(useCaseState, prior: prior)
     }
 }
 ```
@@ -179,7 +179,7 @@ Use enums to represent model state rather than multiple independent properties.
 
 3. **Clear state transitions**: The current state is always unambiguous—one case, not a combination of booleans and optionals to interpret.
 
-4. **Easier to reason about**: Reading `case operating(WorkflowState, prior: Snapshot?)` tells you exactly what data is available during an operation.
+4. **Easier to reason about**: Reading `case operating(UseCaseState, prior: Snapshot?)` tells you exactly what data is available during an operation.
 
 **Preferred:**
 ```swift
@@ -187,7 +187,7 @@ enum ModelState {
     case uninitialized
     case loading(prior: Snapshot?)
     case ready(Snapshot)
-    case operating(WorkflowState, prior: Snapshot?)
+    case operating(UseCaseState, prior: Snapshot?)
 }
 ```
 
@@ -198,7 +198,7 @@ class Model {
     var isLoading = false
     var isOperating = false
     var snapshot: Snapshot?
-    var workflowState: WorkflowState?
+    var useCaseState: UseCaseState?
     var prior: Snapshot?
     // What if isLoading && isOperating? What if snapshot != nil && isLoading?
 }
@@ -318,15 +318,15 @@ Models self-initialize on `init`. This eliminates the need for views to trigger 
 @MainActor @Observable
 class DeploymentModel {
     var state: ModelState = .loading(prior: nil)
-    private let workflow: DeploymentWorkflow
+    private let useCase: DeploymentUseCase
 
-    init(workflow: DeploymentWorkflow) {
-        self.workflow = workflow
+    init(useCase: DeploymentUseCase) {
+        self.useCase = useCase
         Task { await load() }
     }
 
     private func load() async {
-        let snapshot = try? await workflow.fetchStatus()
+        let snapshot = try? await useCase.fetchStatus()
         state = .ready(snapshot ?? .empty)
     }
 }
@@ -359,13 +359,13 @@ This pattern keeps views simple—they observe state without triggering loads.
 
 #### CLI Commands
 
-CLI commands use workflows directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:
+CLI commands use use cases directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:
 
 ```swift
 struct DeployCommand: AsyncParsableCommand {
     func run() async throws {
         // Use stream() when you want progress output
-        for try await state in workflow.stream(options: opts) {
+        for try await state in useCase.stream(options: opts) {
             printProgress(state)
         }
     }
@@ -374,7 +374,7 @@ struct DeployCommand: AsyncParsableCommand {
 struct QuickCheckCommand: AsyncParsableCommand {
     func run() async throws {
         // Use run() when you only care about the final result
-        let result = try await workflow.run(options: opts)
+        let result = try await useCase.run(options: opts)
         print(result)
     }
 }
@@ -382,18 +382,18 @@ struct QuickCheckCommand: AsyncParsableCommand {
 
 ### Features (`Sources/features/`)
 
-Multi-step orchestration operations. Features combine workflow logic and feature-specific service code in one target.
+Multi-step orchestration operations. Features combine use case logic and feature-specific service code in one target.
 
 | Target | Description |
 |--------|-------------|
-| `DeployRemoteFeature` | AWS deployment workflows |
-| `SetupFeature` | Setup and dependency workflows |
-| `DeployXcodeFeature` | Xcode local development workflows |
-| `DeployLinuxFeature` | Linux container development workflows |
+| `DeployRemoteFeature` | AWS deployment use cases |
+| `SetupFeature` | Setup and dependency use cases |
+| `DeployXcodeFeature` | Xcode local development use cases |
+| `DeployLinuxFeature` | Linux container development use cases |
 
 **Responsibilities:**
 
-- Workflows are structs conforming to `Workflow` or `StreamingWorkflow` protocols (from `Uniflow`)
+- Use cases are structs conforming to `UseCase` or `StreamingUseCase` protocols (from `Uniflow`)
 - Coordinate multiple SDK clients and services
 - App-specific business logic and orchestration
 - **Not** `@Observable`—that belongs in the app layer
@@ -401,13 +401,13 @@ Multi-step orchestration operations. Features combine workflow logic and feature
 
 #### Features for Orchestration
 
-Multi-step operations live in features as `StreamingWorkflow` conformers.
+Multi-step operations live in features as `StreamingUseCase` conformers.
 
 ```swift
 import Uniflow
 
-public struct DeployWorkflow: StreamingWorkflow {
-    public typealias State = WorkflowState
+public struct DeployUseCase: StreamingUseCase {
+    public typealias State = UseCaseState
     public typealias Result = State
 
     public struct Options: Sendable {
@@ -465,7 +465,7 @@ Stateless reusable utilities.
 | `PostgreSQLSDK` | PostgreSQL database utilities |
 | `MinioSDK` | MinIO S3-compatible storage |
 | `DynamoDBSDK` | DynamoDB utilities |
-| `Uniflow` | Workflow protocol definitions |
+| `Uniflow` | Use case protocol definitions |
 
 **Responsibilities:**
 
@@ -491,14 +491,14 @@ public struct CDKClient: Sendable {
 }
 ```
 
-#### Workflow Protocols (Uniflow)
+#### Use Case Protocols (Uniflow)
 
-The `Uniflow` SDK defines two protocols for workflow execution:
+The `Uniflow` SDK defines two protocols for use case execution:
 
-**`Workflow`** — Base protocol with a single `run(options:)` method:
+**`UseCase`** — Base protocol with a single `run(options:)` method:
 
 ```swift
-public protocol Workflow: Sendable {
+public protocol UseCase: Sendable {
     associatedtype Options: Sendable = Void
     associatedtype Result: Sendable
 
@@ -506,26 +506,26 @@ public protocol Workflow: Sendable {
 }
 ```
 
-**`StreamingWorkflow`** — Extends `Workflow` with streaming state updates:
+**`StreamingUseCase`** — Extends `UseCase` with streaming state updates:
 
 ```swift
-public protocol StreamingWorkflow: Workflow {
+public protocol StreamingUseCase: UseCase {
     associatedtype State: Sendable
 
     func stream(options: Options) -> AsyncThrowingStream<State, Error>
 }
 ```
 
-When `Result == State`, `StreamingWorkflow` provides a default `run()` implementation that consumes the stream and returns the last state.
+When `Result == State`, `StreamingUseCase` provides a default `run()` implementation that consumes the stream and returns the last state.
 
 **When to use each:**
 
 | Protocol | Use When | Example |
 |----------|----------|---------|
-| `Workflow` | Single result, no intermediate progress | Status checks, configuration loading |
-| `StreamingWorkflow` | Multi-step with progress updates | Deployments, builds, installations |
+| `UseCase` | Single result, no intermediate progress | Status checks, configuration loading |
+| `StreamingUseCase` | Multi-step with progress updates | Deployments, builds, installations |
 
-Most workflows in this codebase conform to `StreamingWorkflow` since they perform multi-step operations.
+Most use cases in this codebase conform to `StreamingUseCase` since they perform multi-step operations.
 
 ## Source Code Structure
 
@@ -537,13 +537,13 @@ Sources/
 │   ├── CLIApp/               # CLI tool (deployment commands)
 │   ├── LambdaApp/            # AWS Lambda handler (entry point)
 │   └── MacApp/               # Mac app (SwiftUI views, @Observable models)
-├── features/                 # Feature modules (workflow + service combined)
+├── features/                 # Feature modules (use case + service combined)
 │   ├── DeployRemoteFeature/  # AWS deployment feature
-│   │   ├── workflows/        # DeployWorkflow, DestroyWorkflow, etc.
+│   │   ├── usecases/         # DeployUseCase, DestroyUseCase, etc.
 │   │   └── services/         # Models, auth config, GitHub config
-│   ├── DeployXcodeFeature/  # Xcode local development workflows
-│   ├── DeployLinuxFeature/  # Linux container development workflows
-│   └── SetupFeature/         # Setup and dependency workflows
+│   ├── DeployXcodeFeature/  # Xcode local development use cases
+│   ├── DeployLinuxFeature/  # Linux container development use cases
+│   └── SetupFeature/         # Setup and dependency use cases
 ├── services/                 # Shared service modules
 │   ├── DeployCoreService/    # Core deployment utilities
 │   ├── DeployLocalService/   # Local development services
@@ -587,7 +587,7 @@ The folder structure provides architectural hierarchy:
 | `CLIApp` | apps | App | CLI tool |
 | `DeployRemoteFeature` | features | Feature | AWS deployment |
 | `DeployXcodeFeature` | features | Feature | Xcode local dev |
-| `SetupFeature` | features | Feature | Setup workflows |
+| `SetupFeature` | features | Feature | Setup use cases |
 | `DeployCoreService` | services | Service | Core deployment |
 | `StorageService` | services | Service | Local storage |
 | `AWSSDK` | sdks | SDK | AWS utilities |
@@ -610,9 +610,9 @@ The folder structure provides architectural hierarchy:
 
 ## Data Flow
 
-**CLI**: `workflow.stream() → print progress` or `workflow.run() → print result`
+**CLI**: `useCase.stream() → print progress` or `useCase.run() → print result`
 
-**Mac App**: `workflow.stream() → @Observable model → View`
+**Mac App**: `useCase.stream() → @Observable model → View`
 
 ## Dependency Rules
 
