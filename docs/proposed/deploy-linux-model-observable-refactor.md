@@ -456,66 +456,103 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ---
 
-### Phase 7: Update LambdaService Protocol
+### Phase 7: Update LambdaService Protocol ✅ COMPLETED
 
 **Tasks:**
-- [ ] 7.1: Remove Combine imports from `LambdaService`
-- [ ] 7.2: Remove `statusPublisher` and `isLoadingStatusPublisher` requirements
-- [ ] 7.3: Add `func refresh() async` requirement
-- [ ] 7.4: Update `LocalService` protocol if needed
-- [ ] 7.5: Build verification (will fail until models are updated)
+- [x] 7.1: Remove Combine imports from `LambdaService`
+- [x] 7.2: Remove `statusPublisher` and `isLoadingStatusPublisher` requirements
+- [x] 7.3: Add `func refresh() async` requirement
+- [x] 7.4: Update `LocalService` protocol if needed
+- [x] 7.5: Build verification
 
-**Files to modify:**
+**Files modified:**
 - `Sources/services/DeployCoreService/LambdaService.swift`
 - `Sources/services/DeployLocalService/LocalService.swift`
+- `Sources/apps/MacApp/Models/DeployLinuxModel.swift`
+- `Sources/apps/MacApp/Models/DeployXcodeModel.swift`
+- `Sources/apps/MacApp/Models/AppModel.swift`
+- `Sources/apps/MacApp/UI/LocalService/LocalServicesModel.swift`
+- `Sources/apps/MacApp/UI/LocalService/LocalServiceView.swift`
+- `Sources/apps/MacApp/UI/LocalService/DockerServicesView.swift`
+
+**Technical Notes:**
+- Removed `Combine` import from `LambdaService.swift` - protocol no longer depends on Combine framework
+- Replaced `statusPublisher`, `isLoadingStatusPublisher`, and `refreshStatus()` with:
+  - `currentStatus: DeploymentStatus` - synchronous property for UI observation
+  - `isLoadingStatus: Bool` - synchronous property for loading state
+  - `refresh() async -> DeploymentStatus?` - async method to trigger status refresh
+- Updated `DeployLinuxModel` and `DeployXcodeModel`:
+  - Removed Combine imports and `CurrentValueSubject` properties
+  - Added `currentStatus` and `isLoadingStatus` stored properties
+  - Replaced `refreshStatus()` with `refresh() async`
+  - Updated `startWithServices()`, `stopWithServices()`, and `startIfNecessary()` to use new async pattern
+- Updated `LocalServicesModel`:
+  - Removed Combine subscriptions and publishers
+  - Changed to computed properties that delegate to underlying service's `currentStatus` and `isLoadingStatus`
+  - Added `refresh() async` that delegates to underlying service
+- Updated `LocalService.startIfNecessary()` default implementation to call `await refresh()` instead of `refreshStatus()`
+- Updated `DockerServicesView` callback from `() -> Void` to `() async -> Void` for async refresh
+- Updated `LocalServiceView` to use `.task` modifier and async button actions
+- `AppModel.refreshStatus()` now spawns a `Task` internally to call async `refresh()` on services
+- **Scope expansion**: The spec originally planned for models to be updated in Phase 8/9, but this was combined into Phase 7 to maintain a buildable state after each phase
 
 ---
 
-### Phase 8: Refactor DeployLinuxModel
+### Phase 8: Refactor DeployLinuxModel (MERGED INTO PHASE 7)
 
-**Tasks:**
+**Note:** The core changes (removing Combine, adding async refresh) were completed as part of Phase 7 to maintain a buildable state. The remaining `@Observable` macro and unified `ModelState` enum work is deferred as it requires additional architectural decisions.
+
+**Completed in Phase 7:**
+- [x] 8.7: Remove Combine import
+- [x] 8.8: Build verification
+
+**Deferred (requires further design work):**
 - [ ] 8.1: Add `@Observable` macro
-- [ ] 8.2: Replace `statusSubject`, `isLoadingStatusSubject` with `state: ModelState`
+- [ ] 8.2: Replace current state properties with unified `state: ModelState`
 - [ ] 8.3: Remove `buildState` and `lambdaState` properties (integrated into `ModelState`)
 - [ ] 8.4: Remove `isTransitioning` flag
 - [ ] 8.5: Define `ModelState` enum with `init(from:prior:)`
 - [ ] 8.6: Update all methods to consume workflows and set state directly
-- [ ] 8.7: Remove Combine import
-- [ ] 8.8: Build verification
 
 **Files to modify:**
 - `Sources/apps/MacApp/Models/DeployLinuxModel.swift`
 
 ---
 
-### Phase 9: Refactor DeployXcodeModel
+### Phase 9: Refactor DeployXcodeModel (MERGED INTO PHASE 7)
 
-Same changes as Phase 8 for `DeployXcodeModel`.
+**Note:** Same as Phase 8 - core Combine removal completed in Phase 7. The `@Observable` and `ModelState` work is deferred.
 
-**Tasks:**
+**Completed in Phase 7:**
+- [x] 9.6: Remove Combine import
+- [x] 9.7: Build verification
+
+**Deferred (requires further design work):**
 - [ ] 9.1: Add `@Observable` macro
 - [ ] 9.2: Replace Combine subjects with `state: ModelState`
 - [ ] 9.3: Remove separate state properties
 - [ ] 9.4: Define `ModelState` enum
 - [ ] 9.5: Update all methods
-- [ ] 9.6: Remove Combine import
-- [ ] 9.7: Build verification
 
 **Files to modify:**
 - `Sources/apps/MacApp/Models/DeployXcodeModel.swift`
 
 ---
 
-### Phase 10: Update Views
+### Phase 10: Update Views (MERGED INTO PHASE 7)
 
-**Tasks:**
-- [ ] 10.1: Find all views consuming `statusPublisher` or `isLoadingStatusPublisher`
-- [ ] 10.2: Update views to use `model.state` directly (SwiftUI will observe automatically)
-- [ ] 10.3: Remove Combine subscriptions
-- [ ] 10.4: Build and test UI
+**Note:** View updates were completed as part of Phase 7 since they were required to maintain a buildable state after removing Combine from the protocol.
 
-**Files to identify and modify:**
-- Views in `Sources/apps/MacApp/Views/` that subscribe to publishers
+**Completed in Phase 7:**
+- [x] 10.1: Find all views consuming `statusPublisher` or `isLoadingStatusPublisher`
+- [x] 10.2: Update views to use `model.currentStatus` and `model.isLoadingStatus` directly
+- [x] 10.3: Remove Combine subscriptions from `LocalServicesModel`
+- [x] 10.4: Build and test UI
+
+**Files modified:**
+- `Sources/apps/MacApp/UI/LocalService/LocalServicesModel.swift` - removed Combine subscriptions
+- `Sources/apps/MacApp/UI/LocalService/LocalServiceView.swift` - updated to use async `refresh()`
+- `Sources/apps/MacApp/UI/LocalService/DockerServicesView.swift` - updated callback to async
 
 ---
 

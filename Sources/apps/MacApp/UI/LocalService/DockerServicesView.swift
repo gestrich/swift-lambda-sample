@@ -10,7 +10,7 @@ struct DockerServicesView: View {
     let s3State: ServiceState
     let postgresState: ServiceState
     let dynamodbState: ServiceState
-    let onRefreshStatus: () -> Void
+    let onRefreshStatus: () async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,11 +24,11 @@ struct DockerServicesView: View {
                 dataDirectory: dockerProvider.s3DataDirectory,
                 onStart: {
                     try await dockerProvider.startS3()
-                    onRefreshStatus()
+                    await onRefreshStatus()
                 },
                 onStop: {
                     try await dockerProvider.stopS3()
-                    onRefreshStatus()
+                    await onRefreshStatus()
                 }
             )
 
@@ -39,11 +39,11 @@ struct DockerServicesView: View {
                 dataDirectory: dockerProvider.postgresDataDirectory,
                 onStart: {
                     try await dockerProvider.startDatabase()
-                    onRefreshStatus()
+                    await onRefreshStatus()
                 },
                 onStop: {
                     try await dockerProvider.stopDatabase()
-                    onRefreshStatus()
+                    await onRefreshStatus()
                 }
             )
 
@@ -54,11 +54,11 @@ struct DockerServicesView: View {
                 dataDirectory: dockerProvider.dynamodbDataDirectory,
                 onStart: {
                     try await dockerProvider.startDynamoDB()
-                    onRefreshStatus()
+                    await onRefreshStatus()
                 },
                 onStop: {
                     try await dockerProvider.stopDynamoDB()
-                    onRefreshStatus()
+                    await onRefreshStatus()
                 }
             )
         }

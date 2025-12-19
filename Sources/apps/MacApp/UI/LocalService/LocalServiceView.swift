@@ -19,7 +19,7 @@ struct LocalServiceView: View {
                         s3State: service.status.s3State,
                         postgresState: service.status.postgresState,
                         dynamodbState: service.status.dynamodbState,
-                        onRefreshStatus: { service.refreshStatus() }
+                        onRefreshStatus: { await service.refresh() }
                     )
 
                     Divider()
@@ -43,8 +43,8 @@ struct LocalServiceView: View {
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            service.refreshStatus()
+        .task {
+            await service.refresh()
         }
     }
 
@@ -185,7 +185,9 @@ struct LocalServiceView: View {
                     .disabled(service.lambdaState.status.isTransitioning || service.lambdaState.status == .stopped)
                     .help("Stop Lambda")
 
-                    Button(action: { service.refreshStatus() }) {
+                    Button(action: {
+                        Task { await service.refresh() }
+                    }) {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.borderless)

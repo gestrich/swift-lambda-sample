@@ -152,6 +152,6 @@ extension LocalService {
         } catch {
             print("⚠️ Failed to start services: \(error)")
         }
-        refreshStatus()
+        await refresh()
     }
 }

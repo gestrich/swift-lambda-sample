@@ -183,15 +183,17 @@ class AppModel {
 
     /// Refresh status for the current service
     func refreshStatus() {
-        switch mode {
-        case .remoteModel(let service):
-            Task { await service.refresh() }
-        case .localXcode(let service):
-            service.refreshStatus()
-        case .localLinux(let service):
-            service.refreshStatus()
-        case .unconfigured:
-            break
+        Task {
+            switch mode {
+            case .remoteModel(let service):
+                await service.refresh()
+            case .localXcode(let service):
+                await service.refresh()
+            case .localLinux(let service):
+                await service.refresh()
+            case .unconfigured:
+                break
+            }
         }
     }
 

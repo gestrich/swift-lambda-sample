@@ -1,6 +1,5 @@
 import CLISDK
 import ClientService
-import Combine
 import Foundation
 import StorageService
 import DeployLocalService
@@ -30,21 +29,16 @@ public class DeployLinuxModel: LocalService {
     // Working directory
     private let workingDirectory: String
 
-    // MARK: - Combine Publishers
+    // MARK: - Observable State
 
-    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
-    private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
+    /// Current deployment status (observable via @Observable on class when migrated)
+    public private(set) var currentStatus: DeploymentStatus = .stopped
 
-    /// Flag to prevent refreshStatus from overwriting transitional states (starting/stopping)
+    /// Whether a status refresh is in progress
+    public private(set) var isLoadingStatus: Bool = false
+
+    /// Flag to prevent refresh from overwriting transitional states (starting/stopping)
     private var isTransitioning = false
-
-    public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
-        statusSubject.eraseToAnyPublisher()
-    }
-
-    public var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
-        isLoadingStatusSubject.eraseToAnyPublisher()
-    }
 
     // MARK: - Build State
 
@@ -253,30 +247,30 @@ public class DeployLinuxModel: LocalService {
         isTransitioning = true
         defer { isTransitioning = false }
 
-        statusSubject.send(.starting)
+        currentStatus = .starting
 
         let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream() {
-            // Workflow progress is consumed; UI updates via statusSubject
+            // Workflow progress is consumed
         }
         lambdaState.markRunning()
 
-        refreshStatus()
+        await refresh()
     }
 
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         isTransitioning = true
         defer { isTransitioning = false }
 
-        statusSubject.send(.stopping)
+        currentStatus = .stopping
 
         let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
         for try await _ in components.workflow.stream() {
-            // Workflow progress is consumed; UI updates via statusSubject
+            // Workflow progress is consumed
         }
         lambdaState.markStopped()
 
-        refreshStatus()
+        await refresh()
     }
 
     public func startIfNecessary() async {
@@ -285,13 +279,13 @@ public class DeployLinuxModel: LocalService {
         isTransitioning = true
 
         do {
-            let currentStatus = try await status()
-            print("🔄 Lambda state: \(currentStatus.lambdaState), S3: \(currentStatus.s3State), Postgres: \(currentStatus.postgresState), DynamoDB: \(currentStatus.dynamodbState)")
+            let statusResult = try await status()
+            print("🔄 Lambda state: \(statusResult.lambdaState), S3: \(statusResult.s3State), Postgres: \(statusResult.postgresState), DynamoDB: \(statusResult.dynamodbState)")
 
-            let anyServiceStopped = currentStatus.lambdaState == .stopped ||
-                                    currentStatus.s3State == .stopped ||
-                                    currentStatus.postgresState == .stopped ||
-                                    currentStatus.dynamodbState == .stopped
+            let anyServiceStopped = statusResult.lambdaState == .stopped ||
+                                    statusResult.s3State == .stopped ||
+                                    statusResult.postgresState == .stopped ||
+                                    statusResult.dynamodbState == .stopped
 
             if anyServiceStopped {
                 print("🔄 Starting services (some are stopped)...")
@@ -299,12 +293,12 @@ public class DeployLinuxModel: LocalService {
             } else {
                 print("🔄 All services already running, skipping start")
                 isTransitioning = false
-                refreshStatus()
+                await refresh()
             }
         } catch {
             print("⚠️ Failed to start services: \(error)")
             isTransitioning = false
-            refreshStatus()
+            await refresh()
         }
     }
 
@@ -367,28 +361,28 @@ public class DeployLinuxModel: LocalService {
         return result
     }
 
-    public func refreshStatus() {
-        guard !isTransitioning else { return }
+    @discardableResult
+    public func refresh() async -> DeploymentStatus? {
+        guard !isTransitioning else { return nil }
 
-        let statusSubject = self.statusSubject
-        let isLoadingStatusSubject = self.isLoadingStatusSubject
+        isLoadingStatus = true
+        defer { isLoadingStatus = false }
 
-        isLoadingStatusSubject.send(true)
-        Task {
-            do {
-                let newStatus = try await self.status()
-                statusSubject.send(newStatus)
+        do {
+            let newStatus = try await self.status()
+            currentStatus = newStatus
 
-                // Sync lambdaState with actual running state (for app restart scenarios)
-                if newStatus.lambdaState == .running && lambdaState.status == .stopped {
-                    lambdaState.setRunning()
-                } else if newStatus.lambdaState == .stopped && lambdaState.status == .running {
-                    lambdaState.clear()
-                }
-            } catch {
-                statusSubject.send(.stopped)
+            // Sync lambdaState with actual running state (for app restart scenarios)
+            if newStatus.lambdaState == .running && lambdaState.status == .stopped {
+                lambdaState.setRunning()
+            } else if newStatus.lambdaState == .stopped && lambdaState.status == .running {
+                lambdaState.clear()
             }
-            isLoadingStatusSubject.send(false)
+
+            return newStatus
+        } catch {
+            currentStatus = .stopped
+            return nil
         }
     }
 

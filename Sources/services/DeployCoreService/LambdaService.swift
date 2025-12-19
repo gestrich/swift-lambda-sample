@@ -1,6 +1,5 @@
 import CLISDK
 import ClientService
-import Combine
 import Foundation
 
 // MARK: - Protocol
@@ -58,16 +57,16 @@ public protocol LambdaService {
     /// Get the status of all services (Lambda, S3, PostgreSQL)
     func status() async throws -> DeploymentStatus
 
-    // MARK: - Combine Publishers
+    /// Current deployment status (for UI observation)
+    var currentStatus: DeploymentStatus { get }
 
-    /// Publisher that emits status updates
-    var statusPublisher: AnyPublisher<DeploymentStatus, Never> { get }
+    /// Whether a status refresh is in progress (for UI observation)
+    var isLoadingStatus: Bool { get }
 
-    /// Publisher that emits loading state updates
-    var isLoadingStatusPublisher: AnyPublisher<Bool, Never> { get }
-
-    /// Trigger a status refresh (results published via statusPublisher)
-    func refreshStatus()
+    /// Refresh status asynchronously
+    /// This replaces the old Combine-based refreshStatus() method
+    @discardableResult
+    func refresh() async -> DeploymentStatus?
 }
 
 // MARK: - Default Implementations

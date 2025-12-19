@@ -1,13 +1,12 @@
 import ClientService
 import CLISDK
-import Combine
 import Foundation
 import DeployLocalService
 import DeployCoreService
 import LambdaBuildService
 
 /// Model that wraps a LocalService, providing @Observable properties for SwiftUI.
-/// Subscribes to the underlying service's publishers and updates observable properties.
+/// Observes the underlying service's currentStatus and isLoadingStatus properties.
 /// Used by LocalServiceView - one instance for Xcode, another for Linux.
 @MainActor
 @Observable
@@ -17,44 +16,24 @@ class LocalServicesModel: LocalService {
     private let service: any LocalService
 
     // MARK: - Observable State (for SwiftUI)
+    // These mirror the underlying service's state for views that use LocalServicesModel directly
 
-    private(set) var status: DeploymentStatus = .stopped
-    private(set) var isLoadingStatus: Bool = false
+    var status: DeploymentStatus {
+        service.currentStatus
+    }
 
-    // MARK: - Private
+    public var currentStatus: DeploymentStatus {
+        service.currentStatus
+    }
 
-    private var cancellables = Set<AnyCancellable>()
-
-    // Own publishers for protocol conformance
-    private let statusSubject = CurrentValueSubject<DeploymentStatus, Never>(.stopped)
-    private let isLoadingStatusSubject = CurrentValueSubject<Bool, Never>(false)
+    public var isLoadingStatus: Bool {
+        service.isLoadingStatus
+    }
 
     // MARK: - Init
 
     init(service: any LocalService) {
         self.service = service
-        subscribeToService()
-    }
-
-    private func subscribeToService() {
-        // Relay status updates to @Observable property and own publisher
-        service.statusPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newStatus in
-                print("📊 LocalServicesModel received status: Lambda=\(newStatus.lambdaState), S3=\(newStatus.s3State), Postgres=\(newStatus.postgresState), DynamoDB=\(newStatus.dynamodbState)")
-                self?.status = newStatus
-                self?.statusSubject.send(newStatus)
-            }
-            .store(in: &cancellables)
-
-        // Relay loading state updates
-        service.isLoadingStatusPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isLoading in
-                self?.isLoadingStatus = isLoading
-                self?.isLoadingStatusSubject.send(isLoading)
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - LambdaService Protocol
@@ -79,14 +58,6 @@ class LocalServicesModel: LocalService {
 
     public var cliClient: CLIClient { service.cliClient }
 
-    public var statusPublisher: AnyPublisher<DeploymentStatus, Never> {
-        statusSubject.eraseToAnyPublisher()
-    }
-
-    public var isLoadingStatusPublisher: AnyPublisher<Bool, Never> {
-        isLoadingStatusSubject.eraseToAnyPublisher()
-    }
-
     public func testLambda() async throws {
         try await service.testLambda()
     }
@@ -99,8 +70,9 @@ class LocalServicesModel: LocalService {
         try await service.status()
     }
 
-    public func refreshStatus() {
-        service.refreshStatus()
+    @discardableResult
+    public func refresh() async -> DeploymentStatus? {
+        await service.refresh()
     }
 
     // MARK: - Docker Services
