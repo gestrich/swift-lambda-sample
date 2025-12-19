@@ -35,34 +35,13 @@ public struct XcodeStopLambdaWorkflow: StreamingWorkflow {
         )
     }
 
-    /// State updates from the stop Lambda workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checking
-            case stopping
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case wasRunning(Bool)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
     public typealias Options = Void
 
     /// Stream the stop Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -75,23 +54,19 @@ public struct XcodeStopLambdaWorkflow: StreamingWorkflow {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
-        // Check if Lambda is running
-        continuation.yield(State(step: .checking))
-        let wasRunning = await isLambdaRunning()
+        let startTime = Date()
 
         // Stop Lambda
-        continuation.yield(State(step: .stopping))
+        continuation.yield(.stoppingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .stopping,
+            startTime: startTime
+        )))
 
         let pids = await getProcessIDsOnPort(lambdaHostPort)
 
         if !pids.isEmpty {
-            continuation.yield(State(
-                step: .stopping,
-                detail: .output("Killing process(es): \(pids.joined(separator: ", "))...")
-            ))
-
             for pid in pids {
                 let killResult = try await cliClient.executeForResult(
                     Kill(pid: pid),
@@ -106,19 +81,19 @@ public struct XcodeStopLambdaWorkflow: StreamingWorkflow {
                     )
                 }
             }
-
-            continuation.yield(State(
-                step: .stopping,
-                detail: .output("Stopped \(pids.count) process\(pids.count == 1 ? "" : "es")")
-            ))
-        } else {
-            continuation.yield(State(
-                step: .stopping,
-                detail: .output("No Lambda process found on port \(lambdaHostPort)")
-            ))
         }
 
-        continuation.yield(State(step: .complete, detail: .wasRunning(wasRunning)))
+        // Completed - yield snapshot with Lambda stopped
+        let snapshot = XcodeSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: .stopped,
+                postgresState: .stopped,
+                dynamodbState: .stopped
+            ),
+            buildStatus: .notBuilt
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 

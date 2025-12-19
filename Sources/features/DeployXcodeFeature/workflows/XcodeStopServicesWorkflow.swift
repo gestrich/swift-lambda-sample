@@ -1,5 +1,6 @@
 import Foundation
 import CLISDK
+import DeployCoreService
 import DeployLocalService
 import DockerCLISDK
 import DynamoDBSDK
@@ -72,30 +73,8 @@ public struct XcodeStopServicesWorkflow: StreamingWorkflow {
         )
     }
 
-    /// State updates from the stop services workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case stoppingDatabase
-            case stoppingS3
-            case stoppingDynamoDB
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case serviceStopped(LocalServiceType)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
 
     /// Options for the stop services workflow.
     public struct Options: Sendable {
@@ -114,8 +93,8 @@ public struct XcodeStopServicesWorkflow: StreamingWorkflow {
 
     /// Stream the stop services workflow.
     /// - Parameter options: Service options specifying which services to stop
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Options) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -129,30 +108,46 @@ public struct XcodeStopServicesWorkflow: StreamingWorkflow {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Stop PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(State(step: .stoppingDatabase))
+            continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+                step: .stopping,
+                startTime: startTime,
+                currentService: .database
+            )))
             try await postgresClient.stop()
-            continuation.yield(State(step: .stoppingDatabase, detail: .serviceStopped(.database)))
         }
 
         // Stop MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(State(step: .stoppingS3))
+            continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+                step: .stopping,
+                startTime: startTime,
+                currentService: .s3
+            )))
             try await minioClient.stop()
-            continuation.yield(State(step: .stoppingS3, detail: .serviceStopped(.s3)))
         }
 
         // Stop DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(State(step: .stoppingDynamoDB))
+            continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+                step: .stopping,
+                startTime: startTime,
+                currentService: .dynamodb
+            )))
             try await dynamodbClient.stop()
-            continuation.yield(State(step: .stoppingDynamoDB, detail: .serviceStopped(.dynamodb)))
         }
 
-        continuation.yield(State(step: .complete))
+        // Completed - yield snapshot with services stopped
+        let snapshot = XcodeSnapshot(
+            serviceStatus: .stopped,
+            buildStatus: .notBuilt
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 }

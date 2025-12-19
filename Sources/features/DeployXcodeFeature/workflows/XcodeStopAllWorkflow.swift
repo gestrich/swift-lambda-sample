@@ -55,8 +55,12 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
         )))
         let lambdaComponents = XcodeStopLambdaWorkflow.create()
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            let mappedState = mapLambdaState(lambdaState, startTime: startTime)
-            continuation.yield(mappedState)
+            // Pass through non-completed states (sub-workflow now yields XcodeWorkflowState)
+            if case .completed = lambdaState {
+                // Skip sub-workflow's completed state; we'll emit our own
+            } else {
+                continuation.yield(lambdaState)
+            }
         }
 
         // Then stop services
@@ -66,8 +70,12 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
         )))
         let servicesComponents = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            let mappedState = mapServicesState(servicesState, startTime: startTime)
-            continuation.yield(mappedState)
+            // Pass through non-completed states
+            if case .completed = servicesState {
+                // Skip sub-workflow's completed state; we'll emit our own
+            } else {
+                continuation.yield(servicesState)
+            }
         }
 
         // Complete with snapshot
@@ -83,40 +91,5 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
         )
         continuation.yield(.completed(snapshot))
         continuation.finish()
-    }
-
-    // MARK: - State Mapping Helpers
-
-    private func mapLambdaState(
-        _ state: XcodeStopLambdaWorkflow.State,
-        startTime: Date
-    ) -> XcodeWorkflowState {
-        .stoppingLambda(XcodeWorkflowState.LambdaProgress(
-            step: .stopping,
-            startTime: startTime
-        ))
-    }
-
-    private func mapServicesState(
-        _ state: XcodeStopServicesWorkflow.State,
-        startTime: Date
-    ) -> XcodeWorkflowState {
-        let currentService: LocalServiceType?
-        switch state.step {
-        case .stoppingDatabase:
-            currentService = .database
-        case .stoppingS3:
-            currentService = .s3
-        case .stoppingDynamoDB:
-            currentService = .dynamodb
-        case .complete:
-            currentService = nil
-        }
-
-        return .stoppingServices(XcodeWorkflowState.ServicesProgress(
-            step: .stopping,
-            startTime: startTime,
-            currentService: currentService
-        ))
     }
 }

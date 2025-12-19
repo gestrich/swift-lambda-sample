@@ -85,31 +85,8 @@ public struct XcodeStartServicesWorkflow: StreamingWorkflow {
         )
     }
 
-    /// State updates from the start services workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case startingDatabase
-            case startingS3
-            case creatingBucket
-            case startingDynamoDB
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case serviceStarted(LocalServiceType)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
 
     /// Options for the start services workflow.
     public struct Options: Sendable {
@@ -128,8 +105,8 @@ public struct XcodeStartServicesWorkflow: StreamingWorkflow {
 
     /// Stream the start services workflow.
     /// - Parameter options: Service options specifying which services to start
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Options) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -143,8 +120,10 @@ public struct XcodeStartServicesWorkflow: StreamingWorkflow {
 
     private func runWorkflow(
         options: Options,
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Ensure Docker is running
         if !(await dockerClient.isDockerRunning()) {
             try await startDockerDesktop()
@@ -152,30 +131,53 @@ public struct XcodeStartServicesWorkflow: StreamingWorkflow {
 
         // Start PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(State(step: .startingDatabase))
+            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+                step: .starting,
+                startTime: startTime,
+                currentService: .database
+            )))
             try await postgresClient.start()
-            continuation.yield(State(step: .startingDatabase, detail: .serviceStarted(.database)))
         }
 
         // Start MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(State(step: .startingS3))
+            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+                step: .starting,
+                startTime: startTime,
+                currentService: .s3
+            )))
             try await minioClient.start()
-            continuation.yield(State(step: .startingS3, detail: .serviceStarted(.s3)))
 
             // Create bucket after S3 is running
-            continuation.yield(State(step: .creatingBucket))
+            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+                step: .creatingBucket,
+                startTime: startTime,
+                currentService: .s3
+            )))
             try await minioClient.createBucket(bucketName: nil)
         }
 
         // Start DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(State(step: .startingDynamoDB))
+            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+                step: .starting,
+                startTime: startTime,
+                currentService: .dynamodb
+            )))
             try await dynamodbClient.start()
-            continuation.yield(State(step: .startingDynamoDB, detail: .serviceStarted(.dynamodb)))
         }
 
-        continuation.yield(State(step: .complete))
+        // Completed - yield snapshot with services running
+        let snapshot = XcodeSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: options.services.contains(.s3) ? .running : .stopped,
+                postgresState: options.services.contains(.database) ? .running : .stopped,
+                dynamodbState: options.services.contains(.dynamodb) ? .running : .stopped
+            ),
+            buildStatus: .notBuilt
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 

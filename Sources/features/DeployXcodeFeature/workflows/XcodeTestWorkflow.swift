@@ -41,38 +41,13 @@ public struct XcodeTestWorkflow: StreamingWorkflow {
         self.lambdaHostPort = lambdaHostPort
     }
 
-    /// State updates from the test workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingLambda
-            case testingFileUpload
-            case testingFileList
-            case testingFileDownload
-            case testingDatabaseInit
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case testPassed(String)
-            case testFailed(String, String)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
     public typealias Options = Void
 
     /// Stream the test workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -85,24 +60,44 @@ public struct XcodeTestWorkflow: StreamingWorkflow {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Check if Lambda is running
-        continuation.yield(State(step: .checkingLambda))
+        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            step: .checkingLambda,
+            startTime: startTime
+        )))
         let isRunning = await isLambdaRunning()
         if !isRunning {
-            continuation.yield(State(
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
                 step: .checkingLambda,
-                detail: .output("Lambda is not running. Please start it first with: ./tools.sh local xcode start")
-            ))
+                startTime: startTime,
+                result: .message("Lambda is not running. Please start it first with: ./tools.sh local xcode start")
+            )))
             throw DeployError.testFailed(message: "Lambda is not running on port \(lambdaHostPort)")
         }
-        continuation.yield(State(step: .checkingLambda, detail: .output("Lambda is running")))
+        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            step: .checkingLambda,
+            startTime: startTime,
+            result: .message("Lambda is running")
+        )))
 
         // Run the tests
-        try await performLocalLambdaTests(continuation: continuation)
+        try await performLocalLambdaTests(startTime: startTime, continuation: continuation)
 
-        continuation.yield(State(step: .complete))
+        // Completed - yield snapshot with Lambda running
+        let snapshot = XcodeSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .running,
+                s3State: .running,
+                postgresState: .running,
+                dynamodbState: .running
+            ),
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
@@ -135,12 +130,16 @@ public struct XcodeTestWorkflow: StreamingWorkflow {
     }
 
     private func performLocalLambdaTests(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        startTime: Date,
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
         let client = await MainActor.run { APIClient(localPort: lambdaHostPort, serviceName: "Local Xcode (Native)") }
 
         // Test file upload
-        continuation.yield(State(step: .testingFileUpload))
+        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            step: .testingFileUpload,
+            startTime: startTime
+        )))
         let testContent = "Hello from test file!"
         guard let testData = testContent.data(using: .utf8) else {
             throw DeployError.testFailed(message: "Failed to create test data")
@@ -148,44 +147,89 @@ public struct XcodeTestWorkflow: StreamingWorkflow {
 
         let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
         if uploadResponse.contains("File uploaded: test-upload.txt") {
-            continuation.yield(State(step: .testingFileUpload, detail: .testPassed("File upload")))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingFileUpload,
+                startTime: startTime,
+                result: .passed("File upload")
+            )))
         } else {
-            continuation.yield(State(step: .testingFileUpload, detail: .testFailed("File upload", uploadResponse)))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingFileUpload,
+                startTime: startTime,
+                result: .failed("File upload", uploadResponse)
+            )))
             throw DeployError.testFailed(message: "File upload endpoint test failed")
         }
 
         // Test file list
-        continuation.yield(State(step: .testingFileList))
+        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            step: .testingFileList,
+            startTime: startTime
+        )))
         let fileList = try await client.listFiles()
         if fileList.contains("test-upload.txt") {
-            continuation.yield(State(step: .testingFileList, detail: .testPassed("File list (found \(fileList.count) files)")))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingFileList,
+                startTime: startTime,
+                result: .passed("File list (found \(fileList.count) files)")
+            )))
         } else {
-            continuation.yield(State(step: .testingFileList, detail: .testFailed("File list", "\(fileList)")))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingFileList,
+                startTime: startTime,
+                result: .failed("File list", "\(fileList)")
+            )))
             throw DeployError.testFailed(message: "List files endpoint test failed")
         }
 
         // Test file download
-        continuation.yield(State(step: .testingFileDownload))
+        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            step: .testingFileDownload,
+            startTime: startTime
+        )))
         let downloadedData = try await client.downloadFile(fileName: "test-upload.txt")
         if let downloadedContent = String(data: downloadedData, encoding: .utf8) {
             if downloadedContent.contains("Hello from test file!") {
-                continuation.yield(State(step: .testingFileDownload, detail: .testPassed("File download")))
+                continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                    step: .testingFileDownload,
+                    startTime: startTime,
+                    result: .passed("File download")
+                )))
             } else {
-                continuation.yield(State(step: .testingFileDownload, detail: .testFailed("File download", "unexpected content")))
+                continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                    step: .testingFileDownload,
+                    startTime: startTime,
+                    result: .failed("File download", "unexpected content")
+                )))
                 throw DeployError.testFailed(message: "File download endpoint test failed")
             }
         } else {
-            continuation.yield(State(step: .testingFileDownload, detail: .testFailed("File download", "could not decode content")))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingFileDownload,
+                startTime: startTime,
+                result: .failed("File download", "could not decode content")
+            )))
             throw DeployError.testFailed(message: "File download endpoint test failed")
         }
 
         // Test database initialization
-        continuation.yield(State(step: .testingDatabaseInit))
+        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            step: .testingDatabaseInit,
+            startTime: startTime
+        )))
         let dbResult = try await client.initializeDatabase()
         if dbResult.contains("Database Initialized") {
-            continuation.yield(State(step: .testingDatabaseInit, detail: .testPassed("Database init")))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingDatabaseInit,
+                startTime: startTime,
+                result: .passed("Database init")
+            )))
         } else {
-            continuation.yield(State(step: .testingDatabaseInit, detail: .testFailed("Database init", dbResult)))
+            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                step: .testingDatabaseInit,
+                startTime: startTime,
+                result: .failed("Database init", dbResult)
+            )))
             throw DeployError.testFailed(message: "Database endpoint test failed")
         }
     }

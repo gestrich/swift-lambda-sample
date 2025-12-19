@@ -23,113 +23,95 @@ func printXcodeBuildProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStartLambdaProgress(_ progress: XcodeStartLambdaWorkflow.State) {
-    switch progress.step {
-    case .checkingBuild:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
+func printXcodeStartLambdaProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .startingLambda(let lambdaProgress):
+        switch lambdaProgress.step {
+        case .checkingBuild:
             print("🔍 Checking build...")
-        }
-    case .building:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
+        case .building:
             print("🔨 Building Lambda...")
-        }
-    case .starting:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
+        case .starting:
             print("🚀 Starting Lambda...")
-        }
-    case .waitingForReady:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
+        case .waitingForReady:
             print("⏳ Waiting for Lambda to be ready...")
+        case .stopping:
+            break
         }
-    case .complete:
-        if case .port(let port) = progress.detail {
-            print("✅ Lambda running on port \(port)")
+    case .completed(let snapshot):
+        if snapshot.lambdaState == .running {
+            print("✅ Lambda running on port 8080")
         } else {
             print("✅ Lambda started")
         }
+    default:
+        break
     }
 }
 
-func printXcodeStopLambdaProgress(_ progress: XcodeStopLambdaWorkflow.State) {
-    switch progress.step {
-    case .checking:
-        print("🔍 Checking Lambda status...")
-    case .stopping:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
+func printXcodeStopLambdaProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .stoppingLambda:
+        print("🛑 Stopping Lambda...")
+    case .completed(let snapshot):
+        if snapshot.lambdaState == .stopped {
+            print("✅ Lambda stopped")
         } else {
-            print("🛑 Stopping Lambda...")
+            print("ℹ️  Lambda stop completed")
         }
-    case .complete:
-        if case .wasRunning(let wasRunning) = progress.detail {
-            if wasRunning {
-                print("✅ Lambda stopped")
+    default:
+        break
+    }
+}
+
+func printXcodeStartServicesProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .startingServices(let servicesProgress):
+        switch servicesProgress.step {
+        case .starting:
+            if let service = servicesProgress.currentService {
+                switch service {
+                case .database:
+                    print("🐘 Starting PostgreSQL...")
+                case .s3:
+                    print("📦 Starting MinIO S3...")
+                case .dynamodb:
+                    print("⚡ Starting DynamoDB...")
+                }
             } else {
-                print("ℹ️  Lambda was not running")
+                print("🔄 Starting services...")
+            }
+        case .creatingBucket:
+            print("🪣 Creating S3 bucket...")
+        default:
+            break
+        }
+    case .completed:
+        print("✅ All services started")
+    default:
+        break
+    }
+}
+
+func printXcodeStopServicesProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .stoppingServices(let servicesProgress):
+        if let service = servicesProgress.currentService {
+            switch service {
+            case .database:
+                print("🐘 Stopping PostgreSQL...")
+            case .s3:
+                print("📦 Stopping MinIO S3...")
+            case .dynamodb:
+                print("⚡ Stopping DynamoDB...")
             }
         } else {
-            print("✅ Lambda stopped")
+            print("🔄 Stopping services...")
         }
-    }
-}
-
-func printXcodeStartServicesProgress(_ progress: XcodeStartServicesWorkflow.State) {
-    switch progress.step {
-    case .startingDatabase:
-        if case .serviceStarted(_) = progress.detail {
-            print("✅ PostgreSQL started")
-        } else {
-            print("🐘 Starting PostgreSQL...")
-        }
-    case .startingS3:
-        if case .serviceStarted(_) = progress.detail {
-            print("✅ MinIO S3 started")
-        } else {
-            print("📦 Starting MinIO S3...")
-        }
-    case .creatingBucket:
-        print("🪣 Creating S3 bucket...")
-    case .startingDynamoDB:
-        if case .serviceStarted(_) = progress.detail {
-            print("✅ DynamoDB started")
-        } else {
-            print("⚡ Starting DynamoDB...")
-        }
-    case .complete:
-        print("✅ All services started")
-    }
-}
-
-func printXcodeStopServicesProgress(_ progress: XcodeStopServicesWorkflow.State) {
-    switch progress.step {
-    case .stoppingDatabase:
-        if case .serviceStopped(_) = progress.detail {
-            print("✅ PostgreSQL stopped")
-        } else {
-            print("🐘 Stopping PostgreSQL...")
-        }
-    case .stoppingS3:
-        if case .serviceStopped(_) = progress.detail {
-            print("✅ MinIO S3 stopped")
-        } else {
-            print("📦 Stopping MinIO S3...")
-        }
-    case .stoppingDynamoDB:
-        if case .serviceStopped(_) = progress.detail {
-            print("✅ DynamoDB stopped")
-        } else {
-            print("⚡ Stopping DynamoDB...")
-        }
-    case .complete:
+    case .completed:
         print("✅ All services stopped")
+    default:
+        break
     }
 }
 
@@ -209,41 +191,46 @@ func printXcodeStopAllProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeTestProgress(_ progress: XcodeTestWorkflow.State) {
-    switch progress.step {
-    case .checkingLambda:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
-            print("🔍 Checking Lambda status...")
+func printXcodeTestProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .testing(let testProgress):
+        switch testProgress.step {
+        case .checkingLambda:
+            if case .message(let text) = testProgress.result {
+                print("  \(text)")
+            } else {
+                print("🔍 Checking Lambda status...")
+            }
+        case .testingFileUpload:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("📤 Testing file upload...")
+            }
+        case .testingFileList:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("📋 Testing file list...")
+            }
+        case .testingFileDownload:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("📥 Testing file download...")
+            }
+        case .testingDatabaseInit:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("🗄️  Testing database init...")
+            }
         }
-    case .testingFileUpload:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("📤 Testing file upload...")
-        }
-    case .testingFileList:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("📋 Testing file list...")
-        }
-    case .testingFileDownload:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("📥 Testing file download...")
-        }
-    case .testingDatabaseInit:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("🗄️  Testing database init...")
-        }
-    case .complete:
+    case .completed:
         print("")
         print("✅ All tests passed")
+    default:
+        break
     }
 }
 

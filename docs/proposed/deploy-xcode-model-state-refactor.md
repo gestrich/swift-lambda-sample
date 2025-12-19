@@ -270,16 +270,28 @@ public enum XcodeWorkflowState: Sendable, Equatable {
 
 ### Phase 6: Update Remaining Workflows
 
-[ ] **Migrate remaining Xcode workflows**
+[x] **Migrate remaining Xcode workflows** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 6.1: Update `XcodeStartLambdaWorkflow` to yield `XcodeWorkflowState`
-- [ ] 6.2: Update `XcodeStopLambdaWorkflow` to yield `XcodeWorkflowState`
-- [ ] 6.3: Update `XcodeStartServicesWorkflow` to yield `XcodeWorkflowState`
-- [ ] 6.4: Update `XcodeStopServicesWorkflow` to yield `XcodeWorkflowState`
-- [ ] 6.5: Update `XcodeTestWorkflow` to yield `XcodeWorkflowState`
-- [ ] 6.6: Update all related CLI commands/progress printers
-- [ ] 6.7: Build verification
+- [x] 6.1: Update `XcodeStartLambdaWorkflow` to yield `XcodeWorkflowState`
+- [x] 6.2: Update `XcodeStopLambdaWorkflow` to yield `XcodeWorkflowState`
+- [x] 6.3: Update `XcodeStartServicesWorkflow` to yield `XcodeWorkflowState`
+- [x] 6.4: Update `XcodeStopServicesWorkflow` to yield `XcodeWorkflowState`
+- [x] 6.5: Update `XcodeTestWorkflow` to yield `XcodeWorkflowState`
+- [x] 6.6: Update all related CLI commands/progress printers
+- [x] 6.7: Build verification
+
+**Technical Notes:**
+- All sub-workflows now use `typealias State = XcodeWorkflowState` and `typealias Result = XcodeWorkflowState`
+- Removed nested `State` structs with `Step` and `Detail` enums from each workflow
+- Workflows now capture `startTime` at the beginning and pass it through all progress yields
+- `XcodeStartLambdaWorkflow` yields `.startingLambda(LambdaProgress)` and `.completed(XcodeSnapshot)` with Lambda running
+- `XcodeStopLambdaWorkflow` yields `.stoppingLambda(LambdaProgress)` and `.completed(XcodeSnapshot)` with Lambda stopped
+- `XcodeStartServicesWorkflow` yields `.startingServices(ServicesProgress)` tracking current service being started
+- `XcodeStopServicesWorkflow` yields `.stoppingServices(ServicesProgress)` tracking current service being stopped
+- `XcodeTestWorkflow` yields `.testing(TestProgress)` with test results and `.completed(XcodeSnapshot)`
+- `XcodeStartAllWorkflow` and `XcodeStopAllWorkflow` simplified to pass through sub-workflow states directly (filtering out sub-workflow `.completed` states)
+- CLI progress printers updated to pattern match on `XcodeWorkflowState` cases instead of old nested `State.step` patterns
 
 ---
 
@@ -569,13 +581,12 @@ public var buildState: BuildState {
 - [x] `Sources/apps/CLIApp/Commands/DeployXcode/DeployXcodeProgressPrinters.swift`
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStartAllWorkflow.swift`
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStopAllWorkflow.swift`
-- [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift`
-- [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift`
-- [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStartServicesWorkflow.swift`
-- [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStopServicesWorkflow.swift`
-- [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeTestWorkflow.swift`
+- [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift`
+- [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift`
+- [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStartServicesWorkflow.swift`
+- [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStopServicesWorkflow.swift`
+- [x] `Sources/features/DeployXcodeFeature/workflows/XcodeTestWorkflow.swift`
 - [ ] `Sources/apps/MacApp/Models/DeployXcodeModel.swift`
-- [ ] `Sources/apps/CLIApp/Commands/DeployXcode/DeployXcodeProgressPrinters.swift` (if exists)
 
 **No changes needed:**
 - Views (`LocalServiceView`, `DockerServicesView`) - already updated for `DeployLinuxModel` refactor

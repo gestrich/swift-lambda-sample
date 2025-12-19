@@ -88,36 +88,13 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
         )
     }
 
-    /// State updates from the start Lambda workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingBuild
-            case building
-            case starting
-            case waitingForReady
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case port(Int)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
     public typealias Options = Void
 
     /// Stream the start Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -130,27 +107,34 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Check if build exists
-        continuation.yield(State(step: .checkingBuild))
+        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .checkingBuild,
+            startTime: startTime
+        )))
         let isBuilt = isLambdaBuilt()
-        if !isBuilt {
-            continuation.yield(State(step: .checkingBuild, detail: .output("Lambda not built, will build first")))
-        }
 
         // Build if needed
         if !isBuilt {
-            continuation.yield(State(step: .building))
-            try await buildLambda(continuation: continuation)
+            continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+                step: .building,
+                startTime: startTime
+            )))
+            try await buildLambda(startTime: startTime, continuation: continuation)
         }
 
         // Get executable path
         let executablePath = try await getExecutablePath()
 
         // Start Lambda process
-        continuation.yield(State(step: .starting))
-        continuation.yield(State(step: .starting, detail: .output("Starting Lambda on port \(lambdaHostPort)...")))
+        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .starting,
+            startTime: startTime
+        )))
 
         var env = getLambdaEnvironmentVariables()
         env["LOCAL_LAMBDA_PORT"] = "\(lambdaHostPort)"
@@ -164,10 +148,23 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
         )
 
         // Wait for ready
-        continuation.yield(State(step: .waitingForReady))
-        try await waitForReady(continuation: continuation)
+        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .waitingForReady,
+            startTime: startTime
+        )))
+        try await waitForReady(startTime: startTime, continuation: continuation)
 
-        continuation.yield(State(step: .complete, detail: .port(lambdaHostPort)))
+        // Completed - yield snapshot with Lambda running
+        let snapshot = XcodeSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .running,
+                s3State: .stopped,
+                postgresState: .stopped,
+                dynamodbState: .stopped
+            ),
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
@@ -175,7 +172,8 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
 
     /// Build Lambda for macOS (native Swift build)
     private func buildLambda(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        startTime: Date,
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
         let buildCommand = SwiftCLI.Build(product: lambdaProductName)
         let stream = await cliClient.stream(
@@ -190,7 +188,10 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
             case .stdout(_, let text), .stderr(_, let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    continuation.yield(State(step: .building, detail: .output(trimmed)))
+                    continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+                        step: .building,
+                        startTime: startTime
+                    )))
                 }
             case .exit(_, let code):
                 exitCode = code
@@ -245,7 +246,8 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
 
     /// Wait for Lambda to be ready on specified port
     private func waitForReady(
-        continuation: AsyncThrowingStream<State, Error>.Continuation,
+        startTime: Date,
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation,
         maxAttempts: Int = 30
     ) async throws {
         var attempts = 0
@@ -261,10 +263,10 @@ public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
             attempts += 1
 
             if attempts % 10 == 0 {
-                continuation.yield(State(
+                continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
                     step: .waitingForReady,
-                    detail: .output("Still waiting for Lambda on port \(lambdaHostPort)... (\(attempts) seconds)")
-                ))
+                    startTime: startTime
+                )))
             }
         }
 

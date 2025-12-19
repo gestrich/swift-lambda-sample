@@ -57,8 +57,12 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
         )))
         let servicesComponents = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            let mappedState = mapServicesState(servicesState, startTime: startTime)
-            continuation.yield(mappedState)
+            // Pass through non-completed states (sub-workflow now yields XcodeWorkflowState)
+            if case .completed = servicesState {
+                // Skip sub-workflow's completed state; we'll emit our own
+            } else {
+                continuation.yield(servicesState)
+            }
         }
 
         // Start Lambda (includes build if needed and waitForReady)
@@ -68,8 +72,12 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
         )))
         let lambdaComponents = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            let mappedState = mapLambdaState(lambdaState, startTime: startTime)
-            continuation.yield(mappedState)
+            // Pass through non-completed states
+            if case .completed = lambdaState {
+                // Skip sub-workflow's completed state; we'll emit our own
+            } else {
+                continuation.yield(lambdaState)
+            }
         }
 
         // Complete with snapshot
@@ -85,61 +93,5 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
         )
         continuation.yield(.completed(snapshot))
         continuation.finish()
-    }
-
-    // MARK: - State Mapping Helpers
-
-    private func mapServicesState(
-        _ state: XcodeStartServicesWorkflow.State,
-        startTime: Date
-    ) -> XcodeWorkflowState {
-        let currentService: LocalServiceType?
-        switch state.step {
-        case .startingDatabase:
-            currentService = .database
-        case .startingS3, .creatingBucket:
-            currentService = .s3
-        case .startingDynamoDB:
-            currentService = .dynamodb
-        case .complete:
-            currentService = nil
-        }
-
-        let step: XcodeWorkflowState.ServicesProgress.Step
-        if case .creatingBucket = state.step {
-            step = .creatingBucket
-        } else {
-            step = .starting
-        }
-
-        return .startingServices(XcodeWorkflowState.ServicesProgress(
-            step: step,
-            startTime: startTime,
-            currentService: currentService
-        ))
-    }
-
-    private func mapLambdaState(
-        _ state: XcodeStartLambdaWorkflow.State,
-        startTime: Date
-    ) -> XcodeWorkflowState {
-        let step: XcodeWorkflowState.LambdaProgress.Step
-        switch state.step {
-        case .checkingBuild:
-            step = .checkingBuild
-        case .building:
-            step = .building
-        case .starting:
-            step = .starting
-        case .waitingForReady:
-            step = .waitingForReady
-        case .complete:
-            step = .starting
-        }
-
-        return .startingLambda(XcodeWorkflowState.LambdaProgress(
-            step: step,
-            startTime: startTime
-        ))
     }
 }
