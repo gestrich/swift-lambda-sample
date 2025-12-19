@@ -256,31 +256,25 @@ public var workflowState: LinuxWorkflowState? { state.workflowState }
 public var operationStartTime: Date? { state.operationStartTime }
 ```
 
-- [ ] **Phase 4: Refactor Build Operation**
+- [x] **Phase 4: Refactor Build Operation** ✅ COMPLETED
 
-**Before:**
+Refactored `build()` method to use workflow-driven state updates instead of manual `buildState` marking.
+
+**Implementation notes:**
+- Replaced `buildState.startBuild()`, `buildState.markSuccess()`, `buildState.markFailed()` with `ModelState` updates
+- Added `guard canBuild else { return }` to prevent builds when state doesn't allow
+- Captures `prior = snapshot` before workflow to preserve state during operation
+- Iterates workflow yields and updates `state = ModelState(from: workflowState, prior: prior)`
+- On error: updates `state = ModelState(error: error, preserving: prior)` then rethrows
+- Kept `throws` and `output` parameter for `LocalService` protocol conformance (cleanup in Phase 11)
+- The `output` parameter is now ignored (workflow handles output internally)
+- Build verified successful
+
+**Changes made (lines 221-241):**
 ```swift
 public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
-    buildState.startBuild()
-    do {
-        let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-        let options = LinuxBuildWorkflow.Options(clean: clean)
-        for try await _ in components.workflow.stream(options: options) {
-            // Workflow progress is consumed; UI updates via buildState
-        }
-        buildState.markSuccess()
-    } catch {
-        buildState.markFailed(exitCode: 1)
-        throw error
-    }
-}
-```
-
-**After:**
-```swift
-public func build(clean: Bool = false) async {
-    guard state.canBuild else { return }
-    let prior = state.snapshot
+    guard canBuild else { return }
+    let prior = snapshot
 
     let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
     let options = LinuxBuildWorkflow.Options(clean: clean)
@@ -291,6 +285,7 @@ public func build(clean: Bool = false) async {
         }
     } catch {
         state = ModelState(error: error, preserving: prior)
+        throw error
     }
 }
 ```

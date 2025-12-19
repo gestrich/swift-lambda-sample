@@ -218,18 +218,24 @@ public class DeployLinuxModel: LocalService {
 
     // MARK: - Build
 
+    /// Build Lambda for Linux container.
+    /// Uses workflow-driven state updates instead of manual buildState marking.
+    /// - Parameters:
+    ///   - clean: Whether to clean build artifacts first
+    ///   - output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func build(clean: Bool = false, output: CLIOutputStream? = nil) async throws {
-        buildState.startBuild()
+        guard canBuild else { return }
+        let prior = snapshot
+
+        let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
+        let options = LinuxBuildWorkflow.Options(clean: clean)
 
         do {
-            let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-            let options = LinuxBuildWorkflow.Options(clean: clean)
-            for try await _ in components.workflow.stream(options: options) {
-                // Workflow progress is consumed; UI updates via buildState
+            for try await workflowState in components.workflow.stream(options: options) {
+                state = ModelState(from: workflowState, prior: prior)
             }
-            buildState.markSuccess()
         } catch {
-            buildState.markFailed(exitCode: 1)
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }
