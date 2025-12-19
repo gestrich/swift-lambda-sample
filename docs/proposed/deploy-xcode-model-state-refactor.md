@@ -339,15 +339,24 @@ public enum ModelState: Equatable {
 
 ### Phase 8: Replace Scattered State Properties
 
-[ ] **Replace scattered state properties with unified `state: ModelState`**
+[x] **Replace scattered state properties with unified `state: ModelState`** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 8.1: Add `public private(set) var state: ModelState = .uninitialized` as single source of truth
-- [ ] 8.2: Add computed `currentStatus` property for `LambdaService` protocol compatibility
-- [ ] 8.3: Add computed `isLoadingStatus` property derived from state
-- [ ] 8.4: Add private computed `isTransitioning` property (temporary, for migration)
-- [ ] 8.5: Remove `refreshBuildStatus()` call from `init`
-- [ ] 8.6: Build verification
+- [x] 8.1: Add `public private(set) var state: ModelState = .uninitialized` as single source of truth
+- [x] 8.2: Add computed `currentStatus` property for `LambdaService` protocol compatibility
+- [x] 8.3: Add computed `isLoadingStatus` property derived from state
+- [x] 8.4: Add private computed `isTransitioning` property (temporary, for migration)
+- [x] 8.5: Remove `refreshBuildStatus()` call from `init`
+- [x] 8.6: Build verification
+
+**Technical Notes:**
+- Added `state: ModelState = .uninitialized` as the single source of truth for all deployment state
+- `currentStatus` is now computed from `state.snapshot?.serviceStatus ?? .stopped`
+- `isLoadingStatus` is derived from state: `if case .loading = state { return true }`
+- `isTransitioning` is derived from state: `if case .operating = state { return true }`
+- Removed `refreshBuildStatus()` call from init; state starts as `.uninitialized` and is populated by `refresh()`
+- Also updated `startWithServices()`, `stopWithServices()`, `startIfNecessary()`, and `refresh()` to use the state machine pattern (required to compile since the properties are now computed)
+- Also added Phase 9 derived properties (`isIdle`, `canStart`, `canStop`, `canBuild`, `snapshot`, `workflowState`, `operationStartTime`) as they were needed by the refactored methods
 
 **Changes:**
 ```swift
@@ -374,12 +383,16 @@ public var isLoadingStatus: Bool {
 
 ### Phase 9: Add Derived Properties
 
-[ ] **Add computed convenience properties on `DeployXcodeModel`**
+[x] **Add computed convenience properties on `DeployXcodeModel`** *(Completed 2025-12-19 as part of Phase 8)*
 
 **Tasks:**
-- [ ] 9.1: Add `isIdle`, `canStart`, `canStop`, `canBuild` delegating to `state`
-- [ ] 9.2: Add `snapshot`, `workflowState`, `operationStartTime` delegating to `state`
-- [ ] 9.3: Build verification
+- [x] 9.1: Add `isIdle`, `canStart`, `canStop`, `canBuild` delegating to `state`
+- [x] 9.2: Add `snapshot`, `workflowState`, `operationStartTime` delegating to `state`
+- [x] 9.3: Build verification
+
+**Technical Notes:**
+- Added all 7 derived properties in a "Derived Properties (Convenience Accessors)" MARK section
+- These properties were needed for the refactored methods in Phase 8, so they were added together
 
 ```swift
 // MARK: - Derived Properties (Convenience Accessors)
@@ -443,14 +456,20 @@ public func build(clean: Bool = false, output: CLIOutputStream? = nil) async thr
 
 ### Phase 12: Refactor Start/Stop With Services
 
-[ ] **Refactor `startWithServices()` and `stopWithServices()`**
+[x] **Refactor `startWithServices()` and `stopWithServices()`** *(Completed 2025-12-19 as part of Phase 8)*
 
 **Tasks:**
-- [ ] 12.1: Replace manual state marking with `ModelState` updates
-- [ ] 12.2: Add `guard canStart/canStop else { return }` guards
-- [ ] 12.3: Remove `isTransitioning` flag usage
-- [ ] 12.4: Remove `await refresh()` call at end (state already updated by workflow)
-- [ ] 12.5: Build verification
+- [x] 12.1: Replace manual state marking with `ModelState` updates
+- [x] 12.2: Add `guard canStart/canStop else { return }` guards
+- [x] 12.3: Remove `isTransitioning` flag usage
+- [x] 12.4: Remove `await refresh()` call at end (state already updated by workflow)
+- [x] 12.5: Build verification
+
+**Technical Notes:**
+- Both methods now use workflow-driven state updates following the `DeployLinuxModel` pattern
+- Guards use `state.canStart` / `state.canStop` instead of checking `isTransitioning`
+- Workflow yields are consumed and used to update `state = ModelState(from: workflowState, prior: prior)`
+- No longer calls `refresh()` at the end since state is already populated by the workflow
 
 ---
 
@@ -474,13 +493,20 @@ public func build(clean: Bool = false, output: CLIOutputStream? = nil) async thr
 
 ### Phase 14: Simplify refresh()
 
-[ ] **Remove obsolete synchronization logic from `refresh()`**
+[x] **Remove obsolete synchronization logic from `refresh()`** *(Completed 2025-12-19 as part of Phase 8)*
 
 **Tasks:**
-- [ ] 14.1: Remove manual `lambdaState.setRunning()` and `lambdaState.clear()` calls
-- [ ] 14.2: Use workflow-driven state updates only
-- [ ] 14.3: Use `guard isIdle else { return nil }` pattern
-- [ ] 14.4: Build verification
+- [x] 14.1: Remove manual `lambdaState.setRunning()` and `lambdaState.clear()` calls
+- [x] 14.2: Use workflow-driven state updates only
+- [x] 14.3: Use `guard isIdle else { return nil }` pattern
+- [x] 14.4: Build verification
+
+**Technical Notes:**
+- Removed complex synchronization logic that tried to keep `lambdaState` in sync with `currentStatus`
+- Now uses `state.isIdle` guard instead of checking `!isTransitioning`
+- Sets `state = .loading(prior: prior)` at start of operation
+- Workflow yields update state via `ModelState(from: workflowState, prior: prior)`
+- Returns `state.snapshot?.serviceStatus` on success
 
 ```swift
 @discardableResult
@@ -508,13 +534,20 @@ public func refresh() async -> DeploymentStatus? {
 
 ### Phase 15: Simplify startIfNecessary()
 
-[ ] **Simplify `startIfNecessary()` to use workflow-driven state**
+[x] **Simplify `startIfNecessary()` to use workflow-driven state** *(Completed 2025-12-19 as part of Phase 8)*
 
 **Tasks:**
-- [ ] 15.1: Remove debug print statements
-- [ ] 15.2: Simplify guard to use `isIdle` and `snapshot.canStart`
-- [ ] 15.3: Remove manual `isTransitioning` flag management
-- [ ] 15.4: Build verification
+- [x] 15.1: Remove debug print statements
+- [x] 15.2: Simplify guard to use `isIdle` and `snapshot.canStart`
+- [x] 15.3: Remove manual `isTransitioning` flag management
+- [x] 15.4: Build verification
+
+**Technical Notes:**
+- Removed all debug print statements
+- Uses simple `guard state.isIdle else { return }` guard at start
+- Calls `refresh()` to populate state, then checks `snapshot.canStart`
+- Removed all manual `isTransitioning` flag manipulation
+- Uses `try? await startWithServices()` to swallow errors (captured in state)
 
 ```swift
 public func startIfNecessary() async {
@@ -593,7 +626,7 @@ public var buildState: BuildState {
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStartServicesWorkflow.swift`
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStopServicesWorkflow.swift`
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeTestWorkflow.swift`
-- [ ] `Sources/apps/MacApp/Models/DeployXcodeModel.swift`
+- [x] `Sources/apps/MacApp/Models/DeployXcodeModel.swift`
 
 **No changes needed:**
 - Views (`LocalServiceView`, `DockerServicesView`) - already updated for `DeployLinuxModel` refactor

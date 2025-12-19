@@ -21,16 +21,56 @@ public class DeployXcodeModel: LocalService {
     // Working directory
     private let workingDirectory: String
 
-    // MARK: - Observable State
+    // MARK: - Unified State
 
-    /// Current deployment status (observable via @Observable on class when migrated)
-    public private(set) var currentStatus: DeploymentStatus = .stopped
+    /// Unified state machine for all deployment operations.
+    /// Replaces scattered properties: currentStatus, isLoadingStatus, isTransitioning
+    public private(set) var state: ModelState = .uninitialized
 
-    /// Whether a status refresh is in progress
-    public private(set) var isLoadingStatus: Bool = false
+    // MARK: - Derived Properties (Protocol Compatibility)
 
-    /// Flag to prevent refresh from overwriting transitional states (starting/stopping)
-    private var isTransitioning = false
+    /// Current deployment status derived from unified state.
+    /// Required by LambdaService protocol.
+    public var currentStatus: DeploymentStatus {
+        state.snapshot?.serviceStatus ?? .stopped
+    }
+
+    /// Whether a status refresh is in progress.
+    /// Derived from unified state for backward compatibility.
+    public var isLoadingStatus: Bool {
+        if case .loading = state { return true }
+        return false
+    }
+
+    /// Flag to prevent refresh from overwriting transitional states (starting/stopping).
+    /// Derived from unified state for backward compatibility during migration.
+    private var isTransitioning: Bool {
+        if case .operating = state { return true }
+        return false
+    }
+
+    // MARK: - Derived Properties (Convenience Accessors)
+
+    /// Whether the model is idle (not loading or operating).
+    public var isIdle: Bool { state.isIdle }
+
+    /// Whether a start operation can be performed.
+    public var canStart: Bool { state.canStart }
+
+    /// Whether a stop operation can be performed.
+    public var canStop: Bool { state.canStop }
+
+    /// Whether a build operation can be performed.
+    public var canBuild: Bool { state.canBuild }
+
+    /// Current deployment snapshot (from ready state or prior state during loading/operation).
+    public var snapshot: XcodeSnapshot? { state.snapshot }
+
+    /// The active workflow state, if operating.
+    public var workflowState: XcodeWorkflowState? { state.workflowState }
+
+    /// Start time of the current operation, if any.
+    public var operationStartTime: Date? { state.operationStartTime }
 
     // MARK: - Build State
 
@@ -70,9 +110,7 @@ public class DeployXcodeModel: LocalService {
         self.workingDirectory = workingDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
-
-        // Check for existing build artifacts
-        refreshBuildStatus()
+        // State starts as .uninitialized - caller should call refresh() to populate
     }
 
     // MARK: - Service Management
@@ -222,63 +260,55 @@ public class DeployXcodeModel: LocalService {
         }
     }
 
+    /// Start Lambda process with all supporting services.
+    /// Uses workflow-driven state updates.
+    /// - Parameter output: Ignored - provided for protocol conformance
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
-        isTransitioning = true
-        defer { isTransitioning = false }
-
-        currentStatus = .starting
+        guard state.canStart else { return }
+        let prior = snapshot
 
         let components = XcodeStartAllWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
-            // Workflow progress is consumed
-        }
-        lambdaState.markRunning()
-
-        await refresh()
-    }
-
-    public func stopWithServices(output: CLIOutputStream? = nil) async throws {
-        isTransitioning = true
-        defer { isTransitioning = false }
-
-        currentStatus = .stopping
-
-        let components = XcodeStopAllWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
-            // Workflow progress is consumed
-        }
-        lambdaState.markStopped()
-
-        await refresh()
-    }
-
-    public func startIfNecessary() async {
-        print("🔄 DeployXcodeModel.startIfNecessary called")
-
-        isTransitioning = true
 
         do {
-            let statusResult = try await status()
-            print("🔄 Lambda state: \(statusResult.lambdaState), S3: \(statusResult.s3State), Postgres: \(statusResult.postgresState), DynamoDB: \(statusResult.dynamodbState)")
-
-            let anyServiceStopped = statusResult.lambdaState == .stopped ||
-                                    statusResult.s3State == .stopped ||
-                                    statusResult.postgresState == .stopped ||
-                                    statusResult.dynamodbState == .stopped
-
-            if anyServiceStopped {
-                print("🔄 Starting services (some are stopped)...")
-                try await startWithServices()
-            } else {
-                print("🔄 All services already running, skipping start")
-                isTransitioning = false
-                await refresh()
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
         } catch {
-            print("⚠️ Failed to start services: \(error)")
-            isTransitioning = false
-            await refresh()
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
+    }
+
+    /// Stop Lambda process and all supporting services.
+    /// Uses workflow-driven state updates.
+    /// - Parameter output: Ignored - provided for protocol conformance
+    public func stopWithServices(output: CLIOutputStream? = nil) async throws {
+        guard state.canStop else { return }
+        let prior = snapshot
+
+        let components = XcodeStopAllWorkflow.create(workingDirectory: workingDirectory)
+
+        do {
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
+        }
+    }
+
+    /// Start services if needed based on current state.
+    /// Refreshes status first, then starts services if any are stopped.
+    /// Uses workflow-driven state updates - errors are captured in state.
+    public func startIfNecessary() async {
+        guard state.isIdle else { return }
+
+        await refresh()
+
+        guard let snapshot = snapshot, snapshot.canStart else { return }
+
+        try? await startWithServices()
     }
 
     // MARK: - Testing
@@ -326,27 +356,24 @@ public class DeployXcodeModel: LocalService {
         return result
     }
 
+    /// Refresh deployment status from system.
+    /// Uses workflow-driven state updates - the unified `state` property is the source of truth.
     @discardableResult
     public func refresh() async -> DeploymentStatus? {
-        guard !isTransitioning else { return nil }
+        guard state.isIdle else { return nil }
 
-        isLoadingStatus = true
-        defer { isLoadingStatus = false }
+        let prior = snapshot
+        state = .loading(prior: prior)
+
+        let components = XcodeStatusWorkflow.create()
 
         do {
-            let newStatus = try await self.status()
-            currentStatus = newStatus
-
-            // Sync lambdaState with actual running state (for app restart scenarios)
-            if newStatus.lambdaState == .running && lambdaState.status == .stopped {
-                lambdaState.setRunning()
-            } else if newStatus.lambdaState == .stopped && lambdaState.status == .running {
-                lambdaState.clear()
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
-
-            return newStatus
+            return state.snapshot?.serviceStatus
         } catch {
-            currentStatus = .stopped
+            state = ModelState(error: error, preserving: prior)
             return nil
         }
     }
