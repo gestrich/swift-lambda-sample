@@ -318,10 +318,9 @@ public class DeployXcodeModel: LocalService {
         let components = XcodeStatusWorkflow.create()
         var result: DeploymentStatus = .stopped
 
-        for try await progress in components.workflow.stream() {
-            if case .complete = progress.step,
-               case .status(let status)? = progress.detail {
-                result = status
+        for try await workflowState in components.workflow.stream() {
+            if let snapshot = workflowState.completedSnapshot {
+                result = snapshot.serviceStatus
             }
         }
         return result

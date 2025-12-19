@@ -82,37 +82,13 @@ public struct XcodeStatusWorkflow: StreamingWorkflow {
         )
     }
 
-    /// State updates from the status workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingLambda
-            case checkingS3
-            case checkingDatabase
-            case checkingDynamoDB
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case serviceStatus(LocalServiceType, ServiceState)
-            case lambdaStatus(ServiceState)
-            case status(DeploymentStatus)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
-    public typealias Result = State
+    public typealias State = XcodeWorkflowState
+    public typealias Result = XcodeWorkflowState
     public typealias Options = Void
 
     /// Stream the status workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
-    public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -125,29 +101,39 @@ public struct XcodeStatusWorkflow: StreamingWorkflow {
     }
 
     private func runWorkflow(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Check Lambda status
-        continuation.yield(State(step: .checkingLambda))
+        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+            step: .checkingLambda,
+            startTime: startTime
+        )))
         let lambdaRunning = await isLambdaRunning()
-        continuation.yield(State(step: .checkingLambda, detail: .lambdaStatus(lambdaRunning ? .running : .stopped)))
 
         // Check S3 status
-        continuation.yield(State(step: .checkingS3))
+        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+            step: .checkingS3,
+            startTime: startTime
+        )))
         let s3Running = try await minioClient.isRunning()
-        continuation.yield(State(step: .checkingS3, detail: .serviceStatus(.s3, s3Running ? .running : .stopped)))
 
         // Check PostgreSQL status
-        continuation.yield(State(step: .checkingDatabase))
+        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+            step: .checkingDatabase,
+            startTime: startTime
+        )))
         let postgresRunning = try await postgresClient.isRunning()
-        continuation.yield(State(step: .checkingDatabase, detail: .serviceStatus(.database, postgresRunning ? .running : .stopped)))
 
         // Check DynamoDB status
-        continuation.yield(State(step: .checkingDynamoDB))
+        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+            step: .checkingDynamoDB,
+            startTime: startTime
+        )))
         let dynamodbRunning = try await dynamodbClient.isRunning()
-        continuation.yield(State(step: .checkingDynamoDB, detail: .serviceStatus(.dynamodb, dynamodbRunning ? .running : .stopped)))
 
-        // Build final status
+        // Build final status and snapshot
         let status = DeploymentStatus(
             lambdaState: lambdaRunning ? .running : .stopped,
             s3State: s3Running ? .running : .stopped,
@@ -155,7 +141,12 @@ public struct XcodeStatusWorkflow: StreamingWorkflow {
             dynamodbState: dynamodbRunning ? .running : .stopped
         )
 
-        continuation.yield(State(step: .complete, detail: .status(status)))
+        let snapshot = XcodeSnapshot(
+            serviceStatus: status,
+            buildStatus: .notBuilt
+        )
+
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 

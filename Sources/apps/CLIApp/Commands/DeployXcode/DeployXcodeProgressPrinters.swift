@@ -231,19 +231,22 @@ func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.State) {
     }
 }
 
-func printXcodeStatusProgress(_ progress: XcodeStatusWorkflow.State) {
-    switch progress.step {
-    case .checkingLambda:
-        print("🔍 Checking Lambda status...")
-    case .checkingS3:
-        print("🔍 Checking S3 status...")
-    case .checkingDatabase:
-        print("🔍 Checking PostgreSQL status...")
-    case .checkingDynamoDB:
-        print("🔍 Checking DynamoDB status...")
-    case .complete:
-        if case .status(let status) = progress.detail {
-            printStatus(status, mode: "Mac (Native)")
+func printXcodeStatusProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .checkingStatus(let statusProgress):
+        switch statusProgress.step {
+        case .checkingLambda:
+            print("🔍 Checking Lambda status...")
+        case .checkingS3:
+            print("🔍 Checking S3 status...")
+        case .checkingDatabase:
+            print("🔍 Checking PostgreSQL status...")
+        case .checkingDynamoDB:
+            print("🔍 Checking DynamoDB status...")
         }
+    case .completed(let snapshot):
+        printStatus(snapshot.serviceStatus, mode: "Mac (Native)")
+    default:
+        break
     }
 }
