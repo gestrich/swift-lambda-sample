@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for stopping local services for Xcode development.
+/// Use case for stopping local services for Xcode development.
 /// Contains all service stop logic directly, using SDK clients.
-public struct XcodeStopServicesWorkflow: StreamingUseCase {
+public struct XcodeStopServicesUseCase: StreamingUseCase {
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
     private let dynamodbClient: DynamoDBClient
@@ -28,15 +28,15 @@ public struct XcodeStopServicesWorkflow: StreamingUseCase {
 
     /// Components needed for stopping services.
     public struct Components: Sendable {
-        public let workflow: XcodeStopServicesWorkflow
+        public let useCase: XcodeStopServicesUseCase
         public let postgresClient: PostgreSQLClient
         public let minioClient: MinIOClient
         public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and clients
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -59,24 +59,24 @@ public struct XcodeStopServicesWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
         )
 
-        let workflow = XcodeStopServicesWorkflow(
+        let useCase = XcodeStopServicesUseCase(
             postgresClient: postgresClient,
             minioClient: minioClient,
             dynamodbClient: dynamodbClient
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             postgresClient: postgresClient,
             minioClient: minioClient,
             dynamodbClient: dynamodbClient
         )
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
 
-    /// Options for the stop services workflow.
+    /// Options for the stop services use case.
     public struct Options: Sendable {
         public let services: Set<LocalServiceType>
 
@@ -91,14 +91,14 @@ public struct XcodeStopServicesWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the stop services workflow.
+    /// Stream the stop services use case.
     /// - Parameter options: Service options specifying which services to stop
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Options) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Options) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -106,15 +106,15 @@ public struct XcodeStopServicesWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Stop PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
                 step: .stopping,
                 startTime: startTime,
                 currentService: .database
@@ -124,7 +124,7 @@ public struct XcodeStopServicesWorkflow: StreamingUseCase {
 
         // Stop MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
                 step: .stopping,
                 startTime: startTime,
                 currentService: .s3
@@ -134,7 +134,7 @@ public struct XcodeStopServicesWorkflow: StreamingUseCase {
 
         // Stop DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
                 step: .stopping,
                 startTime: startTime,
                 currentService: .dynamodb

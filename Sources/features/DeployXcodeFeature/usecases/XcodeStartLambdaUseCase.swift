@@ -10,9 +10,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for starting the Lambda as a native macOS process.
+/// Use case for starting the Lambda as a native macOS process.
 /// Contains all Lambda start logic directly, using SDK clients.
-public struct XcodeStartLambdaWorkflow: StreamingUseCase {
+public struct XcodeStartLambdaUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
@@ -39,16 +39,16 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
 
     /// Components needed for starting Lambda.
     public struct Components: Sendable {
-        public let workflow: XcodeStartLambdaWorkflow
+        public let useCase: XcodeStartLambdaUseCase
         public let cliClient: CLIClient
         public let postgresClient: PostgreSQLClient
         public let minioClient: MinIOClient
         public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and clients
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -71,7 +71,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
         )
 
-        let workflow = XcodeStartLambdaWorkflow(
+        let useCase = XcodeStartLambdaUseCase(
             cliClient: cliClient,
             postgresClient: postgresClient,
             minioClient: minioClient,
@@ -80,7 +80,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cliClient: cliClient,
             postgresClient: postgresClient,
             minioClient: minioClient,
@@ -88,17 +88,17 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
         )
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
     public typealias Options = Void
 
-    /// Stream the start Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// Stream the start Lambda use case.
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -106,13 +106,13 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+    private func runUseCase(
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Check if build exists
-        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+        continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
             step: .checkingBuild,
             startTime: startTime
         )))
@@ -120,7 +120,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
 
         // Build if needed
         if !isBuilt {
-            continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+            continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
                 step: .building,
                 startTime: startTime
             )))
@@ -131,7 +131,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
         let executablePath = try await getExecutablePath()
 
         // Start Lambda process
-        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+        continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
             step: .starting,
             startTime: startTime
         )))
@@ -148,7 +148,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
         )
 
         // Wait for ready
-        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+        continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
             step: .waitingForReady,
             startTime: startTime
         )))
@@ -173,7 +173,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
     /// Build Lambda for macOS (native Swift build)
     private func buildLambda(
         startTime: Date,
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let buildCommand = SwiftCLI.Build(product: lambdaProductName)
         let stream = await cliClient.stream(
@@ -188,7 +188,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
             case .stdout(_, let text), .stderr(_, let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+                    continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
                         step: .building,
                         startTime: startTime
                     )))
@@ -247,7 +247,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
     /// Wait for Lambda to be ready on specified port
     private func waitForReady(
         startTime: Date,
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation,
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation,
         maxAttempts: Int = 30
     ) async throws {
         var attempts = 0
@@ -263,7 +263,7 @@ public struct XcodeStartLambdaWorkflow: StreamingUseCase {
             attempts += 1
 
             if attempts % 10 == 0 {
-                continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+                continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
                     step: .waitingForReady,
                     startTime: startTime
                 )))

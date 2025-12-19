@@ -4,33 +4,33 @@ import ClientService
 import DeployCoreService
 import Uniflow
 
-/// Workflow for testing local Lambda endpoints (Xcode mode).
-public struct XcodeTestWorkflow: StreamingUseCase {
+/// Use case for testing local Lambda endpoints (Xcode mode).
+public struct XcodeTestUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let lambdaHostPort: Int
 
     // Lambda configuration
     private let lambdaProcessPattern = "swiftlamb"
 
-    /// Components needed for the test workflow.
+    /// Components needed for the test use case.
     public struct Components: Sendable {
-        public let workflow: XcodeTestWorkflow
+        public let useCase: XcodeTestUseCase
 
-        public init(workflow: XcodeTestWorkflow) {
-            self.workflow = workflow
+        public init(useCase: XcodeTestUseCase) {
+            self.useCase = useCase
         }
     }
 
-    /// Creates the workflow with all required dependencies.
+    /// Creates the use case with all required dependencies.
     /// - Parameter workingDirectory: The working directory for CLI commands
-    /// - Returns: Components containing the configured workflow
+    /// - Returns: Components containing the configured use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        let workflow = XcodeTestWorkflow(
+        let useCase = XcodeTestUseCase(
             cliClient: cliClient,
             lambdaHostPort: 8080
         )
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
     public init(
@@ -41,17 +41,17 @@ public struct XcodeTestWorkflow: StreamingUseCase {
         self.lambdaHostPort = lambdaHostPort
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
     public typealias Options = Void
 
-    /// Stream the test workflow.
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// Stream the test use case.
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -59,26 +59,26 @@ public struct XcodeTestWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+    private func runUseCase(
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Check if Lambda is running
-        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+        continuation.yield(.testing(XcodeUseCaseState.TestProgress(
             step: .checkingLambda,
             startTime: startTime
         )))
         let isRunning = await isLambdaRunning()
         if !isRunning {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .checkingLambda,
                 startTime: startTime,
                 result: .message("Lambda is not running. Please start it first with: ./tools.sh local xcode start")
             )))
             throw DeployError.testFailed(message: "Lambda is not running on port \(lambdaHostPort)")
         }
-        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+        continuation.yield(.testing(XcodeUseCaseState.TestProgress(
             step: .checkingLambda,
             startTime: startTime,
             result: .message("Lambda is running")
@@ -131,12 +131,12 @@ public struct XcodeTestWorkflow: StreamingUseCase {
 
     private func performLocalLambdaTests(
         startTime: Date,
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let client = await MainActor.run { APIClient(localPort: lambdaHostPort, serviceName: "Local Xcode (Native)") }
 
         // Test file upload
-        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+        continuation.yield(.testing(XcodeUseCaseState.TestProgress(
             step: .testingFileUpload,
             startTime: startTime
         )))
@@ -147,13 +147,13 @@ public struct XcodeTestWorkflow: StreamingUseCase {
 
         let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
         if uploadResponse.contains("File uploaded: test-upload.txt") {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingFileUpload,
                 startTime: startTime,
                 result: .passed("File upload")
             )))
         } else {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingFileUpload,
                 startTime: startTime,
                 result: .failed("File upload", uploadResponse)
@@ -162,19 +162,19 @@ public struct XcodeTestWorkflow: StreamingUseCase {
         }
 
         // Test file list
-        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+        continuation.yield(.testing(XcodeUseCaseState.TestProgress(
             step: .testingFileList,
             startTime: startTime
         )))
         let fileList = try await client.listFiles()
         if fileList.contains("test-upload.txt") {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingFileList,
                 startTime: startTime,
                 result: .passed("File list (found \(fileList.count) files)")
             )))
         } else {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingFileList,
                 startTime: startTime,
                 result: .failed("File list", "\(fileList)")
@@ -183,20 +183,20 @@ public struct XcodeTestWorkflow: StreamingUseCase {
         }
 
         // Test file download
-        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+        continuation.yield(.testing(XcodeUseCaseState.TestProgress(
             step: .testingFileDownload,
             startTime: startTime
         )))
         let downloadedData = try await client.downloadFile(fileName: "test-upload.txt")
         if let downloadedContent = String(data: downloadedData, encoding: .utf8) {
             if downloadedContent.contains("Hello from test file!") {
-                continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                     step: .testingFileDownload,
                     startTime: startTime,
                     result: .passed("File download")
                 )))
             } else {
-                continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+                continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                     step: .testingFileDownload,
                     startTime: startTime,
                     result: .failed("File download", "unexpected content")
@@ -204,7 +204,7 @@ public struct XcodeTestWorkflow: StreamingUseCase {
                 throw DeployError.testFailed(message: "File download endpoint test failed")
             }
         } else {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingFileDownload,
                 startTime: startTime,
                 result: .failed("File download", "could not decode content")
@@ -213,19 +213,19 @@ public struct XcodeTestWorkflow: StreamingUseCase {
         }
 
         // Test database initialization
-        continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+        continuation.yield(.testing(XcodeUseCaseState.TestProgress(
             step: .testingDatabaseInit,
             startTime: startTime
         )))
         let dbResult = try await client.initializeDatabase()
         if dbResult.contains("Database Initialized") {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingDatabaseInit,
                 startTime: startTime,
                 result: .passed("Database init")
             )))
         } else {
-            continuation.yield(.testing(XcodeWorkflowState.TestProgress(
+            continuation.yield(.testing(XcodeUseCaseState.TestProgress(
                 step: .testingDatabaseInit,
                 startTime: startTime,
                 result: .failed("Database init", dbResult)

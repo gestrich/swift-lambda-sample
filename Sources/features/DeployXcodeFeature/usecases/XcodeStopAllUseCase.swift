@@ -3,9 +3,9 @@ import DeployCoreService
 import DeployLocalService
 import Uniflow
 
-/// Workflow for stopping Lambda and all services for Xcode development.
-/// Orchestrates XcodeStopLambdaWorkflow and XcodeStopServicesWorkflow.
-public struct XcodeStopAllWorkflow: StreamingUseCase {
+/// Use case for stopping Lambda and all services for Xcode development.
+/// Orchestrates XcodeStopLambdaUseCase and XcodeStopServicesUseCase.
+public struct XcodeStopAllUseCase: StreamingUseCase {
     private let workingDirectory: String
 
     public init(workingDirectory: String) {
@@ -14,28 +14,28 @@ public struct XcodeStopAllWorkflow: StreamingUseCase {
 
     /// Components needed for stop all operations.
     public struct Components: Sendable {
-        public let workflow: XcodeStopAllWorkflow
+        public let useCase: XcodeStopAllUseCase
     }
 
-    /// Creates a workflow and associated components.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow
+    /// Creates a use case and associated components.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
-        let workflow = XcodeStopAllWorkflow(workingDirectory: workingDirectory)
-        return Components(workflow: workflow)
+        let useCase = XcodeStopAllUseCase(workingDirectory: workingDirectory)
+        return Components(useCase: useCase)
     }
 
-    public typealias State = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the stop all workflow.
+    /// Stream the stop all use case.
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -43,36 +43,36 @@ public struct XcodeStopAllWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Stop Lambda first
-        continuation.yield(.stoppingLambda(XcodeWorkflowState.LambdaProgress(
+        continuation.yield(.stoppingLambda(XcodeUseCaseState.LambdaProgress(
             step: .stopping,
             startTime: startTime
         )))
-        let lambdaComponents = XcodeStopLambdaWorkflow.create()
-        for try await lambdaState in lambdaComponents.workflow.stream() {
-            // Pass through non-completed states (sub-workflow now yields XcodeWorkflowState)
+        let lambdaComponents = XcodeStopLambdaUseCase.create()
+        for try await lambdaState in lambdaComponents.useCase.stream() {
+            // Pass through non-completed states (sub-use case now yields XcodeUseCaseState)
             if case .completed = lambdaState {
-                // Skip sub-workflow's completed state; we'll emit our own
+                // Skip sub-use case's completed state; we'll emit our own
             } else {
                 continuation.yield(lambdaState)
             }
         }
 
         // Then stop services
-        continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+        continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
             step: .stopping,
             startTime: startTime
         )))
-        let servicesComponents = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await servicesState in servicesComponents.workflow.stream(options: .all) {
+        let servicesComponents = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
+        for try await servicesState in servicesComponents.useCase.stream(options: .all) {
             // Pass through non-completed states
             if case .completed = servicesState {
-                // Skip sub-workflow's completed state; we'll emit our own
+                // Skip sub-use case's completed state; we'll emit our own
             } else {
                 continuation.yield(servicesState)
             }

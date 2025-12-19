@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for checking the status of local development services (Xcode mode).
+/// Use case for checking the status of local development services (Xcode mode).
 /// Contains all status check logic directly, using SDK clients.
-public struct XcodeStatusWorkflow: StreamingUseCase {
+public struct XcodeStatusUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
@@ -35,15 +35,15 @@ public struct XcodeStatusWorkflow: StreamingUseCase {
 
     /// Components needed for checking status.
     public struct Components: Sendable {
-        public let workflow: XcodeStatusWorkflow
+        public let useCase: XcodeStatusUseCase
         public let cliClient: CLIClient
         public let postgresClient: PostgreSQLClient
         public let minioClient: MinIOClient
         public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Returns: Components containing the use case and clients
     public static func create() -> Components {
         let cliClient = CLIClient()
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -66,7 +66,7 @@ public struct XcodeStatusWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
         )
 
-        let workflow = XcodeStatusWorkflow(
+        let useCase = XcodeStatusUseCase(
             cliClient: cliClient,
             postgresClient: postgresClient,
             minioClient: minioClient,
@@ -74,7 +74,7 @@ public struct XcodeStatusWorkflow: StreamingUseCase {
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cliClient: cliClient,
             postgresClient: postgresClient,
             minioClient: minioClient,
@@ -82,17 +82,17 @@ public struct XcodeStatusWorkflow: StreamingUseCase {
         )
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
     public typealias Options = Void
 
-    /// Stream the status workflow.
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// Stream the status use case.
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -100,34 +100,34 @@ public struct XcodeStatusWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+    private func runUseCase(
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Check Lambda status
-        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(XcodeUseCaseState.StatusProgress(
             step: .checkingLambda,
             startTime: startTime
         )))
         let lambdaRunning = await isLambdaRunning()
 
         // Check S3 status
-        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(XcodeUseCaseState.StatusProgress(
             step: .checkingS3,
             startTime: startTime
         )))
         let s3Running = try await minioClient.isRunning()
 
         // Check PostgreSQL status
-        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(XcodeUseCaseState.StatusProgress(
             step: .checkingDatabase,
             startTime: startTime
         )))
         let postgresRunning = try await postgresClient.isRunning()
 
         // Check DynamoDB status
-        continuation.yield(.checkingStatus(XcodeWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(XcodeUseCaseState.StatusProgress(
             step: .checkingDynamoDB,
             startTime: startTime
         )))

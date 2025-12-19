@@ -4,9 +4,9 @@ import DeployCoreService
 import LambdaBuildService
 import Uniflow
 
-/// Workflow for building Lambda for native macOS/Xcode development.
+/// Use case for building Lambda for native macOS/Xcode development.
 /// Contains all build logic directly, using SDK clients.
-public struct XcodeBuildWorkflow: StreamingUseCase {
+public struct XcodeBuildUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let workingDirectory: String
     private let lambdaProductName = "LambdaApp"
@@ -21,27 +21,27 @@ public struct XcodeBuildWorkflow: StreamingUseCase {
 
     /// Components needed for build operations.
     public struct Components: Sendable {
-        public let workflow: XcodeBuildWorkflow
+        public let useCase: XcodeBuildUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameter workingDirectory: The working directory for the build
-    /// - Returns: Components containing the workflow
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
 
-        let workflow = XcodeBuildWorkflow(
+        let useCase = XcodeBuildUseCase(
             cliClient: cliClient,
             workingDirectory: workingDirectory
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
 
-    /// Options for the build workflow.
+    /// Options for the build use case.
     public struct Options: Sendable {
         public let clean: Bool
 
@@ -50,14 +50,14 @@ public struct XcodeBuildWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the build workflow.
+    /// Stream the build use case.
     /// - Parameter options: Build options
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Options) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Options) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -65,15 +65,15 @@ public struct XcodeBuildWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Clean if requested
         if options.clean {
-            continuation.yield(.building(XcodeWorkflowState.BuildProgress(
+            continuation.yield(.building(XcodeUseCaseState.BuildProgress(
                 step: .cleaning,
                 startTime: startTime
             )))
@@ -85,7 +85,7 @@ public struct XcodeBuildWorkflow: StreamingUseCase {
         }
 
         // Build
-        continuation.yield(.building(XcodeWorkflowState.BuildProgress(
+        continuation.yield(.building(XcodeUseCaseState.BuildProgress(
             step: .building,
             startTime: startTime
         )))
@@ -103,7 +103,7 @@ public struct XcodeBuildWorkflow: StreamingUseCase {
             case .stdout(_, let text), .stderr(_, let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    continuation.yield(.building(XcodeWorkflowState.BuildProgress(
+                    continuation.yield(.building(XcodeUseCaseState.BuildProgress(
                         step: .building,
                         startTime: startTime,
                         output: trimmed

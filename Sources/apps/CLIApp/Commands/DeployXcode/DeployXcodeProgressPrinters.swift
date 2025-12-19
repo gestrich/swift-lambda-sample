@@ -3,7 +3,7 @@ import DeployXcodeFeature
 
 // MARK: - Xcode Progress Printers
 
-func printXcodeBuildProgress(_ progress: XcodeWorkflowState) {
+func printXcodeBuildProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .building(let buildProgress):
         switch buildProgress.step {
@@ -23,7 +23,7 @@ func printXcodeBuildProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStartLambdaProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStartLambdaProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .startingLambda(let lambdaProgress):
         switch lambdaProgress.step {
@@ -49,7 +49,7 @@ func printXcodeStartLambdaProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStopLambdaProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStopLambdaProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .stoppingLambda:
         print("🛑 Stopping Lambda...")
@@ -64,7 +64,7 @@ func printXcodeStopLambdaProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStartServicesProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStartServicesProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .startingServices(let servicesProgress):
         switch servicesProgress.step {
@@ -93,7 +93,7 @@ func printXcodeStartServicesProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStopServicesProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStopServicesProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .stoppingServices(let servicesProgress):
         if let service = servicesProgress.currentService {
@@ -115,7 +115,7 @@ func printXcodeStopServicesProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStartAllProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStartAllProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .startingServices(let servicesProgress):
         switch servicesProgress.step {
@@ -162,7 +162,7 @@ func printXcodeStartAllProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStopAllProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStopAllProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .stoppingLambda:
         print("🛑 Stopping Lambda...")
@@ -191,7 +191,7 @@ func printXcodeStopAllProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeTestProgress(_ progress: XcodeWorkflowState) {
+func printXcodeTestProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .testing(let testProgress):
         switch testProgress.step {
@@ -234,7 +234,7 @@ func printXcodeTestProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.State) {
+func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigUseCase.State) {
     switch progress.step {
     case .copying:
         if case .copiedFile(let file) = progress.detail {
@@ -251,7 +251,7 @@ func printXcodeCopyConfigProgress(_ progress: XcodeCopyConfigWorkflow.State) {
     }
 }
 
-func printXcodeStatusProgress(_ progress: XcodeWorkflowState) {
+func printXcodeStatusProgress(_ progress: XcodeUseCaseState) {
     switch progress {
     case .checkingStatus(let statusProgress):
         switch statusProgress.step {

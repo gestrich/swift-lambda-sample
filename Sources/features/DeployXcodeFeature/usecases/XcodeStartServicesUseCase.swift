@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for starting local services for Xcode development.
+/// Use case for starting local services for Xcode development.
 /// Contains all service start logic directly, using SDK clients.
-public struct XcodeStartServicesWorkflow: StreamingUseCase {
+public struct XcodeStartServicesUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
@@ -34,7 +34,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
 
     /// Components needed for starting services.
     public struct Components: Sendable {
-        public let workflow: XcodeStartServicesWorkflow
+        public let useCase: XcodeStartServicesUseCase
         public let cliClient: CLIClient
         public let dockerClient: DockerClient
         public let postgresClient: PostgreSQLClient
@@ -42,9 +42,9 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
         public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and clients
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -67,7 +67,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
         )
 
-        let workflow = XcodeStartServicesWorkflow(
+        let useCase = XcodeStartServicesUseCase(
             cliClient: cliClient,
             dockerClient: dockerClient,
             postgresClient: postgresClient,
@@ -76,7 +76,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cliClient: cliClient,
             dockerClient: dockerClient,
             postgresClient: postgresClient,
@@ -85,10 +85,10 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
         )
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
 
-    /// Options for the start services workflow.
+    /// Options for the start services use case.
     public struct Options: Sendable {
         public let services: Set<LocalServiceType>
 
@@ -103,14 +103,14 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the start services workflow.
+    /// Stream the start services use case.
     /// - Parameter options: Service options specifying which services to start
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Options) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Options) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -118,9 +118,9 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
@@ -131,7 +131,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
 
         // Start PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
                 step: .starting,
                 startTime: startTime,
                 currentService: .database
@@ -141,7 +141,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
 
         // Start MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
                 step: .starting,
                 startTime: startTime,
                 currentService: .s3
@@ -149,7 +149,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
             try await minioClient.start()
 
             // Create bucket after S3 is running
-            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
                 step: .creatingBucket,
                 startTime: startTime,
                 currentService: .s3
@@ -159,7 +159,7 @@ public struct XcodeStartServicesWorkflow: StreamingUseCase {
 
         // Start DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+            continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
                 step: .starting,
                 startTime: startTime,
                 currentService: .dynamodb

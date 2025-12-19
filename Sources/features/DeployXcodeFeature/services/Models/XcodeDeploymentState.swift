@@ -5,7 +5,7 @@ import DeployLocalService
 // MARK: - XcodeSnapshot (Stable State)
 
 /// Represents stable deployment state when not operating.
-/// This is the service-layer state type that workflows yield on completion.
+/// This is the service-layer state type that use cases yield on completion.
 /// Parallel to `LinuxSnapshot` in DeployLinuxFeature.
 public struct XcodeSnapshot: Sendable, Equatable {
     public let serviceStatus: DeploymentStatus
@@ -110,12 +110,12 @@ public struct XcodeSnapshot: Sendable, Equatable {
     }
 }
 
-// MARK: - XcodeWorkflowState (What workflows yield)
+// MARK: - XcodeUseCaseState (What use cases yield)
 
-/// State yielded by a running workflow.
-/// Workflows capture `startTime` internally; the app layer adds `prior` when constructing ModelState.
-/// Parallel to `LinuxWorkflowState` in DeployLinuxFeature.
-public enum XcodeWorkflowState: Sendable, Equatable {
+/// State yielded by a running use case.
+/// Use cases capture `startTime` internally; the app layer adds `prior` when constructing ModelState.
+/// Parallel to `LinuxUseCaseState` in DeployLinuxFeature.
+public enum XcodeUseCaseState: Sendable, Equatable {
     case building(BuildProgress)
     case startingServices(ServicesProgress)
     case stoppingServices(ServicesProgress)

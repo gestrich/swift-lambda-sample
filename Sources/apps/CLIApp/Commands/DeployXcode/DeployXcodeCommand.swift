@@ -44,12 +44,12 @@ extension DeployXcodeCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let components = XcodeBuildWorkflow.create(
+            let components = XcodeBuildUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeBuildWorkflow.Options(clean: clean)
+            let options = XcodeBuildUseCase.Options(clean: clean)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeBuildProgress(progress)
             }
         }
@@ -63,11 +63,11 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartLambdaWorkflow.create(
+            let components = XcodeStartLambdaUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printXcodeStartLambdaProgress(progress)
             }
         }
@@ -81,9 +81,9 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopLambdaWorkflow.create()
+            let components = XcodeStopLambdaUseCase.create()
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printXcodeStopLambdaProgress(progress)
             }
         }
@@ -97,11 +97,11 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartAllWorkflow.create(
+            let components = XcodeStartAllUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printXcodeStartAllProgress(progress)
             }
         }
@@ -115,11 +115,11 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopAllWorkflow.create(
+            let components = XcodeStopAllUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printXcodeStopAllProgress(progress)
             }
         }
@@ -133,12 +133,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartServicesWorkflow.create(
+            let components = XcodeStartServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeStartServicesWorkflow.Options.only(.database)
+            let options = XcodeStartServicesUseCase.Options.only(.database)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -152,12 +152,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopServicesWorkflow.create(
+            let components = XcodeStopServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeStopServicesWorkflow.Options.only(.database)
+            let options = XcodeStopServicesUseCase.Options.only(.database)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeStopServicesProgress(progress)
             }
         }
@@ -171,12 +171,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartServicesWorkflow.create(
+            let components = XcodeStartServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeStartServicesWorkflow.Options.only(.dynamodb)
+            let options = XcodeStartServicesUseCase.Options.only(.dynamodb)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -190,12 +190,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopServicesWorkflow.create(
+            let components = XcodeStopServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeStopServicesWorkflow.Options.only(.dynamodb)
+            let options = XcodeStopServicesUseCase.Options.only(.dynamodb)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeStopServicesProgress(progress)
             }
         }
@@ -209,12 +209,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartServicesWorkflow.create(
+            let components = XcodeStartServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeStartServicesWorkflow.Options.only(.s3)
+            let options = XcodeStartServicesUseCase.Options.only(.s3)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeStartServicesProgress(progress)
             }
         }
@@ -228,12 +228,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopServicesWorkflow.create(
+            let components = XcodeStopServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeStopServicesWorkflow.Options.only(.s3)
+            let options = XcodeStopServicesUseCase.Options.only(.s3)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeStopServicesProgress(progress)
             }
         }
@@ -247,11 +247,11 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeTestWorkflow.create(
+            let components = XcodeTestUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printXcodeTestProgress(progress)
             }
         }
@@ -265,9 +265,9 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStatusWorkflow.create()
+            let components = XcodeStatusUseCase.create()
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printXcodeStatusProgress(progress)
             }
         }
@@ -281,12 +281,12 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeCopyConfigWorkflow.create(
+            let components = XcodeCopyConfigUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = XcodeCopyConfigWorkflow.Options()
+            let options = XcodeCopyConfigUseCase.Options()
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printXcodeCopyConfigProgress(progress)
             }
         }

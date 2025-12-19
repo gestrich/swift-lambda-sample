@@ -3,9 +3,9 @@ import DeployCoreService
 import DeployLocalService
 import Uniflow
 
-/// Workflow for starting Lambda with all services for Xcode development.
-/// Orchestrates XcodeStartServicesWorkflow and XcodeStartLambdaWorkflow.
-public struct XcodeStartAllWorkflow: StreamingUseCase {
+/// Use case for starting Lambda with all services for Xcode development.
+/// Orchestrates XcodeStartServicesUseCase and XcodeStartLambdaUseCase.
+public struct XcodeStartAllUseCase: StreamingUseCase {
     private let workingDirectory: String
     private let lambdaHostPort = 8080
 
@@ -15,29 +15,29 @@ public struct XcodeStartAllWorkflow: StreamingUseCase {
 
     /// Components needed for start all operations.
     public struct Components: Sendable {
-        public let workflow: XcodeStartAllWorkflow
+        public let useCase: XcodeStartAllUseCase
         public let port: Int
     }
 
-    /// Creates a workflow and associated components.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and configuration
+    /// Creates a use case and associated components.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and configuration
     public static func create(workingDirectory: String) -> Components {
-        let workflow = XcodeStartAllWorkflow(workingDirectory: workingDirectory)
-        return Components(workflow: workflow, port: 8080)
+        let useCase = XcodeStartAllUseCase(workingDirectory: workingDirectory)
+        return Components(useCase: useCase, port: 8080)
     }
 
-    public typealias State = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the start all workflow.
+    /// Stream the start all use case.
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -45,36 +45,36 @@ public struct XcodeStartAllWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Start services first
-        continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+        continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
             step: .starting,
             startTime: startTime
         )))
-        let servicesComponents = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            // Pass through non-completed states (sub-workflow now yields XcodeWorkflowState)
+        let servicesComponents = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
+        for try await servicesState in servicesComponents.useCase.stream(options: .all) {
+            // Pass through non-completed states (sub-use case now yields XcodeUseCaseState)
             if case .completed = servicesState {
-                // Skip sub-workflow's completed state; we'll emit our own
+                // Skip sub-use case's completed state; we'll emit our own
             } else {
                 continuation.yield(servicesState)
             }
         }
 
         // Start Lambda (includes build if needed and waitForReady)
-        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+        continuation.yield(.startingLambda(XcodeUseCaseState.LambdaProgress(
             step: .starting,
             startTime: startTime
         )))
-        let lambdaComponents = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
-        for try await lambdaState in lambdaComponents.workflow.stream() {
+        let lambdaComponents = XcodeStartLambdaUseCase.create(workingDirectory: workingDirectory)
+        for try await lambdaState in lambdaComponents.useCase.stream() {
             // Pass through non-completed states
             if case .completed = lambdaState {
-                // Skip sub-workflow's completed state; we'll emit our own
+                // Skip sub-use case's completed state; we'll emit our own
             } else {
                 continuation.yield(lambdaState)
             }

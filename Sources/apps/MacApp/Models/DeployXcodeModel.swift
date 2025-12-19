@@ -59,8 +59,8 @@ public class DeployXcodeModel: LocalService {
     /// Current deployment snapshot (from ready state or prior state during loading/operation).
     public var snapshot: XcodeSnapshot? { state.snapshot }
 
-    /// The active workflow state, if operating.
-    public var workflowState: XcodeWorkflowState? { state.workflowState }
+    /// The active use case state, if operating.
+    public var useCaseState: XcodeUseCaseState? { state.useCaseState }
 
     /// Start time of the current operation, if any.
     public var operationStartTime: Date? { state.operationStartTime }
@@ -72,7 +72,7 @@ public class DeployXcodeModel: LocalService {
     public var buildState: BuildState {
         get {
             // Derive from unified state
-            if let workflowState = state.workflowState, workflowState.isBuilding {
+            if let useCaseState = state.useCaseState, useCaseState.isBuilding {
                 return BuildState(status: .building)
             }
             if let snapshot = state.snapshot {
@@ -101,12 +101,12 @@ public class DeployXcodeModel: LocalService {
     /// Required by `LocalService` protocol for UI compatibility.
     public var lambdaState: LambdaState {
         get {
-            // Derive from workflow state first (in-progress operations)
-            if let workflowState = state.workflowState {
-                if workflowState.isStarting {
+            // Derive from use case state first (in-progress operations)
+            if let useCaseState = state.useCaseState {
+                if useCaseState.isStarting {
                     return LambdaState(status: .starting)
                 }
-                if workflowState.isStopping {
+                if useCaseState.isStopping {
                     return LambdaState(status: .stopping)
                 }
             }
@@ -167,16 +167,16 @@ public class DeployXcodeModel: LocalService {
     // MARK: - Service Management
 
     /// Start all local services (PostgreSQL, MinIO S3, DynamoDB Local).
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startAllServices() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .all) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .all) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -185,16 +185,16 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Stop all local services (PostgreSQL, MinIO S3, DynamoDB Local).
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopAllServices() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .all) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .all) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -203,16 +203,16 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Start MinIO S3 service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startS3() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -221,21 +221,21 @@ public class DeployXcodeModel: LocalService {
     }
 
     public func createBucket(bucketName: String? = nil) async throws {
-        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
         try await components.minioClient.createBucket(bucketName: bucketName)
     }
 
     /// Stop MinIO S3 service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopS3() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -244,16 +244,16 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Start PostgreSQL database service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startDatabase() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.database)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -262,16 +262,16 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Stop PostgreSQL database service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopDatabase() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.database)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -280,16 +280,16 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Start DynamoDB Local service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startDynamoDB() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -298,16 +298,16 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Stop DynamoDB Local service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopDynamoDB() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -330,7 +330,7 @@ public class DeployXcodeModel: LocalService {
     // MARK: - Build
 
     /// Build Lambda for macOS.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     /// - Parameters:
     ///   - clean: Whether to perform a clean build
     ///   - output: Ignored - provided for protocol conformance
@@ -338,12 +338,12 @@ public class DeployXcodeModel: LocalService {
         guard canBuild else { return }
         let prior = snapshot
 
-        let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
-        let options = XcodeBuildWorkflow.Options(clean: clean)
+        let components = XcodeBuildUseCase.create(workingDirectory: workingDirectory)
+        let options = XcodeBuildUseCase.Options(clean: clean)
 
         do {
-            for try await workflowState in components.workflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -368,8 +368,8 @@ public class DeployXcodeModel: LocalService {
     }
 
     public func deleteBuild() async throws {
-        let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
-        try await components.workflow.deleteBuild()
+        let components = XcodeBuildUseCase.create(workingDirectory: workingDirectory)
+        try await components.useCase.deleteBuild()
         // Reset state to reflect build deletion
         let serviceStatus = snapshot?.serviceStatus ?? .stopped
         state = .ready(XcodeSnapshot(serviceStatus: serviceStatus, buildStatus: .notBuilt))
@@ -378,17 +378,17 @@ public class DeployXcodeModel: LocalService {
     // MARK: - Lambda Lifecycle
 
     /// Start Lambda as a native macOS process.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     /// - Parameter output: Ignored - provided for protocol conformance
     public func startLambda(output: CLIOutputStream? = nil) async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartLambdaUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -397,17 +397,17 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Stop Lambda process.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     /// - Parameter output: Ignored - provided for protocol conformance
     public func stopLambda(output: CLIOutputStream? = nil) async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = XcodeStopLambdaWorkflow.create()
+        let components = XcodeStopLambdaUseCase.create()
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -416,17 +416,17 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Start Lambda process with all supporting services.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     /// - Parameter output: Ignored - provided for protocol conformance
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
         guard state.canStart else { return }
         let prior = snapshot
 
-        let components = XcodeStartAllWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStartAllUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -435,17 +435,17 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Stop Lambda process and all supporting services.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     /// - Parameter output: Ignored - provided for protocol conformance
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         guard state.canStop else { return }
         let prior = snapshot
 
-        let components = XcodeStopAllWorkflow.create(workingDirectory: workingDirectory)
+        let components = XcodeStopAllUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -455,7 +455,7 @@ public class DeployXcodeModel: LocalService {
 
     /// Start services if needed based on current state.
     /// Refreshes status first, then starts services if any are stopped.
-    /// Uses workflow-driven state updates - errors are captured in state.
+    /// Uses use case-driven state updates - errors are captured in state.
     public func startIfNecessary() async {
         guard state.isIdle else { return }
 
@@ -469,13 +469,13 @@ public class DeployXcodeModel: LocalService {
     // MARK: - Testing
 
     public func waitForReady(maxAttempts: Int = 30) async throws {
-        // Use XcodeStatusWorkflow to check if Lambda is running
-        let statusComponents = XcodeStatusWorkflow.create()
+        // Use XcodeStatusUseCase to check if Lambda is running
+        let statusComponents = XcodeStatusUseCase.create()
         var attempts = 0
         var ready = false
 
         while attempts < maxAttempts && !ready {
-            if await statusComponents.workflow.isLambdaRunning() {
+            if await statusComponents.useCase.isLambdaRunning() {
                 ready = true
                 break
             }
@@ -491,20 +491,20 @@ public class DeployXcodeModel: LocalService {
     }
 
     public func testLambda() async throws {
-        let components = XcodeTestWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: ()) {
-            // Workflow progress is consumed
+        let components = XcodeTestUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in components.useCase.stream(options: ()) {
+            // Use case progress is consumed
         }
     }
 
     // MARK: - Status
 
     public func status() async throws -> DeploymentStatus {
-        let components = XcodeStatusWorkflow.create()
+        let components = XcodeStatusUseCase.create()
         var result: DeploymentStatus = .stopped
 
-        for try await workflowState in components.workflow.stream() {
-            if let snapshot = workflowState.completedSnapshot {
+        for try await useCaseState in components.useCase.stream() {
+            if let snapshot = useCaseState.completedSnapshot {
                 result = snapshot.serviceStatus
             }
         }
@@ -512,7 +512,7 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Refresh deployment status from system.
-    /// Uses workflow-driven state updates - the unified `state` property is the source of truth.
+    /// Uses use case-driven state updates - the unified `state` property is the source of truth.
     @discardableResult
     public func refresh() async -> DeploymentStatus? {
         guard state.isIdle else { return nil }
@@ -520,11 +520,11 @@ public class DeployXcodeModel: LocalService {
         let prior = snapshot
         state = .loading(prior: prior)
 
-        let components = XcodeStatusWorkflow.create()
+        let components = XcodeStatusUseCase.create()
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
             return state.snapshot?.serviceStatus
         } catch {
@@ -539,7 +539,7 @@ public class DeployXcodeModel: LocalService {
 extension DeployXcodeModel {
     /// Unified state machine for Xcode development model.
     /// Mirrors `DeployRemoteModel.ModelState` and `DeployLinuxModel.ModelState` for consistency.
-    /// Uses `XcodeWorkflowState` and `XcodeSnapshot` from the service layer.
+    /// Uses `XcodeUseCaseState` and `XcodeSnapshot` from the service layer.
     public enum ModelState: Equatable {
         /// Initial state before any operation
         case uninitialized
@@ -550,18 +550,18 @@ extension DeployXcodeModel {
         /// Ready state with current deployment info
         case ready(XcodeSnapshot)
 
-        /// Active workflow in progress (uses XcodeWorkflowState from service layer)
-        case operating(XcodeWorkflowState, prior: XcodeSnapshot?)
+        /// Active use case in progress (uses XcodeUseCaseState from service layer)
+        case operating(XcodeUseCaseState, prior: XcodeSnapshot?)
 
         // MARK: - Convenience Initializers
 
-        /// Construct ModelState from a workflow state plus app-layer prior.
-        /// This is the key integration point between workflows and the model.
-        public init(from workflowState: XcodeWorkflowState, prior: XcodeSnapshot?) {
-            if let snapshot = workflowState.completedSnapshot {
+        /// Construct ModelState from a use case state plus app-layer prior.
+        /// This is the key integration point between use cases and the model.
+        public init(from useCaseState: XcodeUseCaseState, prior: XcodeSnapshot?) {
+            if let snapshot = useCaseState.completedSnapshot {
                 self = .ready(snapshot)
             } else {
-                self = .operating(workflowState, prior: prior)
+                self = .operating(useCaseState, prior: prior)
             }
         }
 
@@ -586,8 +586,8 @@ extension DeployXcodeModel {
             }
         }
 
-        /// The active workflow state, if operating
-        public var workflowState: XcodeWorkflowState? {
+        /// The active use case state, if operating
+        public var useCaseState: XcodeUseCaseState? {
             guard case .operating(let state, _) = self else { return nil }
             return state
         }
@@ -638,7 +638,7 @@ extension DeployXcodeModel {
 
         /// Start time of the current operation, if any
         public var operationStartTime: Date? {
-            workflowState?.startTime
+            useCaseState?.startTime
         }
     }
 }

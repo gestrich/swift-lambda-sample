@@ -3,9 +3,9 @@ import CLISDK
 import DeployCoreService
 import Uniflow
 
-/// Workflow for stopping the Lambda process.
+/// Use case for stopping the Lambda process.
 /// Contains all Lambda stop logic directly, using SDK clients.
-public struct XcodeStopLambdaWorkflow: StreamingUseCase {
+public struct XcodeStopLambdaUseCase: StreamingUseCase {
     private let cliClient: CLIClient
 
     // Lambda configuration
@@ -18,34 +18,34 @@ public struct XcodeStopLambdaWorkflow: StreamingUseCase {
 
     /// Components needed for stopping Lambda.
     public struct Components: Sendable {
-        public let workflow: XcodeStopLambdaWorkflow
+        public let useCase: XcodeStopLambdaUseCase
         public let cliClient: CLIClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Returns: Components containing the use case and clients
     public static func create() -> Components {
         let cliClient = CLIClient()
 
-        let workflow = XcodeStopLambdaWorkflow(cliClient: cliClient)
+        let useCase = XcodeStopLambdaUseCase(cliClient: cliClient)
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cliClient: cliClient
         )
     }
 
-    public typealias State = XcodeWorkflowState
-    public typealias Result = XcodeWorkflowState
+    public typealias State = XcodeUseCaseState
+    public typealias Result = XcodeUseCaseState
     public typealias Options = Void
 
-    /// Stream the stop Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields XcodeWorkflowState updates
-    public func stream(options: Void) -> AsyncThrowingStream<XcodeWorkflowState, Error> {
+    /// Stream the stop Lambda use case.
+    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    public func stream(options: Void) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -53,13 +53,13 @@ public struct XcodeStopLambdaWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
-        continuation: AsyncThrowingStream<XcodeWorkflowState, Error>.Continuation
+    private func runUseCase(
+        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Stop Lambda
-        continuation.yield(.stoppingLambda(XcodeWorkflowState.LambdaProgress(
+        continuation.yield(.stoppingLambda(XcodeUseCaseState.LambdaProgress(
             step: .stopping,
             startTime: startTime
         )))

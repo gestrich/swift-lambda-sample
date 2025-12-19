@@ -4,9 +4,9 @@ import DeployLocalService
 import StorageService
 import Uniflow
 
-/// Workflow for copying configuration files to `~/.swiftSampleDemo/`.
+/// Use case for copying configuration files to `~/.swiftSampleDemo/`.
 /// Contains all copy config logic directly, using LocalStorageService.
-public struct XcodeCopyConfigWorkflow: StreamingUseCase {
+public struct XcodeCopyConfigUseCase: StreamingUseCase {
     private let storageService: LocalStorageService
     private let workingDirectory: String
 
@@ -20,24 +20,24 @@ public struct XcodeCopyConfigWorkflow: StreamingUseCase {
 
     /// Components needed for copy config operations.
     public struct Components: Sendable {
-        public let workflow: XcodeCopyConfigWorkflow
+        public let useCase: XcodeCopyConfigUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required services.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow
+    /// Creates a use case and associated components by instantiating required services.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let storageService = LocalStorageService()
 
-        let workflow = XcodeCopyConfigWorkflow(
+        let useCase = XcodeCopyConfigUseCase(
             storageService: storageService,
             workingDirectory: workingDirectory
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    /// State updates from the copy config workflow.
+    /// State updates from the copy config use case.
     public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
@@ -60,7 +60,7 @@ public struct XcodeCopyConfigWorkflow: StreamingUseCase {
 
     public typealias Result = State
 
-    /// Options for the copy config workflow.
+    /// Options for the copy config use case.
     public struct Options: Sendable {
         public let sourcePath: String?
 
@@ -69,14 +69,14 @@ public struct XcodeCopyConfigWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the copy config workflow.
+    /// Stream the copy config use case.
     /// - Parameter options: Copy config options
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(sourcePath: options.sourcePath, continuation: continuation)
+                    try await runUseCase(sourcePath: options.sourcePath, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -84,7 +84,7 @@ public struct XcodeCopyConfigWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         sourcePath: String?,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
