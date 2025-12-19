@@ -12,8 +12,10 @@ struct RemoteServiceView: View {
     /// Callback to open settings
     var onOpenSettings: (() -> Void)?
 
+    /// GitHub CI model from environment (nil if GitHub config missing)
+    @Environment(GitHubCIModel.self) private var githubModel: GitHubCIModel?
+
     /// Auxiliary models created from service config
-    @State private var githubCIModel: GitHubCIModel?
     @State private var cloudWatchLogsModel: CloudWatchLogsModel?
     @State private var lambdaBuildService: LambdaBuildService?
 
@@ -58,15 +60,6 @@ struct RemoteServiceView: View {
     // MARK: - Auxiliary Model Initialization
 
     private func initializeAuxiliaryModels() {
-        // Create GitHubCIModel if GitHub config is available
-        if let githubConfig = GitHubConfiguration.loadConfig() {
-            self.githubCIModel = GitHubCIModel(
-                projectRoot: service.projectRoot,
-                config: githubConfig,
-                cliClient: service.cliClient
-            )
-        }
-
         // Create CloudWatchLogsModel via workflow
         let workflow = CloudWatchLogsWorkflow.create(
             cliClient: service.cliClient,
@@ -98,7 +91,7 @@ struct RemoteServiceView: View {
     @ViewBuilder
     private var lambdaUpdateSection: some View {
         LambdaUpdateView(
-            githubCIModel: githubCIModel,
+            githubCIModel: githubModel,
             lambdaBuildService: lambdaBuildService,
             onOpenSettings: onOpenSettings
         )
@@ -191,7 +184,9 @@ struct RemoteServiceView: View {
 #Preview {
     // swiftlint:disable:next force_try
     let service = try! DeployRemoteModel(projectRoot: FileManager.default.currentDirectoryPath)
+    let githubModel: GitHubCIModel? = nil
     return RemoteServiceView(service: service)
+        .environment(githubModel)
         .padding()
         .frame(width: 500)
 }

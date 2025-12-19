@@ -16,6 +16,7 @@ struct MacAppMain: App {
         WindowGroup {
             ContentView()
                 .environment(model)
+                .environment(model.githubModel)
                 .onAppear {
                     model.refreshStatus()
                 }

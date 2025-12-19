@@ -3,6 +3,7 @@ import CLISDK
 import ClientService
 import DeployRemoteFeature
 import DeployCoreService
+import GitHubSDK
 import StorageService
 
 /// Top-level model that creates and holds all services.
@@ -17,6 +18,9 @@ class AppModel {
 
     /// Error from failed remote service initialization (nil if service was created successfully)
     let remoteServiceError: Error?
+
+    /// GitHub CI model is optional - nil if GitHub config is missing
+    private(set) var githubModel: GitHubCIModel?
 
     let xcodeLocalService: DeployXcodeModel
     let linuxLocalService: DeployLinuxModel
@@ -56,14 +60,25 @@ class AppModel {
 
     init() {
         let projectDirectory = Self.resolveProjectDirectory()
+        let cliClient = CLIClient(defaultWorkingDirectory: projectDirectory)
 
         // Create remote service - may fail if AWS config is missing
         var remote: DeployRemoteModel?
         var remoteError: Error?
         do {
-            remote = try DeployRemoteModel(projectRoot: projectDirectory)
+            remote = try DeployRemoteModel(projectRoot: projectDirectory, cliClient: cliClient)
         } catch {
             remoteError = error
+        }
+
+        // Create GitHub CI model if config is available
+        var github: GitHubCIModel?
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            github = GitHubCIModel(
+                projectRoot: projectDirectory,
+                config: githubConfig,
+                cliClient: cliClient
+            )
         }
 
         let xcode = DeployXcodeModel(workingDirectory: projectDirectory)
@@ -71,10 +86,11 @@ class AppModel {
 
         self.remoteModel = remote
         self.remoteServiceError = remoteError
+        self.githubModel = github
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
 
-        self.dependencyStatusModel = DependencyStatusModel(cliClient: CLIClient(defaultWorkingDirectory: projectDirectory))
+        self.dependencyStatusModel = DependencyStatusModel(cliClient: cliClient)
 
         // Create observable models for local services
         self.xcodeLocalModel = LocalServicesModel(service: xcode)

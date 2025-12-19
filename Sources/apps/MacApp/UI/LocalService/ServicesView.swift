@@ -519,4 +519,5 @@ struct ServicesView: View {
     let model = AppModel()
     return ServicesView()
         .environment(model)
+        .environment(model.githubModel)
 }

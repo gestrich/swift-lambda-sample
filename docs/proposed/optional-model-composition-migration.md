@@ -58,7 +58,7 @@ DeployRemoteModel
 
 ## Migration Phases
 
-### [ ] Phase 1: Move GitHubCIModel to AppModel
+### [x] Phase 1: Move GitHubCIModel to AppModel
 
 Currently created in `RemoteServiceView.task`. Move to `AppModel` as optional property.
 
@@ -72,6 +72,14 @@ Currently created in `RemoteServiceView.task`. Move to `AppModel` as optional pr
 - Views using GitHub: Update to receive via Environment
 
 **Rationale:** GitHub config is app-level, not view-level. Model should persist across view lifecycle.
+
+**Completed:** 2025-12-19
+
+**Technical Notes:**
+- Added `GitHubSDK` import to `AppModel.swift`
+- Created a shared `CLIClient` in `AppModel.init()` to be reused by both `DeployRemoteModel` and `GitHubCIModel`
+- `configureGitHub(_:)` and `clearGitHub()` methods deferred to Phase 5 (Settings integration)
+- Preview views updated to include `.environment(githubModel)` injection
 
 ### [ ] Phase 2: Move CloudWatch/Lambda Models to DeployRemoteModel
 
