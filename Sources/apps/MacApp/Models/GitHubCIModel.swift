@@ -11,7 +11,7 @@ import DeployRemoteFeature
 ///
 /// Per the layered architecture:
 /// - App layer (this model): @Observable state + UI coordination
-/// - Service layer (workflows): Multi-step orchestration, returns AsyncThrowingStream
+/// - Service layer (use cases): Multi-step orchestration, returns AsyncThrowingStream
 /// - SDK layer (clients): Stateless execute/query operations
 @MainActor
 @Observable
@@ -196,12 +196,12 @@ public final class GitHubCIModel {
         // MARK: - Convenience Initializer
 
         /// Construct ModelState from a workflow state plus app-layer prior.
-        /// This is the key integration point between workflows and the model.
-        public init(from workflowState: GitHubCIState, prior: GitHubCISnapshot?) {
-            if let snapshot = workflowState.completedSnapshot {
+        /// This is the key integration point between use cases and the model.
+        public init(from useCaseState: GitHubCIState, prior: GitHubCISnapshot?) {
+            if let snapshot = useCaseState.completedSnapshot {
                 self = .ready(snapshot)
             } else {
-                self = .operating(workflowState, prior: prior)
+                self = .operating(useCaseState, prior: prior)
             }
         }
 
@@ -216,7 +216,7 @@ public final class GitHubCIModel {
             }
         }
 
-        public var workflowState: GitHubCIState? {
+        public var useCaseState: GitHubCIState? {
             if case .operating(let state, _) = self { return state }
             return nil
         }
@@ -247,7 +247,7 @@ public final class GitHubCIModel {
 
         /// Operation start time (for elapsed time display)
         public var operationStartTime: Date? {
-            workflowState?.startTime
+            useCaseState?.startTime
         }
 
         /// Whether currently deploying

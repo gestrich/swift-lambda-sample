@@ -8,7 +8,7 @@ import LambdaBuildService
 import DeployXcodeFeature
 
 /// Observable model for native macOS Xcode development workflow
-/// Holds UI state and delegates operations to Xcode workflows
+/// Holds UI state and delegates operations to Xcode use cases
 /// Conforms to LocalService for polymorphic usage
 @MainActor
 public class DeployXcodeModel: LocalService {

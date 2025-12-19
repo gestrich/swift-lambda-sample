@@ -175,13 +175,13 @@ public struct DeployInitUseCase: StreamingUseCase, Sendable {
         var apiUrl: String?
         var finalOutputs: CDKStackOutputs?
 
-        for try await workflowState in deployComponents.useCase.stream(options: deployOptions) {
+        for try await useCaseState in deployComponents.useCase.stream(options: deployOptions) {
             continuation.yield(State(
                 step: .deployingInfrastructure,
-                detail: .deployState(workflowState)
+                detail: .deployState(useCaseState)
             ))
 
-            if case .completed(let snapshot) = workflowState {
+            if case .completed(let snapshot) = useCaseState {
                 finalOutputs = snapshot.outputs
                 apiUrl = snapshot.apiGatewayUrl
             }

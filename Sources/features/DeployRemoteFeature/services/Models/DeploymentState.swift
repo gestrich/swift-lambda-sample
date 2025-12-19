@@ -5,7 +5,7 @@ import GitHubSDK
 // MARK: - DeploymentSnapshot (Stable State)
 
 /// Represents stable deployment state when not operating.
-/// This is the service-layer state type that workflows yield on completion.
+/// This is the service-layer state type that use cases yield on completion.
 public struct DeploymentSnapshot: Sendable, Equatable {
     public let status: DeploymentStatus
     public let outputs: CDKStackOutputs?

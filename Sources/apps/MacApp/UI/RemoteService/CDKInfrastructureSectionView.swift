@@ -237,8 +237,8 @@ struct CDKInfrastructureSectionView: View {
             case .credentialExpired(let message):
                 failedStatusView(reason: message)
             }
-        case .operating(let workflowState, _):
-            switch workflowState {
+        case .operating(let useCaseState, _):
+            switch useCaseState {
             case .deploying(let progress):
                 HStack(spacing: 6) {
                     Text(operationLabel(for: progress.step))
@@ -366,10 +366,10 @@ struct CDKInfrastructureSectionView: View {
 
     /// Extract DeploymentProgress from current operation
     private var currentProgress: DeploymentProgress {
-        guard case .operating(let workflowState, _) = modelState else {
+        guard case .operating(let useCaseState, _) = modelState else {
             return DeploymentProgress()
         }
-        switch workflowState {
+        switch useCaseState {
         case .deploying(let progress):
             return progress.detail ?? DeploymentProgress()
         case .destroying(let progress):
@@ -381,8 +381,8 @@ struct CDKInfrastructureSectionView: View {
 
     /// Whether current operation is a deploy (vs destroy)
     private var isDeployOperation: Bool {
-        guard case .operating(let workflowState, _) = modelState else { return false }
-        return workflowState.isDeploying || workflowState.isUpdatingLambda
+        guard case .operating(let useCaseState, _) = modelState else { return false }
+        return useCaseState.isDeploying || useCaseState.isUpdatingLambda
     }
 
     @ViewBuilder
@@ -449,8 +449,8 @@ struct CDKInfrastructureSectionView: View {
                 }
             } else {
                 // Still waiting for first poll
-                if case .operating(let workflowState, _) = modelState {
-                    switch workflowState {
+                if case .operating(let useCaseState, _) = modelState {
+                    switch useCaseState {
                     case .deploying(let deployProgress):
                         Text("\(operationLabel(for: deployProgress.step))...")
                             .font(.caption)

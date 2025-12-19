@@ -5,7 +5,7 @@ import DeployLocalService
 // MARK: - LinuxSnapshot (Stable State)
 
 /// Represents stable deployment state when not operating.
-/// This is the service-layer state type that workflows yield on completion.
+/// This is the service-layer state type that use cases yield on completion.
 /// Parallel to `DeploymentSnapshot` in DeployRemoteFeature.
 public struct LinuxSnapshot: Sendable, Equatable {
     public let serviceStatus: DeploymentStatus
