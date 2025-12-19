@@ -45,13 +45,13 @@ public struct DeployedStack: Sendable, Equatable {
 ///
 /// ## Progress Type Hierarchy
 ///
-/// This type sits between resource-level tracking and workflow-level tracking:
+/// This type sits between resource-level tracking and use case-level tracking:
 ///
 /// ```
 /// DeploymentProgress (sdk-aws) - individual resources
 ///     └── embedded in CloudFormationState (sdk-aws) ← YOU ARE HERE
-///         └── consumed by DeployWorkflow.Progress (service-deploy-remote)
-///             └── consumed by ActiveWorkflow (feature-mac)
+///         └── consumed by DeployUseCase (feature-deploy-remote)
+///             └── consumed by DeployRemoteModel (app-mac)
 /// ```
 public enum CloudFormationState: Sendable, Equatable {
     /// Operations that can occur during deployment

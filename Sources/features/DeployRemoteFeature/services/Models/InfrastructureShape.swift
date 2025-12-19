@@ -4,7 +4,7 @@ import Foundation
 /// Used for both desired state (what to deploy) and detected state (what's deployed).
 ///
 /// This is the unified type that bridges:
-/// - `DeployWorkflow.Options` (desired state for deployment)
+/// - `DeployUseCase.Options` (desired state for deployment)
 /// - `CDKInfrastructureConfiguration` (detected state from CloudFormation)
 ///
 /// By using the same shape type, conversions between desired and detected state

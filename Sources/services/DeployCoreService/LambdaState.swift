@@ -5,9 +5,9 @@ import Foundation
 ///
 /// ## Migration Note
 /// `DeployLinuxModel` has migrated to a unified `ModelState` enum pattern where
-/// `lambdaState` is now a computed property derived from workflow state. This provides:
+/// `lambdaState` is now a computed property derived from use case state. This provides:
 /// - Single source of truth via `ModelState`
-/// - Workflow-driven state updates (no manual `markRunning()`/`markStopped()` calls)
+/// - Use case-driven state updates (no manual `markRunning()`/`markStopped()` calls)
 /// - Consistent pattern with `DeployRemoteModel`
 ///
 /// This type remains for:

@@ -5,9 +5,9 @@ import Foundation
 ///
 /// ## Migration Note
 /// `DeployLinuxModel` has migrated to a unified `ModelState` enum pattern where
-/// `buildState` is now a computed property derived from workflow state. This provides:
+/// `buildState` is now a computed property derived from use case state. This provides:
 /// - Single source of truth via `ModelState`
-/// - Workflow-driven state updates (no manual `markSuccess()`/`markFailed()` calls)
+/// - Use case-driven state updates (no manual `markSuccess()`/`markFailed()` calls)
 /// - Consistent pattern with `DeployRemoteModel`
 ///
 /// This type remains for:
