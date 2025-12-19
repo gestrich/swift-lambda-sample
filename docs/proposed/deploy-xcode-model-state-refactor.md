@@ -450,14 +450,41 @@ public func build(clean: Bool = false, output: CLIOutputStream? = nil) async thr
 
 ### Phase 11: Refactor Lambda Lifecycle Operations
 
-[ ] **Refactor `startLambda()` and `stopLambda()`**
+[x] **Refactor `startLambda()` and `stopLambda()`** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 11.1: Replace manual `lambdaState` marking with `ModelState` updates
-- [ ] 11.2: Add `guard isIdle else { return }` guards
-- [ ] 11.3: Capture `prior = snapshot` before workflow
-- [ ] 11.4: Iterate workflow yields and update state
-- [ ] 11.5: Build verification
+- [x] 11.1: Replace manual `lambdaState` marking with `ModelState` updates
+- [x] 11.2: Add `guard isIdle else { return }` guards
+- [x] 11.3: Capture `prior = snapshot` before workflow
+- [x] 11.4: Iterate workflow yields and update state
+- [x] 11.5: Build verification
+
+**Technical Notes:**
+- Removed all `lambdaState.startLambda()`, `lambdaState.markRunning()`, `lambdaState.beginStop()`, `lambdaState.markStopped()`, and `lambdaState.markFailed()` calls
+- Both methods now follow the same workflow-driven state pattern as `startWithServices()`, `stopWithServices()`, and `build()`
+- Uses `guard isIdle else { return }` to prevent starting/stopping during other operations
+- State transitions: `.operating(workflowState, prior: prior)` during operation, `.ready(snapshot)` on completion
+- Error handling captures error in state via `ModelState(error:preserving:)` before rethrowing
+- `XcodeStartLambdaWorkflow` already yields `.startingLambda(LambdaProgress)` and `.completed(XcodeSnapshot)` with Lambda running
+- `XcodeStopLambdaWorkflow` already yields `.stoppingLambda(LambdaProgress)` and `.completed(XcodeSnapshot)` with Lambda stopped
+
+```swift
+public func startLambda(output: CLIOutputStream? = nil) async throws {
+    guard isIdle else { return }
+    let prior = snapshot
+
+    let components = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+
+    do {
+        for try await workflowState in components.workflow.stream() {
+            state = ModelState(from: workflowState, prior: prior)
+        }
+    } catch {
+        state = ModelState(error: error, preserving: prior)
+        throw error
+    }
+}
+```
 
 ---
 

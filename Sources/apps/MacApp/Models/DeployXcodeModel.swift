@@ -236,32 +236,40 @@ public class DeployXcodeModel: LocalService {
 
     // MARK: - Lambda Lifecycle
 
+    /// Start Lambda as a native macOS process.
+    /// Uses workflow-driven state updates.
+    /// - Parameter output: Ignored - provided for protocol conformance
     public func startLambda(output: CLIOutputStream? = nil) async throws {
-        lambdaState.startLambda()
+        guard isIdle else { return }
+        let prior = snapshot
+
+        let components = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
 
         do {
-            let components = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
-            for try await _ in components.workflow.stream() {
-                // Workflow progress is consumed; UI updates via lambdaState
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
-            lambdaState.markRunning()
         } catch {
-            lambdaState.markFailed(reason: error.localizedDescription)
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }
 
+    /// Stop Lambda process.
+    /// Uses workflow-driven state updates.
+    /// - Parameter output: Ignored - provided for protocol conformance
     public func stopLambda(output: CLIOutputStream? = nil) async throws {
-        lambdaState.beginStop()
+        guard isIdle else { return }
+        let prior = snapshot
+
+        let components = XcodeStopLambdaWorkflow.create()
 
         do {
-            let components = XcodeStopLambdaWorkflow.create()
-            for try await _ in components.workflow.stream() {
-                // Workflow progress is consumed; UI updates via lambdaState
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
-            lambdaState.markStopped()
         } catch {
-            lambdaState.markFailed(reason: error.localizedDescription)
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }
