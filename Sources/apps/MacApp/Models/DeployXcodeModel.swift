@@ -42,13 +42,6 @@ public class DeployXcodeModel: LocalService {
         return false
     }
 
-    /// Flag to prevent refresh from overwriting transitional states (starting/stopping).
-    /// Derived from unified state for backward compatibility during migration.
-    private var isTransitioning: Bool {
-        if case .operating = state { return true }
-        return false
-    }
-
     // MARK: - Derived Properties (Convenience Accessors)
 
     /// Whether the model is idle (not loading or operating).
@@ -72,13 +65,71 @@ public class DeployXcodeModel: LocalService {
     /// Start time of the current operation, if any.
     public var operationStartTime: Date? { state.operationStartTime }
 
-    // MARK: - Build State
+    // MARK: - Build State (Protocol Requirement - Derived from Unified State)
 
-    public var buildState = BuildState()
+    /// Build state derived from unified `state` property.
+    /// Required by `LocalService` protocol for UI compatibility.
+    public var buildState: BuildState {
+        get {
+            // Derive from unified state
+            if let workflowState = state.workflowState, workflowState.isBuilding {
+                return BuildState(status: .building)
+            }
+            if let snapshot = state.snapshot {
+                switch snapshot.buildStatus {
+                case .notBuilt:
+                    return BuildState(status: .notBuilt)
+                case .building:
+                    return BuildState(status: .building)
+                case .available:
+                    return BuildState(status: .available)
+                case .failed:
+                    return BuildState(status: .failed(1))
+                }
+            }
+            return BuildState(status: .notBuilt)
+        }
+        set {
+            // Protocol requirement - external mutations are ignored.
+            // Build state is managed through the unified state machine.
+        }
+    }
 
-    // MARK: - Lambda State
+    // MARK: - Lambda State (Protocol Requirement - Derived from Unified State)
 
-    public var lambdaState = LambdaState()
+    /// Lambda state derived from unified `state` property.
+    /// Required by `LocalService` protocol for UI compatibility.
+    public var lambdaState: LambdaState {
+        get {
+            // Derive from workflow state first (in-progress operations)
+            if let workflowState = state.workflowState {
+                if workflowState.isStarting {
+                    return LambdaState(status: .starting)
+                }
+                if workflowState.isStopping {
+                    return LambdaState(status: .stopping)
+                }
+            }
+            // Fall back to snapshot (stable state)
+            if let snapshot = state.snapshot {
+                switch snapshot.lambdaState {
+                case .running:
+                    return LambdaState(status: .running)
+                case .stopped:
+                    return LambdaState(status: .stopped)
+                case .starting:
+                    return LambdaState(status: .starting)
+                case .stopping:
+                    return LambdaState(status: .stopping)
+                }
+            }
+            return LambdaState(status: .stopped)
+        }
+        set {
+            // Protocol requirement - external mutations are ignored.
+            // Lambda state is managed through the unified state machine.
+        }
+    }
 
     // MARK: - LambdaService Protocol
 
@@ -319,7 +370,9 @@ public class DeployXcodeModel: LocalService {
     public func deleteBuild() async throws {
         let components = XcodeBuildWorkflow.create(workingDirectory: workingDirectory)
         try await components.workflow.deleteBuild()
-        buildState.clear()
+        // Reset state to reflect build deletion
+        let serviceStatus = snapshot?.serviceStatus ?? .stopped
+        state = .ready(XcodeSnapshot(serviceStatus: serviceStatus, buildStatus: .notBuilt))
     }
 
     // MARK: - Lambda Lifecycle

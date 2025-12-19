@@ -625,15 +625,23 @@ public func startIfNecessary() async {
 
 ### Phase 16: Make buildState/lambdaState Derived
 
-[ ] **Make `buildState` and `lambdaState` computed properties**
+[x] **Make `buildState` and `lambdaState` computed properties** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 16.1: Change `buildState` to computed property deriving from `state`
-- [ ] 16.2: Change `lambdaState` to computed property deriving from `state`
-- [ ] 16.3: Add no-op setters for protocol conformance
-- [ ] 16.4: Update `deleteBuild()` to reset state via state machine
-- [ ] 16.5: Remove obsolete `isTransitioning` property
-- [ ] 16.6: Build verification
+- [x] 16.1: Change `buildState` to computed property deriving from `state`
+- [x] 16.2: Change `lambdaState` to computed property deriving from `state`
+- [x] 16.3: Add no-op setters for protocol conformance
+- [x] 16.4: Update `deleteBuild()` to reset state via state machine
+- [x] 16.5: Remove obsolete `isTransitioning` property
+- [x] 16.6: Build verification
+
+**Technical Notes:**
+- `buildState` is now a computed property that derives its value from `state.workflowState` (for in-progress builds) and `state.snapshot.buildStatus` (for stable states)
+- `lambdaState` is now a computed property that derives its value from `state.workflowState` (for starting/stopping operations) and `state.snapshot.lambdaState` (for stable states)
+- Both properties include no-op setters for `LocalService` protocol compatibility
+- `deleteBuild()` now resets state via the state machine: creates a new `XcodeSnapshot` with `buildStatus: .notBuilt` while preserving the current `serviceStatus`
+- Removed the obsolete `isTransitioning` private computed property since it was only used internally and all consumers now use `state.isIdle` or similar accessors
+- The pattern exactly matches `DeployLinuxModel` for consistency
 
 ```swift
 public var buildState: BuildState {
@@ -650,6 +658,25 @@ public var buildState: BuildState {
             }
         }
         return BuildState(status: .notBuilt)
+    }
+    set { /* Protocol requirement - mutations ignored */ }
+}
+
+public var lambdaState: LambdaState {
+    get {
+        if let workflowState = state.workflowState {
+            if workflowState.isStarting { return LambdaState(status: .starting) }
+            if workflowState.isStopping { return LambdaState(status: .stopping) }
+        }
+        if let snapshot = state.snapshot {
+            switch snapshot.lambdaState {
+            case .running: return LambdaState(status: .running)
+            case .stopped: return LambdaState(status: .stopped)
+            case .starting: return LambdaState(status: .starting)
+            case .stopping: return LambdaState(status: .stopping)
+            }
+        }
+        return LambdaState(status: .stopped)
     }
     set { /* Protocol requirement - mutations ignored */ }
 }
