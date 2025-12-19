@@ -29,22 +29,40 @@ public class DeployLinuxModel: LocalService {
     // Working directory
     private let workingDirectory: String
 
-    // MARK: - Observable State
+    // MARK: - Unified State
 
-    /// Current deployment status (observable via @Observable on class when migrated)
-    public private(set) var currentStatus: DeploymentStatus = .stopped
+    /// Unified state machine for all deployment operations.
+    /// Replaces scattered properties: currentStatus, isLoadingStatus, isTransitioning
+    public private(set) var state: ModelState = .uninitialized
 
-    /// Whether a status refresh is in progress
-    public private(set) var isLoadingStatus: Bool = false
+    // MARK: - Derived Properties (Protocol Compatibility)
 
-    /// Flag to prevent refresh from overwriting transitional states (starting/stopping)
-    private var isTransitioning = false
+    /// Current deployment status derived from unified state.
+    /// Required by LambdaService protocol.
+    public var currentStatus: DeploymentStatus {
+        state.snapshot?.serviceStatus ?? .stopped
+    }
 
-    // MARK: - Build State
+    /// Whether a status refresh is in progress.
+    /// Derived from unified state for backward compatibility.
+    public var isLoadingStatus: Bool {
+        if case .loading = state { return true }
+        return false
+    }
+
+    /// Whether a transition operation is in progress.
+    /// Derived from unified state. Used by refresh() to avoid conflicting updates.
+    /// Will be removed when operations are refactored to use state machine (Phases 4-9).
+    private var isTransitioning: Bool {
+        if case .operating = state { return true }
+        return false
+    }
+
+    // MARK: - Build State (Protocol Requirement)
 
     public var buildState = BuildState()
 
-    // MARK: - Lambda State
+    // MARK: - Lambda State (Protocol Requirement)
 
     public var lambdaState = LambdaState()
 
@@ -99,8 +117,6 @@ public class DeployLinuxModel: LocalService {
             config: .linux,
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
-
-        refreshBuildStatus()
     }
 
     // MARK: - Service Management
@@ -244,61 +260,45 @@ public class DeployLinuxModel: LocalService {
     }
 
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
-        isTransitioning = true
-        defer { isTransitioning = false }
-
-        currentStatus = .starting
+        let prior = state.snapshot
 
         let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
-            // Workflow progress is consumed
+        for try await workflowState in components.workflow.stream() {
+            state = ModelState(from: workflowState, prior: prior)
         }
         lambdaState.markRunning()
-
-        await refresh()
     }
 
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
-        isTransitioning = true
-        defer { isTransitioning = false }
-
-        currentStatus = .stopping
+        let prior = state.snapshot
 
         let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
-            // Workflow progress is consumed
+        for try await workflowState in components.workflow.stream() {
+            state = ModelState(from: workflowState, prior: prior)
         }
         lambdaState.markStopped()
-
-        await refresh()
     }
 
     public func startIfNecessary() async {
         print("🔄 DeployLocalModel.startIfNecessary called")
+        guard state.isIdle else { return }
 
-        isTransitioning = true
+        await refresh()
 
-        do {
-            let statusResult = try await status()
-            print("🔄 Lambda state: \(statusResult.lambdaState), S3: \(statusResult.s3State), Postgres: \(statusResult.postgresState), DynamoDB: \(statusResult.dynamodbState)")
+        guard let snapshot = state.snapshot else { return }
 
-            let anyServiceStopped = statusResult.lambdaState == .stopped ||
-                                    statusResult.s3State == .stopped ||
-                                    statusResult.postgresState == .stopped ||
-                                    statusResult.dynamodbState == .stopped
+        print("🔄 Lambda state: \(snapshot.lambdaState), S3: \(snapshot.s3State), Postgres: \(snapshot.postgresState), DynamoDB: \(snapshot.dynamodbState)")
 
-            if anyServiceStopped {
-                print("🔄 Starting services (some are stopped)...")
+        if snapshot.canStart {
+            print("🔄 Starting services (some are stopped)...")
+            do {
                 try await startWithServices()
-            } else {
-                print("🔄 All services already running, skipping start")
-                isTransitioning = false
-                await refresh()
+            } catch {
+                print("⚠️ Failed to start services: \(error)")
+                state = ModelState(error: error, preserving: snapshot)
             }
-        } catch {
-            print("⚠️ Failed to start services: \(error)")
-            isTransitioning = false
-            await refresh()
+        } else {
+            print("🔄 All services already running, skipping start")
         }
     }
 
@@ -363,25 +363,30 @@ public class DeployLinuxModel: LocalService {
 
     @discardableResult
     public func refresh() async -> DeploymentStatus? {
-        guard !isTransitioning else { return nil }
+        guard state.isIdle else { return nil }
 
-        isLoadingStatus = true
-        defer { isLoadingStatus = false }
+        let prior = state.snapshot
+        state = .loading(prior: prior)
+
+        let components = LinuxStatusWorkflow.create(workingDirectory: workingDirectory)
 
         do {
-            let newStatus = try await self.status()
-            currentStatus = newStatus
-
-            // Sync lambdaState with actual running state (for app restart scenarios)
-            if newStatus.lambdaState == .running && lambdaState.status == .stopped {
-                lambdaState.setRunning()
-            } else if newStatus.lambdaState == .stopped && lambdaState.status == .running {
-                lambdaState.clear()
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
 
-            return newStatus
+            // Sync lambdaState with actual running state (for app restart scenarios)
+            if let snapshot = state.snapshot {
+                if snapshot.lambdaState == .running && lambdaState.status == .stopped {
+                    lambdaState.setRunning()
+                } else if snapshot.lambdaState == .stopped && lambdaState.status == .running {
+                    lambdaState.clear()
+                }
+            }
+
+            return state.snapshot?.serviceStatus
         } catch {
-            currentStatus = .stopped
+            state = ModelState(error: error, preserving: prior)
             return nil
         }
     }

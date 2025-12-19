@@ -106,7 +106,7 @@ public func build(clean: Bool = false) async {
 
 ## Implementation Phases
 
-- [x] **Phase 1: Add LinuxModelState Enum** ✅ COMPLETED
+- [x] **Phase 1: Add LinuxModelState Enum** ✅ COMPLETED (commit 9fae4c8)
 
 Added a `ModelState` enum to `DeployLinuxModel` as an extension that mirrors `DeployRemoteModel.ModelState`.
 
@@ -190,20 +190,46 @@ public enum ModelState: Equatable {
 }
 ```
 
-- [ ] **Phase 2: Replace Scattered State Properties**
+- [x] **Phase 2: Replace Scattered State Properties** ✅ COMPLETED
 
-**Remove:**
-```swift
-public private(set) var currentStatus: DeploymentStatus = .stopped
-public private(set) var isLoadingStatus: Bool = false
-private var isTransitioning = false
-public var buildState = BuildState()
-public var lambdaState = LambdaState()
-```
+Replaced scattered state properties (`currentStatus`, `isLoadingStatus`, `isTransitioning`) with unified `state: ModelState` property.
 
-**Add:**
+**Implementation notes:**
+- Added `public private(set) var state: ModelState = .uninitialized` as the single source of truth
+- Added computed `currentStatus` property for `LambdaService` protocol compatibility
+- Added computed `isLoadingStatus` property derived from state for backward compatibility
+- Added private computed `isTransitioning` property derived from state (temporary, for Phase 4-9 migration)
+- Kept `buildState` and `lambdaState` stored properties for now (required by `LocalService` protocol)
+- Removed `refreshBuildStatus()` call from `init`
+- Updated `startWithServices()` and `stopWithServices()` to use new state pattern with workflow yields
+- Updated `startIfNecessary()` to use `state.isIdle` and `snapshot.canStart` guards
+- Updated `refresh()` to use `state` with loading/operating transitions
+- Build verified successful
+
+**Changes made:**
 ```swift
+// Removed stored properties:
+// - currentStatus: DeploymentStatus
+// - isLoadingStatus: Bool
+// - isTransitioning: Bool
+
+// Added unified state:
 public private(set) var state: ModelState = .uninitialized
+
+// Added derived properties for compatibility:
+public var currentStatus: DeploymentStatus {
+    state.snapshot?.serviceStatus ?? .stopped
+}
+
+public var isLoadingStatus: Bool {
+    if case .loading = state { return true }
+    return false
+}
+
+private var isTransitioning: Bool {
+    if case .operating = state { return true }
+    return false
+}
 ```
 
 - [ ] **Phase 3: Add Derived Properties**
