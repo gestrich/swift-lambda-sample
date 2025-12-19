@@ -339,31 +339,41 @@ public func stopLambda(output: CLIOutputStream? = nil) async throws {
 }
 ```
 
-- [ ] **Phase 6: Refactor Start/Stop With Services**
+- [x] **Phase 6: Refactor Start/Stop With Services** ✅ COMPLETED
 
-**startWithServices:**
+Refactored `startWithServices()` and `stopWithServices()` methods to use workflow-driven state updates instead of manual `lambdaState` marking.
+
+**Implementation notes:**
+- Replaced `lambdaState.markRunning()` and `lambdaState.markStopped()` with `ModelState` updates
+- Added `guard canStart else { return }` and `guard canStop else { return }` guards
+- Captures `prior = snapshot` before workflow to preserve state during operation
+- Iterates workflow yields and updates `state = ModelState(from: workflowState, prior: prior)`
+- On error: updates `state = ModelState(error: error, preserving: prior)` then rethrows
+- Uses derived properties `canStart`, `canStop`, and `snapshot` from Phase 3
+- Kept `throws` and `output` parameter for `LocalService` protocol conformance (cleanup in Phase 11)
+- Build verified successful
+
+**Changes made (lines 299-335):**
 ```swift
-public func startWithServices() async {
-    guard state.canStart else { return }
-    let prior = state.snapshot
+public func startWithServices(output: CLIOutputStream? = nil) async throws {
+    guard canStart else { return }
+    let prior = snapshot
 
     let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
 
     do {
-        for try await workflowState in components.workflow.stream(options: ()) {
+        for try await workflowState in components.workflow.stream() {
             state = ModelState(from: workflowState, prior: prior)
         }
     } catch {
         state = ModelState(error: error, preserving: prior)
+        throw error
     }
 }
-```
 
-**stopWithServices:**
-```swift
-public func stopWithServices() async {
-    guard state.canStop else { return }
-    let prior = state.snapshot
+public func stopWithServices(output: CLIOutputStream? = nil) async throws {
+    guard canStop else { return }
+    let prior = snapshot
 
     let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
 
@@ -373,6 +383,7 @@ public func stopWithServices() async {
         }
     } catch {
         state = ModelState(error: error, preserving: prior)
+        throw error
     }
 }
 ```

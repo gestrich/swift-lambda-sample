@@ -296,24 +296,42 @@ public class DeployLinuxModel: LocalService {
         }
     }
 
+    /// Start Lambda container with all supporting services.
+    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
-        let prior = state.snapshot
+        guard canStart else { return }
+        let prior = snapshot
 
         let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
-        for try await workflowState in components.workflow.stream() {
-            state = ModelState(from: workflowState, prior: prior)
+
+        do {
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
-        lambdaState.markRunning()
     }
 
+    /// Stop Lambda container and all supporting services.
+    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
-        let prior = state.snapshot
+        guard canStop else { return }
+        let prior = snapshot
 
         let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
-        for try await workflowState in components.workflow.stream() {
-            state = ModelState(from: workflowState, prior: prior)
+
+        do {
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
-        lambdaState.markStopped()
     }
 
     public func startIfNecessary() async {
