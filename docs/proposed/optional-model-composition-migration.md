@@ -125,7 +125,7 @@ Currently created in `AppModel.init` and immediately starts checking dependencie
 - No view changes required - existing access patterns work with the computed property
 - Model is created on first sidebar render when dependency status indicators are displayed
 
-### [ ] Phase 4: Make DeployLinuxModel Lazy (Optional)
+### [x] Phase 4: Make DeployLinuxModel Lazy (Optional)
 
 Lower priority. Only create when user first switches to Linux mode.
 
@@ -135,6 +135,16 @@ Lower priority. Only create when user first switches to Linux mode.
 - Views: Handle optional appropriately
 
 **Rationale:** Linux mode requires Docker. No need to initialize Docker clients until needed.
+
+**Completed:** 2025-12-19
+
+**Technical Notes:**
+- Used a private `_linuxLocalService: DeployLinuxModel?` backing property with a computed `linuxLocalService` getter that creates lazily
+- Added `_linuxLocalModel: LocalServicesModel?` to pair with the service, created together
+- Stored `projectDirectory` as a property in `AppModel` to enable lazy creation
+- During init, if the saved mode is Linux, we temporarily set Xcode mode then switch to Linux after init completes (to avoid accessing `self` before all stored properties are initialized)
+- No view changes required - existing access patterns work with the computed property since it returns non-optional
+- Linux model is created on first navigation to Linux deployment view or when restoring Linux mode from persistence
 
 ### [ ] Phase 5: Connect Settings View to Model Lifecycle
 

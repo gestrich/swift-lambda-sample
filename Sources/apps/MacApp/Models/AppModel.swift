@@ -23,7 +23,22 @@ class AppModel {
     private(set) var githubModel: GitHubCIModel?
 
     let xcodeLocalService: DeployXcodeModel
-    let linuxLocalService: DeployLinuxModel
+
+    /// Linux development model - created lazily on first access
+    private var _linuxLocalService: DeployLinuxModel?
+    private var _linuxLocalModel: LocalServicesModel?
+    private let projectDirectory: String
+
+    /// Get or create the Linux local service (lazy initialization)
+    var linuxLocalService: DeployLinuxModel {
+        if let service = _linuxLocalService {
+            return service
+        }
+        let service = DeployLinuxModel(workingDirectory: projectDirectory)
+        _linuxLocalService = service
+        _linuxLocalModel = LocalServicesModel(service: service)
+        return service
+    }
 
     /// Model for checking dependency installation status (lazy - created on first access)
     private var _dependencyStatusModel: DependencyStatusModel?
@@ -43,7 +58,13 @@ class AppModel {
 
     /// Observable models for local services (used by LocalServiceView)
     let xcodeLocalModel: LocalServicesModel
-    let linuxLocalModel: LocalServicesModel
+
+    /// Get or create the Linux local model (lazy initialization along with linuxLocalService)
+    var linuxLocalModel: LocalServicesModel {
+        // Accessing linuxLocalService creates both service and model if needed
+        _ = linuxLocalService
+        return _linuxLocalModel!
+    }
 
     /// The current local model based on mode (nil if remote)
     var currentLocalModel: LocalServicesModel? {
@@ -74,6 +95,7 @@ class AppModel {
 
     init() {
         let projectDirectory = Self.resolveProjectDirectory()
+        self.projectDirectory = projectDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: projectDirectory)
 
         // Create remote service - may fail if AWS config is missing
@@ -96,21 +118,21 @@ class AppModel {
         }
 
         let xcode = DeployXcodeModel(workingDirectory: projectDirectory)
-        let linux = DeployLinuxModel(workingDirectory: projectDirectory)
+        // Note: linuxLocalService is created lazily on first access
 
         self.remoteModel = remote
         self.remoteServiceError = remoteError
         self.githubModel = github
         self.xcodeLocalService = xcode
-        self.linuxLocalService = linux
 
-        // Create observable models for local services
+        // Create observable model for Xcode service (Linux model is created lazily)
         self.xcodeLocalModel = LocalServicesModel(service: xcode)
-        self.linuxLocalModel = LocalServicesModel(service: linux)
 
         // Load mode from UserDefaults and use pre-created services
+        // Note: For Linux mode, we temporarily set to Xcode and switch after init
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? DeployRemoteModel.persistenceKey
         let initialMode: ConnectionMode
+        let needsLinuxSwitch: Bool
         switch savedKey {
         case DeployRemoteModel.persistenceKey:
             if let remote {
@@ -118,15 +140,26 @@ class AppModel {
             } else {
                 initialMode = .localXcode(xcode)
             }
+            needsLinuxSwitch = false
         case DeployXcodeModel.persistenceKey:
             initialMode = .localXcode(xcode)
+            needsLinuxSwitch = false
         case DeployLinuxModel.persistenceKey:
-            initialMode = .localLinux(linux)
+            // Can't access linuxLocalService before init completes
+            // Temporarily set to Xcode, then switch to Linux after init
+            initialMode = .localXcode(xcode)
+            needsLinuxSwitch = true
         default:
             // Fall back to Xcode mode for unknown keys
             initialMode = .localXcode(xcode)
+            needsLinuxSwitch = false
         }
         self.mode = initialMode
+
+        // Now that init is complete, switch to Linux if that was the saved mode
+        if needsLinuxSwitch {
+            self.mode = .localLinux(linuxLocalService)
+        }
 
         // Start services if necessary for initial mode
         Task {
