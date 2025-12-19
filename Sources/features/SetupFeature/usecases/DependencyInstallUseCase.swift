@@ -3,8 +3,8 @@ import CLISDK
 import BrewCLISDK
 import Uniflow
 
-/// Workflow that installs a specific dependency
-public struct DependencyInstallWorkflow: StreamingUseCase {
+/// Use case that installs a specific dependency
+public struct DependencyInstallUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let brewClient: BrewClient
 
@@ -38,7 +38,7 @@ public struct DependencyInstallWorkflow: StreamingUseCase {
 
     public typealias Result = State
 
-    /// Options for the workflow
+    /// Options for the use case
     public struct Options: Sendable {
         public let tool: CLITool
 
@@ -47,7 +47,7 @@ public struct DependencyInstallWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the install workflow for a specific CLI tool
+    /// Stream the install use case for a specific CLI tool
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -93,8 +93,8 @@ public struct DependencyInstallWorkflow: StreamingUseCase {
     }
 
     private func verify(_ tool: CLITool) async -> CLIToolStatus {
-        let statusWorkflow = DependencyStatusWorkflow(cliClient: cliClient)
-        return await statusWorkflow.checkTool(tool)
+        let statusUseCase = DependencyStatusUseCase(cliClient: cliClient)
+        return await statusUseCase.checkTool(tool)
     }
 }
 

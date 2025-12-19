@@ -6,8 +6,8 @@ import AWSSDK
 import GitHubSDK
 import Uniflow
 
-/// Workflow that checks all dependency statuses and yields progress
-public struct DependencyStatusWorkflow: StreamingUseCase {
+/// Use case that checks all dependency statuses and yields progress
+public struct DependencyStatusUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let brewClient: BrewClient
     private let nodeClient: NodeClient
@@ -44,7 +44,7 @@ public struct DependencyStatusWorkflow: StreamingUseCase {
 
     public typealias Result = State
 
-    /// Options for the workflow
+    /// Options for the use case
     public struct Options: Sendable {
         public let tools: [CLITool]
 
@@ -55,7 +55,7 @@ public struct DependencyStatusWorkflow: StreamingUseCase {
         public static let all = Options(tools: CLITool.allCases)
     }
 
-    /// Stream the workflow checking CLI tools
+    /// Stream the use case checking CLI tools
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -76,7 +76,7 @@ public struct DependencyStatusWorkflow: StreamingUseCase {
     }
 
     /// Check the installation status of a specific tool
-    /// This is internal but exposed for use by DependencyInstallWorkflow
+    /// This is internal but exposed for use by DependencyInstallUseCase
     func checkTool(_ tool: CLITool) async -> CLIToolStatus {
         switch tool {
         case .homebrew:

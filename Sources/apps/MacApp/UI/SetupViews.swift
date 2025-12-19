@@ -46,19 +46,19 @@ struct OverviewView: View {
                 .bodyText()
 
             VStack(spacing: 8) {
-                WorkflowRow(
+                UseCaseRow(
                     icon: "book.fill",
                     title: "Learn",
                     description: "Understand the AWS services and development principles used in this project",
                     color: .blue
                 )
-                WorkflowRow(
+                UseCaseRow(
                     icon: "wrench.and.screwdriver.fill",
                     title: "Setup",
                     description: "Install required dependencies like Docker, AWS CLI, and CDK",
                     color: .orange
                 )
-                WorkflowRow(
+                UseCaseRow(
                     icon: "arrow.up.circle.fill",
                     title: "Deploy",
                     description: "Deploy to AWS, run locally with Xcode, or test in a Linux container",
@@ -301,9 +301,9 @@ private struct CompactExpandableRow: View {
     }
 }
 
-// MARK: - Workflow Row
+// MARK: - Use Case Row
 
-private struct WorkflowRow: View {
+private struct UseCaseRow: View {
     let icon: String
     let title: String
     let description: String

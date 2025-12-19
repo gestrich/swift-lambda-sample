@@ -210,7 +210,7 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 
 ---
 
-## Phase 6: SetupFeature and UI Cleanup
+## Phase 6: SetupFeature and UI Cleanup ✅ COMPLETED
 
 **Scope**: Setup feature workflows, UI components, and documentation updates.
 
@@ -222,6 +222,24 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 | Folder rename | `workflows/` → `usecases/` | `Sources/features/SetupFeature/` |
 
 **Items: 4**
+
+**Completion Notes**:
+- Files renamed using `git mv`
+- All 2 use case type names updated: `DependencyInstallWorkflow` → `DependencyInstallUseCase`, `DependencyStatusWorkflow` → `DependencyStatusUseCase`
+- UI component renamed: `WorkflowRow` → `UseCaseRow` in SetupViews.swift
+- Folder renamed: `workflows/` → `usecases/` in SetupFeature
+- MacApp's DependencyStatusModel updated:
+  - Property names updated: `statusWorkflow` → `statusUseCase`, `installWorkflow` → `installUseCase`
+  - All instantiation and streaming references updated to use new UseCase names
+  - Loop variable names updated: `workflowState` → `useCaseState`
+  - Documentation comments updated to use "use case" terminology
+- Documentation comments in use case files updated to use "use case" terminology
+- Build verified successfully
+
+**Technical Notes**:
+- `DependencyInstallUseCase` internally creates a `DependencyStatusUseCase` to verify tool installation
+- The `UseCaseRow` view is a private UI component used in the OverviewView to display Learn/Setup/Deploy rows
+- Internal comments referencing "workflow" were updated to "use case" throughout
 
 ---
 

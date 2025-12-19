@@ -4,7 +4,7 @@ import Foundation
 import Observation
 
 /// Observable model for dependency installation status.
-/// Uses workflows from service-setup to check and install dependencies.
+/// Uses use cases from SetupFeature to check and install dependencies.
 @MainActor
 @Observable
 public final class DependencyStatusModel {
@@ -22,16 +22,16 @@ public final class DependencyStatusModel {
     // MARK: - Dependencies
 
     public let cliClient: CLIClient
-    private let statusWorkflow: DependencyStatusWorkflow
-    private let installWorkflow: DependencyInstallWorkflow
+    private let statusUseCase: DependencyStatusUseCase
+    private let installUseCase: DependencyInstallUseCase
 
     // MARK: - Init
 
     public init(workingDirectory: String) {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.cliClient = cliClient
-        self.statusWorkflow = DependencyStatusWorkflow(cliClient: cliClient)
-        self.installWorkflow = DependencyInstallWorkflow(cliClient: cliClient)
+        self.statusUseCase = DependencyStatusUseCase(cliClient: cliClient)
+        self.installUseCase = DependencyInstallUseCase(cliClient: cliClient)
         Task { await checkAll() }
     }
 
@@ -43,9 +43,9 @@ public final class DependencyStatusModel {
         state = .checking(prior: prior)
 
         do {
-            for try await state in statusWorkflow.stream(options: .all) {
-                if case .complete = state.step,
-                   case .snapshot(let snapshot) = state.detail {
+            for try await useCaseState in statusUseCase.stream(options: .all) {
+                if case .complete = useCaseState.step,
+                   case .snapshot(let snapshot) = useCaseState.detail {
                     self.state = .ready(snapshot)
                 }
             }
@@ -64,9 +64,9 @@ public final class DependencyStatusModel {
         state = .installing(tool, prior: prior)
 
         do {
-            let options = DependencyInstallWorkflow.Options(tool: tool)
-            for try await state in installWorkflow.stream(options: options) {
-                if case .complete = state.step {
+            let options = DependencyInstallUseCase.Options(tool: tool)
+            for try await useCaseState in installUseCase.stream(options: options) {
+                if case .complete = useCaseState.step {
                     await checkAll()
                     return
                 }
@@ -192,10 +192,10 @@ public final class DependencyStatusModel {
         state = .checking(prior: prior)
 
         do {
-            let options = DependencyStatusWorkflow.Options(tools: [tool])
-            for try await workflowState in statusWorkflow.stream(options: options) {
-                if case .complete = workflowState.step,
-                   case .snapshot(let newSnapshot) = workflowState.detail {
+            let options = DependencyStatusUseCase.Options(tools: [tool])
+            for try await useCaseState in statusUseCase.stream(options: options) {
+                if case .complete = useCaseState.step,
+                   case .snapshot(let newSnapshot) = useCaseState.detail {
                     var statuses = prior?.statuses ?? [:]
                     for (key, value) in newSnapshot.statuses {
                         statuses[key] = value
