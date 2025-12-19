@@ -258,32 +258,40 @@ public class DeployLinuxModel: LocalService {
 
     // MARK: - Lambda Lifecycle
 
+    /// Start Lambda container.
+    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func startLambda(output: CLIOutputStream? = nil) async throws {
-        lambdaState.startLambda()
+        guard isIdle else { return }
+        let prior = snapshot
+
+        let components = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
 
         do {
-            let components = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
-            for try await _ in components.workflow.stream() {
-                // Workflow progress is consumed; UI updates via lambdaState
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
-            lambdaState.markRunning()
         } catch {
-            lambdaState.markFailed(reason: error.localizedDescription)
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }
 
+    /// Stop Lambda container.
+    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func stopLambda(output: CLIOutputStream? = nil) async throws {
-        lambdaState.beginStop()
+        guard isIdle else { return }
+        let prior = snapshot
+
+        let components = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
 
         do {
-            let components = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
-            for try await _ in components.workflow.stream() {
-                // Workflow progress is consumed; UI updates via lambdaState
+            for try await workflowState in components.workflow.stream() {
+                state = ModelState(from: workflowState, prior: prior)
             }
-            lambdaState.markStopped()
         } catch {
-            lambdaState.markFailed(reason: error.localizedDescription)
+            state = ModelState(error: error, preserving: prior)
             throw error
         }
     }

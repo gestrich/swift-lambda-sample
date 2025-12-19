@@ -290,13 +290,25 @@ public func build(clean: Bool = false, output: CLIOutputStream? = nil) async thr
 }
 ```
 
-- [ ] **Phase 5: Refactor Lambda Lifecycle Operations**
+- [x] **Phase 5: Refactor Lambda Lifecycle Operations** ✅ COMPLETED
 
-**startLambda:**
+Refactored `startLambda()` and `stopLambda()` methods to use workflow-driven state updates instead of manual `lambdaState` marking.
+
+**Implementation notes:**
+- Replaced `lambdaState.startLambda()`, `lambdaState.markRunning()`, `lambdaState.beginStop()`, `lambdaState.markStopped()`, `lambdaState.markFailed()` with `ModelState` updates
+- Added `guard isIdle else { return }` to prevent operations when state doesn't allow
+- Captures `prior = snapshot` before workflow to preserve state during operation
+- Iterates workflow yields and updates `state = ModelState(from: workflowState, prior: prior)`
+- On error: updates `state = ModelState(error: error, preserving: prior)` then rethrows
+- Kept `throws` and `output` parameter for `LocalService` protocol conformance (cleanup in Phase 11)
+- Uses derived properties `isIdle` and `snapshot` from Phase 3
+- Build verified successful
+
+**Changes made (lines 261-297):**
 ```swift
-public func startLambda() async {
-    guard state.isIdle else { return }
-    let prior = state.snapshot
+public func startLambda(output: CLIOutputStream? = nil) async throws {
+    guard isIdle else { return }
+    let prior = snapshot
 
     let components = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
 
@@ -306,15 +318,13 @@ public func startLambda() async {
         }
     } catch {
         state = ModelState(error: error, preserving: prior)
+        throw error
     }
 }
-```
 
-**stopLambda:**
-```swift
-public func stopLambda() async {
-    guard state.isIdle else { return }
-    let prior = state.snapshot
+public func stopLambda(output: CLIOutputStream? = nil) async throws {
+    guard isIdle else { return }
+    let prior = snapshot
 
     let components = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
 
@@ -324,6 +334,7 @@ public func stopLambda() async {
         }
     } catch {
         state = ModelState(error: error, preserving: prior)
+        throw error
     }
 }
 ```
