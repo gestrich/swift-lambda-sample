@@ -11,7 +11,7 @@ import StorageService
 @MainActor
 @Observable
 class AppModel {
-    // MARK: - Services (Eager Initialization)
+    // MARK: - Services
 
     /// Remote service is optional - nil if AWS config is missing
     let remoteModel: DeployRemoteModel?
@@ -25,8 +25,21 @@ class AppModel {
     let xcodeLocalService: DeployXcodeModel
     let linuxLocalService: DeployLinuxModel
 
-    /// Model for checking dependency installation status
-    let dependencyStatusModel: DependencyStatusModel
+    /// Model for checking dependency installation status (lazy - created on first access)
+    private var _dependencyStatusModel: DependencyStatusModel?
+
+    /// Get or create the dependency status model (lazy initialization)
+    var dependencyStatusModel: DependencyStatusModel {
+        if let model = _dependencyStatusModel {
+            return model
+        }
+        let model = DependencyStatusModel(cliClient: cliClient)
+        _dependencyStatusModel = model
+        Task {
+            await model.checkAll()
+        }
+        return model
+    }
 
     /// Observable models for local services (used by LocalServiceView)
     let xcodeLocalModel: LocalServicesModel
@@ -55,12 +68,13 @@ class AppModel {
     // MARK: - Private
 
     private let modeKey = "macApp.mode"
+    private let cliClient: CLIClient
 
     // MARK: - Init
 
     init() {
         let projectDirectory = Self.resolveProjectDirectory()
-        let cliClient = CLIClient(defaultWorkingDirectory: projectDirectory)
+        self.cliClient = CLIClient(defaultWorkingDirectory: projectDirectory)
 
         // Create remote service - may fail if AWS config is missing
         var remote: DeployRemoteModel?
@@ -90,8 +104,6 @@ class AppModel {
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
 
-        self.dependencyStatusModel = DependencyStatusModel(cliClient: cliClient)
-
         // Create observable models for local services
         self.xcodeLocalModel = LocalServicesModel(service: xcode)
         self.linuxLocalModel = LocalServicesModel(service: linux)
@@ -119,11 +131,6 @@ class AppModel {
         // Start services if necessary for initial mode
         Task {
             await self.startCurrentServiceIfNecessary()
-        }
-
-        // Check dependency installation status
-        Task {
-            await self.dependencyStatusModel.checkAll()
         }
     }
 

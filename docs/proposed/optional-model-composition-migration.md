@@ -103,7 +103,7 @@ These models depend on AWS config. Since `DeployRemoteModel` already requires AW
 - `LambdaUpdateView.lambdaBuildService` changed from optional to non-optional since parent always has AWS config
 - Removed fallback "AWS configuration required" UI from `cloudWatchLogsSection` since it's always available when `RemoteServiceView` is rendered
 
-### [ ] Phase 3: Make DependencyStatusModel Lazy
+### [x] Phase 3: Make DependencyStatusModel Lazy
 
 Currently created in `AppModel.init` and immediately starts checking dependencies.
 
@@ -114,6 +114,16 @@ Currently created in `AppModel.init` and immediately starts checking dependencie
 - Consider: Move to `SetupView` as `@State` if only used there
 
 **Rationale:** Dependency checking is only needed in Setup view, not at app startup.
+
+**Completed:** 2025-12-19
+
+**Technical Notes:**
+- Used a private `_dependencyStatusModel: DependencyStatusModel?` backing property with a computed `dependencyStatusModel` getter that creates lazily
+- Stored `cliClient` as a private property in `AppModel` to enable lazy creation
+- The computed property triggers `checkAll()` in a Task when creating the model for the first time
+- Removed eager `checkAll()` call from `AppModel.init()`
+- No view changes required - existing access patterns work with the computed property
+- Model is created on first sidebar render when dependency status indicators are displayed
 
 ### [ ] Phase 4: Make DeployLinuxModel Lazy (Optional)
 
