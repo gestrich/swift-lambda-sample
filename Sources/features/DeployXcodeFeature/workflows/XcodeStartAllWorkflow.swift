@@ -1,4 +1,6 @@
 import Foundation
+import DeployCoreService
+import DeployLocalService
 import Uniflow
 
 /// Workflow for starting Lambda with all services for Xcode development.
@@ -25,30 +27,7 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
         return Components(workflow: workflow, port: 8080)
     }
 
-    /// State updates from the start all workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case startingServices
-            case startingLambda
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case servicesState(XcodeStartServicesWorkflow.State)
-            case lambdaState(XcodeStartLambdaWorkflow.State)
-            case port(Int)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = XcodeWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
@@ -69,28 +48,98 @@ public struct XcodeStartAllWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Start services first
-        continuation.yield(State(step: .startingServices))
+        continuation.yield(.startingServices(XcodeWorkflowState.ServicesProgress(
+            step: .starting,
+            startTime: startTime
+        )))
         let servicesComponents = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            continuation.yield(State(
-                step: .startingServices,
-                detail: .servicesState(servicesState)
-            ))
+            let mappedState = mapServicesState(servicesState, startTime: startTime)
+            continuation.yield(mappedState)
         }
 
         // Start Lambda (includes build if needed and waitForReady)
-        continuation.yield(State(step: .startingLambda))
+        continuation.yield(.startingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .starting,
+            startTime: startTime
+        )))
         let lambdaComponents = XcodeStartLambdaWorkflow.create(workingDirectory: workingDirectory)
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            continuation.yield(State(
-                step: .startingLambda,
-                detail: .lambdaState(lambdaState)
-            ))
+            let mappedState = mapLambdaState(lambdaState, startTime: startTime)
+            continuation.yield(mappedState)
         }
 
-        // Complete with port info
-        continuation.yield(State(step: .complete, detail: .port(lambdaHostPort)))
+        // Complete with snapshot
+        let status = DeploymentStatus(
+            lambdaState: .running,
+            s3State: .running,
+            postgresState: .running,
+            dynamodbState: .running
+        )
+        let snapshot = XcodeSnapshot(
+            serviceStatus: status,
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
+    }
+
+    // MARK: - State Mapping Helpers
+
+    private func mapServicesState(
+        _ state: XcodeStartServicesWorkflow.State,
+        startTime: Date
+    ) -> XcodeWorkflowState {
+        let currentService: LocalServiceType?
+        switch state.step {
+        case .startingDatabase:
+            currentService = .database
+        case .startingS3, .creatingBucket:
+            currentService = .s3
+        case .startingDynamoDB:
+            currentService = .dynamodb
+        case .complete:
+            currentService = nil
+        }
+
+        let step: XcodeWorkflowState.ServicesProgress.Step
+        if case .creatingBucket = state.step {
+            step = .creatingBucket
+        } else {
+            step = .starting
+        }
+
+        return .startingServices(XcodeWorkflowState.ServicesProgress(
+            step: step,
+            startTime: startTime,
+            currentService: currentService
+        ))
+    }
+
+    private func mapLambdaState(
+        _ state: XcodeStartLambdaWorkflow.State,
+        startTime: Date
+    ) -> XcodeWorkflowState {
+        let step: XcodeWorkflowState.LambdaProgress.Step
+        switch state.step {
+        case .checkingBuild:
+            step = .checkingBuild
+        case .building:
+            step = .building
+        case .starting:
+            step = .starting
+        case .waitingForReady:
+            step = .waitingForReady
+        case .complete:
+            step = .starting
+        }
+
+        return .startingLambda(XcodeWorkflowState.LambdaProgress(
+            step: step,
+            startTime: startTime
+        ))
     }
 }

@@ -133,27 +133,50 @@ func printXcodeStopServicesProgress(_ progress: XcodeStopServicesWorkflow.State)
     }
 }
 
-func printXcodeStartAllProgress(_ progress: XcodeStartAllWorkflow.State) {
-    switch progress.step {
-    case .startingServices:
-        if case .servicesState(let servicesProgress) = progress.detail {
-            printXcodeStartServicesProgress(servicesProgress)
-        } else {
-            print("🔄 Starting services...")
+func printXcodeStartAllProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
+    case .startingServices(let servicesProgress):
+        switch servicesProgress.step {
+        case .starting:
+            if let service = servicesProgress.currentService {
+                switch service {
+                case .database:
+                    print("🐘 Starting PostgreSQL...")
+                case .s3:
+                    print("📦 Starting MinIO S3...")
+                case .dynamodb:
+                    print("⚡ Starting DynamoDB...")
+                }
+            } else {
+                print("🔄 Starting services...")
+            }
+        case .creatingBucket:
+            print("🪣 Creating S3 bucket...")
+        default:
+            break
         }
-    case .startingLambda:
-        if case .lambdaState(let lambdaProgress) = progress.detail {
-            printXcodeStartLambdaProgress(lambdaProgress)
-        } else {
-            print("🔄 Starting Lambda...")
+    case .startingLambda(let lambdaProgress):
+        switch lambdaProgress.step {
+        case .checkingBuild:
+            print("🔍 Checking build...")
+        case .building:
+            print("🔨 Building Lambda...")
+        case .starting:
+            print("🚀 Starting Lambda...")
+        case .waitingForReady:
+            print("⏳ Waiting for Lambda to be ready...")
+        case .stopping:
+            break
         }
-    case .complete:
-        if case .port(let port) = progress.detail {
-            print("")
-            print("✅ All services and Lambda running on port \(port)")
+    case .completed(let snapshot):
+        print("")
+        if snapshot.isAllRunning {
+            print("✅ All services and Lambda running on port 8080")
         } else {
-            print("✅ All services started")
+            print("✅ Start all workflow completed")
         }
+    default:
+        break
     }
 }
 
