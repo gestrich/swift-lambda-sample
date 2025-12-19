@@ -1,4 +1,6 @@
 import Foundation
+import DeployCoreService
+import DeployLocalService
 import Uniflow
 
 /// Workflow for stopping Lambda and all services for Xcode development.
@@ -23,29 +25,7 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
         return Components(workflow: workflow)
     }
 
-    /// State updates from the stop all workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case stoppingLambda
-            case stoppingServices
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case lambdaState(XcodeStopLambdaWorkflow.State)
-            case servicesState(XcodeStopServicesWorkflow.State)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = XcodeWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
@@ -66,27 +46,77 @@ public struct XcodeStopAllWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Stop Lambda first
-        continuation.yield(State(step: .stoppingLambda))
+        continuation.yield(.stoppingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .stopping,
+            startTime: startTime
+        )))
         let lambdaComponents = XcodeStopLambdaWorkflow.create()
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            continuation.yield(State(
-                step: .stoppingLambda,
-                detail: .lambdaState(lambdaState)
-            ))
+            let mappedState = mapLambdaState(lambdaState, startTime: startTime)
+            continuation.yield(mappedState)
         }
 
         // Then stop services
-        continuation.yield(State(step: .stoppingServices))
+        continuation.yield(.stoppingServices(XcodeWorkflowState.ServicesProgress(
+            step: .stopping,
+            startTime: startTime
+        )))
         let servicesComponents = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            continuation.yield(State(
-                step: .stoppingServices,
-                detail: .servicesState(servicesState)
-            ))
+            let mappedState = mapServicesState(servicesState, startTime: startTime)
+            continuation.yield(mappedState)
         }
 
-        continuation.yield(State(step: .complete))
+        // Complete with snapshot
+        let status = DeploymentStatus(
+            lambdaState: .stopped,
+            s3State: .stopped,
+            postgresState: .stopped,
+            dynamodbState: .stopped
+        )
+        let snapshot = XcodeSnapshot(
+            serviceStatus: status,
+            buildStatus: .notBuilt
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
+    }
+
+    // MARK: - State Mapping Helpers
+
+    private func mapLambdaState(
+        _ state: XcodeStopLambdaWorkflow.State,
+        startTime: Date
+    ) -> XcodeWorkflowState {
+        .stoppingLambda(XcodeWorkflowState.LambdaProgress(
+            step: .stopping,
+            startTime: startTime
+        ))
+    }
+
+    private func mapServicesState(
+        _ state: XcodeStopServicesWorkflow.State,
+        startTime: Date
+    ) -> XcodeWorkflowState {
+        let currentService: LocalServiceType?
+        switch state.step {
+        case .stoppingDatabase:
+            currentService = .database
+        case .stoppingS3:
+            currentService = .s3
+        case .stoppingDynamoDB:
+            currentService = .dynamodb
+        case .complete:
+            currentService = nil
+        }
+
+        return .stoppingServices(XcodeWorkflowState.ServicesProgress(
+            step: .stopping,
+            startTime: startTime,
+            currentService: currentService
+        ))
     }
 }

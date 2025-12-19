@@ -180,23 +180,32 @@ func printXcodeStartAllProgress(_ progress: XcodeWorkflowState) {
     }
 }
 
-func printXcodeStopAllProgress(_ progress: XcodeStopAllWorkflow.State) {
-    switch progress.step {
+func printXcodeStopAllProgress(_ progress: XcodeWorkflowState) {
+    switch progress {
     case .stoppingLambda:
-        if case .lambdaState(let lambdaProgress) = progress.detail {
-            printXcodeStopLambdaProgress(lambdaProgress)
-        } else {
-            print("🔄 Stopping Lambda...")
-        }
-    case .stoppingServices:
-        if case .servicesState(let servicesProgress) = progress.detail {
-            printXcodeStopServicesProgress(servicesProgress)
+        print("🛑 Stopping Lambda...")
+    case .stoppingServices(let servicesProgress):
+        if let service = servicesProgress.currentService {
+            switch service {
+            case .database:
+                print("🐘 Stopping PostgreSQL...")
+            case .s3:
+                print("📦 Stopping MinIO S3...")
+            case .dynamodb:
+                print("⚡ Stopping DynamoDB...")
+            }
         } else {
             print("🔄 Stopping services...")
         }
-    case .complete:
+    case .completed(let snapshot):
         print("")
-        print("✅ All Lambda and services stopped")
+        if snapshot.isAllStopped {
+            print("✅ All Lambda and services stopped")
+        } else {
+            print("✅ Stop all workflow completed")
+        }
+    default:
+        break
     }
 }
 

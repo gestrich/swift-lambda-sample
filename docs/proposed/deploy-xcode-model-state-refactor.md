@@ -249,13 +249,22 @@ public enum XcodeWorkflowState: Sendable, Equatable {
 
 ### Phase 5: Update XcodeStopAllWorkflow to Yield XcodeWorkflowState
 
-[ ] **Migrate XcodeStopAllWorkflow**
+[x] **Migrate XcodeStopAllWorkflow** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 5.1: Update `XcodeStopAllWorkflow.State` to be `XcodeWorkflowState`
-- [ ] 5.2: Update `stream()` to yield appropriate states
-- [ ] 5.3: Update CLI progress printer if needed
-- [ ] 5.4: Build verification
+- [x] 5.1: Update `XcodeStopAllWorkflow.State` to be `XcodeWorkflowState`
+- [x] 5.2: Update `stream()` to yield appropriate states
+- [x] 5.3: Update CLI progress printer if needed
+- [x] 5.4: Build verification
+
+**Technical Notes:**
+- Replaced nested `State` struct with `typealias State = XcodeWorkflowState`
+- Workflow now captures `startTime` at the beginning and uses consistent timing throughout
+- Added state mapping helpers (`mapLambdaState`, `mapServicesState`) to convert sub-workflow states to `XcodeWorkflowState`
+- Maps `XcodeStopLambdaWorkflow.State` steps to `XcodeWorkflowState.LambdaProgress` with `.stopping` step
+- Maps `XcodeStopServicesWorkflow.State` steps to `XcodeWorkflowState.ServicesProgress` with appropriate `currentService` tracking
+- On completion, yields `.completed(XcodeSnapshot)` with all services stopped and `buildStatus: .notBuilt`
+- CLI progress printer now pattern matches on `XcodeWorkflowState` cases (`.stoppingLambda`, `.stoppingServices`, `.completed`)
 
 ---
 
@@ -559,7 +568,7 @@ public var buildState: BuildState {
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeBuildWorkflow.swift`
 - [x] `Sources/apps/CLIApp/Commands/DeployXcode/DeployXcodeProgressPrinters.swift`
 - [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStartAllWorkflow.swift`
-- [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStopAllWorkflow.swift`
+- [x] `Sources/features/DeployXcodeFeature/workflows/XcodeStopAllWorkflow.swift`
 - [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStartLambdaWorkflow.swift`
 - [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStopLambdaWorkflow.swift`
 - [ ] `Sources/features/DeployXcodeFeature/workflows/XcodeStartServicesWorkflow.swift`
