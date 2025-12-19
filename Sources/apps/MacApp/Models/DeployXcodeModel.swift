@@ -115,24 +115,57 @@ public class DeployXcodeModel: LocalService {
 
     // MARK: - Service Management
 
+    /// Start all local services (PostgreSQL, MinIO S3, DynamoDB Local).
+    /// Uses workflow-driven state updates.
     public func startAllServices() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .all) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .all) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Stop all local services (PostgreSQL, MinIO S3, DynamoDB Local).
+    /// Uses workflow-driven state updates.
     public func stopAllServices() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .all) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .all) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Start MinIO S3 service.
+    /// Uses workflow-driven state updates.
     public func startS3() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.s3)) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
@@ -141,38 +174,93 @@ public class DeployXcodeModel: LocalService {
         try await components.minioClient.createBucket(bucketName: bucketName)
     }
 
+    /// Stop MinIO S3 service.
+    /// Uses workflow-driven state updates.
     public func stopS3() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.s3)) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Start PostgreSQL database service.
+    /// Uses workflow-driven state updates.
     public func startDatabase() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.database)) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.database)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Stop PostgreSQL database service.
+    /// Uses workflow-driven state updates.
     public func stopDatabase() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.database)) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.database)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Start DynamoDB Local service.
+    /// Uses workflow-driven state updates.
     public func startDynamoDB() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Stop DynamoDB Local service.
+    /// Uses workflow-driven state updates.
     public func stopDynamoDB() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = XcodeStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
-            // Workflow progress is consumed
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 

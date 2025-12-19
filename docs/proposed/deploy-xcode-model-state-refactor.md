@@ -509,19 +509,45 @@ public func startLambda(output: CLIOutputStream? = nil) async throws {
 
 ### Phase 13: Refactor Service-Specific Operations
 
-[ ] **Refactor all service-specific operations**
+[x] **Refactor all service-specific operations** *(Completed 2025-12-19)*
 
 **Tasks:**
-- [ ] 13.1: Add `guard isIdle else { return }` to all service operations
-- [ ] 13.2: Capture `prior = snapshot` before workflow
-- [ ] 13.3: Iterate workflow yields and update state
-- [ ] 13.4: Methods to refactor:
+- [x] 13.1: Add `guard isIdle else { return }` to all service operations
+- [x] 13.2: Capture `prior = snapshot` before workflow
+- [x] 13.3: Iterate workflow yields and update state
+- [x] 13.4: Methods to refactor:
   - `startAllServices()`
   - `stopAllServices()`
   - `startS3()` / `stopS3()`
   - `startDatabase()` / `stopDatabase()`
   - `startDynamoDB()` / `stopDynamoDB()`
-- [ ] 13.5: Build verification
+- [x] 13.5: Build verification
+
+**Technical Notes:**
+- All 8 service-specific methods now follow the same workflow-driven state pattern
+- Each method guards with `guard isIdle else { return }` to prevent concurrent operations
+- Captures `prior = snapshot` before starting workflow to preserve state during operation
+- Workflow yields are consumed and used to update `state = ModelState(from: workflowState, prior: prior)`
+- Error handling captures error in state via `ModelState(error:preserving:)` before rethrowing
+- `createBucket()` was not refactored as it's a direct client call, not a workflow operation
+
+```swift
+public func startAllServices() async throws {
+    guard isIdle else { return }
+    let prior = snapshot
+
+    let components = XcodeStartServicesWorkflow.create(workingDirectory: workingDirectory)
+
+    do {
+        for try await workflowState in components.workflow.stream(options: .all) {
+            state = ModelState(from: workflowState, prior: prior)
+        }
+    } catch {
+        state = ModelState(error: error, preserving: prior)
+        throw error
+    }
+}
+```
 
 ---
 
