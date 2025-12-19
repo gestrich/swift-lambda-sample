@@ -63,12 +63,19 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
         )))
         let servicesComponents = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            let currentService = mapServiceStep(servicesState.step)
-            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(
-                step: .starting,
-                startTime: startTime,
-                currentService: currentService
-            )))
+            // Sub-workflow now yields LinuxWorkflowState, forward relevant states
+            switch servicesState {
+            case .startingServices(let progress):
+                continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(
+                    step: .starting,
+                    startTime: startTime,
+                    currentService: progress.currentService
+                )))
+            case .completed:
+                break
+            default:
+                break
+            }
         }
 
         // Setup Docker network
@@ -94,11 +101,20 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
         )))
         let lambdaComponents = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            let lambdaStep = mapLambdaStep(lambdaState.step)
-            continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(
-                step: lambdaStep,
-                startTime: startTime
-            )))
+            // Sub-workflow now yields LinuxWorkflowState, forward relevant states
+            switch lambdaState {
+            case .startingLambda(let progress):
+                continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(
+                    step: progress.step,
+                    startTime: startTime
+                )))
+            case .building(let progress):
+                continuation.yield(.building(progress))
+            case .completed:
+                break
+            default:
+                break
+            }
         }
 
         // Complete with snapshot
@@ -118,15 +134,6 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
     // MARK: - State Mapping Helpers
 
-    private func mapServiceStep(_ step: LinuxStartServicesWorkflow.State.Step) -> LocalServiceType? {
-        switch step {
-        case .startingDatabase: return .database
-        case .startingS3, .creatingBucket: return .s3
-        case .startingDynamoDB: return .dynamodb
-        case .complete: return nil
-        }
-    }
-
     private func mapNetworkStep(_ step: LinuxSetupNetworkWorkflow.State.Step) -> LinuxWorkflowState.NetworkProgress.Step {
         switch step {
         case .creatingNetwork: return .creatingNetwork
@@ -142,14 +149,6 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
         case .containerConnected(let name): return "Connected \(name)"
         case .containerSkipped(let name, let reason): return "Skipped \(name) (\(reason))"
         case nil: return nil
-        }
-    }
-
-    private func mapLambdaStep(_ step: LinuxStartLambdaWorkflow.State.Step) -> LinuxWorkflowState.LambdaProgress.Step {
-        switch step {
-        case .checkingBuild, .starting: return .starting
-        case .waitingForReady: return .waitingForReady
-        case .complete: return .starting
         }
     }
 }

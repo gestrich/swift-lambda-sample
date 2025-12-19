@@ -89,34 +89,12 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
         return Components(workflow: workflow, port: config.hostPort)
     }
 
-    /// State updates from the start Lambda workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingBuild
-            case starting
-            case waitingForReady
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case port(Int)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = LinuxWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
     /// Stream the start Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
+    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -132,28 +110,40 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Ensure Docker is running
         if !(await dockerClient.isDockerRunning()) {
             try await startDockerDesktop()
         }
 
         // Check if build exists
-        continuation.yield(State(step: .checkingBuild))
+        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .starting, startTime: startTime)))
         let isBuilt = isLambdaBuilt()
         if !isBuilt {
-            continuation.yield(State(step: .checkingBuild, detail: .output("Lambda not built, will build first")))
-            try await buildLambda(continuation: continuation)
+            continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime, output: "Lambda not built, will build first")))
+            try await buildLambda(continuation: continuation, startTime: startTime)
         }
 
         // Start Lambda container
-        continuation.yield(State(step: .starting))
-        try await startDetached(continuation: continuation)
+        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .starting, startTime: startTime)))
+        try await startDetached(continuation: continuation, startTime: startTime)
 
         // Wait for ready
-        continuation.yield(State(step: .waitingForReady))
+        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .waitingForReady, startTime: startTime)))
         try await waitForReady()
 
-        continuation.yield(State(step: .complete, detail: .port(config.hostPort)))
+        // Build final snapshot - Lambda is running, services status untracked (use stopped as default)
+        let snapshot = LinuxSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .running,
+                s3State: .stopped,
+                postgresState: .stopped,
+                dynamodbState: .stopped
+            ),
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
@@ -167,13 +157,16 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
     }
 
     /// Build Lambda using LinuxBuildWorkflow
-    private func buildLambda(continuation: AsyncThrowingStream<State, Error>.Continuation) async throws {
+    private func buildLambda(
+        continuation: AsyncThrowingStream<State, Error>.Continuation,
+        startTime: Date
+    ) async throws {
         let buildComponents = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
         let options = LinuxBuildWorkflow.Options(clean: false)
 
         for try await buildState in buildComponents.workflow.stream(options: options) {
             if case .building(let progress) = buildState, let text = progress.output {
-                continuation.yield(State(step: .checkingBuild, detail: .output(text)))
+                continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime, output: text)))
             }
         }
     }
@@ -181,7 +174,10 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
     // MARK: - Start Lambda Container
 
     /// Start Lambda container in detached mode
-    private func startDetached(continuation: AsyncThrowingStream<State, Error>.Continuation) async throws {
+    private func startDetached(
+        continuation: AsyncThrowingStream<State, Error>.Continuation,
+        startTime: Date
+    ) async throws {
         guard FileManager.default.fileExists(atPath: lambdaDir) else {
             throw CLIClientError.invalidWorkingDirectory("lambda directory not found at \(lambdaDir)")
         }
@@ -202,8 +198,7 @@ public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
             options: options
         )
 
-        continuation.yield(State(step: .starting, detail: .output("Container: \(config.containerName)")))
-        continuation.yield(State(step: .starting, detail: .output("Port: http://localhost:\(config.hostPort)")))
+        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .starting, startTime: startTime)))
     }
 
     // MARK: - Wait For Ready

@@ -56,10 +56,18 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
         )))
         let lambdaComponents = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
         for try await lambdaState in lambdaComponents.workflow.stream() {
-            continuation.yield(.stoppingLambda(LinuxWorkflowState.LambdaProgress(
-                step: mapLambdaStep(lambdaState.step),
-                startTime: startTime
-            )))
+            // Sub-workflow now yields LinuxWorkflowState, forward relevant states
+            switch lambdaState {
+            case .stoppingLambda(let progress):
+                continuation.yield(.stoppingLambda(LinuxWorkflowState.LambdaProgress(
+                    step: progress.step,
+                    startTime: startTime
+                )))
+            case .completed:
+                break
+            default:
+                break
+            }
         }
 
         // Then stop services
@@ -69,12 +77,19 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
         )))
         let servicesComponents = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
         for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            let currentService = mapServiceStep(servicesState.step)
-            continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(
-                step: .stopping,
-                startTime: startTime,
-                currentService: currentService
-            )))
+            // Sub-workflow now yields LinuxWorkflowState, forward relevant states
+            switch servicesState {
+            case .stoppingServices(let progress):
+                continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(
+                    step: .stopping,
+                    startTime: startTime,
+                    currentService: progress.currentService
+                )))
+            case .completed:
+                break
+            default:
+                break
+            }
         }
 
         // Complete with snapshot (all stopped)
@@ -90,23 +105,5 @@ public struct LinuxStopAllWorkflow: StreamingWorkflow {
         )
         continuation.yield(.completed(snapshot))
         continuation.finish()
-    }
-
-    // MARK: - State Mapping Helpers
-
-    private func mapLambdaStep(_ step: LinuxStopLambdaWorkflow.State.Step) -> LinuxWorkflowState.LambdaProgress.Step {
-        switch step {
-        case .checking, .stopping: return .stopping
-        case .complete: return .stopping
-        }
-    }
-
-    private func mapServiceStep(_ step: LinuxStopServicesWorkflow.State.Step) -> LocalServiceType? {
-        switch step {
-        case .stoppingDatabase: return .database
-        case .stoppingS3: return .s3
-        case .stoppingDynamoDB: return .dynamodb
-        case .complete: return nil
-        }
     }
 }

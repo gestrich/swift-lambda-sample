@@ -23,103 +23,82 @@ func printLinuxBuildProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStartLambdaProgress(_ progress: LinuxStartLambdaWorkflow.State) {
-    switch progress.step {
-    case .checkingBuild:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
+func printLinuxStartLambdaProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .building(let buildProgress):
+        if let output = buildProgress.output {
+            print("  \(output)")
         } else {
-            print("🔍 Checking build...")
+            print("🔨 Building Lambda...")
         }
-    case .starting:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
+    case .startingLambda(let lambdaProgress):
+        switch lambdaProgress.step {
+        case .starting:
             print("🐳 Starting Lambda container...")
+        case .waitingForReady:
+            print("⏳ Waiting for Lambda to be ready...")
+        case .stopping:
+            break
         }
-    case .waitingForReady:
-        print("⏳ Waiting for Lambda to be ready...")
-    case .complete:
-        if case .port(let port) = progress.detail {
-            print("✅ Lambda container running on port \(port)")
-        } else {
-            print("✅ Lambda container started")
-        }
+    case .completed:
+        print("✅ Lambda container started")
+    default:
+        break
     }
 }
 
-func printLinuxStopLambdaProgress(_ progress: LinuxStopLambdaWorkflow.State) {
-    switch progress.step {
-    case .checking:
-        print("🔍 Checking Lambda container status...")
-    case .stopping:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
-            print("🛑 Stopping Lambda container...")
-        }
-    case .complete:
-        if case .wasRunning(let wasRunning) = progress.detail {
-            if wasRunning {
-                print("✅ Lambda container stopped")
-            } else {
-                print("ℹ️  Lambda container was not running")
+func printLinuxStopLambdaProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .stoppingLambda:
+        print("🛑 Stopping Lambda container...")
+    case .completed:
+        print("✅ Lambda container stopped")
+    default:
+        break
+    }
+}
+
+func printLinuxStartServicesProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .startingServices(let servicesProgress):
+        if let service = servicesProgress.currentService {
+            switch service {
+            case .database:
+                print("🐘 Starting PostgreSQL...")
+            case .s3:
+                print("📦 Starting MinIO S3...")
+            case .dynamodb:
+                print("⚡ Starting DynamoDB...")
             }
         } else {
-            print("✅ Lambda container stopped")
+            print("🔄 Starting services...")
         }
-    }
-}
-
-func printLinuxStartServicesProgress(_ progress: LinuxStartServicesWorkflow.State) {
-    switch progress.step {
-    case .startingDatabase:
-        if case .serviceStarted(_) = progress.detail {
-            print("✅ PostgreSQL started")
-        } else {
-            print("🐘 Starting PostgreSQL...")
-        }
-    case .startingS3:
-        if case .serviceStarted(_) = progress.detail {
-            print("✅ MinIO S3 started")
-        } else {
-            print("📦 Starting MinIO S3...")
-        }
-    case .creatingBucket:
-        print("🪣 Creating S3 bucket...")
-    case .startingDynamoDB:
-        if case .serviceStarted(_) = progress.detail {
-            print("✅ DynamoDB started")
-        } else {
-            print("⚡ Starting DynamoDB...")
-        }
-    case .complete:
+    case .completed:
         print("✅ All services started")
+    default:
+        break
     }
 }
 
-func printLinuxStopServicesProgress(_ progress: LinuxStopServicesWorkflow.State) {
-    switch progress.step {
-    case .stoppingDatabase:
-        if case .serviceStopped(_) = progress.detail {
-            print("✅ PostgreSQL stopped")
+func printLinuxStopServicesProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .stoppingServices(let servicesProgress):
+        if let service = servicesProgress.currentService {
+            switch service {
+            case .database:
+                print("🐘 Stopping PostgreSQL...")
+            case .s3:
+                print("📦 Stopping MinIO S3...")
+            case .dynamodb:
+                print("⚡ Stopping DynamoDB...")
+            }
         } else {
-            print("🐘 Stopping PostgreSQL...")
+            print("🔄 Stopping services...")
         }
-    case .stoppingS3:
-        if case .serviceStopped(_) = progress.detail {
-            print("✅ MinIO S3 stopped")
-        } else {
-            print("📦 Stopping MinIO S3...")
-        }
-    case .stoppingDynamoDB:
-        if case .serviceStopped(_) = progress.detail {
-            print("✅ DynamoDB stopped")
-        } else {
-            print("⚡ Stopping DynamoDB...")
-        }
-    case .complete:
+    case .completed:
         print("✅ All services stopped")
+    default:
+        break
     }
 }
 
@@ -204,41 +183,46 @@ func printLinuxStopAllProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxTestProgress(_ progress: LinuxTestWorkflow.State) {
-    switch progress.step {
-    case .checkingLambda:
-        if case .output(let text) = progress.detail {
-            print("  \(text)")
-        } else {
-            print("🔍 Checking Lambda container status...")
+func printLinuxTestProgress(_ progress: LinuxWorkflowState) {
+    switch progress {
+    case .testing(let testProgress):
+        switch testProgress.step {
+        case .checkingLambda:
+            if case .message(let text) = testProgress.result {
+                print("  \(text)")
+            } else {
+                print("🔍 Checking Lambda container status...")
+            }
+        case .testingFileUpload:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("📤 Testing file upload...")
+            }
+        case .testingFileList:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("📋 Testing file list...")
+            }
+        case .testingFileDownload:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("📥 Testing file download...")
+            }
+        case .testingDatabaseInit:
+            if case .passed(let name) = testProgress.result {
+                print("✅ \(name)")
+            } else {
+                print("🗄️  Testing database init...")
+            }
         }
-    case .testingFileUpload:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("📤 Testing file upload...")
-        }
-    case .testingFileList:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("📋 Testing file list...")
-        }
-    case .testingFileDownload:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("📥 Testing file download...")
-        }
-    case .testingDatabaseInit:
-        if case .testPassed(let name) = progress.detail {
-            print("✅ \(name)")
-        } else {
-            print("🗄️  Testing database init...")
-        }
-    case .complete:
+    case .completed:
         print("")
         print("✅ All tests passed")
+    default:
+        break
     }
 }
 

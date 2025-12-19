@@ -82,30 +82,7 @@ public struct LinuxStartServicesWorkflow: StreamingWorkflow {
         )
     }
 
-    /// State updates from the start services workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case startingDatabase
-            case startingS3
-            case creatingBucket
-            case startingDynamoDB
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case serviceStarted(LocalServiceType)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = LinuxWorkflowState
     public typealias Result = State
 
     /// Options for the start services workflow.
@@ -125,7 +102,7 @@ public struct LinuxStartServicesWorkflow: StreamingWorkflow {
 
     /// Stream the start services workflow.
     /// - Parameter options: Service options specifying which services to start
-    /// - Returns: AsyncThrowingStream that yields State updates
+    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -142,37 +119,53 @@ public struct LinuxStartServicesWorkflow: StreamingWorkflow {
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Ensure Docker is running
         if !(await dockerClient.isDockerRunning()) {
             try await startDockerDesktop()
         }
 
+        // Track which services were started
+        var postgresState: ServiceState = .stopped
+        var s3State: ServiceState = .stopped
+        var dynamodbState: ServiceState = .stopped
+
         // Start PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(State(step: .startingDatabase))
+            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(step: .starting, startTime: startTime, currentService: .database)))
             try await postgresClient.start()
-            continuation.yield(State(step: .startingDatabase, detail: .serviceStarted(.database)))
+            postgresState = .running
         }
 
         // Start MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(State(step: .startingS3))
+            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(step: .starting, startTime: startTime, currentService: .s3)))
             try await minioClient.start()
-            continuation.yield(State(step: .startingS3, detail: .serviceStarted(.s3)))
+            s3State = .running
 
             // Create bucket after S3 is running
-            continuation.yield(State(step: .creatingBucket))
             try await minioClient.createBucket(bucketName: nil)
         }
 
         // Start DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(State(step: .startingDynamoDB))
+            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(step: .starting, startTime: startTime, currentService: .dynamodb)))
             try await dynamodbClient.start()
-            continuation.yield(State(step: .startingDynamoDB, detail: .serviceStarted(.dynamodb)))
+            dynamodbState = .running
         }
 
-        continuation.yield(State(step: .complete))
+        // Build final snapshot
+        let snapshot = LinuxSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: s3State,
+                postgresState: postgresState,
+                dynamodbState: dynamodbState
+            ),
+            buildStatus: .notBuilt
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 

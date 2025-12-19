@@ -241,14 +241,26 @@ public enum LinuxWorkflowState: Sendable, Equatable {
     public struct TestProgress: Sendable, Equatable {
         public let step: Step
         public let startTime: Date
+        public let result: Result?
 
         public enum Step: Sendable, Equatable {
-            case testing
+            case checkingLambda
+            case testingFileUpload
+            case testingFileList
+            case testingFileDownload
+            case testingDatabaseInit
         }
 
-        public init(step: Step, startTime: Date) {
+        public enum Result: Sendable, Equatable {
+            case passed(String)
+            case failed(String, String)
+            case message(String)
+        }
+
+        public init(step: Step, startTime: Date, result: Result? = nil) {
             self.step = step
             self.startTime = startTime
+            self.result = result
         }
     }
 

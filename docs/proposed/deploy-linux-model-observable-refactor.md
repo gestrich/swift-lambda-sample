@@ -418,16 +418,41 @@ public struct LinuxStartAllWorkflow: StreamingWorkflow {
 
 ---
 
-### Phase 6: Update Remaining Workflows (LinuxStartLambda, LinuxStopLambda, etc.)
+### Phase 6: Update Remaining Workflows (LinuxStartLambda, LinuxStopLambda, etc.) ✅ COMPLETED
 
 **Tasks:**
-- [ ] 6.1: Update `LinuxStartLambdaWorkflow` to yield `LinuxWorkflowState`
-- [ ] 6.2: Update `LinuxStopLambdaWorkflow` to yield `LinuxWorkflowState`
-- [ ] 6.3: Update `LinuxStartServicesWorkflow` to yield `LinuxWorkflowState`
-- [ ] 6.4: Update `LinuxStopServicesWorkflow` to yield `LinuxWorkflowState`
-- [ ] 6.5: Update `LinuxTestWorkflow` to yield `LinuxWorkflowState`
-- [ ] 6.6: Update all related CLI commands
-- [ ] 6.7: Build verification
+- [x] 6.1: Update `LinuxStartLambdaWorkflow` to yield `LinuxWorkflowState`
+- [x] 6.2: Update `LinuxStopLambdaWorkflow` to yield `LinuxWorkflowState`
+- [x] 6.3: Update `LinuxStartServicesWorkflow` to yield `LinuxWorkflowState`
+- [x] 6.4: Update `LinuxStopServicesWorkflow` to yield `LinuxWorkflowState`
+- [x] 6.5: Update `LinuxTestWorkflow` to yield `LinuxWorkflowState`
+- [x] 6.6: Update all related CLI commands
+- [x] 6.7: Build verification
+
+**Files modified:**
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStartLambdaWorkflow.swift`
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStopLambdaWorkflow.swift`
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStartServicesWorkflow.swift`
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStopServicesWorkflow.swift`
+- `Sources/features/DeployLinuxFeature/workflows/LinuxTestWorkflow.swift`
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStartAllWorkflow.swift` (updated to handle new sub-workflow state types)
+- `Sources/features/DeployLinuxFeature/workflows/LinuxStopAllWorkflow.swift` (updated to handle new sub-workflow state types)
+- `Sources/features/DeployLinuxFeature/services/Models/LinuxDeploymentState.swift` (enhanced `TestProgress` with detailed step enum)
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxProgressPrinters.swift`
+
+**Technical Notes:**
+- All five remaining workflows now yield `LinuxWorkflowState` directly via `typealias State = LinuxWorkflowState`
+- Removed nested `State` struct with `Step`/`Detail` enums from each workflow
+- Each workflow yields appropriate `LinuxWorkflowState` cases:
+  - `LinuxStartLambdaWorkflow`: `.building(...)`, `.startingLambda(...)`, `.completed(...)`
+  - `LinuxStopLambdaWorkflow`: `.stoppingLambda(...)`, `.completed(...)`
+  - `LinuxStartServicesWorkflow`: `.startingServices(...)`, `.completed(...)`
+  - `LinuxStopServicesWorkflow`: `.stoppingServices(...)`, `.completed(...)`
+  - `LinuxTestWorkflow`: `.testing(...)`, `.completed(...)`
+- Enhanced `TestProgress` struct with detailed step enum (`checkingLambda`, `testingFileUpload`, `testingFileList`, `testingFileDownload`, `testingDatabaseInit`) and result enum (`passed`, `failed`, `message`)
+- Updated `LinuxStartAllWorkflow` and `LinuxStopAllWorkflow` to consume sub-workflow states via pattern matching instead of `.step` accessors
+- CLI progress printers updated to switch on `LinuxWorkflowState` enum cases
+- Used `.stopped` as default for unknown service states (since `ServiceState` has no `.unknown` case)
 
 ---
 

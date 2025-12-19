@@ -45,37 +45,12 @@ public struct LinuxTestWorkflow: StreamingWorkflow {
         return Components(workflow: workflow, port: config.hostPort)
     }
 
-    /// State updates from the test workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checkingLambda
-            case testingFileUpload
-            case testingFileList
-            case testingFileDownload
-            case testingDatabaseInit
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case testPassed(String)
-            case testFailed(String, String)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = LinuxWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
     /// Stream the test workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
+    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -91,22 +66,39 @@ public struct LinuxTestWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
+        let startTime = Date()
+
         // Check if Lambda container is running
-        continuation.yield(State(step: .checkingLambda))
+        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .checkingLambda, startTime: startTime)))
         let running = try await isRunning()
         if !running {
-            continuation.yield(State(
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(
                 step: .checkingLambda,
-                detail: .output("Lambda container is not running, will start it")
-            ))
+                startTime: startTime,
+                result: .message("Lambda container is not running, will start it")
+            )))
             try await startLambda()
         }
-        continuation.yield(State(step: .checkingLambda, detail: .output("Lambda container is running")))
+        continuation.yield(.testing(LinuxWorkflowState.TestProgress(
+            step: .checkingLambda,
+            startTime: startTime,
+            result: .message("Lambda container is running")
+        )))
 
         // Run the actual tests
-        try await performLocalLambdaTests(continuation: continuation)
+        try await performLocalLambdaTests(continuation: continuation, startTime: startTime)
 
-        continuation.yield(State(step: .complete))
+        // Build final snapshot
+        let snapshot = LinuxSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .running,
+                s3State: .running,
+                postgresState: .running,
+                dynamodbState: .running
+            ),
+            buildStatus: .available
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
@@ -128,14 +120,15 @@ public struct LinuxTestWorkflow: StreamingWorkflow {
 
     /// Perform the actual Lambda endpoint tests
     private func performLocalLambdaTests(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
+        continuation: AsyncThrowingStream<State, Error>.Continuation,
+        startTime: Date
     ) async throws {
         let client = await MainActor.run {
             APIClient(localPort: config.hostPort, serviceName: "Local Linux (Container)")
         }
 
         // Test file upload
-        continuation.yield(State(step: .testingFileUpload))
+        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileUpload, startTime: startTime)))
         let testContent = "Hello from test file!"
         guard let testData = testContent.data(using: .utf8) else {
             throw DeployError.testFailed(message: "Failed to create test data")
@@ -143,40 +136,40 @@ public struct LinuxTestWorkflow: StreamingWorkflow {
 
         let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
         if uploadResponse.contains("File uploaded: test-upload.txt") {
-            continuation.yield(State(step: .testingFileUpload, detail: .testPassed("File upload")))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileUpload, startTime: startTime, result: .passed("File upload"))))
         } else {
-            continuation.yield(State(step: .testingFileUpload, detail: .testFailed("File upload", uploadResponse)))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileUpload, startTime: startTime, result: .failed("File upload", uploadResponse))))
             throw DeployError.testFailed(message: "File upload endpoint test failed")
         }
 
         // Test list files
-        continuation.yield(State(step: .testingFileList))
+        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileList, startTime: startTime)))
         let fileList = try await client.listFiles()
         if fileList.contains("test-upload.txt") {
-            continuation.yield(State(step: .testingFileList, detail: .testPassed("File list (found \(fileList.count) files)")))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileList, startTime: startTime, result: .passed("File list (found \(fileList.count) files)"))))
         } else {
-            continuation.yield(State(step: .testingFileList, detail: .testFailed("File list", "\(fileList)")))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileList, startTime: startTime, result: .failed("File list", "\(fileList)"))))
             throw DeployError.testFailed(message: "List files endpoint test failed")
         }
 
         // Test file download
-        continuation.yield(State(step: .testingFileDownload))
+        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileDownload, startTime: startTime)))
         let downloadedData = try await client.downloadFile(fileName: "test-upload.txt")
         if let downloadedContent = String(data: downloadedData, encoding: .utf8),
            downloadedContent.contains("Hello from test file!") {
-            continuation.yield(State(step: .testingFileDownload, detail: .testPassed("File download")))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileDownload, startTime: startTime, result: .passed("File download"))))
         } else {
-            continuation.yield(State(step: .testingFileDownload, detail: .testFailed("File download", "Unexpected content")))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileDownload, startTime: startTime, result: .failed("File download", "Unexpected content"))))
             throw DeployError.testFailed(message: "File download endpoint test failed")
         }
 
         // Test database initialization
-        continuation.yield(State(step: .testingDatabaseInit))
+        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingDatabaseInit, startTime: startTime)))
         let dbResult = try await client.initializeDatabase()
         if dbResult.contains("Database Initialized") {
-            continuation.yield(State(step: .testingDatabaseInit, detail: .testPassed("Database init")))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingDatabaseInit, startTime: startTime, result: .passed("Database init"))))
         } else {
-            continuation.yield(State(step: .testingDatabaseInit, detail: .testFailed("Database init", dbResult)))
+            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingDatabaseInit, startTime: startTime, result: .failed("Database init", dbResult))))
             throw DeployError.testFailed(message: "Database endpoint test failed")
         }
     }

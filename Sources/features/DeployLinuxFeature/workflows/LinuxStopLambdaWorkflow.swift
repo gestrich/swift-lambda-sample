@@ -1,5 +1,6 @@
 import Foundation
 import CLISDK
+import DeployCoreService
 import DockerCLISDK
 import Uniflow
 
@@ -38,33 +39,12 @@ public struct LinuxStopLambdaWorkflow: StreamingWorkflow {
         return Components(workflow: workflow)
     }
 
-    /// State updates from the stop Lambda workflow.
-    public struct State: Sendable {
-        public let step: Step
-        public let detail: Detail?
-
-        public enum Step: Sendable, Equatable {
-            case checking
-            case stopping
-            case complete
-        }
-
-        public enum Detail: Sendable {
-            case output(String)
-            case wasRunning(Bool)
-        }
-
-        public init(step: Step, detail: Detail? = nil) {
-            self.step = step
-            self.detail = detail
-        }
-    }
-
+    public typealias State = LinuxWorkflowState
     public typealias Result = State
     public typealias Options = Void
 
     /// Stream the stop Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields State updates
+    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -80,15 +60,23 @@ public struct LinuxStopLambdaWorkflow: StreamingWorkflow {
     private func runWorkflow(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
-        // Check if Lambda container is running
-        continuation.yield(State(step: .checking))
-        let wasRunning = try await isRunning()
+        let startTime = Date()
 
         // Stop Lambda container
-        continuation.yield(State(step: .stopping))
-        try await stopLambda(continuation: continuation)
+        continuation.yield(.stoppingLambda(LinuxWorkflowState.LambdaProgress(step: .stopping, startTime: startTime)))
+        try await stopLambda()
 
-        continuation.yield(State(step: .complete, detail: .wasRunning(wasRunning)))
+        // Build final snapshot - Lambda is stopped, services status untracked (use stopped as default)
+        let snapshot = LinuxSnapshot(
+            serviceStatus: DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: .stopped,
+                postgresState: .stopped,
+                dynamodbState: .stopped
+            ),
+            buildStatus: .notBuilt
+        )
+        continuation.yield(.completed(snapshot))
         continuation.finish()
     }
 
@@ -100,14 +88,11 @@ public struct LinuxStopLambdaWorkflow: StreamingWorkflow {
     }
 
     /// Stop Lambda container
-    private func stopLambda(
-        continuation: AsyncThrowingStream<State, Error>.Continuation
-    ) async throws {
+    private func stopLambda() async throws {
         do {
             try await dockerClient.stop(container: config.containerName)
-            continuation.yield(State(step: .stopping, detail: .output("Lambda stopped")))
         } catch {
-            continuation.yield(State(step: .stopping, detail: .output("Container may already be stopped")))
+            // Container may already be stopped, which is fine
         }
     }
 }
