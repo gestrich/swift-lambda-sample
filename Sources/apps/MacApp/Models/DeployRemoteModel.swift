@@ -98,6 +98,7 @@ public class DeployRemoteModel {
             cliClient: cli,
             awsConfig: awsConfig
         )
+        Task { await refresh() }
     }
 
     /// Convenience initializer that loads configs from disk

@@ -161,7 +161,7 @@ public class DeployXcodeModel: LocalService {
         self.workingDirectory = workingDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
-        // State starts as .uninitialized - caller should call refresh() to populate
+        Task { await refresh() }
     }
 
     // MARK: - Service Management

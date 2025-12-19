@@ -310,6 +310,53 @@ struct SettingsView: View {
 
 When configuration changes, simply replace the model. The old model deallocates and views automatically observe the new one. For cleanup of in-flight work, cancel tasks in `deinit`.
 
+#### Model Lifecycle
+
+Models self-initialize on `init`. This eliminates the need for views to trigger loading on appear.
+
+```swift
+@MainActor @Observable
+class DeploymentModel {
+    var state: ModelState = .loading(prior: nil)
+    private let workflow: DeploymentWorkflow
+
+    init(workflow: DeploymentWorkflow) {
+        self.workflow = workflow
+        Task { await load() }
+    }
+
+    private func load() async {
+        let snapshot = try? await workflow.fetchStatus()
+        state = .ready(snapshot ?? .empty)
+    }
+}
+```
+
+**When child models affect parent state:**
+
+If a parent model's state depends on a child model, refresh when the child is set:
+
+```swift
+@MainActor @Observable
+class AppModel {
+    var state: AppState = .loading
+    var githubModel: GitHubModel? {
+        didSet { Task { await refreshState() } }
+    }
+
+    init() {
+        Task { await refreshState() }
+    }
+
+    private func refreshState() async {
+        let gitStatus = await githubModel?.fetchStatus()
+        state = .ready(AppSnapshot(github: gitStatus))
+    }
+}
+```
+
+This pattern keeps views simple—they observe state without triggering loads.
+
 #### CLI Commands
 
 CLI commands use workflows directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:

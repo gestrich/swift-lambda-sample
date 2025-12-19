@@ -190,6 +190,7 @@ public class DeployLinuxModel: LocalService {
             config: .linux,
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
+        Task { await refresh() }
     }
 
     // MARK: - Service Management

@@ -31,6 +31,7 @@ public final class DependencyStatusModel {
         self.cliClient = cliClient
         self.statusWorkflow = DependencyStatusWorkflow(cliClient: cliClient)
         self.installWorkflow = DependencyInstallWorkflow(cliClient: cliClient)
+        Task { await checkAll() }
     }
 
     // MARK: - Public API

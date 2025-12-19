@@ -34,7 +34,7 @@ public final class GitHubCIModel {
     // MARK: - Init
 
     /// Initialize with workflows and configuration.
-    /// Note: Does NOT automatically refresh status. Call `refresh()` explicitly after init.
+    /// Automatically refreshes status on init.
     public init(
         pushAndDeployWorkflow: GitHubPushAndDeployWorkflow,
         monitorRunWorkflow: GitHubMonitorRunWorkflow,
@@ -47,6 +47,7 @@ public final class GitHubCIModel {
         self.statusQuery = statusQuery
         self.repository = repository
         self.branch = branch
+        Task { await refresh() }
     }
 
     /// Convenience initializer that creates the workflows from configuration.
