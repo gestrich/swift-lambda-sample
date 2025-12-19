@@ -494,29 +494,58 @@ public func startIfNecessary() async {
 }
 ```
 
-- [ ] **Phase 10: Update UI Consumers**
+- [x] **Phase 10: Update UI Consumers** ✅ COMPLETED
 
-Update any SwiftUI views that consume `buildState` or `lambdaState` to use the new unified `state` property:
+Made `buildState` and `lambdaState` computed properties that derive from the unified `state` property. This maintains backward compatibility with the `LocalService` protocol and existing UI consumers while ensuring all state is derived from the single source of truth.
 
-**Before:**
+**Implementation notes:**
+- `buildState` now returns a `BuildState` derived from `state.workflowState` and `state.snapshot.buildStatus`
+- `lambdaState` now returns a `LambdaState` derived from `state.workflowState` and `state.snapshot.lambdaState`
+- Both properties have no-op setters (protocol requires `{ get set }` but mutations are managed through state machine)
+- Updated `deleteBuild()` to reset state via the unified state machine instead of `buildState.clear()`
+- Removed obsolete `isTransitioning` computed property (no longer used after Phases 4-9)
+- Build verified successful
+- UI consumers (`LocalServiceView`, `LocalServicesModel`) continue to work without changes
+
+**Changes made (lines 84-141):**
 ```swift
-if model.buildState.status.isBuilding {
-    ProgressView("Building...")
+// Build state derived from unified state
+public var buildState: BuildState {
+    get {
+        if let workflowState = state.workflowState, workflowState.isBuilding {
+            return BuildState(status: .building)
+        }
+        if let snapshot = state.snapshot {
+            switch snapshot.buildStatus {
+            case .notBuilt: return BuildState(status: .notBuilt)
+            case .building: return BuildState(status: .building)
+            case .available: return BuildState(status: .available)
+            case .failed: return BuildState(status: .failed(1))
+            }
+        }
+        return BuildState(status: .notBuilt)
+    }
+    set { /* Protocol requirement - mutations ignored */ }
 }
-```
 
-**After:**
-```swift
-if case .operating(let workflowState, _) = model.state,
-   workflowState.isBuilding {
-    ProgressView("Building...")
-}
-```
-
-Or with a convenience accessor:
-```swift
-if model.state.workflowState?.isBuilding == true {
-    ProgressView("Building...")
+// Lambda state derived from unified state
+public var lambdaState: LambdaState {
+    get {
+        if let workflowState = state.workflowState {
+            if workflowState.isStarting { return LambdaState(status: .starting) }
+            if workflowState.isStopping { return LambdaState(status: .stopping) }
+        }
+        if let snapshot = state.snapshot {
+            switch snapshot.lambdaState {
+            case .running: return LambdaState(status: .running)
+            case .stopped: return LambdaState(status: .stopped)
+            case .starting: return LambdaState(status: .starting)
+            case .stopping: return LambdaState(status: .stopping)
+            }
+        }
+        return LambdaState(status: .stopped)
+    }
+    set { /* Protocol requirement - mutations ignored */ }
 }
 ```
 
