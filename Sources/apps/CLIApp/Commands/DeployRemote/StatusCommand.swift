@@ -29,18 +29,18 @@ extension DeployRemoteCommand {
             let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
             let credentialProvider = awsConfig.makeCredentialProvider()
 
-            let components = DeployStatusWorkflow.create(
+            let components = DeployStatusUseCase.create(
                 projectRoot: projectRoot,
                 credentialProvider: credentialProvider,
                 cliClient: cliClient
             )
 
-            for try await state in components.workflow.stream() {
+            for try await state in components.useCase.stream() {
                 printState(state)
             }
         }
 
-        private func printState(_ state: DeployStatusWorkflow.State) {
+        private func printState(_ state: DeployStatusUseCase.State) {
             guard let detail = state.detail else { return }
 
             switch detail {
@@ -80,7 +80,7 @@ extension DeployRemoteCommand {
             }
         }
 
-        private func printStackStatus(_ status: DeployStatusWorkflow.StackStatus) {
+        private func printStackStatus(_ status: DeployStatusUseCase.StackStatus) {
             switch status {
             case .deployed(let stack):
                 if stack.outputs.isEmpty {

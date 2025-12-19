@@ -5,16 +5,16 @@ import GitHubSDK
 import DeployCoreService
 import Uniflow
 
-/// Workflow for initial deployment - setting infrastructure configuration.
+/// Use case for initial deployment - setting infrastructure configuration.
 /// Orchestrates safety checks, CDK deployment, Lambda update, database init, and verification.
-public struct DeployInitWorkflow: StreamingUseCase, Sendable {
+public struct DeployInitUseCase: StreamingUseCase, Sendable {
     public typealias Result = State
-    private let deployComponents: DeployWorkflow.Components
+    private let deployComponents: DeployUseCase.Components
     private let cliClient: CLIClient
     private let projectRoot: String
 
     public init(
-        deployComponents: DeployWorkflow.Components,
+        deployComponents: DeployUseCase.Components,
         cliClient: CLIClient,
         projectRoot: String
     ) {
@@ -25,19 +25,19 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
 
     /// Components needed for deploy-init operations.
     public struct Components: Sendable {
-        public let workflow: DeployInitWorkflow
+        public let useCase: DeployInitUseCase
         public let cfClient: CloudFormationClient
         public let stackName: String
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameters:
     ///   - cdkDirectory: Full path to the CDK directory
     ///   - credentialProvider: AWS credential provider for authentication
     ///   - cliClient: CLI client for executing commands
     ///   - projectRoot: Root directory of the project
     ///   - stackName: CloudFormation stack name (defaults to CDKStackConfiguration.defaultStackName)
-    /// - Returns: Components containing the workflow and CloudFormation client
+    /// - Returns: Components containing the use case and CloudFormation client
     public static func create(
         cdkDirectory: String,
         credentialProvider: any AWSCredentialProvider,
@@ -45,27 +45,27 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
         projectRoot: String,
         stackName: String = CDKStackConfiguration.defaultStackName
     ) -> Components {
-        let deployComponents = DeployWorkflow.create(
+        let deployComponents = DeployUseCase.create(
             cdkDirectory: cdkDirectory,
             credentialProvider: credentialProvider,
             cliClient: cliClient,
             stackName: stackName
         )
 
-        let workflow = DeployInitWorkflow(
+        let useCase = DeployInitUseCase(
             deployComponents: deployComponents,
             cliClient: cliClient,
             projectRoot: projectRoot
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cfClient: deployComponents.cfClient,
             stackName: deployComponents.stackName
         )
     }
 
-    /// State updates from the deploy-init workflow.
+    /// State updates from the deploy-init use case.
     public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
@@ -107,7 +107,7 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
         }
     }
 
-    /// Options for the deploy-init workflow.
+    /// Options for the deploy-init use case.
     public struct Options: Sendable {
         public let withPostgres: Bool
         public let withNATGateway: Bool
@@ -124,7 +124,7 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
         }
     }
 
-    /// Stream the deploy-init workflow, yielding state updates.
+    /// Stream the deploy-init use case, yielding state updates.
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -167,7 +167,7 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
 
         // Phase 3: Deploy infrastructure
         continuation.yield(State(step: .deployingInfrastructure))
-        let deployOptions = DeployWorkflow.Options(
+        let deployOptions = DeployUseCase.Options(
             withPostgres: options.withPostgres,
             withNATGateway: options.withNATGateway
         )
@@ -175,7 +175,7 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
         var apiUrl: String?
         var finalOutputs: CDKStackOutputs?
 
-        for try await workflowState in deployComponents.workflow.stream(options: deployOptions) {
+        for try await workflowState in deployComponents.useCase.stream(options: deployOptions) {
             continuation.yield(State(
                 step: .deployingInfrastructure,
                 detail: .deployState(workflowState)
@@ -193,13 +193,13 @@ public struct DeployInitWorkflow: StreamingUseCase, Sendable {
 
         // Phase 4: Update Lambda code via GitHub Actions
         continuation.yield(State(step: .updatingLambda))
-        let updateLambdaWorkflow = try UpdateLambdaWorkflow.create(
+        let updateLambdaUseCase = try UpdateLambdaUseCase.create(
             projectRoot: projectRoot,
             cliClient: cliClient
         )
-        let updateOptions = UpdateLambdaWorkflow.Options(skipPush: options.skipPush, prior: nil)
+        let updateOptions = UpdateLambdaUseCase.Options(skipPush: options.skipPush, prior: nil)
 
-        for try await lambdaState in updateLambdaWorkflow.stream(options: updateOptions) {
+        for try await lambdaState in updateLambdaUseCase.stream(options: updateOptions) {
             continuation.yield(State(
                 step: .updatingLambda,
                 detail: .lambdaState(lambdaState)

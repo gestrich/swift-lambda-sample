@@ -27,7 +27,7 @@ extension DeployRemoteCommand {
 
             print("\n📦 Starting CDK deployment...")
 
-            let components = DeployWorkflow.create(
+            let components = DeployUseCase.create(
                 cdkDirectory: env.cdkDirectory,
                 credentialProvider: env.credentialProvider,
                 cliClient: env.cliClient
@@ -40,7 +40,7 @@ extension DeployRemoteCommand {
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await state in components.workflow.stream(options: options) {
+            for try await state in components.useCase.stream(options: options) {
                 switch state {
                 case .deploying(let progress):
                     switch progress.step {
@@ -80,7 +80,7 @@ extension DeployRemoteCommand {
             print("\nℹ️  Lambda code was NOT updated. Use 'aws update-lambda' to update Lambda code.")
         }
 
-        private func detectCurrentConfiguration(cfClient: CloudFormationClient, stackName: String) async throws -> DeployWorkflow.Options {
+        private func detectCurrentConfiguration(cfClient: CloudFormationClient, stackName: String) async throws -> DeployUseCase.Options {
             do {
                 let state = try await cfClient.queryState(stackName: stackName)
 
@@ -92,7 +92,7 @@ extension DeployRemoteCommand {
                     print("   NAT Gateway: \(resources.hasNATGateway ? "YES" : "NO")")
                     print("   → Maintaining current configuration\n")
 
-                    return DeployWorkflow.Options(
+                    return DeployUseCase.Options(
                         withPostgres: resources.hasDatabase,
                         withNATGateway: resources.hasNATGateway
                     )

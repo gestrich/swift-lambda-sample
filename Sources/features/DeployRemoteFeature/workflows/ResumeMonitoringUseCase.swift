@@ -1,17 +1,17 @@
 //
-//  ResumeMonitoringWorkflow.swift
+//  ResumeMonitoringUseCase.swift
 //  service-deploy
 //
-//  Workflow for resuming monitoring of an in-progress CloudFormation operation.
+//  Use case for resuming monitoring of an in-progress CloudFormation operation.
 //
 
 import Foundation
 import AWSSDK
 import CLISDK
 
-/// Workflow for resuming monitoring of an in-progress CloudFormation operation.
+/// Use case for resuming monitoring of an in-progress CloudFormation operation.
 /// Used when the app starts and detects a deploy/destroy is already running.
-public struct ResumeMonitoringWorkflow: Sendable {
+public struct ResumeMonitoringUseCase: Sendable {
     private let cfClient: CloudFormationClient
     private let stackName: String
 
@@ -23,7 +23,7 @@ public struct ResumeMonitoringWorkflow: Sendable {
         self.stackName = stackName
     }
 
-    /// Run the monitoring workflow for an already in-progress operation.
+    /// Run the monitoring use case for an already in-progress operation.
     /// - Parameter initialState: The CloudFormationState detected (must be .deploying or .destroying)
     /// - Returns: AsyncThrowingStream that yields WorkflowState updates until completion
     public func run(
@@ -32,7 +32,7 @@ public struct ResumeMonitoringWorkflow: Sendable {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(
+                    try await runUseCase(
                         initialState: initialState,
                         continuation: continuation
                     )
@@ -43,7 +43,7 @@ public struct ResumeMonitoringWorkflow: Sendable {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         initialState: CloudFormationState,
         continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
     ) async throws {

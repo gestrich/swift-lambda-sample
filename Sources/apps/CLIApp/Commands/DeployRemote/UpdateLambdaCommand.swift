@@ -19,14 +19,14 @@ extension DeployRemoteCommand {
             let projectRoot = FileManager.default.currentDirectoryPath
             let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
 
-            let workflow = try UpdateLambdaWorkflow.create(
+            let useCase = try UpdateLambdaUseCase.create(
                 projectRoot: projectRoot,
                 cliClient: cliClient
             )
 
-            let options = UpdateLambdaWorkflow.Options(skipPush: skipPush, prior: nil)
+            let options = UpdateLambdaUseCase.Options(skipPush: skipPush, prior: nil)
 
-            for try await state in workflow.stream(options: options) {
+            for try await state in useCase.stream(options: options) {
                 switch state {
                 case .updatingLambda(let progress):
                     switch progress.step {

@@ -44,14 +44,14 @@ extension DeployRemoteCommand {
                 print("")
             }
 
-            let components = DeployInitWorkflow.create(
+            let components = DeployInitUseCase.create(
                 cdkDirectory: env.cdkDirectory,
                 credentialProvider: env.credentialProvider,
                 cliClient: env.cliClient,
                 projectRoot: env.projectRoot
             )
 
-            let options = DeployInitWorkflow.Options(
+            let options = DeployInitUseCase.Options(
                 withPostgres: withPostgres,
                 withNATGateway: withNatGateway,
                 skipPush: skipPush
@@ -59,7 +59,7 @@ extension DeployRemoteCommand {
 
             var finalOutputs: CDKStackOutputs?
 
-            for try await state in components.workflow.stream(options: options) {
+            for try await state in components.useCase.stream(options: options) {
                 printState(state, newConfig: options)
 
                 if case .complete = state.step,
@@ -78,7 +78,7 @@ extension DeployRemoteCommand {
             print("\n🎉 Deployment completed successfully!")
         }
 
-        private func printState(_ state: DeployInitWorkflow.State, newConfig: DeployInitWorkflow.Options) {
+        private func printState(_ state: DeployInitUseCase.State, newConfig: DeployInitUseCase.Options) {
             switch state.step {
             case .checkingSafety:
                 if case .safetyCheckPassed = state.detail {

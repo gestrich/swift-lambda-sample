@@ -4,9 +4,9 @@ import CLISDK
 import GitHubSDK
 import Uniflow
 
-/// Workflow for querying deployment and git status.
+/// Use case for querying deployment and git status.
 /// Orchestrates git status, GitHub Actions status, and CloudFormation stack queries.
-public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
+public struct DeployStatusUseCase: StreamingUseCase, Sendable {
     public typealias Options = Void
     public typealias Result = State
     private let gitClient: GitClient
@@ -37,18 +37,18 @@ public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
 
     /// Components needed for status operations.
     public struct Components: Sendable {
-        public let workflow: DeployStatusWorkflow
+        public let useCase: DeployStatusUseCase
         public let cfClient: CloudFormationClient
         public let stackName: String
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameters:
     ///   - projectRoot: Root directory of the project (for git operations)
     ///   - credentialProvider: AWS credential provider for authentication
     ///   - cliClient: CLI client for executing commands
     ///   - stackName: CloudFormation stack name (defaults to CDKStackConfiguration.defaultStackName)
-    /// - Returns: Components containing the workflow and CloudFormation client
+    /// - Returns: Components containing the use case and CloudFormation client
     public static func create(
         projectRoot: String,
         credentialProvider: any AWSCredentialProvider,
@@ -65,7 +65,7 @@ public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
             GitHubCLIClient(repository: $0.repository, cliClient: cliClient)
         }
 
-        let workflow = DeployStatusWorkflow(
+        let useCase = DeployStatusUseCase(
             gitClient: gitClient,
             ghClient: ghClient,
             cfClient: cfClient,
@@ -76,13 +76,13 @@ public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cfClient: cfClient,
             stackName: stackName
         )
     }
 
-    /// State updates from the status workflow.
+    /// State updates from the status use case.
     public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
@@ -171,12 +171,12 @@ public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
         }
     }
 
-    /// Stream the status workflow, yielding state updates.
+    /// Stream the status use case, yielding state updates.
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -184,7 +184,7 @@ public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         // Phase 1: Git status

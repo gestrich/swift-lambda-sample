@@ -8,11 +8,11 @@ import DeployCoreService
 import LambdaBuildService
 
 /// Observable model for remote AWS deployments in the app layer.
-/// This is a thin model that uses workflows from service-deploy-remote and maintains observable state.
+/// This is a thin model that uses use cases from service-deploy-remote and maintains observable state.
 ///
 /// Per the layered architecture:
 /// - App layer (this model): @Observable state + UI coordination
-/// - Service layer (workflows): Multi-step orchestration, returns AsyncThrowingStream
+/// - Service layer (use cases): Multi-step orchestration, returns AsyncThrowingStream
 /// - SDK layer (clients): Stateless execute/query operations
 @MainActor @Observable
 public class DeployRemoteModel {
@@ -154,18 +154,18 @@ public class DeployRemoteModel {
     // MARK: - Refresh Operations
 
     /// Refresh deployment state from AWS
-    /// If an operation is in progress, automatically starts monitoring it via RefreshWorkflow.
+    /// If an operation is in progress, automatically starts monitoring it via RefreshUseCase.
     public func refresh() async {
         guard state.isIdle else { return }
 
         let prior = state.snapshot
         state = .loading(prior: prior)
 
-        let workflow = RefreshWorkflow(cfClient: cfClient, stackName: stackName)
+        let useCase = RefreshUseCase(cfClient: cfClient, stackName: stackName)
 
         do {
-            for try await workflowState in workflow.stream(options: ()) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in useCase.stream(options: ()) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -175,20 +175,20 @@ public class DeployRemoteModel {
     // MARK: - Deploy Operations
 
     /// Deploy infrastructure with specified configuration
-    public func deploy(options: DeployWorkflow.Options) async {
+    public func deploy(options: DeployUseCase.Options) async {
         guard state.canDeploy else { return }
 
         let prior = state.snapshot
 
-        let workflow = DeployWorkflow(
+        let useCase = DeployUseCase(
             cdkClient: cdkClient,
             cfClient: cfClient,
             stackName: stackName
         )
 
         do {
-            for try await workflowState in workflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in useCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -198,7 +198,7 @@ public class DeployRemoteModel {
     /// Update infrastructure maintaining current configuration
     public func updateInfrastructure(output: CLIOutputStream? = nil) async {
         let shape = state.snapshot?.infrastructure?.shape ?? .minimal
-        let options = DeployWorkflow.Options(infrastructure: shape, output: output)
+        let options = DeployUseCase.Options(infrastructure: shape, output: output)
         await deploy(options: options)
     }
 
@@ -210,16 +210,16 @@ public class DeployRemoteModel {
 
         let prior = state.snapshot
 
-        let workflow = DestroyWorkflow(
+        let useCase = DestroyUseCase(
             cdkClient: cdkClient,
             cfClient: cfClient,
             stackName: stackName
         )
 
-        let options = DestroyWorkflow.Options(output: output)
+        let options = DestroyUseCase.Options(output: output)
         do {
-            for try await workflowState in workflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in useCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -234,16 +234,16 @@ public class DeployRemoteModel {
 
         let prior = state.snapshot
 
-        let workflow = try UpdateLambdaWorkflow.create(
+        let useCase = try UpdateLambdaUseCase.create(
             projectRoot: projectRoot,
             cliClient: cliClient
         )
 
-        let options = UpdateLambdaWorkflow.Options(skipPush: skipPush, prior: prior)
+        let options = UpdateLambdaUseCase.Options(skipPush: skipPush, prior: prior)
 
         do {
-            for try await workflowState in workflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in useCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -258,6 +258,7 @@ public class DeployRemoteModel {
     ///
     /// Uses service-layer types (`WorkflowState`, `DeploymentSnapshot`) for actual state,
     /// while `ModelState` handles the app-layer concerns (loading, prior preservation).
+    /// Note: `WorkflowState` name is retained for the shared state enum (will be renamed in a future phase).
     public enum ModelState {
         /// Initial state before any operation
         case uninitialized
@@ -268,13 +269,13 @@ public class DeployRemoteModel {
         /// Ready state with current deployment info
         case ready(DeploymentSnapshot)
 
-        /// Active workflow in progress (uses WorkflowState from service layer)
+        /// Active use case in progress (uses WorkflowState from service layer)
         case operating(WorkflowState, prior: DeploymentSnapshot?)
 
         // MARK: - Convenience Initializers
 
-        /// Construct ModelState from a workflow state plus app-layer prior.
-        /// This is the key integration point between workflows and the model.
+        /// Construct ModelState from a use case state plus app-layer prior.
+        /// This is the key integration point between use cases and the model.
         public init(from workflowState: WorkflowState, prior: DeploymentSnapshot?) {
             if let snapshot = workflowState.completedSnapshot {
                 self = .ready(snapshot)
@@ -304,7 +305,7 @@ public class DeployRemoteModel {
             }
         }
 
-        /// The active workflow state, if operating
+        /// The active use case state, if operating
         public var workflowState: WorkflowState? {
             guard case .operating(let state, _) = self else { return nil }
             return state
@@ -372,7 +373,7 @@ public class DeployRemoteModel {
             snapshot?.infrastructure
         }
 
-        /// Operation start time (for elapsed time display) - from workflow state
+        /// Operation start time (for elapsed time display) - from use case state
         public var operationStartTime: Date? {
             workflowState?.startTime
         }

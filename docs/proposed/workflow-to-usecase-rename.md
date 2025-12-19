@@ -54,7 +54,7 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 
 ---
 
-## Phase 2: DeployRemoteFeature Rename (Part 1)
+## Phase 2: DeployRemoteFeature Rename (Part 1) ✅ COMPLETED
 
 **Scope**: First half of DeployRemoteFeature workflows and supporting types.
 
@@ -67,10 +67,25 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 | `UpdateLambdaWorkflow` | `UpdateLambdaUseCase` | `UpdateLambdaWorkflow.swift` → `UpdateLambdaUseCase.swift` |
 | `UpdateLambdaWorkflowError` | `UpdateLambdaUseCaseError` | (same file as above) |
 | `RefreshWorkflow` | `RefreshUseCase` | `RefreshWorkflow.swift` → `RefreshUseCase.swift` |
+| `ResumeMonitoringWorkflow` | `ResumeMonitoringUseCase` | `ResumeMonitoringWorkflow.swift` → `ResumeMonitoringUseCase.swift` |
 
-**Items: 7**
+**Items: 8** (originally 7, +1 `ResumeMonitoringWorkflow` moved from Phase 3)
 
 **Location**: `Sources/features/DeployRemoteFeature/workflows/`
+
+**Completion Notes**:
+- Files renamed using `git mv`
+- All type names updated: struct names, Components.workflow → Components.useCase
+- Error type renamed: `UpdateLambdaWorkflowError` → `UpdateLambdaUseCaseError` with updated error cases
+- All CLI commands updated (DeployInitCommand, DeployCommand, StatusCommand, TearDownCommand, UpdateLambdaCommand)
+- MacApp's DeployRemoteModel updated to use new UseCase names
+- Documentation comments updated to use "use case" terminology
+- Build verified successfully
+
+**Technical Notes**:
+- `ResumeMonitoringWorkflow` was included in this phase since it was referenced by `RefreshUseCase` and needed to be renamed together
+- The `Components.workflow` property was renamed to `Components.useCase` in all affected types
+- The error type's `.workflowFailed` case was renamed to `.githubActionsFailed` for clarity
 
 ---
 
@@ -83,12 +98,11 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 | `CloudWatchLogsWorkflow` | `CloudWatchLogsUseCase` | `CloudWatchLogsWorkflow.swift` → `CloudWatchLogsUseCase.swift` |
 | `GitHubMonitorRunWorkflow` | `GitHubMonitorRunUseCase` | `GitHubMonitorRunWorkflow.swift` → `GitHubMonitorRunUseCase.swift` |
 | `GitHubPushAndDeployWorkflow` | `GitHubPushAndDeployUseCase` | `GitHubPushAndDeployWorkflow.swift` → `GitHubPushAndDeployUseCase.swift` |
-| `ResumeMonitoringWorkflow` | `ResumeMonitoringUseCase` | `ResumeMonitoringWorkflow.swift` → `ResumeMonitoringUseCase.swift` |
 | `WorkflowState` | `UseCaseState` | `DeploymentState.swift` |
 | `GitHubCIWorkflowError` | `GitHubCIUseCaseError` | `GitHubCITypes.swift` |
 | Folder rename | `workflows/` → `usecases/` | `Sources/features/DeployRemoteFeature/` |
 
-**Items: 7**
+**Items: 6** (reduced from 7, `ResumeMonitoringWorkflow` moved to Phase 2)
 
 ---
 

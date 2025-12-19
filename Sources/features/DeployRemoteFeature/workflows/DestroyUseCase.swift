@@ -3,9 +3,9 @@ import AWSSDK
 import CLISDK
 import Uniflow
 
-/// Workflow for destroying CDK infrastructure.
+/// Use case for destroying CDK infrastructure.
 /// Orchestrates CDK destroy and CloudFormation monitoring, returning progress via stream.
-public struct DestroyWorkflow: StreamingUseCase {
+public struct DestroyUseCase: StreamingUseCase {
     public typealias State = WorkflowState
     public typealias Result = State
     private let cdkClient: CDKClient
@@ -23,20 +23,20 @@ public struct DestroyWorkflow: StreamingUseCase {
     }
 
     /// Components needed for destroy operations.
-    /// Exposes the CloudFormation client for state checking before running the workflow.
+    /// Exposes the CloudFormation client for state checking before running the use case.
     public struct Components: Sendable {
-        public let workflow: DestroyWorkflow
+        public let useCase: DestroyUseCase
         public let cfClient: CloudFormationClient
         public let stackName: String
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameters:
     ///   - cdkDirectory: Full path to the CDK directory
     ///   - credentialProvider: AWS credential provider for authentication
     ///   - cliClient: CLI client for executing commands
     ///   - stackName: CloudFormation stack name (defaults to CDKStackConfiguration.defaultStackName)
-    /// - Returns: Components containing the workflow and CloudFormation client
+    /// - Returns: Components containing the use case and CloudFormation client
     public static func create(
         cdkDirectory: String,
         credentialProvider: any AWSCredentialProvider,
@@ -53,20 +53,20 @@ public struct DestroyWorkflow: StreamingUseCase {
             cliClient: cliClient
         )
 
-        let workflow = DestroyWorkflow(
+        let useCase = DestroyUseCase(
             cdkClient: cdkClient,
             cfClient: cfClient,
             stackName: stackName
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cfClient: cfClient,
             stackName: stackName
         )
     }
 
-    // Note: This workflow yields WorkflowState directly. The workflow captures
+    // Note: This use case yields WorkflowState directly. The use case captures
     // startTime internally; the app layer adds `prior` when needed.
 
     /// Options for destroying infrastructure
@@ -86,14 +86,14 @@ public struct DestroyWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the destroy workflow, yielding state updates during execution.
+    /// Stream the destroy use case, yielding state updates during execution.
     /// - Parameter options: Destroy options (including optional output stream)
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(
+                    try await runUseCase(
                         options: options,
                         continuation: continuation
                     )
@@ -104,7 +104,7 @@ public struct DestroyWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {

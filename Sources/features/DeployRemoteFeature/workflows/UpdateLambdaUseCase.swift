@@ -4,9 +4,9 @@ import GitHubSDK
 import DeployCoreService
 import Uniflow
 
-/// Workflow for updating Lambda code via GitHub Actions.
-/// Orchestrates git operations and workflow monitoring, yielding state updates via stream.
-public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
+/// Use case for updating Lambda code via GitHub Actions.
+/// Orchestrates git operations and GitHub Actions monitoring, yielding state updates via stream.
+public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
     public typealias State = WorkflowState
     public typealias Result = State
     private let gitClient: GitClient
@@ -26,7 +26,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
         self.workflowName = workflowName
     }
 
-    /// Creates a workflow by loading GitHub configuration from disk.
+    /// Creates a use case by loading GitHub configuration from disk.
     /// - Parameters:
     ///   - projectRoot: Root directory of the project
     ///   - cliClient: CLI client for executing commands
@@ -34,7 +34,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
     public static func create(
         projectRoot: String,
         cliClient: CLIClient
-    ) throws -> UpdateLambdaWorkflow {
+    ) throws -> UpdateLambdaUseCase {
         guard let githubConfig = GitHubConfiguration.loadConfig() else {
             throw DeployError.configurationMissing(
                 file: GitHubConfiguration.configPath,
@@ -45,7 +45,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
         let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
         let ghClient = GitHubCLIClient(repository: githubConfig.repository, cliClient: cliClient)
 
-        return UpdateLambdaWorkflow(
+        return UpdateLambdaUseCase(
             gitClient: gitClient,
             ghClient: ghClient,
             branch: githubConfig.branch,
@@ -53,7 +53,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
         )
     }
 
-    /// Options for the update lambda workflow.
+    /// Options for the update lambda use case.
     public struct Options: Sendable {
         public let skipPush: Bool
         public let workflowName: String
@@ -73,13 +73,13 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
         }
     }
 
-    /// Stream the update lambda workflow, yielding state updates.
+    /// Stream the update lambda use case, yielding state updates.
     /// - Returns: AsyncThrowingStream that yields WorkflowState updates.
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -87,7 +87,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
@@ -204,7 +204,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
             try await Task.sleep(for: pollInterval)
         }
 
-        throw UpdateLambdaWorkflowError.timeout(operation: "waiting for new workflow run", duration: timeout)
+        throw UpdateLambdaUseCaseError.timeout(operation: "waiting for new GitHub Actions run", duration: timeout)
     }
 
     private func monitorUntilComplete(
@@ -219,7 +219,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
 
         while !Task.isCancelled {
             if ContinuousClock.now - startClock > timeout {
-                throw UpdateLambdaWorkflowError.timeout(operation: "workflow monitoring", duration: timeout)
+                throw UpdateLambdaUseCaseError.timeout(operation: "GitHub Actions monitoring", duration: timeout)
             }
 
             let detail = try await ghClient.getRunDetail(runId: runId)
@@ -228,7 +228,7 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
                 if detail.isSuccess {
                     return
                 } else {
-                    throw UpdateLambdaWorkflowError.workflowFailed(
+                    throw UpdateLambdaUseCaseError.githubActionsFailed(
                         runId: runId,
                         conclusion: detail.conclusion ?? "unknown"
                     )
@@ -248,16 +248,16 @@ public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
 
 // MARK: - Errors
 
-public enum UpdateLambdaWorkflowError: Error, LocalizedError {
+public enum UpdateLambdaUseCaseError: Error, LocalizedError {
     case timeout(operation: String, duration: Duration)
-    case workflowFailed(runId: String, conclusion: String)
+    case githubActionsFailed(runId: String, conclusion: String)
 
     public var errorDescription: String? {
         switch self {
         case .timeout(let operation, let duration):
             return "Timeout during \(operation) after \(duration)"
-        case .workflowFailed(let runId, let conclusion):
-            return "Workflow \(runId) failed: \(conclusion)"
+        case .githubActionsFailed(let runId, let conclusion):
+            return "GitHub Actions run \(runId) failed: \(conclusion)"
         }
     }
 }

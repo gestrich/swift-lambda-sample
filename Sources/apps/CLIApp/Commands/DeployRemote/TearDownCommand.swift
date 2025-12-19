@@ -42,7 +42,7 @@ extension DeployRemoteCommand {
                 }
             }
 
-            let components = DestroyWorkflow.create(
+            let components = DestroyUseCase.create(
                 cdkDirectory: env.cdkDirectory,
                 credentialProvider: env.credentialProvider,
                 cliClient: env.cliClient
@@ -75,9 +75,9 @@ extension DeployRemoteCommand {
                 throw DeployError.invalidConfiguration("Cannot tear down: \(message)")
             }
 
-            let options = DestroyWorkflow.Options(force: true)
+            let options = DestroyUseCase.Options(force: true)
 
-            for try await state in components.workflow.stream(options: options) {
+            for try await state in components.useCase.stream(options: options) {
                 switch state {
                 case .destroying(let progress):
                     if let detail = progress.detail, !detail.destroyProgressDescription.isEmpty {

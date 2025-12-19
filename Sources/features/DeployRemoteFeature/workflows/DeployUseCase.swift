@@ -3,9 +3,9 @@ import AWSSDK
 import CLISDK
 import Uniflow
 
-/// Workflow for deploying CDK infrastructure.
+/// Use case for deploying CDK infrastructure.
 /// Orchestrates CDK deployment and CloudFormation monitoring, returning progress via stream.
-public struct DeployWorkflow: StreamingUseCase {
+public struct DeployUseCase: StreamingUseCase {
     public typealias State = WorkflowState
     public typealias Result = State
     private let cdkClient: CDKClient
@@ -23,20 +23,20 @@ public struct DeployWorkflow: StreamingUseCase {
     }
 
     /// Components needed for deployment operations.
-    /// Exposes the CloudFormation client for configuration detection before running the workflow.
+    /// Exposes the CloudFormation client for configuration detection before running the use case.
     public struct Components: Sendable {
-        public let workflow: DeployWorkflow
+        public let useCase: DeployUseCase
         public let cfClient: CloudFormationClient
         public let stackName: String
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameters:
     ///   - cdkDirectory: Full path to the CDK directory
     ///   - credentialProvider: AWS credential provider for authentication
     ///   - cliClient: CLI client for executing commands
     ///   - stackName: CloudFormation stack name (defaults to CDKStackConfiguration.defaultStackName)
-    /// - Returns: Components containing the workflow and CloudFormation client
+    /// - Returns: Components containing the use case and CloudFormation client
     public static func create(
         cdkDirectory: String,
         credentialProvider: any AWSCredentialProvider,
@@ -53,20 +53,20 @@ public struct DeployWorkflow: StreamingUseCase {
             cliClient: cliClient
         )
 
-        let workflow = DeployWorkflow(
+        let useCase = DeployUseCase(
             cdkClient: cdkClient,
             cfClient: cfClient,
             stackName: stackName
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             cfClient: cfClient,
             stackName: stackName
         )
     }
 
-    // Note: This workflow yields WorkflowState directly. The workflow captures
+    // Note: This use case yields WorkflowState directly. The use case captures
     // startTime internally; the app layer adds `prior` when needed.
 
     /// App-specific deployment options
@@ -125,14 +125,14 @@ public struct DeployWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the deploy workflow, yielding state updates during execution.
+    /// Stream the deploy use case, yielding state updates during execution.
     /// - Parameter options: Deployment options (including optional output stream)
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(
+                    try await runUseCase(
                         options: options,
                         continuation: continuation
                     )
@@ -143,7 +143,7 @@ public struct DeployWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
