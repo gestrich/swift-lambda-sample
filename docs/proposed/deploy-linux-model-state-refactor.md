@@ -232,11 +232,21 @@ private var isTransitioning: Bool {
 }
 ```
 
-- [ ] **Phase 3: Add Derived Properties**
+- [x] **Phase 3: Add Derived Properties** ✅ COMPLETED
 
-Add computed properties for backward compatibility or convenience:
+Added computed properties on `DeployLinuxModel` for convenience access, delegating to `ModelState`:
+
+**Implementation notes:**
+- Added 7 derived properties delegating to `state`: `isIdle`, `canStart`, `canStop`, `canBuild`, `snapshot`, `workflowState`, `operationStartTime`
+- Properties placed in new "Derived Properties (Convenience Accessors)" MARK section (lines 61-82)
+- Updated `startIfNecessary()` to use `isIdle` and `snapshot` instead of `state.isIdle` and `state.snapshot`
+- Updated `refresh()` to use `isIdle` and `snapshot` instead of `state.isIdle` and `state.snapshot`
+- `currentStatus` and `isLoadingStatus` were already added in Phase 2 for protocol compatibility
+- Build verified successful
 
 ```swift
+// MARK: - Derived Properties (Convenience Accessors)
+
 public var isIdle: Bool { state.isIdle }
 public var canStart: Bool { state.canStart }
 public var canStop: Bool { state.canStop }
@@ -244,11 +254,6 @@ public var canBuild: Bool { state.canBuild }
 public var snapshot: LinuxSnapshot? { state.snapshot }
 public var workflowState: LinuxWorkflowState? { state.workflowState }
 public var operationStartTime: Date? { state.operationStartTime }
-
-// For LocalService protocol compatibility
-public var currentStatus: DeploymentStatus {
-    state.snapshot?.serviceStatus ?? .stopped
-}
 ```
 
 - [ ] **Phase 4: Refactor Build Operation**

@@ -58,6 +58,29 @@ public class DeployLinuxModel: LocalService {
         return false
     }
 
+    // MARK: - Derived Properties (Convenience Accessors)
+
+    /// Whether the model is idle (not loading or operating).
+    public var isIdle: Bool { state.isIdle }
+
+    /// Whether a start operation can be performed.
+    public var canStart: Bool { state.canStart }
+
+    /// Whether a stop operation can be performed.
+    public var canStop: Bool { state.canStop }
+
+    /// Whether a build operation can be performed.
+    public var canBuild: Bool { state.canBuild }
+
+    /// Current deployment snapshot (from ready state or prior state during loading/operation).
+    public var snapshot: LinuxSnapshot? { state.snapshot }
+
+    /// The active workflow state, if operating.
+    public var workflowState: LinuxWorkflowState? { state.workflowState }
+
+    /// Start time of the current operation, if any.
+    public var operationStartTime: Date? { state.operationStartTime }
+
     // MARK: - Build State (Protocol Requirement)
 
     public var buildState = BuildState()
@@ -281,11 +304,11 @@ public class DeployLinuxModel: LocalService {
 
     public func startIfNecessary() async {
         print("🔄 DeployLocalModel.startIfNecessary called")
-        guard state.isIdle else { return }
+        guard isIdle else { return }
 
         await refresh()
 
-        guard let snapshot = state.snapshot else { return }
+        guard let snapshot = snapshot else { return }
 
         print("🔄 Lambda state: \(snapshot.lambdaState), S3: \(snapshot.s3State), Postgres: \(snapshot.postgresState), DynamoDB: \(snapshot.dynamodbState)")
 
@@ -363,9 +386,9 @@ public class DeployLinuxModel: LocalService {
 
     @discardableResult
     public func refresh() async -> DeploymentStatus? {
-        guard state.isIdle else { return nil }
+        guard isIdle else { return nil }
 
-        let prior = state.snapshot
+        let prior = snapshot
         state = .loading(prior: prior)
 
         let components = LinuxStatusWorkflow.create(workingDirectory: workingDirectory)
