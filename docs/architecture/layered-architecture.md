@@ -204,6 +204,66 @@ class Model {
 }
 ```
 
+#### Model Composition
+
+Parent models can hold child models as properties. For features that require configuration (AWS credentials, GitHub tokens, etc.), prefer optional child models over models that exist in an "unconfigured" state.
+
+**Rationale**: A model that doesn't exist is clearer than a model that exists but can't do anything. Views naturally handle this via `if let`, and there's no ambiguity about whether the feature is available.
+
+```swift
+@MainActor @Observable
+class AppModel {
+    var githubModel: GitHubModel?  // nil if GitHub not configured
+
+    init() {
+        // Only create if configuration exists
+        if let config = try? GitHubConfiguration.load() {
+            self.githubModel = GitHubModel(config: config)
+        }
+    }
+
+    func configureGitHub(_ config: GitHubConfiguration) {
+        githubModel = GitHubModel(config: config)
+    }
+
+    func clearGitHub() {
+        githubModel = nil
+    }
+}
+```
+
+**View conditional rendering:**
+
+```swift
+struct ContentView: View {
+    @State var appModel = AppModel()
+
+    var body: some View {
+        // View accesses appModel.githubModel → registers observation
+        // When property changes (nil ↔ value), view re-renders
+        if let githubModel = appModel.githubModel {
+            GitHubView(model: githubModel)
+        } else {
+            ConfigureGitHubPrompt()
+        }
+    }
+}
+```
+
+SwiftUI's `@Observable` tracks property access. When the view reads `appModel.githubModel`, it subscribes to changes. Setting the property to a new value (or nil) triggers a view update.
+
+**Two levels of observation:**
+
+| Change | What Updates |
+|--------|--------------|
+| `appModel.githubModel = newModel` | Parent view re-renders (model existence changed) |
+| `githubModel.state = .loading` | Child view re-renders (model's internal state changed) |
+
+**Requirements:**
+
+- Use `@MainActor` on all models—observation may fail silently for changes on background threads
+- Store root models in the `App` struct, not individual views, to avoid re-initialization on view rebuilds
+
 #### CLI Commands
 
 CLI commands use workflows directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:
