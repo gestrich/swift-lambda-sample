@@ -27,7 +27,8 @@ public final class DependencyStatusModel {
 
     // MARK: - Init
 
-    public init(cliClient: CLIClient) {
+    public init(workingDirectory: String) {
+        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.cliClient = cliClient
         self.statusWorkflow = DependencyStatusWorkflow(cliClient: cliClient)
         self.installWorkflow = DependencyInstallWorkflow(cliClient: cliClient)

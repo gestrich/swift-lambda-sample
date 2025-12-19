@@ -76,6 +76,11 @@ extension LambdaService {
     public func waitForReady() async throws {
         try await waitForReady(maxAttempts: 30)
     }
+
+    /// Instance accessor for persistenceKey (for use with existential types)
+    public var persistenceKey: String {
+        Self.persistenceKey
+    }
 }
 
 // MARK: - Service State

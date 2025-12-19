@@ -1,5 +1,4 @@
 import Foundation
-import CLISDK
 import ClientService
 import DeployRemoteFeature
 import DeployCoreService
@@ -11,36 +10,18 @@ import StorageService
 @MainActor
 @Observable
 class AppModel {
-    // MARK: - Services
+    // MARK: - Models
 
-    /// Remote service is optional - nil if AWS config is missing
+    private(set) var dependencyStatusModel: DependencyStatusModel
+    private(set) var githubModel: GitHubCIModel?
+    private(set) var linuxLocalService: DeployLinuxModel
     private(set) var remoteModel: DeployRemoteModel?
+    private(set) var xcodeLocalService: DeployXcodeModel
 
     /// Error from failed remote service initialization (nil if service was created successfully)
     private(set) var remoteServiceError: Error?
 
-    /// GitHub CI model is optional - nil if GitHub config is missing
-    private(set) var githubModel: GitHubCIModel?
-
-    let xcodeLocalService: DeployXcodeModel
-    let linuxLocalService: DeployLinuxModel
-    let dependencyStatusModel: DependencyStatusModel
-
-    /// Observable models for local services (used by LocalServiceView)
-    let xcodeLocalModel: LocalServicesModel
-    let linuxLocalModel: LocalServicesModel
-
     private let projectDirectory: String
-
-    /// The current local model based on mode (nil if remote)
-    var currentLocalModel: LocalServicesModel? {
-        switch mode {
-        case .localXcode: return xcodeLocalModel
-        case .localLinux: return linuxLocalModel
-        case .remoteModel: return nil
-        case .unconfigured: return nil
-        }
-    }
 
     // MARK: - Persisted State
 
@@ -55,32 +36,28 @@ class AppModel {
     // MARK: - Private
 
     private let modeKey = "macApp.mode"
-    private let cliClient: CLIClient
 
     // MARK: - Init
 
     init() {
         let projectDirectory = Self.resolveProjectDirectory()
         self.projectDirectory = projectDirectory
-        self.cliClient = CLIClient(defaultWorkingDirectory: projectDirectory)
 
         // Create remote service - may fail if AWS config is missing
         var remote: DeployRemoteModel?
         var remoteError: Error?
         do {
-            remote = try DeployRemoteModel(projectRoot: projectDirectory, cliClient: cliClient)
+            remote = try DeployRemoteModel(projectRoot: projectDirectory)
         } catch {
             remoteError = error
         }
 
-        // Create GitHub CI model if config is available
+        // Create GitHub CI model - may fail if config is missing
         var github: GitHubCIModel?
-        if let githubConfig = GitHubConfiguration.loadConfig() {
-            github = GitHubCIModel(
-                projectRoot: projectDirectory,
-                config: githubConfig,
-                cliClient: cliClient
-            )
+        do {
+            github = try GitHubCIModel(projectRoot: projectDirectory)
+        } catch {
+            // Optional - config missing is fine
         }
 
         let xcode = DeployXcodeModel(workingDirectory: projectDirectory)
@@ -91,10 +68,7 @@ class AppModel {
         self.githubModel = github
         self.xcodeLocalService = xcode
         self.linuxLocalService = linux
-        self.dependencyStatusModel = DependencyStatusModel(cliClient: cliClient)
-
-        self.xcodeLocalModel = LocalServicesModel(service: xcode)
-        self.linuxLocalModel = LocalServicesModel(service: linux)
+        self.dependencyStatusModel = DependencyStatusModel(workingDirectory: projectDirectory)
 
         // Load mode from UserDefaults
         let savedKey = UserDefaults.standard.string(forKey: modeKey) ?? DeployRemoteModel.persistenceKey
@@ -114,24 +88,6 @@ class AppModel {
             initialMode = .localXcode(xcode)
         }
         self.mode = initialMode
-
-        // Start services if necessary for initial mode
-        Task {
-            await self.startCurrentServiceIfNecessary()
-        }
-    }
-
-    /// Start the current service if necessary (used on init and mode change)
-    private func startCurrentServiceIfNecessary() async {
-        print("🔄 startCurrentServiceIfNecessary called, mode: \(mode.persistenceKey)")
-        if let localModel = currentLocalModel {
-            print("🔄 Found localModel, calling startIfNecessary")
-            await localModel.startIfNecessary()
-            print("🔄 startIfNecessary completed")
-        } else if let remoteModel {
-            print("🔄 No localModel (remote mode), calling refresh")
-            await remoteModel.refresh()
-        }
     }
 
     /// Resolve the project directory automatically using ProjectPathResolver
@@ -150,14 +106,7 @@ class AppModel {
     // MARK: - Mode Changes
 
     private func onModeChanged(oldMode: ConnectionMode) {
-        print("🔄 onModeChanged: \(oldMode.persistenceKey) -> \(mode.persistenceKey)")
-        // Save preference
         save()
-
-        // Start services if necessary and refresh status
-        Task {
-            await startCurrentServiceIfNecessary()
-        }
     }
 
     // MARK: - Mode Setters (for Picker binding)
@@ -231,7 +180,7 @@ class AppModel {
     /// Creates a new model if config is now available, or clears it if config was removed.
     private func reloadRemoteModel() {
         do {
-            remoteModel = try DeployRemoteModel(projectRoot: projectDirectory, cliClient: cliClient)
+            remoteModel = try DeployRemoteModel(projectRoot: projectDirectory)
             remoteServiceError = nil
         } catch {
             remoteModel = nil
@@ -242,13 +191,9 @@ class AppModel {
     /// Reload the GitHub CI model from GitHub configuration.
     /// Creates a new model if config is now available, or clears it if config was removed.
     private func reloadGitHubModel() {
-        if let githubConfig = GitHubConfiguration.loadConfig() {
-            githubModel = GitHubCIModel(
-                projectRoot: projectDirectory,
-                config: githubConfig,
-                cliClient: cliClient
-            )
-        } else {
+        do {
+            githubModel = try GitHubCIModel(projectRoot: projectDirectory)
+        } catch {
             githubModel = nil
         }
     }
@@ -269,16 +214,6 @@ enum ConnectionMode {
         case .localXcode: return DeployXcodeModel.persistenceKey
         case .localLinux: return DeployLinuxModel.persistenceKey
         case .unconfigured: return "unconfigured"
-        }
-    }
-
-    /// Local service if applicable (for LambdaService protocol)
-    var localService: LambdaService? {
-        switch self {
-        case .localXcode(let service): return service
-        case .localLinux(let service): return service
-        case .remoteModel: return nil
-        case .unconfigured: return nil
         }
     }
 }

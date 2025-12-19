@@ -103,10 +103,7 @@ public class DeployRemoteModel {
 
     /// Convenience initializer that loads configs from disk
     /// - Throws: `DeployError.configurationMissing` if AWS config file is not found
-    public convenience init(
-        projectRoot: String,
-        cliClient: CLIClient? = nil
-    ) throws {
+    public convenience init(projectRoot: String) throws {
         guard let awsConfig = AWSAuthConfiguration.loadConfig() else {
             throw DeployError.configurationMissing(
                 file: AWSAuthConfiguration.configPath,
@@ -118,8 +115,7 @@ public class DeployRemoteModel {
         self.init(
             projectRoot: projectRoot,
             awsConfig: awsConfig,
-            githubConfig: githubConfig,
-            cliClient: cliClient
+            githubConfig: githubConfig
         )
     }
     

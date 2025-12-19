@@ -1,5 +1,6 @@
 import AppKit
 import CLISDK
+import DeployCoreService
 import GitHubSDK
 import Foundation
 import Observation
@@ -48,6 +49,19 @@ public final class GitHubCIModel {
         self.repository = repository
         self.branch = branch
         Task { await refresh() }
+    }
+
+    /// Convenience initializer that loads config from disk.
+    /// - Throws: If GitHub configuration is not found.
+    public convenience init(projectRoot: String) throws {
+        guard let config = GitHubConfiguration.loadConfig() else {
+            throw DeployError.configurationMissing(
+                file: GitHubConfiguration.configPath,
+                hint: "Create GitHub configuration file"
+            )
+        }
+        let cliClient = CLIClient(defaultWorkingDirectory: projectRoot)
+        self.init(projectRoot: projectRoot, config: config, cliClient: cliClient)
     }
 
     /// Convenience initializer that creates the workflows from configuration.

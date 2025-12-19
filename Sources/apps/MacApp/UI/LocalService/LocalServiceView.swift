@@ -1,13 +1,14 @@
 import AppKit
 import CLISDK
+import DeployLocalService
 import DeployRemoteFeature
 import SwiftUI
 
 /// View for Local Lambda service management (Xcode or Linux)
 /// Shows Docker services, build controls, and Lambda management
-/// The service mode (Xcode vs Linux) is controlled by the parent ServicesView
+/// The service mode (Xcode vs Linux) is controlled by the parent ContentView
 struct LocalServiceView: View {
-    let service: LocalServicesModel
+    let service: any LocalService
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,9 +17,9 @@ struct LocalServiceView: View {
                     // MARK: - Docker Services Section
                     DockerServicesView(
                         dockerProvider: service,
-                        s3State: service.status.s3State,
-                        postgresState: service.status.postgresState,
-                        dynamodbState: service.status.dynamodbState,
+                        s3State: service.currentStatus.s3State,
+                        postgresState: service.currentStatus.postgresState,
+                        dynamodbState: service.currentStatus.dynamodbState,
                         onRefreshStatus: { await service.refresh() }
                     )
 
@@ -36,9 +37,10 @@ struct LocalServiceView: View {
             }
 
             // Collapsible output panel pinned to bottom
+            let cliClient = service.cliClient
             CollapsibleOutputPanel(
-                streamProvider: { await service.cliClient.outputStream() },
-                streamId: type(of: service).persistenceKey,
+                streamProvider: { await cliClient.outputStream() },
+                streamId: service.persistenceKey,
                 onCommand: { runCommand($0) }
             )
         }
