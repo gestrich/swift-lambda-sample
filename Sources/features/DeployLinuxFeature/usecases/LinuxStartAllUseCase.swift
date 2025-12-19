@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for starting Lambda with all services for Linux development.
-/// Orchestrates LinuxStartServicesWorkflow, LinuxSetupNetworkWorkflow, and LinuxStartLambdaWorkflow.
-public struct LinuxStartAllWorkflow: StreamingUseCase {
+/// Use case for starting Lambda with all services for Linux development.
+/// Orchestrates LinuxStartServicesUseCase, LinuxSetupNetworkUseCase, and LinuxStartLambdaUseCase.
+public struct LinuxStartAllUseCase: StreamingUseCase {
     private let workingDirectory: String
 
     public init(workingDirectory: String) {
@@ -20,30 +20,30 @@ public struct LinuxStartAllWorkflow: StreamingUseCase {
 
     /// Components needed for start all operations.
     public struct Components: Sendable {
-        public let workflow: LinuxStartAllWorkflow
+        public let useCase: LinuxStartAllUseCase
         public let port: Int
     }
 
-    /// Creates a workflow and associated components.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and configuration
+    /// Creates a use case and associated components.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and configuration
     public static func create(workingDirectory: String) -> Components {
         let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
-        let workflow = LinuxStartAllWorkflow(workingDirectory: workingDirectory)
-        return Components(workflow: workflow, port: config.hostPort)
+        let useCase = LinuxStartAllUseCase(workingDirectory: workingDirectory)
+        return Components(useCase: useCase, port: config.hostPort)
     }
 
-    public typealias State = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the start all workflow.
+    /// Stream the start all use case.
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -51,22 +51,22 @@ public struct LinuxStartAllWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Start services first
-        continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(
+        continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(
             step: .starting,
             startTime: startTime
         )))
-        let servicesComponents = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await servicesState in servicesComponents.workflow.stream(options: .all) {
-            // Sub-workflow now yields LinuxWorkflowState, forward relevant states
+        let servicesComponents = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
+        for try await servicesState in servicesComponents.useCase.stream(options: .all) {
+            // Sub-use case now yields LinuxUseCaseState, forward relevant states
             switch servicesState {
             case .startingServices(let progress):
-                continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(
+                continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(
                     step: .starting,
                     startTime: startTime,
                     currentService: progress.currentService
@@ -79,15 +79,15 @@ public struct LinuxStartAllWorkflow: StreamingUseCase {
         }
 
         // Setup Docker network
-        continuation.yield(.settingUpNetwork(LinuxWorkflowState.NetworkProgress(
+        continuation.yield(.settingUpNetwork(LinuxUseCaseState.NetworkProgress(
             step: .creatingNetwork,
             startTime: startTime
         )))
-        let networkComponents = LinuxSetupNetworkWorkflow.create(workingDirectory: workingDirectory)
-        for try await networkState in networkComponents.workflow.stream() {
+        let networkComponents = LinuxSetupNetworkUseCase.create(workingDirectory: workingDirectory)
+        for try await networkState in networkComponents.useCase.stream() {
             let networkStep = mapNetworkStep(networkState.step)
             let message = mapNetworkDetail(networkState.detail)
-            continuation.yield(.settingUpNetwork(LinuxWorkflowState.NetworkProgress(
+            continuation.yield(.settingUpNetwork(LinuxUseCaseState.NetworkProgress(
                 step: networkStep,
                 startTime: startTime,
                 message: message
@@ -95,16 +95,16 @@ public struct LinuxStartAllWorkflow: StreamingUseCase {
         }
 
         // Start Lambda container (includes waitForReady)
-        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(
+        continuation.yield(.startingLambda(LinuxUseCaseState.LambdaProgress(
             step: .starting,
             startTime: startTime
         )))
-        let lambdaComponents = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
-        for try await lambdaState in lambdaComponents.workflow.stream() {
-            // Sub-workflow now yields LinuxWorkflowState, forward relevant states
+        let lambdaComponents = LinuxStartLambdaUseCase.create(workingDirectory: workingDirectory)
+        for try await lambdaState in lambdaComponents.useCase.stream() {
+            // Sub-use case now yields LinuxUseCaseState, forward relevant states
             switch lambdaState {
             case .startingLambda(let progress):
-                continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(
+                continuation.yield(.startingLambda(LinuxUseCaseState.LambdaProgress(
                     step: progress.step,
                     startTime: startTime
                 )))
@@ -134,7 +134,7 @@ public struct LinuxStartAllWorkflow: StreamingUseCase {
 
     // MARK: - State Mapping Helpers
 
-    private func mapNetworkStep(_ step: LinuxSetupNetworkWorkflow.State.Step) -> LinuxWorkflowState.NetworkProgress.Step {
+    private func mapNetworkStep(_ step: LinuxSetupNetworkUseCase.State.Step) -> LinuxUseCaseState.NetworkProgress.Step {
         switch step {
         case .creatingNetwork: return .creatingNetwork
         case .connectingContainers: return .connectingContainers
@@ -142,7 +142,7 @@ public struct LinuxStartAllWorkflow: StreamingUseCase {
         }
     }
 
-    private func mapNetworkDetail(_ detail: LinuxSetupNetworkWorkflow.State.Detail?) -> String? {
+    private func mapNetworkDetail(_ detail: LinuxSetupNetworkUseCase.State.Detail?) -> String? {
         switch detail {
         case .output(let msg): return msg
         case .networkCreated(let name): return "Network '\(name)' created"

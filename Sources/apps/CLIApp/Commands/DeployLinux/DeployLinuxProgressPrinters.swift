@@ -3,7 +3,7 @@ import DeployLinuxFeature
 
 // MARK: - Linux Progress Printers
 
-func printLinuxBuildProgress(_ progress: LinuxWorkflowState) {
+func printLinuxBuildProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .building(let buildProgress):
         switch buildProgress.step {
@@ -23,7 +23,7 @@ func printLinuxBuildProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStartLambdaProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStartLambdaProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .building(let buildProgress):
         if let output = buildProgress.output {
@@ -47,7 +47,7 @@ func printLinuxStartLambdaProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStopLambdaProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStopLambdaProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .stoppingLambda:
         print("🛑 Stopping Lambda container...")
@@ -58,7 +58,7 @@ func printLinuxStopLambdaProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStartServicesProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStartServicesProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .startingServices(let servicesProgress):
         if let service = servicesProgress.currentService {
@@ -80,7 +80,7 @@ func printLinuxStartServicesProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStopServicesProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStopServicesProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .stoppingServices(let servicesProgress):
         if let service = servicesProgress.currentService {
@@ -102,7 +102,7 @@ func printLinuxStopServicesProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxStartAllProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStartAllProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .startingServices(let servicesProgress):
         if let service = servicesProgress.currentService {
@@ -142,14 +142,14 @@ func printLinuxStartAllProgress(_ progress: LinuxWorkflowState) {
         if snapshot.isAllRunning {
             print("✅ All services and Lambda container started")
         } else {
-            print("✅ Workflow complete")
+            print("✅ Use case complete")
         }
     default:
         break
     }
 }
 
-func printLinuxStopAllProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStopAllProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .stoppingLambda(let lambdaProgress):
         switch lambdaProgress.step {
@@ -176,14 +176,14 @@ func printLinuxStopAllProgress(_ progress: LinuxWorkflowState) {
         if snapshot.isAllStopped {
             print("✅ All Lambda container and services stopped")
         } else {
-            print("✅ Workflow complete")
+            print("✅ Use case complete")
         }
     default:
         break
     }
 }
 
-func printLinuxTestProgress(_ progress: LinuxWorkflowState) {
+func printLinuxTestProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .testing(let testProgress):
         switch testProgress.step {
@@ -226,7 +226,7 @@ func printLinuxTestProgress(_ progress: LinuxWorkflowState) {
     }
 }
 
-func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.State) {
+func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigUseCase.State) {
     switch progress.step {
     case .copying:
         if case .copiedFile(let file) = progress.detail {
@@ -243,7 +243,7 @@ func printLinuxCopyConfigProgress(_ progress: LinuxCopyConfigWorkflow.State) {
     }
 }
 
-func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflow.State) {
+func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkUseCase.State) {
     switch progress.step {
     case .creatingNetwork:
         switch progress.detail {
@@ -270,7 +270,7 @@ func printLinuxSetupNetworkProgress(_ progress: LinuxSetupNetworkWorkflow.State)
     }
 }
 
-func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWorkflow.State) {
+func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveUseCase.State) {
     switch progress.step {
     case .preparing:
         if case .output(let text) = progress.detail {
@@ -289,7 +289,7 @@ func printLinuxRunInteractiveProgress(_ progress: LinuxRunInteractiveWorkflow.St
     }
 }
 
-func printLinuxStatusProgress(_ progress: LinuxWorkflowState) {
+func printLinuxStatusProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .checkingStatus(let statusProgress):
         switch statusProgress.step {

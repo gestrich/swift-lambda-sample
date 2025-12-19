@@ -46,12 +46,12 @@ extension DeployLinuxCommand {
         var clean: Bool = false
 
         func run() async throws {
-            let components = LinuxBuildWorkflow.create(
+            let components = LinuxBuildUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxBuildWorkflow.Options(clean: clean)
+            let options = LinuxBuildUseCase.Options(clean: clean)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxBuildProgress(progress)
             }
         }
@@ -65,11 +65,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartLambdaWorkflow.create(
+            let components = LinuxStartLambdaUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxStartLambdaProgress(progress)
             }
         }
@@ -83,11 +83,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopLambdaWorkflow.create(
+            let components = LinuxStopLambdaUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxStopLambdaProgress(progress)
             }
         }
@@ -102,9 +102,9 @@ extension DeployLinuxCommand {
 
         func run() async throws {
             let workingDirectory = FileManager.default.currentDirectoryPath
-            let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
+            let components = LinuxStartAllUseCase.create(workingDirectory: workingDirectory)
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxStartAllProgress(progress)
             }
         }
@@ -118,11 +118,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopAllWorkflow.create(
+            let components = LinuxStopAllUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxStopAllProgress(progress)
             }
         }
@@ -136,12 +136,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartServicesWorkflow.create(
+            let components = LinuxStartServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxStartServicesWorkflow.Options.only(.database)
+            let options = LinuxStartServicesUseCase.Options.only(.database)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxStartServicesProgress(progress)
             }
         }
@@ -155,12 +155,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopServicesWorkflow.create(
+            let components = LinuxStopServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxStopServicesWorkflow.Options.only(.database)
+            let options = LinuxStopServicesUseCase.Options.only(.database)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -174,12 +174,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartServicesWorkflow.create(
+            let components = LinuxStartServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxStartServicesWorkflow.Options.only(.dynamodb)
+            let options = LinuxStartServicesUseCase.Options.only(.dynamodb)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxStartServicesProgress(progress)
             }
         }
@@ -193,12 +193,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopServicesWorkflow.create(
+            let components = LinuxStopServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxStopServicesWorkflow.Options.only(.dynamodb)
+            let options = LinuxStopServicesUseCase.Options.only(.dynamodb)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -212,12 +212,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartServicesWorkflow.create(
+            let components = LinuxStartServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxStartServicesWorkflow.Options.only(.s3)
+            let options = LinuxStartServicesUseCase.Options.only(.s3)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxStartServicesProgress(progress)
             }
         }
@@ -231,12 +231,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopServicesWorkflow.create(
+            let components = LinuxStopServicesUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxStopServicesWorkflow.Options.only(.s3)
+            let options = LinuxStopServicesUseCase.Options.only(.s3)
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxStopServicesProgress(progress)
             }
         }
@@ -250,11 +250,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxTestWorkflow.create(
+            let components = LinuxTestUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxTestProgress(progress)
             }
         }
@@ -268,11 +268,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStatusWorkflow.create(
+            let components = LinuxStatusUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxStatusProgress(progress)
             }
         }
@@ -286,11 +286,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxSetupNetworkWorkflow.create(
+            let components = LinuxSetupNetworkUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxSetupNetworkProgress(progress)
             }
         }
@@ -304,11 +304,11 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxRunInteractiveWorkflow.create(
+            let components = LinuxRunInteractiveUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
 
-            for try await progress in components.workflow.stream() {
+            for try await progress in components.useCase.stream() {
                 printLinuxRunInteractiveProgress(progress)
             }
         }
@@ -322,12 +322,12 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxCopyConfigWorkflow.create(
+            let components = LinuxCopyConfigUseCase.create(
                 workingDirectory: FileManager.default.currentDirectoryPath
             )
-            let options = LinuxCopyConfigWorkflow.Options()
+            let options = LinuxCopyConfigUseCase.Options()
 
-            for try await progress in components.workflow.stream(options: options) {
+            for try await progress in components.useCase.stream(options: options) {
                 printLinuxCopyConfigProgress(progress)
             }
         }

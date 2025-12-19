@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for checking the status of local development services (Linux mode).
+/// Use case for checking the status of local development services (Linux mode).
 /// Contains all status logic directly, using SDK clients.
-public struct LinuxStatusWorkflow: StreamingUseCase {
+public struct LinuxStatusUseCase: StreamingUseCase {
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
@@ -34,12 +34,12 @@ public struct LinuxStatusWorkflow: StreamingUseCase {
 
     /// Components needed for status checking operations.
     public struct Components: Sendable {
-        public let workflow: LinuxStatusWorkflow
+        public let useCase: LinuxStatusUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -63,7 +63,7 @@ public struct LinuxStatusWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
 
-        let workflow = LinuxStatusWorkflow(
+        let useCase = LinuxStatusUseCase(
             dockerClient: dockerClient,
             postgresClient: postgresClient,
             minioClient: minioClient,
@@ -71,20 +71,20 @@ public struct LinuxStatusWorkflow: StreamingUseCase {
             config: config
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    public typealias State = LinuxWorkflowState
-    public typealias Result = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
+    public typealias Result = LinuxUseCaseState
     public typealias Options = Void
 
-    /// Stream the status workflow.
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
-    public func stream(options: Void) -> AsyncThrowingStream<LinuxWorkflowState, Error> {
+    /// Stream the status use case.
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
+    public func stream(options: Void) -> AsyncThrowingStream<LinuxUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -92,34 +92,34 @@ public struct LinuxStatusWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
-        continuation: AsyncThrowingStream<LinuxWorkflowState, Error>.Continuation
+    private func runUseCase(
+        continuation: AsyncThrowingStream<LinuxUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Check Lambda container status
-        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(LinuxUseCaseState.StatusProgress(
             step: .checkingLambda,
             startTime: startTime
         )))
         let lambdaRunning = try await isLambdaRunning()
 
         // Check S3 (MinIO) status
-        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(LinuxUseCaseState.StatusProgress(
             step: .checkingS3,
             startTime: startTime
         )))
         let s3Running = try await minioClient.isRunning()
 
         // Check PostgreSQL status
-        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(LinuxUseCaseState.StatusProgress(
             step: .checkingDatabase,
             startTime: startTime
         )))
         let postgresRunning = try await postgresClient.isRunning()
 
         // Check DynamoDB status
-        continuation.yield(.checkingStatus(LinuxWorkflowState.StatusProgress(
+        continuation.yield(.checkingStatus(LinuxUseCaseState.StatusProgress(
             step: .checkingDynamoDB,
             startTime: startTime
         )))

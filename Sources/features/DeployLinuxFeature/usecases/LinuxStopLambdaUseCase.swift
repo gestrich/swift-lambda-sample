@@ -4,9 +4,9 @@ import DeployCoreService
 import DockerCLISDK
 import Uniflow
 
-/// Workflow for stopping the Lambda container.
+/// Use case for stopping the Lambda container.
 /// Contains all stop logic directly, using SDK clients.
-public struct LinuxStopLambdaWorkflow: StreamingUseCase {
+public struct LinuxStopLambdaUseCase: StreamingUseCase {
     private let dockerClient: DockerClient
     private let config: LinuxContainerConfig
 
@@ -20,36 +20,36 @@ public struct LinuxStopLambdaWorkflow: StreamingUseCase {
 
     /// Components needed for Lambda stop operations.
     public struct Components: Sendable {
-        public let workflow: LinuxStopLambdaWorkflow
+        public let useCase: LinuxStopLambdaUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameter workingDirectory: The working directory
-    /// - Returns: Components containing the workflow
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
         let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
 
-        let workflow = LinuxStopLambdaWorkflow(
+        let useCase = LinuxStopLambdaUseCase(
             dockerClient: dockerClient,
             config: config
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    public typealias State = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the stop Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    /// Stream the stop Lambda use case.
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -57,13 +57,13 @@ public struct LinuxStopLambdaWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Stop Lambda container
-        continuation.yield(.stoppingLambda(LinuxWorkflowState.LambdaProgress(step: .stopping, startTime: startTime)))
+        continuation.yield(.stoppingLambda(LinuxUseCaseState.LambdaProgress(step: .stopping, startTime: startTime)))
         try await stopLambda()
 
         // Build final snapshot - Lambda is stopped, services status untracked (use stopped as default)

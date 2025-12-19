@@ -67,8 +67,8 @@ public class DeployLinuxModel: LocalService {
     /// Current deployment snapshot (from ready state or prior state during loading/operation).
     public var snapshot: LinuxSnapshot? { state.snapshot }
 
-    /// The active workflow state, if operating.
-    public var workflowState: LinuxWorkflowState? { state.workflowState }
+    /// The active use case state, if operating.
+    public var useCaseState: LinuxUseCaseState? { state.useCaseState }
 
     /// Start time of the current operation, if any.
     public var operationStartTime: Date? { state.operationStartTime }
@@ -80,7 +80,7 @@ public class DeployLinuxModel: LocalService {
     public var buildState: BuildState {
         get {
             // Derive from unified state
-            if let workflowState = state.workflowState, workflowState.isBuilding {
+            if let useCaseState = state.useCaseState, useCaseState.isBuilding {
                 return BuildState(status: .building)
             }
             if let snapshot = state.snapshot {
@@ -109,12 +109,12 @@ public class DeployLinuxModel: LocalService {
     /// Required by `LocalService` protocol for UI compatibility.
     public var lambdaState: LambdaState {
         get {
-            // Derive from workflow state first (in-progress operations)
-            if let workflowState = state.workflowState {
-                if workflowState.isStarting {
+            // Derive from use case state first (in-progress operations)
+            if let useCaseState = state.useCaseState {
+                if useCaseState.isStarting {
                     return LambdaState(status: .starting)
                 }
-                if workflowState.isStopping {
+                if useCaseState.isStopping {
                     return LambdaState(status: .stopping)
                 }
             }
@@ -196,16 +196,16 @@ public class DeployLinuxModel: LocalService {
     // MARK: - Service Management
 
     /// Start all supporting services (S3, PostgreSQL, DynamoDB).
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startAllServices() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .all) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .all) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -214,16 +214,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop all supporting services (S3, PostgreSQL, DynamoDB).
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopAllServices() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .all) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .all) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -232,16 +232,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Start S3 service (MinIO).
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startS3() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -254,16 +254,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop S3 service (MinIO).
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopS3() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -272,16 +272,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Start PostgreSQL database service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startDatabase() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.database)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -290,16 +290,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop PostgreSQL database service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopDatabase() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.database)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -308,16 +308,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Start DynamoDB Local service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func startDynamoDB() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -326,16 +326,16 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop DynamoDB Local service.
-    /// Uses workflow-driven state updates.
+    /// Uses use case-driven state updates.
     public func stopDynamoDB() async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -358,7 +358,7 @@ public class DeployLinuxModel: LocalService {
     // MARK: - Build
 
     /// Build Lambda for Linux container.
-    /// Uses workflow-driven state updates instead of manual buildState marking.
+    /// Uses use case-driven state updates instead of manual buildState marking.
     /// - Parameters:
     ///   - clean: Whether to clean build artifacts first
     ///   - output: Ignored - provided for protocol conformance (will be removed in Phase 11)
@@ -366,12 +366,12 @@ public class DeployLinuxModel: LocalService {
         guard canBuild else { return }
         let prior = snapshot
 
-        let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-        let options = LinuxBuildWorkflow.Options(clean: clean)
+        let components = LinuxBuildUseCase.create(workingDirectory: workingDirectory)
+        let options = LinuxBuildUseCase.Options(clean: clean)
 
         do {
-            for try await workflowState in components.workflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -390,8 +390,8 @@ public class DeployLinuxModel: LocalService {
     }
 
     public func deleteBuild() async throws {
-        let components = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-        try await components.workflow.deleteBuild()
+        let components = LinuxBuildUseCase.create(workingDirectory: workingDirectory)
+        try await components.useCase.deleteBuild()
         // Reset to initial state with notBuilt status
         // The snapshot's buildStatus will be .notBuilt when we refresh
         if let snapshot = state.snapshot {
@@ -407,17 +407,17 @@ public class DeployLinuxModel: LocalService {
     // MARK: - Lambda Lifecycle
 
     /// Start Lambda container.
-    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// Uses use case-driven state updates instead of manual lambdaState marking.
     /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func startLambda(output: CLIOutputStream? = nil) async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStartLambdaUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -426,17 +426,17 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop Lambda container.
-    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// Uses use case-driven state updates instead of manual lambdaState marking.
     /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func stopLambda(output: CLIOutputStream? = nil) async throws {
         guard isIdle else { return }
         let prior = snapshot
 
-        let components = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStopLambdaUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -445,17 +445,17 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Start Lambda container with all supporting services.
-    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// Uses use case-driven state updates instead of manual lambdaState marking.
     /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
         guard canStart else { return }
         let prior = snapshot
 
-        let components = LinuxStartAllWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStartAllUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -464,17 +464,17 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop Lambda container and all supporting services.
-    /// Uses workflow-driven state updates instead of manual lambdaState marking.
+    /// Uses use case-driven state updates instead of manual lambdaState marking.
     /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         guard canStop else { return }
         let prior = snapshot
 
-        let components = LinuxStopAllWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStopAllUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
@@ -484,7 +484,7 @@ public class DeployLinuxModel: LocalService {
 
     /// Start services if needed based on current state.
     /// Refreshes status first, then starts services if any are stopped.
-    /// Uses workflow-driven state updates - errors are captured in state.
+    /// Uses use case-driven state updates - errors are captured in state.
     public func startIfNecessary() async {
         guard isIdle else { return }
 
@@ -534,19 +534,19 @@ public class DeployLinuxModel: LocalService {
     }
 
     public func testLambda() async throws {
-        let components = LinuxTestWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: ()) {
-            // Consume workflow progress
+        let components = LinuxTestUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in components.useCase.stream(options: ()) {
+            // Consume use case progress
         }
     }
 
     // MARK: - Status
 
     public func status() async throws -> DeploymentStatus {
-        let components = LinuxStatusWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStatusUseCase.create(workingDirectory: workingDirectory)
         var result: DeploymentStatus = .stopped
 
-        for try await progress in components.workflow.stream() {
+        for try await progress in components.useCase.stream() {
             if case .completed(let snapshot) = progress {
                 result = snapshot.serviceStatus
             }
@@ -555,7 +555,7 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Refresh deployment status from Docker.
-    /// Uses workflow-driven state updates - the unified `state` property is the source of truth.
+    /// Uses use case-driven state updates - the unified `state` property is the source of truth.
     @discardableResult
     public func refresh() async -> DeploymentStatus? {
         guard isIdle else { return nil }
@@ -563,11 +563,11 @@ public class DeployLinuxModel: LocalService {
         let prior = snapshot
         state = .loading(prior: prior)
 
-        let components = LinuxStatusWorkflow.create(workingDirectory: workingDirectory)
+        let components = LinuxStatusUseCase.create(workingDirectory: workingDirectory)
 
         do {
-            for try await workflowState in components.workflow.stream() {
-                state = ModelState(from: workflowState, prior: prior)
+            for try await useCaseState in components.useCase.stream() {
+                state = ModelState(from: useCaseState, prior: prior)
             }
             return state.snapshot?.serviceStatus
         } catch {
@@ -580,16 +580,16 @@ public class DeployLinuxModel: LocalService {
 
     /// Setup Docker network for Lambda container
     public func setupDockerNetwork() async throws {
-        let components = LinuxSetupNetworkWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
+        let components = LinuxSetupNetworkUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in components.useCase.stream() {
             // Consume progress - could be extended to report to UI
         }
     }
 
     /// Run Lambda in interactive container
     public func runInteractive() async throws {
-        let components = LinuxRunInteractiveWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream() {
+        let components = LinuxRunInteractiveUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in components.useCase.stream() {
             // Consume progress - could be extended to report to UI
         }
     }
@@ -600,7 +600,7 @@ public class DeployLinuxModel: LocalService {
 extension DeployLinuxModel {
     /// Unified state machine for Linux development model.
     /// Mirrors `DeployRemoteModel.ModelState` for consistency.
-    /// Uses `LinuxWorkflowState` and `LinuxSnapshot` from the service layer.
+    /// Uses `LinuxUseCaseState` and `LinuxSnapshot` from the service layer.
     public enum ModelState: Equatable {
         /// Initial state before any operation
         case uninitialized
@@ -611,18 +611,18 @@ extension DeployLinuxModel {
         /// Ready state with current deployment info
         case ready(LinuxSnapshot)
 
-        /// Active workflow in progress (uses LinuxWorkflowState from service layer)
-        case operating(LinuxWorkflowState, prior: LinuxSnapshot?)
+        /// Active use case in progress (uses LinuxUseCaseState from service layer)
+        case operating(LinuxUseCaseState, prior: LinuxSnapshot?)
 
         // MARK: - Convenience Initializers
 
-        /// Construct ModelState from a workflow state plus app-layer prior.
-        /// This is the key integration point between workflows and the model.
-        public init(from workflowState: LinuxWorkflowState, prior: LinuxSnapshot?) {
-            if let snapshot = workflowState.completedSnapshot {
+        /// Construct ModelState from a use case state plus app-layer prior.
+        /// This is the key integration point between use cases and the model.
+        public init(from useCaseState: LinuxUseCaseState, prior: LinuxSnapshot?) {
+            if let snapshot = useCaseState.completedSnapshot {
                 self = .ready(snapshot)
             } else {
-                self = .operating(workflowState, prior: prior)
+                self = .operating(useCaseState, prior: prior)
             }
         }
 
@@ -647,8 +647,8 @@ extension DeployLinuxModel {
             }
         }
 
-        /// The active workflow state, if operating
-        public var workflowState: LinuxWorkflowState? {
+        /// The active use case state, if operating
+        public var useCaseState: LinuxUseCaseState? {
             guard case .operating(let state, _) = self else { return nil }
             return state
         }
@@ -699,7 +699,7 @@ extension DeployLinuxModel {
 
         /// Start time of the current operation, if any
         public var operationStartTime: Date? {
-            workflowState?.startTime
+            useCaseState?.startTime
         }
     }
 }

@@ -5,9 +5,9 @@ import LambdaBuildService
 import DeployCoreService
 import Uniflow
 
-/// Workflow for building Lambda for Linux/Docker container development.
+/// Use case for building Lambda for Linux/Docker container development.
 /// Contains all build logic directly, using SDK clients.
-public struct LinuxBuildWorkflow: StreamingUseCase {
+public struct LinuxBuildUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let workingDirectory: String
@@ -31,30 +31,30 @@ public struct LinuxBuildWorkflow: StreamingUseCase {
 
     /// Components needed for build operations.
     public struct Components: Sendable {
-        public let workflow: LinuxBuildWorkflow
+        public let useCase: LinuxBuildUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameter workingDirectory: The working directory for the build
-    /// - Returns: Components containing the workflow
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
 
-        let workflow = LinuxBuildWorkflow(
+        let useCase = LinuxBuildUseCase(
             cliClient: cliClient,
             dockerClient: dockerClient,
             workingDirectory: workingDirectory
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    /// State type alias - workflows yield LinuxWorkflowState
-    public typealias State = LinuxWorkflowState
-    public typealias Result = LinuxWorkflowState
+    /// State type alias - use cases yield LinuxUseCaseState
+    public typealias State = LinuxUseCaseState
+    public typealias Result = LinuxUseCaseState
 
-    /// Options for the build workflow.
+    /// Options for the build use case.
     public struct Options: Sendable {
         public let clean: Bool
 
@@ -63,14 +63,14 @@ public struct LinuxBuildWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the build workflow.
+    /// Stream the build use case.
     /// - Parameter options: Build options
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
-    public func stream(options: Options) -> AsyncThrowingStream<LinuxWorkflowState, Error> {
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
+    public func stream(options: Options) -> AsyncThrowingStream<LinuxUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -78,9 +78,9 @@ public struct LinuxBuildWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
-        continuation: AsyncThrowingStream<LinuxWorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<LinuxUseCaseState, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
@@ -91,13 +91,13 @@ public struct LinuxBuildWorkflow: StreamingUseCase {
 
         // Clean if requested
         if options.clean {
-            continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .cleaning, startTime: startTime)))
+            continuation.yield(.building(LinuxUseCaseState.BuildProgress(step: .cleaning, startTime: startTime)))
             let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
             _ = try await cliClient.execute(rmCmd, workingDirectory: workingDirectory, printCommand: false)
         }
 
         // Build
-        continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime)))
+        continuation.yield(.building(LinuxUseCaseState.BuildProgress(step: .building, startTime: startTime)))
 
         let buildCmd = BuildScript.Build.lambda(target: "LambdaApp")
         let stream = await cliClient.stream(buildCmd, workingDirectory: workingDirectory, printCommand: false)
@@ -108,7 +108,7 @@ public struct LinuxBuildWorkflow: StreamingUseCase {
             case .stdout(_, let text), .stderr(_, let text):
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime, output: trimmed)))
+                    continuation.yield(.building(LinuxUseCaseState.BuildProgress(step: .building, startTime: startTime, output: trimmed)))
                 }
             case .exit(_, let code):
                 exitCode = code

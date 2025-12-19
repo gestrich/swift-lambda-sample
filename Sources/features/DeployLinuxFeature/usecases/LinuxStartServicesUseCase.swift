@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for starting local services for Linux development.
+/// Use case for starting local services for Linux development.
 /// Contains all service start logic directly, using SDK clients.
-public struct LinuxStartServicesWorkflow: StreamingUseCase {
+public struct LinuxStartServicesUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
@@ -34,15 +34,15 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
 
     /// Components needed for starting services.
     public struct Components: Sendable {
-        public let workflow: LinuxStartServicesWorkflow
+        public let useCase: LinuxStartServicesUseCase
         public let postgresClient: PostgreSQLClient
         public let minioClient: MinIOClient
         public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and clients
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -66,7 +66,7 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
 
-        let workflow = LinuxStartServicesWorkflow(
+        let useCase = LinuxStartServicesUseCase(
             cliClient: cliClient,
             dockerClient: dockerClient,
             postgresClient: postgresClient,
@@ -75,17 +75,17 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             postgresClient: postgresClient,
             minioClient: minioClient,
             dynamodbClient: dynamodbClient
         )
     }
 
-    public typealias State = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
     public typealias Result = State
 
-    /// Options for the start services workflow.
+    /// Options for the start services use case.
     public struct Options: Sendable {
         public let services: Set<LocalServiceType>
 
@@ -100,14 +100,14 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the start services workflow.
+    /// Stream the start services use case.
     /// - Parameter options: Service options specifying which services to start
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -115,7 +115,7 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
@@ -133,14 +133,14 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
 
         // Start PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(step: .starting, startTime: startTime, currentService: .database)))
+            continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(step: .starting, startTime: startTime, currentService: .database)))
             try await postgresClient.start()
             postgresState = .running
         }
 
         // Start MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(step: .starting, startTime: startTime, currentService: .s3)))
+            continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(step: .starting, startTime: startTime, currentService: .s3)))
             try await minioClient.start()
             s3State = .running
 
@@ -150,7 +150,7 @@ public struct LinuxStartServicesWorkflow: StreamingUseCase {
 
         // Start DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(.startingServices(LinuxWorkflowState.ServicesProgress(step: .starting, startTime: startTime, currentService: .dynamodb)))
+            continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(step: .starting, startTime: startTime, currentService: .dynamodb)))
             try await dynamodbClient.start()
             dynamodbState = .running
         }

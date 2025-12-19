@@ -165,7 +165,7 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 
 ---
 
-## Phase 5: DeployLinuxFeature Rename
+## Phase 5: DeployLinuxFeature Rename ✅ COMPLETED
 
 **Scope**: All Linux container development workflows.
 
@@ -187,6 +187,26 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 | Folder rename | `workflows/` → `usecases/` | `Sources/features/DeployLinuxFeature/` |
 
 **Items: 14**
+
+**Completion Notes**:
+- Files renamed using `git mv`
+- All 12 use case type names updated: struct names, `Components.workflow` → `Components.useCase`
+- State type renamed: `LinuxWorkflowState` → `LinuxUseCaseState`
+- CLIApp DeployLinuxCommand updated to use new UseCase names and `Components.useCase`
+- CLIApp DeployLinuxProgressPrinters updated to use `LinuxUseCaseState`, `LinuxCopyConfigUseCase.State`, `LinuxSetupNetworkUseCase.State`, and `LinuxRunInteractiveUseCase.State`
+- MacApp DeployLinuxModel updated:
+  - All use case instantiation references updated
+  - `ModelState.workflowState` property renamed to `useCaseState`
+  - `ModelState.operating` case updated to use `LinuxUseCaseState`
+  - Documentation comments updated to use "use case" terminology
+- Folder renamed: `workflows/` → `usecases/` in DeployLinuxFeature
+- Build verified successfully
+
+**Technical Notes**:
+- Similar to Phase 4, use cases like `LinuxCopyConfigUseCase`, `LinuxSetupNetworkUseCase`, and `LinuxRunInteractiveUseCase` use their own nested `State` type rather than `LinuxUseCaseState`
+- Internal method names like `runWorkflow` were renamed to `runUseCase` in all use case implementations
+- Comments referencing "workflow" terminology were updated to "use case"
+- The `LinuxRunInteractiveUseCase` internally calls `LinuxBuildUseCase` when build is needed
 
 ---
 

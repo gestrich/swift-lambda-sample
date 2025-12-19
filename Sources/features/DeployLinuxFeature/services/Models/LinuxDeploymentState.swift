@@ -110,12 +110,12 @@ public struct LinuxSnapshot: Sendable, Equatable {
     }
 }
 
-// MARK: - LinuxWorkflowState (What workflows yield)
+// MARK: - LinuxUseCaseState (What use cases yield)
 
-/// State yielded by a running workflow.
-/// Workflows capture `startTime` internally; the app layer adds `prior` when constructing ModelState.
-/// Parallel to `WorkflowState` in DeployRemoteFeature.
-public enum LinuxWorkflowState: Sendable, Equatable {
+/// State yielded by a running use case.
+/// Use cases capture `startTime` internally; the app layer adds `prior` when constructing ModelState.
+/// Parallel to `UseCaseState` in DeployRemoteFeature.
+public enum LinuxUseCaseState: Sendable, Equatable {
     case building(BuildProgress)
     case startingServices(ServicesProgress)
     case stoppingServices(ServicesProgress)

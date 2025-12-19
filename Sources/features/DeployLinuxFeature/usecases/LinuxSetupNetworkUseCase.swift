@@ -7,9 +7,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for setting up Docker network for container communication.
+/// Use case for setting up Docker network for container communication.
 /// Contains all network setup logic directly, using SDK clients.
-public struct LinuxSetupNetworkWorkflow: StreamingUseCase {
+public struct LinuxSetupNetworkUseCase: StreamingUseCase {
     private let dockerClient: DockerClient
     private let config: LinuxContainerConfig
     private let postgresContainerName: String
@@ -32,18 +32,18 @@ public struct LinuxSetupNetworkWorkflow: StreamingUseCase {
 
     /// Components needed for network setup.
     public struct Components: Sendable {
-        public let workflow: LinuxSetupNetworkWorkflow
+        public let useCase: LinuxSetupNetworkUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
         let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
 
-        let workflow = LinuxSetupNetworkWorkflow(
+        let useCase = LinuxSetupNetworkUseCase(
             dockerClient: dockerClient,
             config: config,
             postgresContainerName: PostgreSQLConfig.linux.containerName,
@@ -51,10 +51,10 @@ public struct LinuxSetupNetworkWorkflow: StreamingUseCase {
             dynamodbContainerName: DynamoDBLocalConfig.linux.containerName
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    /// State updates from the setup network workflow.
+    /// State updates from the setup network use case.
     public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
@@ -81,13 +81,13 @@ public struct LinuxSetupNetworkWorkflow: StreamingUseCase {
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the setup network workflow.
+    /// Stream the setup network use case.
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -95,7 +95,7 @@ public struct LinuxSetupNetworkWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         continuation.yield(State(step: .creatingNetwork))

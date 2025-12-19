@@ -9,9 +9,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for stopping local services for Linux development.
+/// Use case for stopping local services for Linux development.
 /// Contains all service stop logic directly, using SDK clients.
-public struct LinuxStopServicesWorkflow: StreamingUseCase {
+public struct LinuxStopServicesUseCase: StreamingUseCase {
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
     private let dynamodbClient: DynamoDBClient
@@ -28,15 +28,15 @@ public struct LinuxStopServicesWorkflow: StreamingUseCase {
 
     /// Components needed for stopping services.
     public struct Components: Sendable {
-        public let workflow: LinuxStopServicesWorkflow
+        public let useCase: LinuxStopServicesUseCase
         public let postgresClient: PostgreSQLClient
         public let minioClient: MinIOClient
         public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow and clients
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case and clients
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -60,24 +60,24 @@ public struct LinuxStopServicesWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
 
-        let workflow = LinuxStopServicesWorkflow(
+        let useCase = LinuxStopServicesUseCase(
             postgresClient: postgresClient,
             minioClient: minioClient,
             dynamodbClient: dynamodbClient
         )
 
         return Components(
-            workflow: workflow,
+            useCase: useCase,
             postgresClient: postgresClient,
             minioClient: minioClient,
             dynamodbClient: dynamodbClient
         )
     }
 
-    public typealias State = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
     public typealias Result = State
 
-    /// Options for the stop services workflow.
+    /// Options for the stop services use case.
     public struct Options: Sendable {
         public let services: Set<LocalServiceType>
 
@@ -92,14 +92,14 @@ public struct LinuxStopServicesWorkflow: StreamingUseCase {
         }
     }
 
-    /// Stream the stop services workflow.
+    /// Stream the stop services use case.
     /// - Parameter options: Service options specifying which services to stop
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -107,7 +107,7 @@ public struct LinuxStopServicesWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
@@ -115,19 +115,19 @@ public struct LinuxStopServicesWorkflow: StreamingUseCase {
 
         // Stop PostgreSQL
         if options.services.contains(.database) {
-            continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(step: .stopping, startTime: startTime, currentService: .database)))
+            continuation.yield(.stoppingServices(LinuxUseCaseState.ServicesProgress(step: .stopping, startTime: startTime, currentService: .database)))
             try await postgresClient.stop()
         }
 
         // Stop MinIO S3
         if options.services.contains(.s3) {
-            continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(step: .stopping, startTime: startTime, currentService: .s3)))
+            continuation.yield(.stoppingServices(LinuxUseCaseState.ServicesProgress(step: .stopping, startTime: startTime, currentService: .s3)))
             try await minioClient.stop()
         }
 
         // Stop DynamoDB Local
         if options.services.contains(.dynamodb) {
-            continuation.yield(.stoppingServices(LinuxWorkflowState.ServicesProgress(step: .stopping, startTime: startTime, currentService: .dynamodb)))
+            continuation.yield(.stoppingServices(LinuxUseCaseState.ServicesProgress(step: .stopping, startTime: startTime, currentService: .dynamodb)))
             try await dynamodbClient.stop()
         }
 

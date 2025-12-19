@@ -10,9 +10,9 @@ import PostgreSQLSDK
 import StorageService
 import Uniflow
 
-/// Workflow for starting the Lambda as a Docker container.
+/// Use case for starting the Lambda as a Docker container.
 /// Contains all start logic directly, using SDK clients.
-public struct LinuxStartLambdaWorkflow: StreamingUseCase {
+public struct LinuxStartLambdaUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
@@ -46,13 +46,13 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
 
     /// Components needed for Lambda start operations.
     public struct Components: Sendable {
-        public let workflow: LinuxStartLambdaWorkflow
+        public let useCase: LinuxStartLambdaUseCase
         public let port: Int
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameter workingDirectory: The working directory for the build
-    /// - Returns: Components containing the workflow and configuration
+    /// - Returns: Components containing the use case and configuration
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -76,7 +76,7 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
 
-        let workflow = LinuxStartLambdaWorkflow(
+        let useCase = LinuxStartLambdaUseCase(
             cliClient: cliClient,
             dockerClient: dockerClient,
             postgresClient: postgresClient,
@@ -86,20 +86,20 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
             workingDirectory: workingDirectory
         )
 
-        return Components(workflow: workflow, port: config.hostPort)
+        return Components(useCase: useCase, port: config.hostPort)
     }
 
-    public typealias State = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the start Lambda workflow.
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    /// Stream the start Lambda use case.
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -107,7 +107,7 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
@@ -118,19 +118,19 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
         }
 
         // Check if build exists
-        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .starting, startTime: startTime)))
+        continuation.yield(.startingLambda(LinuxUseCaseState.LambdaProgress(step: .starting, startTime: startTime)))
         let isBuilt = isLambdaBuilt()
         if !isBuilt {
-            continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime, output: "Lambda not built, will build first")))
+            continuation.yield(.building(LinuxUseCaseState.BuildProgress(step: .building, startTime: startTime, output: "Lambda not built, will build first")))
             try await buildLambda(continuation: continuation, startTime: startTime)
         }
 
         // Start Lambda container
-        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .starting, startTime: startTime)))
+        continuation.yield(.startingLambda(LinuxUseCaseState.LambdaProgress(step: .starting, startTime: startTime)))
         try await startDetached(continuation: continuation, startTime: startTime)
 
         // Wait for ready
-        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .waitingForReady, startTime: startTime)))
+        continuation.yield(.startingLambda(LinuxUseCaseState.LambdaProgress(step: .waitingForReady, startTime: startTime)))
         try await waitForReady()
 
         // Build final snapshot - Lambda is running, services status untracked (use stopped as default)
@@ -156,17 +156,17 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
                FileManager.default.fileExists(atPath: lambdaZipPath)
     }
 
-    /// Build Lambda using LinuxBuildWorkflow
+    /// Build Lambda using LinuxBuildUseCase
     private func buildLambda(
         continuation: AsyncThrowingStream<State, Error>.Continuation,
         startTime: Date
     ) async throws {
-        let buildComponents = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-        let options = LinuxBuildWorkflow.Options(clean: false)
+        let buildComponents = LinuxBuildUseCase.create(workingDirectory: workingDirectory)
+        let options = LinuxBuildUseCase.Options(clean: false)
 
-        for try await buildState in buildComponents.workflow.stream(options: options) {
+        for try await buildState in buildComponents.useCase.stream(options: options) {
             if case .building(let progress) = buildState, let text = progress.output {
-                continuation.yield(.building(LinuxWorkflowState.BuildProgress(step: .building, startTime: startTime, output: text)))
+                continuation.yield(.building(LinuxUseCaseState.BuildProgress(step: .building, startTime: startTime, output: text)))
             }
         }
     }
@@ -198,7 +198,7 @@ public struct LinuxStartLambdaWorkflow: StreamingUseCase {
             options: options
         )
 
-        continuation.yield(.startingLambda(LinuxWorkflowState.LambdaProgress(step: .starting, startTime: startTime)))
+        continuation.yield(.startingLambda(LinuxUseCaseState.LambdaProgress(step: .starting, startTime: startTime)))
     }
 
     // MARK: - Wait For Ready

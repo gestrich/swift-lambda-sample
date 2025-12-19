@@ -5,9 +5,9 @@ import DeployCoreService
 import DockerCLISDK
 import Uniflow
 
-/// Workflow for testing local Lambda endpoints (Linux mode).
+/// Use case for testing local Lambda endpoints (Linux mode).
 /// Contains all test logic directly, using SDK clients.
-public struct LinuxTestWorkflow: StreamingUseCase {
+public struct LinuxTestUseCase: StreamingUseCase {
     private let dockerClient: DockerClient
     private let config: LinuxContainerConfig
     private let workingDirectory: String
@@ -24,38 +24,38 @@ public struct LinuxTestWorkflow: StreamingUseCase {
 
     /// Components needed for Lambda test operations.
     public struct Components: Sendable {
-        public let workflow: LinuxTestWorkflow
+        public let useCase: LinuxTestUseCase
         public let port: Int
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
+    /// Creates a use case and associated components by instantiating required clients.
     /// - Parameter workingDirectory: The working directory
-    /// - Returns: Components containing the workflow and configuration
+    /// - Returns: Components containing the use case and configuration
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
         let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
 
-        let workflow = LinuxTestWorkflow(
+        let useCase = LinuxTestUseCase(
             dockerClient: dockerClient,
             config: config,
             workingDirectory: workingDirectory
         )
 
-        return Components(workflow: workflow, port: config.hostPort)
+        return Components(useCase: useCase, port: config.hostPort)
     }
 
-    public typealias State = LinuxWorkflowState
+    public typealias State = LinuxUseCaseState
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the test workflow.
-    /// - Returns: AsyncThrowingStream that yields LinuxWorkflowState updates
+    /// Stream the test use case.
+    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -63,23 +63,23 @@ public struct LinuxTestWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         let startTime = Date()
 
         // Check if Lambda container is running
-        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .checkingLambda, startTime: startTime)))
+        continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .checkingLambda, startTime: startTime)))
         let running = try await isRunning()
         if !running {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(
                 step: .checkingLambda,
                 startTime: startTime,
                 result: .message("Lambda container is not running, will start it")
             )))
             try await startLambda()
         }
-        continuation.yield(.testing(LinuxWorkflowState.TestProgress(
+        continuation.yield(.testing(LinuxUseCaseState.TestProgress(
             step: .checkingLambda,
             startTime: startTime,
             result: .message("Lambda container is running")
@@ -109,11 +109,11 @@ public struct LinuxTestWorkflow: StreamingUseCase {
         return try await dockerClient.containerIsRunning(name: config.containerName)
     }
 
-    /// Start Lambda container using LinuxStartLambdaWorkflow
+    /// Start Lambda container using LinuxStartLambdaUseCase
     private func startLambda() async throws {
-        let startComponents = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
+        let startComponents = LinuxStartLambdaUseCase.create(workingDirectory: workingDirectory)
 
-        for try await _ in startComponents.workflow.stream() {
+        for try await _ in startComponents.useCase.stream() {
             // Consume the stream to ensure Lambda starts and is ready
         }
     }
@@ -128,7 +128,7 @@ public struct LinuxTestWorkflow: StreamingUseCase {
         }
 
         // Test file upload
-        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileUpload, startTime: startTime)))
+        continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileUpload, startTime: startTime)))
         let testContent = "Hello from test file!"
         guard let testData = testContent.data(using: .utf8) else {
             throw DeployError.testFailed(message: "Failed to create test data")
@@ -136,40 +136,40 @@ public struct LinuxTestWorkflow: StreamingUseCase {
 
         let uploadResponse = try await client.uploadFile(fileName: "test-upload.txt", data: testData)
         if uploadResponse.contains("File uploaded: test-upload.txt") {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileUpload, startTime: startTime, result: .passed("File upload"))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileUpload, startTime: startTime, result: .passed("File upload"))))
         } else {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileUpload, startTime: startTime, result: .failed("File upload", uploadResponse))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileUpload, startTime: startTime, result: .failed("File upload", uploadResponse))))
             throw DeployError.testFailed(message: "File upload endpoint test failed")
         }
 
         // Test list files
-        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileList, startTime: startTime)))
+        continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileList, startTime: startTime)))
         let fileList = try await client.listFiles()
         if fileList.contains("test-upload.txt") {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileList, startTime: startTime, result: .passed("File list (found \(fileList.count) files)"))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileList, startTime: startTime, result: .passed("File list (found \(fileList.count) files)"))))
         } else {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileList, startTime: startTime, result: .failed("File list", "\(fileList)"))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileList, startTime: startTime, result: .failed("File list", "\(fileList)"))))
             throw DeployError.testFailed(message: "List files endpoint test failed")
         }
 
         // Test file download
-        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileDownload, startTime: startTime)))
+        continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileDownload, startTime: startTime)))
         let downloadedData = try await client.downloadFile(fileName: "test-upload.txt")
         if let downloadedContent = String(data: downloadedData, encoding: .utf8),
            downloadedContent.contains("Hello from test file!") {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileDownload, startTime: startTime, result: .passed("File download"))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileDownload, startTime: startTime, result: .passed("File download"))))
         } else {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingFileDownload, startTime: startTime, result: .failed("File download", "Unexpected content"))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingFileDownload, startTime: startTime, result: .failed("File download", "Unexpected content"))))
             throw DeployError.testFailed(message: "File download endpoint test failed")
         }
 
         // Test database initialization
-        continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingDatabaseInit, startTime: startTime)))
+        continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingDatabaseInit, startTime: startTime)))
         let dbResult = try await client.initializeDatabase()
         if dbResult.contains("Database Initialized") {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingDatabaseInit, startTime: startTime, result: .passed("Database init"))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingDatabaseInit, startTime: startTime, result: .passed("Database init"))))
         } else {
-            continuation.yield(.testing(LinuxWorkflowState.TestProgress(step: .testingDatabaseInit, startTime: startTime, result: .failed("Database init", dbResult))))
+            continuation.yield(.testing(LinuxUseCaseState.TestProgress(step: .testingDatabaseInit, startTime: startTime, result: .failed("Database init", dbResult))))
             throw DeployError.testFailed(message: "Database endpoint test failed")
         }
     }

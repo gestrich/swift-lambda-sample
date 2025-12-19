@@ -8,9 +8,9 @@ import StorageService
 import DeployLocalService
 import Uniflow
 
-/// Workflow for running interactive container shell.
+/// Use case for running interactive container shell.
 /// Contains all interactive logic directly, using SDK clients.
-public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
+public struct LinuxRunInteractiveUseCase: StreamingUseCase {
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
@@ -39,12 +39,12 @@ public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
 
     /// Components needed for interactive operations.
     public struct Components: Sendable {
-        public let workflow: LinuxRunInteractiveWorkflow
+        public let useCase: LinuxRunInteractiveUseCase
     }
 
-    /// Creates a workflow and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the workflow
-    /// - Returns: Components containing the workflow
+    /// Creates a use case and associated components by instantiating required clients.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
     public static func create(workingDirectory: String) -> Components {
         let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         let dockerClient = DockerClient(cliClient: cliClient)
@@ -68,7 +68,7 @@ public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
             dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
         )
 
-        let workflow = LinuxRunInteractiveWorkflow(
+        let useCase = LinuxRunInteractiveUseCase(
             dockerClient: dockerClient,
             postgresClient: postgresClient,
             minioClient: minioClient,
@@ -77,10 +77,10 @@ public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
             workingDirectory: workingDirectory
         )
 
-        return Components(workflow: workflow)
+        return Components(useCase: useCase)
     }
 
-    /// State updates from the run interactive workflow.
+    /// State updates from the run interactive use case.
     public struct State: Sendable {
         public let step: Step
         public let detail: Detail?
@@ -105,13 +105,13 @@ public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
     public typealias Result = State
     public typealias Options = Void
 
-    /// Stream the interactive workflow.
+    /// Stream the interactive use case.
     /// - Returns: AsyncThrowingStream that yields State updates
     public func stream(options: Void) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(continuation: continuation)
+                    try await runUseCase(continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -119,7 +119,7 @@ public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {
         continuation.yield(State(step: .preparing))
@@ -127,9 +127,9 @@ public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
         // Check if Lambda is built
         if !isLambdaBuilt() {
             continuation.yield(State(step: .preparing, detail: .output("Lambda not built, building first...")))
-            // Build using LinuxBuildWorkflow
-            let buildComponents = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-            for try await _ in buildComponents.workflow.stream(options: .init()) {
+            // Build using LinuxBuildUseCase
+            let buildComponents = LinuxBuildUseCase.create(workingDirectory: workingDirectory)
+            for try await _ in buildComponents.useCase.stream(options: .init()) {
                 // Consume build updates silently
             }
         }
