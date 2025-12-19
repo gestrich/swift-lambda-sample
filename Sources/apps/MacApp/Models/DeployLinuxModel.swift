@@ -144,24 +144,57 @@ public class DeployLinuxModel: LocalService {
 
     // MARK: - Service Management
 
+    /// Start all supporting services (S3, PostgreSQL, DynamoDB).
+    /// Uses workflow-driven state updates.
     public func startAllServices() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .all) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .all) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Stop all supporting services (S3, PostgreSQL, DynamoDB).
+    /// Uses workflow-driven state updates.
     public func stopAllServices() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .all) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .all) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Start S3 service (MinIO).
+    /// Uses workflow-driven state updates.
     public func startS3() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.s3)) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
@@ -169,38 +202,93 @@ public class DeployLinuxModel: LocalService {
         try await minioClient.createBucket(bucketName: bucketName)
     }
 
+    /// Stop S3 service (MinIO).
+    /// Uses workflow-driven state updates.
     public func stopS3() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.s3)) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.s3)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Start PostgreSQL database service.
+    /// Uses workflow-driven state updates.
     public func startDatabase() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.database)) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.database)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Stop PostgreSQL database service.
+    /// Uses workflow-driven state updates.
     public func stopDatabase() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.database)) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.database)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Start DynamoDB Local service.
+    /// Uses workflow-driven state updates.
     public func startDynamoDB() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 
+    /// Stop DynamoDB Local service.
+    /// Uses workflow-driven state updates.
     public func stopDynamoDB() async throws {
+        guard isIdle else { return }
+        let prior = snapshot
+
         let components = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in components.workflow.stream(options: .only(.dynamodb)) {
-            // Consume workflow progress
+
+        do {
+            for try await workflowState in components.workflow.stream(options: .only(.dynamodb)) {
+                state = ModelState(from: workflowState, prior: prior)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
         }
     }
 

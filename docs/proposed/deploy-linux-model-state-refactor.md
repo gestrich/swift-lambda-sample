@@ -388,13 +388,46 @@ public func stopWithServices(output: CLIOutputStream? = nil) async throws {
 }
 ```
 
-- [ ] **Phase 7: Refactor Service-Specific Operations**
+- [x] **Phase 7: Refactor Service-Specific Operations** ✅ COMPLETED
 
-Apply the same pattern to:
-- [ ] `startAllServices()` / `stopAllServices()`
-- [ ] `startS3()` / `stopS3()`
-- [ ] `startDatabase()` / `stopDatabase()`
-- [ ] `startDynamoDB()` / `stopDynamoDB()`
+Refactored all service-specific operations to use workflow-driven state updates instead of discarding workflow progress.
+
+**Implementation notes:**
+- Added `guard isIdle else { return }` to all service operations to prevent concurrent operations
+- Captures `prior = snapshot` before workflow to preserve state during operation
+- Iterates workflow yields and updates `state = ModelState(from: workflowState, prior: prior)`
+- On error: updates `state = ModelState(error: error, preserving: prior)` then rethrows
+- All 8 methods now follow the same pattern as `build()`, `startLambda()`, etc.
+- Build verified successful
+
+**Methods refactored (lines 149-293):**
+- `startAllServices()` - Start S3, PostgreSQL, DynamoDB
+- `stopAllServices()` - Stop all services
+- `startS3()` - Start MinIO (S3-compatible storage)
+- `stopS3()` - Stop MinIO
+- `startDatabase()` - Start PostgreSQL
+- `stopDatabase()` - Stop PostgreSQL
+- `startDynamoDB()` - Start DynamoDB Local
+- `stopDynamoDB()` - Stop DynamoDB Local
+
+**Example pattern:**
+```swift
+public func startAllServices() async throws {
+    guard isIdle else { return }
+    let prior = snapshot
+
+    let components = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
+
+    do {
+        for try await workflowState in components.workflow.stream(options: .all) {
+            state = ModelState(from: workflowState, prior: prior)
+        }
+    } catch {
+        state = ModelState(error: error, preserving: prior)
+        throw error
+    }
+}
+```
 
 - [ ] **Phase 8: Simplify refresh()**
 
