@@ -14,7 +14,7 @@ import Uniflow
 /// Queries CloudFormation and delegates to ResumeMonitoringUseCase if an operation is in progress.
 public struct RefreshUseCase: StreamingUseCase {
     public typealias Options = Void
-    public typealias State = WorkflowState
+    public typealias State = UseCaseState
     public typealias Result = State
 
     private let cfClient: CloudFormationClient

@@ -5,7 +5,7 @@ import Observation
 import DeployRemoteFeature
 
 /// Observable model for CloudWatch logs viewing.
-/// Holds UI state and delegates operations to CloudWatchLogsWorkflow.
+/// Holds UI state and delegates operations to CloudWatchLogsUseCase.
 @MainActor
 @Observable
 public final class CloudWatchLogsModel {
@@ -19,7 +19,7 @@ public final class CloudWatchLogsModel {
 
     // MARK: - Private
 
-    private let workflow: CloudWatchLogsWorkflow
+    private let useCase: CloudWatchLogsUseCase
     private var streamTask: Task<Void, Never>?
 
     // MARK: - Computed
@@ -62,8 +62,8 @@ public final class CloudWatchLogsModel {
 
     // MARK: - Init
 
-    public init(workflow: CloudWatchLogsWorkflow) {
-        self.workflow = workflow
+    public init(useCase: CloudWatchLogsUseCase) {
+        self.useCase = useCase
     }
 
     // MARK: - Public Methods
@@ -77,11 +77,11 @@ public final class CloudWatchLogsModel {
 
         streamTask = Task {
             do {
-                let options = CloudWatchLogsWorkflow.Options(since: sincePeriod)
-                for try await workflowState in workflow.stream(options: options) {
+                let options = CloudWatchLogsUseCase.Options(since: sincePeriod)
+                for try await useCaseState in useCase.stream(options: options) {
                     guard !Task.isCancelled else { break }
 
-                    switch workflowState {
+                    switch useCaseState {
                     case .started:
                         state = .streaming(entries: [])
                     case .streaming(let entries):
@@ -114,7 +114,7 @@ public final class CloudWatchLogsModel {
         state = .loading
 
         do {
-            let entries = try await workflow.fetch(since: sincePeriod)
+            let entries = try await useCase.fetch(since: sincePeriod)
             state = .idle(entries: entries)
         } catch {
             state = .error(error.localizedDescription)

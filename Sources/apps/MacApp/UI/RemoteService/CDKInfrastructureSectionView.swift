@@ -284,7 +284,7 @@ struct CDKInfrastructureSectionView: View {
         }
     }
 
-    private func operationLabel(for step: WorkflowState.DeployProgress.Step) -> String {
+    private func operationLabel(for step: UseCaseState.DeployProgress.Step) -> String {
         switch step {
         case .building: return "Building"
         case .deploying: return "Deploying"

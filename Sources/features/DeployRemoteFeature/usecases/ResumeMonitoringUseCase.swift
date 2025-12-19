@@ -25,10 +25,10 @@ public struct ResumeMonitoringUseCase: Sendable {
 
     /// Run the monitoring use case for an already in-progress operation.
     /// - Parameter initialState: The CloudFormationState detected (must be .deploying or .destroying)
-    /// - Returns: AsyncThrowingStream that yields WorkflowState updates until completion
+    /// - Returns: AsyncThrowingStream that yields UseCaseState updates until completion
     public func run(
         initialState: CloudFormationState
-    ) -> AsyncThrowingStream<WorkflowState, Error> {
+    ) -> AsyncThrowingStream<UseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -45,21 +45,21 @@ public struct ResumeMonitoringUseCase: Sendable {
 
     private func runUseCase(
         initialState: CloudFormationState,
-        continuation: AsyncThrowingStream<WorkflowState, Error>.Continuation
+        continuation: AsyncThrowingStream<UseCaseState, Error>.Continuation
     ) async throws {
         let startTime = initialState.operationStartTime ?? Date()
 
         // Yield initial state
-        if let workflowState = makeWorkflowState(from: initialState, startTime: startTime) {
-            continuation.yield(workflowState)
+        if let useCaseState = makeUseCaseState(from: initialState, startTime: startTime) {
+            continuation.yield(useCaseState)
         }
 
         // Monitor until complete
         for try await cfState in cfClient.monitorStream(stackName: stackName) {
             switch cfState {
             case .deploying, .destroying:
-                if let workflowState = makeWorkflowState(from: cfState, startTime: startTime) {
-                    continuation.yield(workflowState)
+                if let useCaseState = makeUseCaseState(from: cfState, startTime: startTime) {
+                    continuation.yield(useCaseState)
                 }
 
             case .deployed, .notDeployed, .failed, .credentialExpired:
@@ -78,17 +78,17 @@ public struct ResumeMonitoringUseCase: Sendable {
         continuation.finish()
     }
 
-    private func makeWorkflowState(from cfState: CloudFormationState, startTime: Date) -> WorkflowState? {
+    private func makeUseCaseState(from cfState: CloudFormationState, startTime: Date) -> UseCaseState? {
         switch cfState {
         case .deploying(_, let progress, _):
-            return .deploying(WorkflowState.DeployProgress(
+            return .deploying(UseCaseState.DeployProgress(
                 step: .monitoring,
                 startTime: startTime,
                 detail: progress
             ))
 
         case .destroying(let progress, _):
-            return .destroying(WorkflowState.DestroyProgress(
+            return .destroying(UseCaseState.DestroyProgress(
                 step: .destroying,
                 startTime: startTime,
                 detail: progress

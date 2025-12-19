@@ -3,9 +3,9 @@ import GitHubSDK
 import CLISDK
 import Uniflow
 
-/// Workflow for monitoring an existing GitHub Actions run.
+/// Use case for monitoring an existing GitHub Actions run.
 /// Polls the run status and yields state updates until completion.
-public struct GitHubMonitorRunWorkflow: StreamingUseCase {
+public struct GitHubMonitorRunUseCase: StreamingUseCase {
     public typealias State = GitHubCIState
     public typealias Result = State
 
@@ -32,7 +32,7 @@ public struct GitHubMonitorRunWorkflow: StreamingUseCase {
         }
     }
 
-    // MARK: - StreamingWorkflow Conformance
+    // MARK: - StreamingUseCase Conformance
 
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
@@ -91,7 +91,7 @@ public struct GitHubMonitorRunWorkflow: StreamingUseCase {
 
         while !Task.isCancelled {
             if ContinuousClock.now - startClock > timeout {
-                throw GitHubCIWorkflowError.timeout(operation: "workflow monitoring", duration: timeout)
+                throw GitHubCIUseCaseError.timeout(operation: "workflow monitoring", duration: timeout)
             }
 
             let detail = try await ghClient.getRunDetail(runId: runId)

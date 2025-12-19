@@ -290,12 +290,12 @@ private struct LogEntryRow: View {
 #Preview {
     let awsConfig = AWSAuthConfiguration(profileName: "default", useAWSVault: false)
     let cliClient = CLIClient()
-    let workflow = CloudWatchLogsWorkflow.create(
+    let useCase = CloudWatchLogsUseCase.create(
         cliClient: cliClient,
         lambdaFunctionName: "swift-lambda-sample",
         credentialProvider: awsConfig.makeCredentialProvider()
     )
-    let model = CloudWatchLogsModel(workflow: workflow)
+    let model = CloudWatchLogsModel(useCase: useCase)
 
     CloudWatchLogsSectionView(model: model)
         .padding()

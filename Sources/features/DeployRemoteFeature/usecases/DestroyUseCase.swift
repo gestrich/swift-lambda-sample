@@ -6,7 +6,7 @@ import Uniflow
 /// Use case for destroying CDK infrastructure.
 /// Orchestrates CDK destroy and CloudFormation monitoring, returning progress via stream.
 public struct DestroyUseCase: StreamingUseCase {
-    public typealias State = WorkflowState
+    public typealias State = UseCaseState
     public typealias Result = State
     private let cdkClient: CDKClient
     private let cfClient: CloudFormationClient
@@ -66,7 +66,7 @@ public struct DestroyUseCase: StreamingUseCase {
         )
     }
 
-    // Note: This use case yields WorkflowState directly. The use case captures
+    // Note: This use case yields UseCaseState directly. The use case captures
     // startTime internally; the app layer adds `prior` when needed.
 
     /// Options for destroying infrastructure
@@ -115,7 +115,7 @@ public struct DestroyUseCase: StreamingUseCase {
         for try await cdkProgress in cdkClient.destroyStream(options: options.toCDKOptions(), output: output) {
             switch cdkProgress {
             case .destroying(let progress):
-                continuation.yield(.destroying(WorkflowState.DestroyProgress(
+                continuation.yield(.destroying(UseCaseState.DestroyProgress(
                     step: .destroying,
                     startTime: startTime,
                     detail: progress
@@ -123,7 +123,7 @@ public struct DestroyUseCase: StreamingUseCase {
 
             case .destroyed:
                 // CDK CLI has completed, but CloudFormation may still be deleting
-                continuation.yield(.destroying(WorkflowState.DestroyProgress(
+                continuation.yield(.destroying(UseCaseState.DestroyProgress(
                     step: .destroying,
                     startTime: startTime
                 )))
@@ -139,7 +139,7 @@ public struct DestroyUseCase: StreamingUseCase {
         for try await cfState in cfClient.monitorStream(stackName: stackName) {
             switch cfState {
             case .destroying(let progress, _):
-                continuation.yield(.destroying(WorkflowState.DestroyProgress(
+                continuation.yield(.destroying(UseCaseState.DestroyProgress(
                     step: .destroying,
                     startTime: startTime,
                     detail: progress

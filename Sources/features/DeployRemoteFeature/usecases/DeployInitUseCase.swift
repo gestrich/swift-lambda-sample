@@ -83,8 +83,8 @@ public struct DeployInitUseCase: StreamingUseCase, Sendable {
         public enum Detail: Sendable {
             case safetyCheckPassed
             case existingConfiguration(ExistingConfiguration)
-            case deployState(WorkflowState)
-            case lambdaState(WorkflowState)
+            case deployState(UseCaseState)
+            case lambdaState(UseCaseState)
             case databaseResponse(String)
             case healthCheckResponse(String)
             case outputs(CDKStackOutputs?)
@@ -129,7 +129,7 @@ public struct DeployInitUseCase: StreamingUseCase, Sendable {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runWorkflow(options: options, continuation: continuation)
+                    try await runUseCase(options: options, continuation: continuation)
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -137,7 +137,7 @@ public struct DeployInitUseCase: StreamingUseCase, Sendable {
         }
     }
 
-    private func runWorkflow(
+    private func runUseCase(
         options: Options,
         continuation: AsyncThrowingStream<State, Error>.Continuation
     ) async throws {

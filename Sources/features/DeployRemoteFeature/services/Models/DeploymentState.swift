@@ -113,11 +113,11 @@ public struct DeploymentSnapshot: Sendable, Equatable {
     }
 }
 
-// MARK: - WorkflowState (What workflows yield)
+// MARK: - UseCaseState (What use cases yield)
 
-/// State yielded by a running workflow.
-/// Workflows capture `startTime` internally; the app layer adds `prior` when constructing ModelState.
-public enum WorkflowState: Sendable, Equatable {
+/// State yielded by a running use case.
+/// Use cases capture `startTime` internally; the app layer adds `prior` when constructing ModelState.
+public enum UseCaseState: Sendable, Equatable {
     case deploying(DeployProgress)
     case destroying(DestroyProgress)
     case updatingLambda(UpdateLambdaProgress)

@@ -6,7 +6,7 @@ import Uniflow
 /// Use case for deploying CDK infrastructure.
 /// Orchestrates CDK deployment and CloudFormation monitoring, returning progress via stream.
 public struct DeployUseCase: StreamingUseCase {
-    public typealias State = WorkflowState
+    public typealias State = UseCaseState
     public typealias Result = State
     private let cdkClient: CDKClient
     private let cfClient: CloudFormationClient
@@ -66,7 +66,7 @@ public struct DeployUseCase: StreamingUseCase {
         )
     }
 
-    // Note: This use case yields WorkflowState directly. The use case captures
+    // Note: This use case yields UseCaseState directly. The use case captures
     // startTime internally; the app layer adds `prior` when needed.
 
     /// App-specific deployment options
@@ -154,13 +154,13 @@ public struct DeployUseCase: StreamingUseCase {
         for try await cdkProgress in cdkClient.deployStream(options: options.toCDKOptions(), output: output) {
             switch cdkProgress {
             case .installing, .building:
-                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                continuation.yield(.deploying(UseCaseState.DeployProgress(
                     step: .building,
                     startTime: startTime
                 )))
 
             case .deploying(let progress):
-                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                continuation.yield(.deploying(UseCaseState.DeployProgress(
                     step: .deploying,
                     startTime: startTime,
                     detail: progress
@@ -168,7 +168,7 @@ public struct DeployUseCase: StreamingUseCase {
 
             case .deployed:
                 // CDK CLI has completed, but CloudFormation may still be working
-                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                continuation.yield(.deploying(UseCaseState.DeployProgress(
                     step: .monitoring,
                     startTime: startTime
                 )))
@@ -184,7 +184,7 @@ public struct DeployUseCase: StreamingUseCase {
         for try await cfState in cfClient.monitorStream(stackName: stackName) {
             switch cfState {
             case .deploying(_, let progress, _):
-                continuation.yield(.deploying(WorkflowState.DeployProgress(
+                continuation.yield(.deploying(UseCaseState.DeployProgress(
                     step: .monitoring,
                     startTime: startTime,
                     detail: progress

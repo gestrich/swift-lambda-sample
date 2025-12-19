@@ -4,9 +4,9 @@ import CLISDK
 import DeployCoreService
 import Uniflow
 
-/// Workflow for pushing commits and deploying via GitHub Actions.
+/// Use case for pushing commits and deploying via GitHub Actions.
 /// Orchestrates git push and GitHub Actions, yielding state updates via stream.
-public struct GitHubPushAndDeployWorkflow: StreamingUseCase {
+public struct GitHubPushAndDeployUseCase: StreamingUseCase {
     public typealias State = GitHubCIState
     public typealias Result = State
 
@@ -37,7 +37,7 @@ public struct GitHubPushAndDeployWorkflow: StreamingUseCase {
         }
     }
 
-    // MARK: - StreamingWorkflow Conformance
+    // MARK: - StreamingUseCase Conformance
 
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
@@ -124,7 +124,7 @@ public struct GitHubPushAndDeployWorkflow: StreamingUseCase {
 
         while !Task.isCancelled {
             if ContinuousClock.now - startClock > timeout {
-                throw GitHubCIWorkflowError.timeout(operation: "workflow monitoring", duration: timeout)
+                throw GitHubCIUseCaseError.timeout(operation: "workflow monitoring", duration: timeout)
             }
 
             let detail = try await ghClient.getRunDetail(runId: runId)
@@ -172,6 +172,6 @@ public struct GitHubPushAndDeployWorkflow: StreamingUseCase {
             try await Task.sleep(for: pollInterval)
         }
 
-        throw GitHubCIWorkflowError.timeout(operation: "waiting for new workflow run", duration: timeout)
+        throw GitHubCIUseCaseError.timeout(operation: "waiting for new workflow run", duration: timeout)
     }
 }

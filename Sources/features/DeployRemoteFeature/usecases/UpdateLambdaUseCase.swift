@@ -7,7 +7,7 @@ import Uniflow
 /// Use case for updating Lambda code via GitHub Actions.
 /// Orchestrates git operations and GitHub Actions monitoring, yielding state updates via stream.
 public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
-    public typealias State = WorkflowState
+    public typealias State = UseCaseState
     public typealias Result = State
     private let gitClient: GitClient
     private let ghClient: GitHubCLIClient
@@ -74,7 +74,7 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
     }
 
     /// Stream the update lambda use case, yielding state updates.
-    /// - Returns: AsyncThrowingStream that yields WorkflowState updates.
+    /// - Returns: AsyncThrowingStream that yields UseCaseState updates.
     public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -94,11 +94,11 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
         let startTime = Date()
 
         if options.skipPush {
-            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
                 step: .checkingGitStatus,
                 startTime: startTime
             )))
-            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
                 step: .triggeringWorkflow,
                 startTime: startTime
             )))
@@ -115,7 +115,7 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
             return
         }
 
-        continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+        continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
             step: .checkingGitStatus,
             startTime: startTime
         )))
@@ -124,13 +124,13 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
         if hasCommitsToPush {
             let beforeRunId = try await ghClient.getLatestWorkflowRun(branch: branch, workflow: workflowName)?.id
 
-            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
                 step: .pushing,
                 startTime: startTime
             )))
             try await gitClient.push()
 
-            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
                 step: .waitingForWorkflow,
                 startTime: startTime
             )))
@@ -143,7 +143,7 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
                 startTime: startTime
             )
         } else {
-            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
                 step: .triggeringWorkflow,
                 startTime: startTime
             )))
@@ -173,7 +173,7 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
 
         try await Task.sleep(for: .seconds(2))
 
-        continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+        continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
             step: .waitingForWorkflow,
             startTime: startTime
         )))
@@ -235,7 +235,7 @@ public struct UpdateLambdaUseCase: StreamingUseCase, Sendable {
                 }
             }
 
-            continuation.yield(.updatingLambda(WorkflowState.UpdateLambdaProgress(
+            continuation.yield(.updatingLambda(UseCaseState.UpdateLambdaProgress(
                 step: .monitoringWorkflow(runId: runId),
                 startTime: startTime,
                 runDetail: detail

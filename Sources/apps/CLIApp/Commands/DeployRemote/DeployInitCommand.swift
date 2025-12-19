@@ -133,7 +133,7 @@ extension DeployRemoteCommand {
             }
         }
 
-        private func printDeployState(_ state: WorkflowState) {
+        private func printDeployState(_ state: UseCaseState) {
             switch state {
             case .deploying(let progress):
                 switch progress.step {
@@ -157,7 +157,7 @@ extension DeployRemoteCommand {
             }
         }
 
-        private func printLambdaState(_ state: WorkflowState) {
+        private func printLambdaState(_ state: UseCaseState) {
             guard case .updatingLambda(let progress) = state else { return }
 
             switch progress.step {

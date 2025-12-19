@@ -28,23 +28,23 @@ public final class GitHubCIModel {
 
     // MARK: - Private
 
-    private let pushAndDeployWorkflow: GitHubPushAndDeployWorkflow
-    private let monitorRunWorkflow: GitHubMonitorRunWorkflow
+    private let pushAndDeployUseCase: GitHubPushAndDeployUseCase
+    private let monitorRunUseCase: GitHubMonitorRunUseCase
     private let statusQuery: GitHubStatusQuery
 
     // MARK: - Init
 
-    /// Initialize with workflows and configuration.
+    /// Initialize with use cases and configuration.
     /// Automatically refreshes status on init.
     public init(
-        pushAndDeployWorkflow: GitHubPushAndDeployWorkflow,
-        monitorRunWorkflow: GitHubMonitorRunWorkflow,
+        pushAndDeployUseCase: GitHubPushAndDeployUseCase,
+        monitorRunUseCase: GitHubMonitorRunUseCase,
         statusQuery: GitHubStatusQuery,
         repository: String,
         branch: String
     ) {
-        self.pushAndDeployWorkflow = pushAndDeployWorkflow
-        self.monitorRunWorkflow = monitorRunWorkflow
+        self.pushAndDeployUseCase = pushAndDeployUseCase
+        self.monitorRunUseCase = monitorRunUseCase
         self.statusQuery = statusQuery
         self.repository = repository
         self.branch = branch
@@ -64,19 +64,19 @@ public final class GitHubCIModel {
         self.init(projectRoot: projectRoot, config: config, cliClient: cliClient)
     }
 
-    /// Convenience initializer that creates the workflows from configuration.
+    /// Convenience initializer that creates the use cases from configuration.
     public convenience init(projectRoot: String, config: GitHubConfiguration, cliClient: CLIClient) {
         let ghClient = GitHubCLIClient(repository: config.repository, cliClient: cliClient)
         let gitClient = GitClient(repoPath: projectRoot, cliClient: cliClient)
 
-        let pushAndDeployWorkflow = GitHubPushAndDeployWorkflow(
+        let pushAndDeployUseCase = GitHubPushAndDeployUseCase(
             ghClient: ghClient,
             gitClient: gitClient,
             branch: config.branch,
             workflowName: config.workflowName
         )
 
-        let monitorRunWorkflow = GitHubMonitorRunWorkflow(
+        let monitorRunUseCase = GitHubMonitorRunUseCase(
             ghClient: ghClient,
             gitClient: gitClient
         )
@@ -89,8 +89,8 @@ public final class GitHubCIModel {
         )
 
         self.init(
-            pushAndDeployWorkflow: pushAndDeployWorkflow,
-            monitorRunWorkflow: monitorRunWorkflow,
+            pushAndDeployUseCase: pushAndDeployUseCase,
+            monitorRunUseCase: monitorRunUseCase,
             statusQuery: statusQuery,
             repository: config.repository,
             branch: config.branch
@@ -143,9 +143,9 @@ public final class GitHubCIModel {
         let prior = state.snapshot
 
         do {
-            let options = GitHubPushAndDeployWorkflow.Options(timeoutMinutes: timeoutMinutes)
-            for try await workflowState in pushAndDeployWorkflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            let options = GitHubPushAndDeployUseCase.Options(timeoutMinutes: timeoutMinutes)
+            for try await useCaseState in pushAndDeployUseCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = .ready(GitHubCISnapshot.failed(
@@ -161,9 +161,9 @@ public final class GitHubCIModel {
         let prior = state.snapshot
 
         do {
-            let options = GitHubMonitorRunWorkflow.Options(runId: runId, timeoutMinutes: timeoutMinutes)
-            for try await workflowState in monitorRunWorkflow.stream(options: options) {
-                state = ModelState(from: workflowState, prior: prior)
+            let options = GitHubMonitorRunUseCase.Options(runId: runId, timeoutMinutes: timeoutMinutes)
+            for try await useCaseState in monitorRunUseCase.stream(options: options) {
+                state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
             state = .ready(GitHubCISnapshot.failed(

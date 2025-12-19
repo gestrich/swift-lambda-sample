@@ -3,9 +3,9 @@ import AWSSDK
 import CLISDK
 import Uniflow
 
-/// Workflow for streaming CloudWatch logs from Lambda.
+/// Use case for streaming CloudWatch logs from Lambda.
 /// Orchestrates log fetching and yields state updates with accumulated entries.
-public struct CloudWatchLogsWorkflow: StreamingUseCase, Sendable {
+public struct CloudWatchLogsUseCase: StreamingUseCase, Sendable {
     public typealias Result = State
 
     // MARK: - Options
@@ -42,21 +42,21 @@ public struct CloudWatchLogsWorkflow: StreamingUseCase, Sendable {
         self.credentialProvider = credentialProvider
     }
 
-    /// Creates a workflow by instantiating required clients.
+    /// Creates a use case by instantiating required clients.
     /// - Parameters:
     ///   - cliClient: CLI client for executing commands
     ///   - lambdaFunctionName: Lambda function name to fetch logs from
     ///   - credentialProvider: AWS credential provider for authentication
-    /// - Returns: Configured CloudWatchLogsWorkflow
+    /// - Returns: Configured CloudWatchLogsUseCase
     public static func create(
         cliClient: CLIClient,
         lambdaFunctionName: String,
         credentialProvider: AWSCredentialProvider
-    ) -> CloudWatchLogsWorkflow {
+    ) -> CloudWatchLogsUseCase {
         let client = CloudWatchLogsClient(cliClient: cliClient)
         let logGroup = "/aws/lambda/\(lambdaFunctionName)"
 
-        return CloudWatchLogsWorkflow(
+        return CloudWatchLogsUseCase(
             client: client,
             logGroup: logGroup,
             credentialProvider: credentialProvider

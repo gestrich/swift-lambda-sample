@@ -86,12 +86,12 @@ public class DeployRemoteModel {
         )
 
         // Create child models (always available since parent requires AWS config)
-        let logsWorkflow = CloudWatchLogsWorkflow.create(
+        let logsUseCase = CloudWatchLogsUseCase.create(
             cliClient: cli,
             lambdaFunctionName: "swift-lambda-sample",
             credentialProvider: credentialProvider
         )
-        self.cloudWatchLogsModel = CloudWatchLogsModel(workflow: logsWorkflow)
+        self.cloudWatchLogsModel = CloudWatchLogsModel(useCase: logsUseCase)
 
         self.lambdaBuildService = LambdaBuildService(
             workingDirectory: projectRoot,
@@ -121,7 +121,7 @@ public class DeployRemoteModel {
     
     // MARK: - Derived State (Convenience Accessors)
 
-    /// Whether any workflow is currently active
+    /// Whether any use case is currently active
     public var isIdle: Bool {
         state.isIdle
     }
@@ -256,9 +256,8 @@ public class DeployRemoteModel {
     /// Unified state machine for the deployment model.
     /// Makes invalid states unrepresentable by encoding all state combinations in the type system.
     ///
-    /// Uses service-layer types (`WorkflowState`, `DeploymentSnapshot`) for actual state,
+    /// Uses service-layer types (`UseCaseState`, `DeploymentSnapshot`) for actual state,
     /// while `ModelState` handles the app-layer concerns (loading, prior preservation).
-    /// Note: `WorkflowState` name is retained for the shared state enum (will be renamed in a future phase).
     public enum ModelState {
         /// Initial state before any operation
         case uninitialized
@@ -269,18 +268,18 @@ public class DeployRemoteModel {
         /// Ready state with current deployment info
         case ready(DeploymentSnapshot)
 
-        /// Active use case in progress (uses WorkflowState from service layer)
-        case operating(WorkflowState, prior: DeploymentSnapshot?)
+        /// Active use case in progress (uses UseCaseState from service layer)
+        case operating(UseCaseState, prior: DeploymentSnapshot?)
 
         // MARK: - Convenience Initializers
 
         /// Construct ModelState from a use case state plus app-layer prior.
         /// This is the key integration point between use cases and the model.
-        public init(from workflowState: WorkflowState, prior: DeploymentSnapshot?) {
-            if let snapshot = workflowState.completedSnapshot {
+        public init(from useCaseState: UseCaseState, prior: DeploymentSnapshot?) {
+            if let snapshot = useCaseState.completedSnapshot {
                 self = .ready(snapshot)
             } else {
-                self = .operating(workflowState, prior: prior)
+                self = .operating(useCaseState, prior: prior)
             }
         }
 
@@ -306,7 +305,7 @@ public class DeployRemoteModel {
         }
 
         /// The active use case state, if operating
-        public var workflowState: WorkflowState? {
+        public var useCaseState: UseCaseState? {
             guard case .operating(let state, _) = self else { return nil }
             return state
         }
@@ -375,7 +374,7 @@ public class DeployRemoteModel {
 
         /// Operation start time (for elapsed time display) - from use case state
         public var operationStartTime: Date? {
-            workflowState?.startTime
+            useCaseState?.startTime
         }
     }
 }

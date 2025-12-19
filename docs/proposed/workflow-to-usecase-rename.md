@@ -89,7 +89,7 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 
 ---
 
-## Phase 3: DeployRemoteFeature Rename (Part 2)
+## Phase 3: DeployRemoteFeature Rename (Part 2) ✅ COMPLETED
 
 **Scope**: Remaining DeployRemoteFeature workflows and state types.
 
@@ -103,6 +103,23 @@ GitHub SDK types that refer to actual GitHub Actions workflows (not our UseCase 
 | Folder rename | `workflows/` → `usecases/` | `Sources/features/DeployRemoteFeature/` |
 
 **Items: 6** (reduced from 7, `ResumeMonitoringWorkflow` moved to Phase 2)
+
+**Completion Notes**:
+- Files renamed using `git mv`
+- All type names updated: `CloudWatchLogsWorkflow` → `CloudWatchLogsUseCase`, `GitHubMonitorRunWorkflow` → `GitHubMonitorRunUseCase`, `GitHubPushAndDeployWorkflow` → `GitHubPushAndDeployUseCase`
+- `WorkflowState` renamed to `UseCaseState` in DeploymentState.swift
+- `GitHubCIWorkflowError` renamed to `GitHubCIUseCaseError` with `.workflowFailed` → `.githubActionsFailed`
+- Folder renamed: `workflows/` → `usecases/` in DeployRemoteFeature
+- All MacApp models updated: DeployRemoteModel, GitHubCIModel, CloudWatchLogsModel
+- MacApp views updated: CDKInfrastructureSectionView, CloudWatchLogsSectionView
+- CLI commands updated: DeployInitCommand
+- Private helper renamed: `makeWorkflowState` → `makeUseCaseState` in ResumeMonitoringUseCase
+- Build verified successfully
+
+**Technical Notes**:
+- The `ModelState.workflowState` property was renamed to `useCaseState` in DeployRemoteModel
+- Documentation comments updated to use "use case" terminology consistently
+- The error type's `.workflowFailed` case was renamed to `.githubActionsFailed` for clarity (matches UpdateLambdaUseCaseError)
 
 ---
 

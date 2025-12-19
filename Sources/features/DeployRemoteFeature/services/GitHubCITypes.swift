@@ -1,7 +1,7 @@
 import Foundation
 import GitHubSDK
 
-// MARK: - Shared State Types for GitHub CI Workflows
+// MARK: - Shared State Types for GitHub CI Use Cases
 
 /// Lightweight snapshot for status refresh (not a completed operation).
 public struct GitHubCIStatusSnapshot: Sendable, Equatable {
@@ -84,7 +84,7 @@ public struct GitHubCIGitStatus: Sendable, Equatable {
     )
 }
 
-/// State yielded by GitHub CI streaming workflows.
+/// State yielded by GitHub CI streaming use cases.
 public enum GitHubCIState: Sendable, Equatable {
     case deploying(GitHubCIDeployProgress)
     case completed(GitHubCISnapshot)
@@ -126,16 +126,16 @@ public enum GitHubCIStep: Sendable, Equatable {
 
 // MARK: - Errors
 
-public enum GitHubCIWorkflowError: Error, LocalizedError {
+public enum GitHubCIUseCaseError: Error, LocalizedError {
     case timeout(operation: String, duration: Duration)
-    case workflowFailed(runId: String, conclusion: String)
+    case githubActionsFailed(runId: String, conclusion: String)
 
     public var errorDescription: String? {
         switch self {
         case .timeout(let operation, let duration):
             return "Timeout during \(operation) after \(duration)"
-        case .workflowFailed(let runId, let conclusion):
-            return "Workflow \(runId) failed: \(conclusion)"
+        case .githubActionsFailed(let runId, let conclusion):
+            return "GitHub Actions run \(runId) failed: \(conclusion)"
         }
     }
 }
