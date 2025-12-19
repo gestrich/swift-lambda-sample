@@ -14,10 +14,10 @@ class AppModel {
     // MARK: - Services
 
     /// Remote service is optional - nil if AWS config is missing
-    let remoteModel: DeployRemoteModel?
+    private(set) var remoteModel: DeployRemoteModel?
 
     /// Error from failed remote service initialization (nil if service was created successfully)
-    let remoteServiceError: Error?
+    private(set) var remoteServiceError: Error?
 
     /// GitHub CI model is optional - nil if GitHub config is missing
     private(set) var githubModel: GitHubCIModel?
@@ -257,6 +257,46 @@ class AppModel {
 
     func save() {
         UserDefaults.standard.set(mode.persistenceKey, forKey: modeKey)
+    }
+
+    // MARK: - Model Lifecycle
+
+    /// Reload configuration-dependent models from disk.
+    /// Call this after Settings saves new configuration to create/recreate models.
+    func reloadModels() {
+        reloadRemoteModel()
+        reloadGitHubModel()
+
+        // If current mode was remote and the model was recreated, update the mode reference
+        if case .remoteModel = mode, let remote = remoteModel {
+            mode = .remoteModel(remote)
+        }
+    }
+
+    /// Reload the remote model from AWS configuration.
+    /// Creates a new model if config is now available, or clears it if config was removed.
+    private func reloadRemoteModel() {
+        do {
+            remoteModel = try DeployRemoteModel(projectRoot: projectDirectory, cliClient: cliClient)
+            remoteServiceError = nil
+        } catch {
+            remoteModel = nil
+            remoteServiceError = error
+        }
+    }
+
+    /// Reload the GitHub CI model from GitHub configuration.
+    /// Creates a new model if config is now available, or clears it if config was removed.
+    private func reloadGitHubModel() {
+        if let githubConfig = GitHubConfiguration.loadConfig() {
+            githubModel = GitHubCIModel(
+                projectRoot: projectDirectory,
+                config: githubConfig,
+                cliClient: cliClient
+            )
+        } else {
+            githubModel = nil
+        }
     }
 }
 

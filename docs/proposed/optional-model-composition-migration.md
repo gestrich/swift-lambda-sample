@@ -1,7 +1,7 @@
 # Optional Model Composition Migration
 
 **Date:** 2024-12-19
-**Status:** Proposed
+**Status:** Completed (2025-12-19)
 **Related:** [layered-architecture.md](../architecture/layered-architecture.md#model-composition)
 
 ## Objective
@@ -146,7 +146,7 @@ Lower priority. Only create when user first switches to Linux mode.
 - No view changes required - existing access patterns work with the computed property since it returns non-optional
 - Linux model is created on first navigation to Linux deployment view or when restoring Linux mode from persistence
 
-### [ ] Phase 5: Connect Settings View to Model Lifecycle
+### [x] Phase 5: Connect Settings View to Model Lifecycle
 
 `SettingsView` already exists with AWS and GitHub configuration forms, but it only saves to disk — it doesn't notify `AppModel` to create/recreate models. Users must restart the app for config changes to take effect.
 
@@ -160,6 +160,17 @@ Lower priority. Only create when user first switches to Linux mode.
 - `SettingsView.save()`: After saving config, call `appModel.reloadModels()`
 - `AppModel`: Add `reloadModels()` that recreates optional models from disk config
 - Alternative: Add specific methods like `appModel.reloadGitHubModel()`
+
+**Completed:** 2025-12-19
+
+**Technical Notes:**
+- Changed `remoteModel` and `remoteServiceError` from `let` to `private(set) var` to allow recreation
+- Added `reloadModels()` method to `AppModel` that calls `reloadRemoteModel()` and `reloadGitHubModel()`
+- If current mode was remote and model was recreated, updates the mode reference to the new model
+- Removed `onSave` callback pattern from `SettingsView` — now uses `@Environment(AppModel.self)` directly
+- `SettingsView` calls `appModel.reloadModels()` after saving configuration to disk
+- Configuration changes now take effect immediately without app restart
+- Updated `ServicesView` sheet presentation to use parameterless `SettingsView()`
 
 ## Environment Injection Strategy
 
@@ -203,9 +214,9 @@ struct GitHubSection: View {
 
 ## Success Criteria
 
-- [ ] No models created for missing configuration
-- [ ] Views show appropriate prompts when models unavailable
-- [ ] Configuration changes in Settings immediately reflect in UI
-- [ ] No eager work (dependency checking) at app startup
-- [ ] Environment injection used consistently for model access
-- [ ] All tests pass
+- [x] No models created for missing configuration
+- [x] Views show appropriate prompts when models unavailable
+- [x] Configuration changes in Settings immediately reflect in UI
+- [x] No eager work (dependency checking) at app startup
+- [x] Environment injection used consistently for model access
+- [ ] All tests pass (not yet verified)

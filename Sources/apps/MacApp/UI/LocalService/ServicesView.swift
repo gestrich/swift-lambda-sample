@@ -135,9 +135,7 @@ struct ServicesView: View {
             }
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView {
-                model.refreshStatus()
-            }
+            SettingsView()
         }
         .onAppear {
             restoreSelection()

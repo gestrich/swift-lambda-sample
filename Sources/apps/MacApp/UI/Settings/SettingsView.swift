@@ -5,6 +5,7 @@ import SwiftUI
 /// Settings view for configuring AWS credentials and other app settings
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var appModel
 
     // AWS settings
     @State private var profileName: String = ""
@@ -19,12 +20,7 @@ struct SettingsView: View {
     @State private var saveError: String?
     @State private var hasChanges: Bool = false
 
-    /// Callback when settings are saved
-    var onSave: (() -> Void)?
-
-    init(onSave: (() -> Void)? = nil) {
-        self.onSave = onSave
-
+    init() {
         // Load current AWS config
         if let config = AWSAuthConfiguration.loadConfig() {
             _profileName = State(initialValue: config.profileName)
@@ -401,7 +397,10 @@ struct SettingsView: View {
             }
 
             hasChanges = false
-            onSave?()
+
+            // Reload configuration-dependent models so changes take effect immediately
+            appModel.reloadModels()
+
             dismiss()
         } catch {
             saveError = "Failed to save: \(error.localizedDescription)"
@@ -412,5 +411,7 @@ struct SettingsView: View {
 // MARK: - Preview
 
 #Preview {
-    SettingsView()
+    let model = AppModel()
+    return SettingsView()
+        .environment(model)
 }
