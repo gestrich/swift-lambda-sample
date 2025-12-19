@@ -27,7 +27,7 @@ enum LambdaUpdateMethod: String, CaseIterable, Identifiable {
 /// View for Lambda code updates with GitHub CI or direct upload options
 struct LambdaUpdateView: View {
     var githubCIModel: GitHubCIModel?
-    var lambdaBuildService: LambdaBuildService?
+    var lambdaBuildService: LambdaBuildService
     @State private var selectedMethod: LambdaUpdateMethod = .github
 
     /// Callback to open settings
@@ -79,22 +79,20 @@ struct LambdaUpdateView: View {
 
     @ViewBuilder
     private var localContent: some View {
-        if let buildService = lambdaBuildService {
-            LocalLambdaUpdateView(service: buildService)
-                .transition(.opacity)
-        } else {
-            LambdaUploadLoadingView(onOpenSettings: onOpenSettings)
-                .transition(.opacity)
-        }
+        LocalLambdaUpdateView(service: lambdaBuildService)
+            .transition(.opacity)
     }
 }
 
 // MARK: - Preview
 
 #Preview {
+    let workingDirectory = FileManager.default.currentDirectoryPath
+    let lambdaBuildService = LambdaBuildService(workingDirectory: workingDirectory)
+
     LambdaUpdateView(
         githubCIModel: nil,
-        lambdaBuildService: nil
+        lambdaBuildService: lambdaBuildService
     )
     .padding()
     .frame(width: 500)

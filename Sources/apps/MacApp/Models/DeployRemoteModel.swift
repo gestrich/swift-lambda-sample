@@ -5,6 +5,7 @@ import ClientService
 import GitHubSDK
 import DeployRemoteFeature
 import DeployCoreService
+import LambdaBuildService
 
 /// Observable model for remote AWS deployments in the app layer.
 /// This is a thin model that uses workflows from service-deploy-remote and maintains observable state.
@@ -44,6 +45,14 @@ public class DeployRemoteModel {
     private let cfClient: CloudFormationClient
     public let cliClient: CLIClient
 
+    // MARK: - Child Models (always available when parent exists)
+
+    /// CloudWatch logs model - available because parent requires AWS config
+    public let cloudWatchLogsModel: CloudWatchLogsModel
+
+    /// Lambda build service - available because parent requires AWS config
+    public let lambdaBuildService: LambdaBuildService
+
     // MARK: - Initialization
 
     public init(
@@ -74,6 +83,20 @@ public class DeployRemoteModel {
         self.cfClient = CloudFormationClient(
             credentialProvider: credentialProvider,
             cliClient: cli
+        )
+
+        // Create child models (always available since parent requires AWS config)
+        let logsWorkflow = CloudWatchLogsWorkflow.create(
+            cliClient: cli,
+            lambdaFunctionName: "swift-lambda-sample",
+            credentialProvider: credentialProvider
+        )
+        self.cloudWatchLogsModel = CloudWatchLogsModel(workflow: logsWorkflow)
+
+        self.lambdaBuildService = LambdaBuildService(
+            workingDirectory: projectRoot,
+            cliClient: cli,
+            awsConfig: awsConfig
         )
     }
 

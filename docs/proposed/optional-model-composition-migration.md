@@ -81,7 +81,7 @@ Currently created in `RemoteServiceView.task`. Move to `AppModel` as optional pr
 - `configureGitHub(_:)` and `clearGitHub()` methods deferred to Phase 5 (Settings integration)
 - Preview views updated to include `.environment(githubModel)` injection
 
-### [ ] Phase 2: Move CloudWatch/Lambda Models to DeployRemoteModel
+### [x] Phase 2: Move CloudWatch/Lambda Models to DeployRemoteModel
 
 These models depend on AWS config. Since `DeployRemoteModel` already requires AWS config, these should be non-optional children of that model.
 
@@ -93,6 +93,15 @@ These models depend on AWS config. Since `DeployRemoteModel` already requires AW
 - `RemoteServiceView`: Access via `service.cloudWatchLogsModel`
 
 **Rationale:** If DeployRemoteModel exists, AWS config exists, so these can always be created.
+
+**Completed:** 2025-12-19
+
+**Technical Notes:**
+- Added `LambdaBuildService` import to `DeployRemoteModel.swift`
+- Child models are created in `DeployRemoteModel.init` using the same `cliClient` and `credentialProvider` as parent
+- `RemoteServiceView` no longer needs `.task` to create auxiliary models
+- `LambdaUpdateView.lambdaBuildService` changed from optional to non-optional since parent always has AWS config
+- Removed fallback "AWS configuration required" UI from `cloudWatchLogsSection` since it's always available when `RemoteServiceView` is rendered
 
 ### [ ] Phase 3: Make DependencyStatusModel Lazy
 

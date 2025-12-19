@@ -15,10 +15,6 @@ struct RemoteServiceView: View {
     /// GitHub CI model from environment (nil if GitHub config missing)
     @Environment(GitHubCIModel.self) private var githubModel: GitHubCIModel?
 
-    /// Auxiliary models created from service config
-    @State private var cloudWatchLogsModel: CloudWatchLogsModel?
-    @State private var lambdaBuildService: LambdaBuildService?
-
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -52,28 +48,6 @@ struct RemoteServiceView: View {
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
-            initializeAuxiliaryModels()
-        }
-    }
-
-    // MARK: - Auxiliary Model Initialization
-
-    private func initializeAuxiliaryModels() {
-        // Create CloudWatchLogsModel via workflow
-        let workflow = CloudWatchLogsWorkflow.create(
-            cliClient: service.cliClient,
-            lambdaFunctionName: "swift-lambda-sample",
-            credentialProvider: service.awsConfig.makeCredentialProvider()
-        )
-        self.cloudWatchLogsModel = CloudWatchLogsModel(workflow: workflow)
-
-        // Create LambdaBuildService
-        self.lambdaBuildService = LambdaBuildService(
-            workingDirectory: service.projectRoot,
-            cliClient: service.cliClient,
-            awsConfig: service.awsConfig
-        )
     }
 
     // MARK: - CDK Infrastructure Section
@@ -92,7 +66,7 @@ struct RemoteServiceView: View {
     private var lambdaUpdateSection: some View {
         LambdaUpdateView(
             githubCIModel: githubModel,
-            lambdaBuildService: lambdaBuildService,
+            lambdaBuildService: service.lambdaBuildService,
             onOpenSettings: onOpenSettings
         )
     }
@@ -131,17 +105,7 @@ struct RemoteServiceView: View {
 
     @ViewBuilder
     private var cloudWatchLogsSection: some View {
-        if let logsModel = cloudWatchLogsModel {
-            CloudWatchLogsSectionView(model: logsModel)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("CloudWatch Logs")
-                    .font(.headline)
-                Text("AWS configuration required")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
+        CloudWatchLogsSectionView(model: service.cloudWatchLogsModel)
     }
 
     @ViewBuilder
