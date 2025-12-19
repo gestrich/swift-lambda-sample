@@ -264,6 +264,52 @@ SwiftUI's `@Observable` tracks property access. When the view reads `appModel.gi
 - Use `@MainActor` on all models—observation may fail silently for changes on background threads
 - Store root models in the `App` struct, not individual views, to avoid re-initialization on view rebuilds
 
+**Passing models via Environment:**
+
+Inject models at the root and access them in child views:
+
+```swift
+// App struct injects models
+WindowGroup {
+    ContentView()
+        .environment(appModel)
+        .environment(appModel.githubModel)  // nil is fine
+}
+
+// Child view receives optional model
+struct GitHubSection: View {
+    @Environment(GitHubModel.self) private var githubModel: GitHubModel?
+}
+```
+
+**Configuration-driven model lifecycle:**
+
+When settings change, the settings view saves configuration and notifies the parent model:
+
+```swift
+struct SettingsView: View {
+    @Environment(AppModel.self) private var appModel
+    @State private var token = ""
+
+    var body: some View {
+        Form {
+            SecureField("Token", text: $token)
+            Button("Save") {
+                let config = GitHubConfiguration(token: token)
+                try? config.save()              // Persist
+                appModel.configureGitHub(config) // Create model
+            }
+            Button("Clear") {
+                GitHubConfiguration.delete()
+                appModel.clearGitHub()          // Set model to nil
+            }
+        }
+    }
+}
+```
+
+When configuration changes, simply replace the model. The old model deallocates and views automatically observe the new one. For cleanup of in-flight work, cancel tasks in `deinit`.
+
 #### CLI Commands
 
 CLI commands use workflows directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:
