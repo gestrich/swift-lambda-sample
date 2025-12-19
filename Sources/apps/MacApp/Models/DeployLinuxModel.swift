@@ -404,3 +404,112 @@ public class DeployLinuxModel: LocalService {
         }
     }
 }
+
+// MARK: - Model State
+
+extension DeployLinuxModel {
+    /// Unified state machine for Linux development model.
+    /// Mirrors `DeployRemoteModel.ModelState` for consistency.
+    /// Uses `LinuxWorkflowState` and `LinuxSnapshot` from the service layer.
+    public enum ModelState: Equatable {
+        /// Initial state before any operation
+        case uninitialized
+
+        /// Loading/refreshing state from Docker (preserves prior state if available)
+        case loading(prior: LinuxSnapshot?)
+
+        /// Ready state with current deployment info
+        case ready(LinuxSnapshot)
+
+        /// Active workflow in progress (uses LinuxWorkflowState from service layer)
+        case operating(LinuxWorkflowState, prior: LinuxSnapshot?)
+
+        // MARK: - Convenience Initializers
+
+        /// Construct ModelState from a workflow state plus app-layer prior.
+        /// This is the key integration point between workflows and the model.
+        public init(from workflowState: LinuxWorkflowState, prior: LinuxSnapshot?) {
+            if let snapshot = workflowState.completedSnapshot {
+                self = .ready(snapshot)
+            } else {
+                self = .operating(workflowState, prior: prior)
+            }
+        }
+
+        /// Construct a failed ModelState from a caught error.
+        public init(error: Error, preserving prior: LinuxSnapshot?) {
+            self = .ready(.failed(reason: error.localizedDescription, preserving: prior))
+        }
+
+        // MARK: - Convenience Accessors
+
+        /// Current deployment info (from ready state or prior state during loading/operation)
+        public var snapshot: LinuxSnapshot? {
+            switch self {
+            case .uninitialized:
+                return nil
+            case .loading(let prior):
+                return prior
+            case .ready(let snapshot):
+                return snapshot
+            case .operating(_, let prior):
+                return prior
+            }
+        }
+
+        /// The active workflow state, if operating
+        public var workflowState: LinuxWorkflowState? {
+            guard case .operating(let state, _) = self else { return nil }
+            return state
+        }
+
+        /// Whether the model is idle (not loading or operating)
+        public var isIdle: Bool {
+            switch self {
+            case .uninitialized, .ready:
+                return true
+            case .loading, .operating:
+                return false
+            }
+        }
+
+        /// Whether a start operation can be performed
+        public var canStart: Bool {
+            switch self {
+            case .ready(let snapshot):
+                return snapshot.canStart
+            case .uninitialized:
+                return true
+            case .loading, .operating:
+                return false
+            }
+        }
+
+        /// Whether a stop operation can be performed
+        public var canStop: Bool {
+            switch self {
+            case .ready(let snapshot):
+                return snapshot.canStop
+            case .uninitialized, .loading, .operating:
+                return false
+            }
+        }
+
+        /// Whether a build operation can be performed
+        public var canBuild: Bool {
+            switch self {
+            case .ready(let snapshot):
+                return snapshot.canBuild
+            case .uninitialized:
+                return true
+            case .loading, .operating:
+                return false
+            }
+        }
+
+        /// Start time of the current operation, if any
+        public var operationStartTime: Date? {
+            workflowState?.startTime
+        }
+    }
+}
