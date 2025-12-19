@@ -1,8 +1,21 @@
 import CLISDK
 import Foundation
 
-/// Simple data container for build-related state
-/// Models own and mutate this struct directly
+/// Simple data container for build-related state.
+///
+/// ## Migration Note
+/// `DeployLinuxModel` has migrated to a unified `ModelState` enum pattern where
+/// `buildState` is now a computed property derived from workflow state. This provides:
+/// - Single source of truth via `ModelState`
+/// - Workflow-driven state updates (no manual `markSuccess()`/`markFailed()` calls)
+/// - Consistent pattern with `DeployRemoteModel`
+///
+/// This type remains for:
+/// - `DeployXcodeModel` (not yet migrated to unified state)
+/// - `LambdaBuildService` (remote AWS Lambda builds)
+/// - `LocalService` protocol compatibility
+///
+/// Future work may migrate remaining consumers to the unified state pattern.
 public struct BuildState: Equatable, Sendable {
     /// Build output lines
     public var outputLines: [String] = []

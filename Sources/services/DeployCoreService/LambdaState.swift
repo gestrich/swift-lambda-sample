@@ -1,8 +1,20 @@
 import CLISDK
 import Foundation
 
-/// Simple data container for Lambda lifecycle state
-/// Models own and mutate this struct directly
+/// Simple data container for Lambda lifecycle state.
+///
+/// ## Migration Note
+/// `DeployLinuxModel` has migrated to a unified `ModelState` enum pattern where
+/// `lambdaState` is now a computed property derived from workflow state. This provides:
+/// - Single source of truth via `ModelState`
+/// - Workflow-driven state updates (no manual `markRunning()`/`markStopped()` calls)
+/// - Consistent pattern with `DeployRemoteModel`
+///
+/// This type remains for:
+/// - `DeployXcodeModel` (not yet migrated to unified state)
+/// - `LocalService` protocol compatibility
+///
+/// Future work may migrate remaining consumers to the unified state pattern.
 public struct LambdaState: Equatable, Sendable {
     /// Lambda output lines
     public var outputLines: [String] = []

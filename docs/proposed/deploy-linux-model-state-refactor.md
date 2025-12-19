@@ -1,7 +1,7 @@
 # DeployLinuxModel State Management Refactor
 
 **Date:** 2025-12-19
-**Status:** Proposed
+**Status:** ✅ COMPLETED
 **Related:** DeployRemoteModel state pattern, LinuxWorkflowState, LinuxSnapshot
 
 ## Objective
@@ -549,19 +549,34 @@ public var lambdaState: LambdaState {
 }
 ```
 
-- [ ] **Phase 11: Clean Up Obsolete Types**
+- [x] **Phase 11: Clean Up Obsolete Types** ✅ COMPLETED
 
-After refactoring:
-- [ ] Review if `BuildState` and `LambdaState` are used elsewhere
-- [ ] If not, remove them or mark as deprecated
-- [ ] Remove the `refreshBuildStatus()` call from `init`
+Reviewed `BuildState` and `LambdaState` usage and added migration documentation.
 
-## Files to Modify
+**Implementation notes:**
+- `BuildState` and `LambdaState` cannot be removed yet - they are still actively used by:
+  - `DeployXcodeModel` (not yet migrated to unified state pattern)
+  - `LambdaBuildService` (remote AWS Lambda builds in DeployRemoteFeature)
+  - `LocalService` protocol (requires `buildState` and `lambdaState` properties)
+  - `LocalServicesModel` (delegator that exposes service properties)
+- Added comprehensive migration documentation to both types explaining:
+  - `DeployLinuxModel` now uses workflow-driven state via `ModelState`
+  - `buildState` and `lambdaState` are derived as computed properties
+  - Types remain for backward compatibility with non-migrated consumers
+  - Future work may migrate remaining consumers
+- The `refreshBuildStatus()` call was already removed from `DeployLinuxModel.init` in Phase 2
+- Build verified successful
 
-- [ ] `Sources/apps/MacApp/Models/DeployLinuxModel.swift` - Main refactoring - add ModelState, refactor all operations
-- [ ] `Sources/apps/MacApp/Views/Linux/*` - Update views consuming buildState/lambdaState
-- [ ] `Sources/services/LambdaBuildService/Models/BuildState.swift` - Potentially deprecate/remove
-- [ ] `Sources/services/DeployCoreService/LambdaState.swift` - Potentially deprecate/remove
+**Changes made:**
+- `Sources/services/LambdaBuildService/Models/BuildState.swift` - Added migration note documentation
+- `Sources/services/DeployCoreService/LambdaState.swift` - Added migration note documentation
+
+## Files Modified
+
+- [x] `Sources/apps/MacApp/Models/DeployLinuxModel.swift` - Main refactoring - added ModelState, refactored all operations to use workflow-driven state
+- [x] `Sources/services/LambdaBuildService/Models/BuildState.swift` - Added migration documentation (type retained for backward compatibility)
+- [x] `Sources/services/DeployCoreService/LambdaState.swift` - Added migration documentation (type retained for backward compatibility)
+- No changes needed to `Sources/apps/MacApp/Views/Linux/*` - UI consumers continue to work via derived `buildState`/`lambdaState` properties
 
 ## Dependencies
 
@@ -588,13 +603,13 @@ After refactoring:
 
 ## Success Criteria
 
-- [ ] Single `state` property replaces all scattered state properties
-- [ ] All operations consume workflow yields (no discarded progress)
-- [ ] No manual "mark" method calls
-- [ ] No complex sync logic in refresh()
-- [ ] Consistent pattern with DeployRemoteModel
-- [ ] All existing UI functionality preserved
-- [ ] Invalid states are unrepresentable
+- [x] Single `state` property replaces all scattered state properties
+- [x] All operations consume workflow yields (no discarded progress)
+- [x] No manual "mark" method calls in DeployLinuxModel
+- [x] No complex sync logic in refresh()
+- [x] Consistent pattern with DeployRemoteModel
+- [x] All existing UI functionality preserved (via derived `buildState`/`lambdaState` properties)
+- [x] Invalid states are unrepresentable (ModelState enum design)
 
 ## Rollback Plan
 
