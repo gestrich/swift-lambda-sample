@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for stopping the Lambda container.
 /// Contains all stop logic directly, using SDK clients.
-public struct LinuxStopLambdaWorkflow: StreamingWorkflow {
+public struct LinuxStopLambdaWorkflow: StreamingUseCase {
     private let dockerClient: DockerClient
     private let config: LinuxContainerConfig
 

@@ -7,7 +7,7 @@ import Uniflow
 
 /// Workflow for initial deployment - setting infrastructure configuration.
 /// Orchestrates safety checks, CDK deployment, Lambda update, database init, and verification.
-public struct DeployInitWorkflow: StreamingWorkflow, Sendable {
+public struct DeployInitWorkflow: StreamingUseCase, Sendable {
     public typealias Result = State
     private let deployComponents: DeployWorkflow.Components
     private let cliClient: CLIClient

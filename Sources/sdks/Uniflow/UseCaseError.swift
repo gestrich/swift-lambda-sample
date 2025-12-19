@@ -1,13 +1,13 @@
 import Foundation
 
-/// Error type for workflow execution
-public enum WorkflowError: Error, LocalizedError {
+/// Error type for use case execution
+public enum UseCaseError: Error, LocalizedError {
     case noStateYielded
 
     public var errorDescription: String? {
         switch self {
         case .noStateYielded:
-            return "Workflow completed without yielding any state"
+            return "Use case completed without yielding any state"
         }
     }
 }

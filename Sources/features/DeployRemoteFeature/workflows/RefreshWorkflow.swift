@@ -12,7 +12,7 @@ import Uniflow
 
 /// Workflow for refreshing deployment state from AWS.
 /// Queries CloudFormation and delegates to ResumeMonitoringWorkflow if an operation is in progress.
-public struct RefreshWorkflow: StreamingWorkflow {
+public struct RefreshWorkflow: StreamingUseCase {
     public typealias Options = Void
     public typealias State = WorkflowState
     public typealias Result = State

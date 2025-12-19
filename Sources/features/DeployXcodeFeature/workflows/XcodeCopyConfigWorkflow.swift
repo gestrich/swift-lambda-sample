@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for copying configuration files to `~/.swiftSampleDemo/`.
 /// Contains all copy config logic directly, using LocalStorageService.
-public struct XcodeCopyConfigWorkflow: StreamingWorkflow {
+public struct XcodeCopyConfigWorkflow: StreamingUseCase {
     private let storageService: LocalStorageService
     private let workingDirectory: String
 

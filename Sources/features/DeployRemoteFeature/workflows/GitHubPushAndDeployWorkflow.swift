@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for pushing commits and deploying via GitHub Actions.
 /// Orchestrates git push and GitHub Actions, yielding state updates via stream.
-public struct GitHubPushAndDeployWorkflow: StreamingWorkflow {
+public struct GitHubPushAndDeployWorkflow: StreamingUseCase {
     public typealias State = GitHubCIState
     public typealias Result = State
 

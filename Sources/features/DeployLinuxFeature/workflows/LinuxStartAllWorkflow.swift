@@ -11,7 +11,7 @@ import Uniflow
 
 /// Workflow for starting Lambda with all services for Linux development.
 /// Orchestrates LinuxStartServicesWorkflow, LinuxSetupNetworkWorkflow, and LinuxStartLambdaWorkflow.
-public struct LinuxStartAllWorkflow: StreamingWorkflow {
+public struct LinuxStartAllWorkflow: StreamingUseCase {
     private let workingDirectory: String
 
     public init(workingDirectory: String) {

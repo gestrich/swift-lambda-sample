@@ -11,7 +11,7 @@ import Uniflow
 
 /// Workflow for checking the status of local development services (Xcode mode).
 /// Contains all status check logic directly, using SDK clients.
-public struct XcodeStatusWorkflow: StreamingWorkflow {
+public struct XcodeStatusWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient

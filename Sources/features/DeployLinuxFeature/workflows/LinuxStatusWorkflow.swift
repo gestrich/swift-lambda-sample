@@ -11,7 +11,7 @@ import Uniflow
 
 /// Workflow for checking the status of local development services (Linux mode).
 /// Contains all status logic directly, using SDK clients.
-public struct LinuxStatusWorkflow: StreamingWorkflow {
+public struct LinuxStatusWorkflow: StreamingUseCase {
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient

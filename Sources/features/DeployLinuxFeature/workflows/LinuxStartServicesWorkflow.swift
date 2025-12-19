@@ -11,7 +11,7 @@ import Uniflow
 
 /// Workflow for starting local services for Linux development.
 /// Contains all service start logic directly, using SDK clients.
-public struct LinuxStartServicesWorkflow: StreamingWorkflow {
+public struct LinuxStartServicesWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient

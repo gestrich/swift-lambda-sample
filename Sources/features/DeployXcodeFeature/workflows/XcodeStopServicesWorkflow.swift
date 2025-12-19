@@ -11,7 +11,7 @@ import Uniflow
 
 /// Workflow for stopping local services for Xcode development.
 /// Contains all service stop logic directly, using SDK clients.
-public struct XcodeStopServicesWorkflow: StreamingWorkflow {
+public struct XcodeStopServicesWorkflow: StreamingUseCase {
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient
     private let dynamodbClient: DynamoDBClient

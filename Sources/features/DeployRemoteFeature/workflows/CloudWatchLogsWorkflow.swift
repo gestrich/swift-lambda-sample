@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for streaming CloudWatch logs from Lambda.
 /// Orchestrates log fetching and yields state updates with accumulated entries.
-public struct CloudWatchLogsWorkflow: StreamingWorkflow, Sendable {
+public struct CloudWatchLogsWorkflow: StreamingUseCase, Sendable {
     public typealias Result = State
 
     // MARK: - Options

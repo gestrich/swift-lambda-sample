@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for deploying CDK infrastructure.
 /// Orchestrates CDK deployment and CloudFormation monitoring, returning progress via stream.
-public struct DeployWorkflow: StreamingWorkflow {
+public struct DeployWorkflow: StreamingUseCase {
     public typealias State = WorkflowState
     public typealias Result = State
     private let cdkClient: CDKClient

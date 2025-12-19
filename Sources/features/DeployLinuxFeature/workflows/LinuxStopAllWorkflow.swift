@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for stopping Lambda and all services for Linux development.
 /// Orchestrates LinuxStopLambdaWorkflow and LinuxStopServicesWorkflow.
-public struct LinuxStopAllWorkflow: StreamingWorkflow {
+public struct LinuxStopAllWorkflow: StreamingUseCase {
     private let workingDirectory: String
 
     public init(workingDirectory: String) {

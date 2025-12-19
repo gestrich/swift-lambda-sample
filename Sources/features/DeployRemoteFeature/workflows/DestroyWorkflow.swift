@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for destroying CDK infrastructure.
 /// Orchestrates CDK destroy and CloudFormation monitoring, returning progress via stream.
-public struct DestroyWorkflow: StreamingWorkflow {
+public struct DestroyWorkflow: StreamingUseCase {
     public typealias State = WorkflowState
     public typealias Result = State
     private let cdkClient: CDKClient

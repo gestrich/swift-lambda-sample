@@ -12,7 +12,7 @@ import Uniflow
 
 /// Workflow for starting the Lambda as a native macOS process.
 /// Contains all Lambda start logic directly, using SDK clients.
-public struct XcodeStartLambdaWorkflow: StreamingWorkflow {
+public struct XcodeStartLambdaWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient

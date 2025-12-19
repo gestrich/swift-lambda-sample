@@ -9,7 +9,7 @@ import Uniflow
 
 /// Workflow for setting up Docker network for container communication.
 /// Contains all network setup logic directly, using SDK clients.
-public struct LinuxSetupNetworkWorkflow: StreamingWorkflow {
+public struct LinuxSetupNetworkWorkflow: StreamingUseCase {
     private let dockerClient: DockerClient
     private let config: LinuxContainerConfig
     private let postgresContainerName: String

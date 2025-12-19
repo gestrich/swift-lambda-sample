@@ -10,7 +10,7 @@ import Uniflow
 
 /// Workflow for running interactive container shell.
 /// Contains all interactive logic directly, using SDK clients.
-public struct LinuxRunInteractiveWorkflow: StreamingWorkflow {
+public struct LinuxRunInteractiveWorkflow: StreamingUseCase {
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
     private let minioClient: MinIOClient

@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for stopping the Lambda process.
 /// Contains all Lambda stop logic directly, using SDK clients.
-public struct XcodeStopLambdaWorkflow: StreamingWorkflow {
+public struct XcodeStopLambdaWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
 
     // Lambda configuration

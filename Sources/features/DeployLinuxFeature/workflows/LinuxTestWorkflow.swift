@@ -7,7 +7,7 @@ import Uniflow
 
 /// Workflow for testing local Lambda endpoints (Linux mode).
 /// Contains all test logic directly, using SDK clients.
-public struct LinuxTestWorkflow: StreamingWorkflow {
+public struct LinuxTestWorkflow: StreamingUseCase {
     private let dockerClient: DockerClient
     private let config: LinuxContainerConfig
     private let workingDirectory: String

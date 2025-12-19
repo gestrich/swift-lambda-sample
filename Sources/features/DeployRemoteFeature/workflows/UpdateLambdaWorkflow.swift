@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for updating Lambda code via GitHub Actions.
 /// Orchestrates git operations and workflow monitoring, yielding state updates via stream.
-public struct UpdateLambdaWorkflow: StreamingWorkflow, Sendable {
+public struct UpdateLambdaWorkflow: StreamingUseCase, Sendable {
     public typealias State = WorkflowState
     public typealias Result = State
     private let gitClient: GitClient

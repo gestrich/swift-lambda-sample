@@ -5,7 +5,7 @@ import DeployCoreService
 import Uniflow
 
 /// Workflow for testing local Lambda endpoints (Xcode mode).
-public struct XcodeTestWorkflow: StreamingWorkflow {
+public struct XcodeTestWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let lambdaHostPort: Int
 

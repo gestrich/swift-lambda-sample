@@ -7,7 +7,7 @@ import Uniflow
 
 /// Workflow for building Lambda for Linux/Docker container development.
 /// Contains all build logic directly, using SDK clients.
-public struct LinuxBuildWorkflow: StreamingWorkflow {
+public struct LinuxBuildWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let workingDirectory: String

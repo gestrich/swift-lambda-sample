@@ -4,7 +4,7 @@ import BrewCLISDK
 import Uniflow
 
 /// Workflow that installs a specific dependency
-public struct DependencyInstallWorkflow: StreamingWorkflow {
+public struct DependencyInstallWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let brewClient: BrewClient
 

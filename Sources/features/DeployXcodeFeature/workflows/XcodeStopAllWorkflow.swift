@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for stopping Lambda and all services for Xcode development.
 /// Orchestrates XcodeStopLambdaWorkflow and XcodeStopServicesWorkflow.
-public struct XcodeStopAllWorkflow: StreamingWorkflow {
+public struct XcodeStopAllWorkflow: StreamingUseCase {
     private let workingDirectory: String
 
     public init(workingDirectory: String) {

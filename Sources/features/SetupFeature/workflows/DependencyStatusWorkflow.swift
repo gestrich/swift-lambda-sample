@@ -7,7 +7,7 @@ import GitHubSDK
 import Uniflow
 
 /// Workflow that checks all dependency statuses and yields progress
-public struct DependencyStatusWorkflow: StreamingWorkflow {
+public struct DependencyStatusWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let brewClient: BrewClient
     private let nodeClient: NodeClient

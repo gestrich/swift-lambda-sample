@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for querying deployment and git status.
 /// Orchestrates git status, GitHub Actions status, and CloudFormation stack queries.
-public struct DeployStatusWorkflow: StreamingWorkflow, Sendable {
+public struct DeployStatusWorkflow: StreamingUseCase, Sendable {
     public typealias Options = Void
     public typealias Result = State
     private let gitClient: GitClient

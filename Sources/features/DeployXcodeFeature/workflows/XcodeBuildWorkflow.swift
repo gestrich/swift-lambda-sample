@@ -6,7 +6,7 @@ import Uniflow
 
 /// Workflow for building Lambda for native macOS/Xcode development.
 /// Contains all build logic directly, using SDK clients.
-public struct XcodeBuildWorkflow: StreamingWorkflow {
+public struct XcodeBuildWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let workingDirectory: String
     private let lambdaProductName = "LambdaApp"

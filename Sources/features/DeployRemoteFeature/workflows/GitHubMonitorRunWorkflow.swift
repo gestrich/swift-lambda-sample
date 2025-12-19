@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for monitoring an existing GitHub Actions run.
 /// Polls the run status and yields state updates until completion.
-public struct GitHubMonitorRunWorkflow: StreamingWorkflow {
+public struct GitHubMonitorRunWorkflow: StreamingUseCase {
     public typealias State = GitHubCIState
     public typealias Result = State
 

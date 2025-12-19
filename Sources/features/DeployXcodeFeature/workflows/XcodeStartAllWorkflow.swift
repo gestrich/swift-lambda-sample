@@ -5,7 +5,7 @@ import Uniflow
 
 /// Workflow for starting Lambda with all services for Xcode development.
 /// Orchestrates XcodeStartServicesWorkflow and XcodeStartLambdaWorkflow.
-public struct XcodeStartAllWorkflow: StreamingWorkflow {
+public struct XcodeStartAllWorkflow: StreamingUseCase {
     private let workingDirectory: String
     private let lambdaHostPort = 8080
 

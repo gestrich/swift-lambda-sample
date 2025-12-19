@@ -12,7 +12,7 @@ import Uniflow
 
 /// Workflow for starting the Lambda as a Docker container.
 /// Contains all start logic directly, using SDK clients.
-public struct LinuxStartLambdaWorkflow: StreamingWorkflow {
+public struct LinuxStartLambdaWorkflow: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let postgresClient: PostgreSQLClient
