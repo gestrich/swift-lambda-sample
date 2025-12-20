@@ -338,16 +338,44 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Start Lambda container with all supporting services.
-    /// Uses use case-driven state updates instead of manual lambdaState marking.
+    /// Uses model composition: calls servicesModel for services, then network setup, then lambda use case.
     /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
-        guard canStart else { return }
+        guard state.canStart else { return }
         let prior = snapshot
-
-        let components = LinuxStartAllUseCase.create(workingDirectory: workingDirectory)
+        let startTime = Date()
 
         do {
-            for try await useCaseState in components.useCase.stream() {
+            // Phase 1: Start services via child model (model composition)
+            state = .operating(.startingServices(LinuxUseCaseState.ServicesProgress(
+                step: .starting,
+                startTime: startTime
+            )), prior: prior)
+            try await servicesModel.startAllServices()
+
+            // Phase 2: Setup Docker network (Linux-specific)
+            state = .operating(.settingUpNetwork(LinuxUseCaseState.NetworkProgress(
+                step: .creatingNetwork,
+                startTime: startTime
+            )), prior: prior)
+            let networkComponents = LinuxSetupNetworkUseCase.create(workingDirectory: workingDirectory)
+            for try await networkState in networkComponents.useCase.stream() {
+                let networkStep = mapNetworkStep(networkState.step)
+                let message = mapNetworkDetail(networkState.detail)
+                state = .operating(.settingUpNetwork(LinuxUseCaseState.NetworkProgress(
+                    step: networkStep,
+                    startTime: startTime,
+                    message: message
+                )), prior: prior)
+            }
+
+            // Phase 3: Start Lambda via use case
+            state = .operating(.startingLambda(LinuxUseCaseState.LambdaProgress(
+                step: .starting,
+                startTime: startTime
+            )), prior: prior)
+            let lambdaComponents = LinuxStartLambdaUseCase.create(workingDirectory: workingDirectory)
+            for try await useCaseState in lambdaComponents.useCase.stream() {
                 state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
@@ -357,21 +385,71 @@ public class DeployLinuxModel: LocalService {
     }
 
     /// Stop Lambda container and all supporting services.
-    /// Uses use case-driven state updates instead of manual lambdaState marking.
+    /// Uses model composition: calls lambda use case first, then servicesModel for services.
     /// - Parameter output: Ignored - provided for protocol conformance (will be removed in Phase 11)
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
-        guard canStop else { return }
+        guard state.canStop else { return }
         let prior = snapshot
-
-        let components = LinuxStopAllUseCase.create(workingDirectory: workingDirectory)
+        let startTime = Date()
 
         do {
-            for try await useCaseState in components.useCase.stream() {
-                state = ModelState(from: useCaseState, prior: prior)
+            // Phase 1: Stop Lambda via use case
+            state = .operating(.stoppingLambda(LinuxUseCaseState.LambdaProgress(
+                step: .stopping,
+                startTime: startTime
+            )), prior: prior)
+            let lambdaComponents = LinuxStopLambdaUseCase.create(workingDirectory: workingDirectory)
+            for try await useCaseState in lambdaComponents.useCase.stream() {
+                // Continue processing until completed, don't transition to ready yet
+                if case .completed = useCaseState {
+                    // Lambda stopped, continue to services
+                } else {
+                    state = .operating(useCaseState, prior: prior)
+                }
             }
+
+            // Phase 2: Stop services via child model (model composition)
+            state = .operating(.stoppingServices(LinuxUseCaseState.ServicesProgress(
+                step: .stopping,
+                startTime: startTime
+            )), prior: prior)
+            try await servicesModel.stopAllServices()
+
+            // Complete with snapshot
+            let status = DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: .stopped,
+                postgresState: .stopped,
+                dynamodbState: .stopped
+            )
+            let snapshot = LinuxSnapshot(
+                serviceStatus: status,
+                buildStatus: prior?.buildStatus ?? .notBuilt
+            )
+            state = .ready(snapshot)
         } catch {
             state = ModelState(error: error, preserving: prior)
             throw error
+        }
+    }
+
+    // MARK: - Network Step Mapping Helpers
+
+    private func mapNetworkStep(_ step: LinuxSetupNetworkUseCase.State.Step) -> LinuxUseCaseState.NetworkProgress.Step {
+        switch step {
+        case .creatingNetwork: return .creatingNetwork
+        case .connectingContainers: return .connectingContainers
+        case .complete: return .connectingContainers
+        }
+    }
+
+    private func mapNetworkDetail(_ detail: LinuxSetupNetworkUseCase.State.Detail?) -> String? {
+        switch detail {
+        case .output(let msg): return msg
+        case .networkCreated(let name): return "Network '\(name)' created"
+        case .containerConnected(let name): return "Connected \(name)"
+        case .containerSkipped(let name, let reason): return "Skipped \(name) (\(reason))"
+        case nil: return nil
         }
     }
 

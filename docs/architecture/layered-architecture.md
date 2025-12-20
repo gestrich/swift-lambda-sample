@@ -206,7 +206,88 @@ class Model {
 
 #### Model Composition
 
-Parent models can hold child models as properties. For features that require configuration (AWS credentials, GitHub tokens, etc.), prefer optional child models over models that exist in an "unconfigured" state.
+Parent models can hold child models as properties. This creates a model hierarchy where each model owns its slice of state.
+
+**Core Principles:**
+
+1. **Child models own their state.** The child model is the single source of truth for its domain.
+
+2. **Parent models must not duplicate child state.** Access child state through the child model reference, never store copies in the parent's state enum.
+
+3. **Models call other models, not use cases calling use cases.** When operations span multiple domains, the parent model calls child model methods. This ensures each model updates its own state. If a use case calls another use case directly, the child model is bypassed and its state becomes stale.
+
+```swift
+// ❌ BAD: Parent duplicates child state
+@MainActor @Observable
+final class LinuxModel {
+    var state: State
+
+    enum State {
+        case stopping(services: ServicesProgress)  // Duplicated from child!
+        case stopped(servicesState: ServicesState) // Duplicated from child!
+    }
+}
+
+// ✅ GOOD: Parent holds child model, accesses its state
+@MainActor @Observable
+final class LinuxModel {
+    var state: State
+    let servicesModel: LocalServicesModel  // Child model reference
+
+    enum State {
+        case idle
+        case stoppingLambda(LambdaProgress)  // Only THIS model's progress
+        case waitingForServices              // Child state accessed via servicesModel.state
+        case stopped
+    }
+}
+```
+
+**Models call models for composite operations:**
+
+```swift
+@MainActor @Observable
+final class LinuxModel {
+    private(set) var state: State = .idle
+    let servicesModel: LocalServicesModel
+
+    func stopAll() async throws {
+        state = .stoppingLambda(.init())
+        for try await progress in stopLambdaUseCase.stream() {
+            state = .stoppingLambda(progress)
+        }
+
+        state = .waitingForServices
+        try await servicesModel.stopAll()  // ← Call child model, not use case
+        // servicesModel.state is now .stopped (it updated itself)
+
+        state = .stopped
+    }
+}
+```
+
+**Why not use case composition?** If `LinuxStopAllUseCase` called `StopServicesUseCase` directly, `LocalServicesModel` would never know services stopped—its state would be stale. By routing through models, each model stays responsible for its state.
+
+**Views access child state through child model:**
+
+```swift
+struct LinuxView: View {
+    @Bindable var model: LinuxModel
+
+    var body: some View {
+        switch model.state {
+        case .waitingForServices:
+            // Access child state through child model, not parent
+            ServicesProgressView(model: model.servicesModel)
+        // ...
+        }
+    }
+}
+```
+
+**Optional child models for configuration:**
+
+For features that require configuration (AWS credentials, GitHub tokens, etc.), prefer optional child models over models that exist in an "unconfigured" state.
 
 **Rationale**: A model that doesn't exist is clearer than a model that exists but can't do anything. Views naturally handle this via `if let`, and there's no ambiguity about whether the feature is available.
 

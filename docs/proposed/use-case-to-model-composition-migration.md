@@ -135,30 +135,41 @@ final class XcodeModel {
 
 ---
 
-## Phase 3: Linux Model Migration
+## Phase 3: Linux Model Migration ✅
 
 Migrate `LinuxStartAllUseCase` and `LinuxStopAllUseCase` composition to `LinuxModel` calling `LocalServicesModel`.
 
 ### Tasks
 
-- [ ] **3.1** Update `LinuxModel` to hold reference to `LocalServicesModel`
-- [ ] **3.2** Create `LinuxModel.startAll()` that:
+- [x] **3.1** Update `LinuxModel` to hold reference to `LocalServicesModel`
+- [x] **3.2** Create `LinuxModel.startAll()` that:
   - Calls `servicesModel.startAll(configuration: .linux)`
   - Runs `LinuxSetupNetworkUseCase` (Linux-specific)
   - Runs `LinuxStartLambdaUseCase`
-- [ ] **3.3** Create `LinuxModel.stopAll()` that:
+- [x] **3.3** Create `LinuxModel.stopAll()` that:
   - Runs `LinuxStopLambdaUseCase` first
   - Then calls `servicesModel.stopAll(configuration: .linux)`
-- [ ] **3.4** Simplify `LinuxStartAllUseCase` to only handle Lambda + network (or remove)
-- [ ] **3.5** Simplify `LinuxStopAllUseCase` to only handle Lambda (or remove)
-- [ ] **3.6** Update views to access services state via `linuxModel.servicesModel.state`
+- [x] **3.4** Simplify `LinuxStartAllUseCase` to only handle Lambda + network (or remove)
+- [x] **3.5** Simplify `LinuxStopAllUseCase` to only handle Lambda (or remove)
+- [x] **3.6** Update views to access services state via `linuxModel.servicesModel.state`
 
-### Files to Modify
+### Technical Notes
 
-- `Sources/apps/MacApp/Models/LinuxModel.swift`
-- `Sources/features/DeployLinuxFeature/usecases/LinuxStartAllUseCase.swift`
-- `Sources/features/DeployLinuxFeature/usecases/LinuxStopAllUseCase.swift`
-- Linux-related views in MacApp
+- `DeployLinuxModel.startWithServices()` now uses model composition:
+  1. Sets state to `.operating(.startingServices(...))`
+  2. Calls `servicesModel.startAllServices()` (model composition)
+  3. Sets state to `.operating(.settingUpNetwork(...))`
+  4. Iterates over `LinuxSetupNetworkUseCase.stream()` for Docker network setup
+  5. Sets state to `.operating(.startingLambda(...))`
+  6. Iterates over `LinuxStartLambdaUseCase.stream()` for Lambda container operations
+- `DeployLinuxModel.stopWithServices()` uses same pattern but reversed order (Lambda first, then services)
+- `LinuxStartAllUseCase` and `LinuxStopAllUseCase` remain available for CLI use where models aren't needed
+- Views already access services state via `linuxModel.servicesModel` (no changes needed)
+- Added `mapNetworkStep` and `mapNetworkDetail` helper methods for network state mapping
+
+### Files Modified
+
+- `Sources/apps/MacApp/Models/DeployLinuxModel.swift`
 
 ### Target Pattern
 
