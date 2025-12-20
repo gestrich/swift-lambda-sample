@@ -324,16 +324,28 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Start Lambda process with all supporting services.
-    /// Uses use case-driven state updates.
+    /// Uses model composition: calls servicesModel for services, then lambda use case for lambda.
     /// - Parameter output: Ignored - provided for protocol conformance
     public func startWithServices(output: CLIOutputStream? = nil) async throws {
         guard state.canStart else { return }
         let prior = snapshot
-
-        let components = XcodeStartAllUseCase.create(workingDirectory: workingDirectory)
+        let startTime = Date()
 
         do {
-            for try await useCaseState in components.useCase.stream() {
+            // Phase 1: Start services via child model (model composition)
+            state = .operating(.startingServices(XcodeUseCaseState.ServicesProgress(
+                step: .starting,
+                startTime: startTime
+            )), prior: prior)
+            try await servicesModel.startAllServices()
+
+            // Phase 2: Start Lambda via use case
+            state = .operating(.startingLambda(XcodeUseCaseState.LambdaProgress(
+                step: .starting,
+                startTime: startTime
+            )), prior: prior)
+            let lambdaComponents = XcodeStartLambdaUseCase.create(workingDirectory: workingDirectory)
+            for try await useCaseState in lambdaComponents.useCase.stream() {
                 state = ModelState(from: useCaseState, prior: prior)
             }
         } catch {
@@ -343,18 +355,48 @@ public class DeployXcodeModel: LocalService {
     }
 
     /// Stop Lambda process and all supporting services.
-    /// Uses use case-driven state updates.
+    /// Uses model composition: calls lambda use case first, then servicesModel for services.
     /// - Parameter output: Ignored - provided for protocol conformance
     public func stopWithServices(output: CLIOutputStream? = nil) async throws {
         guard state.canStop else { return }
         let prior = snapshot
-
-        let components = XcodeStopAllUseCase.create(workingDirectory: workingDirectory)
+        let startTime = Date()
 
         do {
-            for try await useCaseState in components.useCase.stream() {
-                state = ModelState(from: useCaseState, prior: prior)
+            // Phase 1: Stop Lambda via use case
+            state = .operating(.stoppingLambda(XcodeUseCaseState.LambdaProgress(
+                step: .stopping,
+                startTime: startTime
+            )), prior: prior)
+            let lambdaComponents = XcodeStopLambdaUseCase.create()
+            for try await useCaseState in lambdaComponents.useCase.stream() {
+                // Continue processing until completed, don't transition to ready yet
+                if case .completed = useCaseState {
+                    // Lambda stopped, continue to services
+                } else {
+                    state = .operating(useCaseState, prior: prior)
+                }
             }
+
+            // Phase 2: Stop services via child model (model composition)
+            state = .operating(.stoppingServices(XcodeUseCaseState.ServicesProgress(
+                step: .stopping,
+                startTime: startTime
+            )), prior: prior)
+            try await servicesModel.stopAllServices()
+
+            // Complete with snapshot
+            let status = DeploymentStatus(
+                lambdaState: .stopped,
+                s3State: .stopped,
+                postgresState: .stopped,
+                dynamodbState: .stopped
+            )
+            let snapshot = XcodeSnapshot(
+                serviceStatus: status,
+                buildStatus: prior?.buildStatus ?? .notBuilt
+            )
+            state = .ready(snapshot)
         } catch {
             state = ModelState(error: error, preserving: prior)
             throw error
