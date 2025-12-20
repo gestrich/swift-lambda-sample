@@ -6,6 +6,7 @@ import DeployLocalService
 import DeployCoreService
 import LambdaBuildService
 import DeployXcodeFeature
+import LocalServicesFeature
 
 /// Observable model for native macOS Xcode development workflow
 /// Holds UI state and delegates operations to Xcode use cases
@@ -13,7 +14,10 @@ import DeployXcodeFeature
 @MainActor
 public class DeployXcodeModel: LocalService {
     public let cliClient: CLIClient
-    private let storageService: LocalStorageService
+
+    /// Child model for managing Docker services (PostgreSQL, MinIO, DynamoDB).
+    /// Views can access this directly for service-specific operations.
+    public let servicesModel: LocalServicesModel
 
     // Lambda configuration (for endpoint display)
     private let lambdaHostPort = 8080
@@ -162,171 +166,85 @@ public class DeployXcodeModel: LocalService {
         self.workingDirectory = workingDirectory
         self.paths = LambdaPaths(workingDirectory: workingDirectory)
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.storageService = LocalStorageService()
+        self.servicesModel = LocalServicesModel(
+            workingDirectory: workingDirectory,
+            configuration: .xcode
+        )
         Task { await refresh() }
     }
 
-    // MARK: - Service Management
+    // MARK: - Service Management (Delegated to LocalServicesModel)
 
     /// Start all local services (PostgreSQL, MinIO S3, DynamoDB Local).
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startAllServices() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .all) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startAllServices()
     }
 
     /// Stop all local services (PostgreSQL, MinIO S3, DynamoDB Local).
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopAllServices() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .all) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopAllServices()
     }
 
     /// Start MinIO S3 service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startS3() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startS3()
     }
 
+    /// Create S3 bucket in MinIO.
+    /// Delegates to child LocalServicesModel.
     public func createBucket(bucketName: String? = nil) async throws {
-        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
-        try await components.minioClient.createBucket(bucketName: bucketName)
+        try await servicesModel.createBucket(bucketName: bucketName)
     }
 
     /// Stop MinIO S3 service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopS3() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopS3()
     }
 
     /// Start PostgreSQL database service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startDatabase() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startDatabase()
     }
 
     /// Stop PostgreSQL database service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopDatabase() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopDatabase()
     }
 
     /// Start DynamoDB Local service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startDynamoDB() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startDynamoDB()
     }
 
     /// Stop DynamoDB Local service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopDynamoDB() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = XcodeStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopDynamoDB()
     }
 
+    /// Data directory for S3 (MinIO).
+    /// Delegates to child LocalServicesModel.
     public var s3DataDirectory: String {
-        storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
+        servicesModel.s3DataDirectory
     }
 
+    /// Data directory for PostgreSQL.
+    /// Delegates to child LocalServicesModel.
     public var postgresDataDirectory: String {
-        storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
+        servicesModel.postgresDataDirectory
     }
 
+    /// Data directory for DynamoDB Local.
+    /// Delegates to child LocalServicesModel.
     public var dynamodbDataDirectory: String {
-        storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
+        servicesModel.dynamodbDataDirectory
     }
 
     // MARK: - Build

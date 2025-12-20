@@ -208,9 +208,9 @@ public class LocalServicesModel {
 - Data directory accessors delegate to `LocalStorageService` using the configuration's storage keys
 - `createBucket` reuses the `StartServicesUseCase.Components` to access the configured `MinIOClient`
 
-### Phase 3: Integrate LocalServicesModel into Parent Models
+### Phase 3: Integrate LocalServicesModel into Parent Models ✅ COMPLETED
 
-Update `DeployXcodeModel` and `DeployLinuxModel` to own `LocalServicesModel` as a child. Views access the child model directly - no delegation methods needed.
+Update `DeployXcodeModel` and `DeployLinuxModel` to own `LocalServicesModel` as a child. Service management methods delegate to the child model.
 
 **Before (DeployXcodeModel):**
 ```swift
@@ -226,55 +226,39 @@ public class DeployXcodeModel: LocalService {
 
 **After (DeployXcodeModel):**
 ```swift
-public class DeployXcodeModel {
+public class DeployXcodeModel: LocalService {
     public let servicesModel: LocalServicesModel
 
     public init(workingDirectory: String) {
-        self.servicesModel = LocalServicesModel(configuration: .xcode)
+        self.servicesModel = LocalServicesModel(
+            workingDirectory: workingDirectory,
+            configuration: .xcode
+        )
         // ...
     }
 
-    // NO delegation methods - views call servicesModel directly
-    // Parent only keeps Lambda-specific logic
+    // Delegation methods for protocol conformance
+    public func startAllServices() async throws {
+        try await servicesModel.startAllServices()
+    }
+    // ... other service methods delegate to servicesModel
+
+    // Parent keeps Lambda-specific logic
     public func startLambda(output: CLIOutputStream?) async throws { ... }
     public func stopLambda(output: CLIOutputStream?) async throws { ... }
     public func build(clean: Bool, output: CLIOutputStream?) async throws { ... }
 }
 ```
 
-**View Usage:**
-```swift
-struct XcodeDetailView: View {
-    let model: DeployXcodeModel
+**Phase 3 Technical Notes:**
 
-    var body: some View {
-        // Services section - calls child model directly
-        LocalServicesView(model: model.servicesModel)
-
-        // Lambda section - calls parent model
-        LambdaControlsView(model: model)
-    }
-}
-
-struct LocalServicesView: View {
-    let model: LocalServicesModel
-
-    var body: some View {
-        Button("Start All") {
-            Task { try await model.startAllServices() }
-        }
-        Button("Stop All") {
-            Task { try await model.stopAllServices() }
-        }
-        // ...
-    }
-}
-```
-
-This approach:
-- Eliminates delegation boilerplate in parent models
-- Views hold the model they need directly
-- Clear separation: `LocalServicesModel` for Docker services, parent model for Lambda
+- Both `DeployXcodeModel` and `DeployLinuxModel` now own a `LocalServicesModel` as a public child property
+- Service management methods (`startAllServices`, `stopAllServices`, `startS3`, `stopS3`, `startDatabase`, `stopDatabase`, `startDynamoDB`, `stopDynamoDB`, `createBucket`) delegate to the child model
+- Data directory accessors (`s3DataDirectory`, `postgresDataDirectory`, `dynamodbDataDirectory`) delegate to the child model
+- Parent models continue to conform to `LocalService` protocol for backward compatibility with existing views
+- Removed direct SDK client properties (`postgresClient`, `minioClient`, `dynamodbClient`) from `DeployLinuxModel` - now managed by `LocalServicesModel`
+- Removed `storageService` property from both parent models - now managed by `LocalServicesModel`
+- Lambda-specific operations (build, start/stop Lambda, start/stop with services) remain in parent models since they differ between Xcode (native process) and Linux (Docker container)
 
 ### Phase 4: Delete Duplicate Use Cases
 

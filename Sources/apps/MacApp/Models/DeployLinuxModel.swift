@@ -5,11 +5,9 @@ import StorageService
 import DeployLocalService
 import DeployCoreService
 import DockerCLISDK
-import DynamoDBSDK
 import LambdaBuildService
-import MinioSDK
-import PostgreSQLSDK
 import DeployLinuxFeature
+import LocalServicesFeature
 
 /// Observable model for Linux container development workflow
 /// Holds UI state and delegates operations to workflow factories
@@ -17,13 +15,13 @@ import DeployLinuxFeature
 @MainActor
 public class DeployLinuxModel: LocalService {
     public let cliClient: CLIClient
-    private let storageService: LocalStorageService
+
+    /// Child model for managing Docker services (PostgreSQL, MinIO, DynamoDB).
+    /// Views can access this directly for service-specific operations.
+    public let servicesModel: LocalServicesModel
 
     // SDK clients for direct service operations
     private let dockerClient: DockerClient
-    private let postgresClient: PostgreSQLClient
-    private let minioClient: MinIOClient
-    private let dynamodbClient: DynamoDBClient
     private let config: LinuxContainerConfig
 
     // Working directory and paths
@@ -170,191 +168,90 @@ public class DeployLinuxModel: LocalService {
         self.workingDirectory = workingDirectory
         self.paths = LambdaPaths(workingDirectory: workingDirectory)
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        self.storageService = LocalStorageService()
         self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
 
         let dockerClient = DockerClient(cliClient: cliClient)
         self.dockerClient = dockerClient
 
-        self.postgresClient = PostgreSQLClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
-        )
-        self.minioClient = MinIOClient(
-            dockerClient: dockerClient,
-            networkName: config.networkName,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
-        )
-        self.dynamodbClient = DynamoDBClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        self.servicesModel = LocalServicesModel(
+            workingDirectory: workingDirectory,
+            configuration: .linux
         )
         Task { await refresh() }
     }
 
-    // MARK: - Service Management
+    // MARK: - Service Management (Delegated to LocalServicesModel)
 
     /// Start all supporting services (S3, PostgreSQL, DynamoDB).
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startAllServices() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .all) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startAllServices()
     }
 
     /// Stop all supporting services (S3, PostgreSQL, DynamoDB).
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopAllServices() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .all) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopAllServices()
     }
 
     /// Start S3 service (MinIO).
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startS3() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startS3()
     }
 
+    /// Create S3 bucket in MinIO.
+    /// Delegates to child LocalServicesModel.
     public func createBucket(bucketName: String? = nil) async throws {
-        try await minioClient.createBucket(bucketName: bucketName)
+        try await servicesModel.createBucket(bucketName: bucketName)
     }
 
     /// Stop S3 service (MinIO).
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopS3() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.s3)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopS3()
     }
 
     /// Start PostgreSQL database service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startDatabase() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startDatabase()
     }
 
     /// Stop PostgreSQL database service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopDatabase() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.database)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopDatabase()
     }
 
     /// Start DynamoDB Local service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func startDynamoDB() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.startDynamoDB()
     }
 
     /// Stop DynamoDB Local service.
-    /// Uses use case-driven state updates.
+    /// Delegates to child LocalServicesModel.
     public func stopDynamoDB() async throws {
-        guard isIdle else { return }
-        let prior = snapshot
-
-        let components = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
-
-        do {
-            for try await useCaseState in components.useCase.stream(options: .only(.dynamodb)) {
-                state = ModelState(from: useCaseState, prior: prior)
-            }
-        } catch {
-            state = ModelState(error: error, preserving: prior)
-            throw error
-        }
+        try await servicesModel.stopDynamoDB()
     }
 
+    /// Data directory for S3 (MinIO).
+    /// Delegates to child LocalServicesModel.
     public var s3DataDirectory: String {
-        storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
+        servicesModel.s3DataDirectory
     }
 
+    /// Data directory for PostgreSQL.
+    /// Delegates to child LocalServicesModel.
     public var postgresDataDirectory: String {
-        storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
+        servicesModel.postgresDataDirectory
     }
 
+    /// Data directory for DynamoDB Local.
+    /// Delegates to child LocalServicesModel.
     public var dynamodbDataDirectory: String {
-        storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
+        servicesModel.dynamodbDataDirectory
     }
 
     // MARK: - Build
