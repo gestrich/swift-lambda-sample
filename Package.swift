@@ -190,6 +190,21 @@ let package = Package(
             ],
             path: "Sources/features/DeployLinuxFeature"
         ),
+        .target(
+            name: "LocalServicesFeature",
+            dependencies: [
+                .target(name: "Uniflow"),
+                .target(name: "CLISDK"),
+                .target(name: "DockerCLISDK"),
+                .target(name: "MinioSDK"),
+                .target(name: "PostgreSQLSDK"),
+                .target(name: "DynamoDBSDK"),
+                .target(name: "StorageService"),
+                .target(name: "DeployLocalService"),
+                .target(name: "DeployCoreService"),
+            ],
+            path: "Sources/features/LocalServicesFeature"
+        ),
         .executableTarget(
             name: "CLIApp",
             dependencies: [

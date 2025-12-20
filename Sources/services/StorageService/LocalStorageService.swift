@@ -72,7 +72,7 @@ public struct LocalStorageService: Sendable {
 
 /// Protocol for defining storage path keys
 /// Clients define their own keys by conforming to this protocol
-public protocol StoragePathKey {
+public protocol StoragePathKey: Sendable {
     /// The path component used in the directory structure
     /// e.g., "postgres/xcode-data", "minio/linux-data"
     static var pathComponent: String { get }
