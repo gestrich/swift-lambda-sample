@@ -244,6 +244,7 @@ let package = Package(
                 .target(name: "DeployRemoteFeature"),
                 .target(name: "DeployXcodeFeature"),
                 .target(name: "DeployLinuxFeature"),
+                .target(name: "LocalServicesFeature"),
                 .target(name: "SetupFeature"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),

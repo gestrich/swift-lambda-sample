@@ -152,7 +152,7 @@ public struct StartServicesUseCase: StreamingUseCase {
 - Use cases follow the existing pattern with `Components` struct and `create(workingDirectory:configuration:)` factory
 - Added `LocalServicesFeature` target to Package.swift with appropriate dependencies
 
-### Phase 2: Create LocalServicesModel
+### Phase 2: Create LocalServicesModel ✅ COMPLETED
 
 Create the child model in the app layer.
 
@@ -198,6 +198,15 @@ public class LocalServicesModel {
     }
 }
 ```
+
+**Phase 2 Technical Notes:**
+
+- `LocalServicesModel` takes both `workingDirectory` and `configuration` in its initializer (workingDirectory is needed by use case factory methods)
+- Added `LocalServicesFeature` as a dependency to `MacApp` in Package.swift
+- Model follows the same state machine pattern as `DeployXcodeModel` and `DeployLinuxModel` for consistency
+- `ModelState.init(error:preserving:)` falls back to `.stopped` snapshot if prior is nil to avoid unrecoverable states
+- Data directory accessors delegate to `LocalStorageService` using the configuration's storage keys
+- `createBucket` reuses the `StartServicesUseCase.Components` to access the configured `MinIOClient`
 
 ### Phase 3: Integrate LocalServicesModel into Parent Models
 
