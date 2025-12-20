@@ -50,7 +50,7 @@ extension DeployRemoteCommand {
                         }
                     }
 
-                case .completed, .deploying, .destroying:
+                case .completed, .deploying, .destroying, .initializingDatabase, .verifyingDeployment:
                     break
                 }
             }

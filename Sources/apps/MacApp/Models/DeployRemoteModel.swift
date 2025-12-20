@@ -251,6 +251,158 @@ public class DeployRemoteModel {
         }
     }
 
+    // MARK: - Deploy Init (Model Composition)
+
+    /// Options for the deploy-init operation
+    public struct DeployInitOptions {
+        public let withPostgres: Bool
+        public let withNATGateway: Bool
+        public let skipPush: Bool
+
+        public init(
+            withPostgres: Bool = false,
+            withNATGateway: Bool = false,
+            skipPush: Bool = false
+        ) {
+            self.withPostgres = withPostgres
+            self.withNATGateway = withNATGateway
+            self.skipPush = skipPush
+        }
+    }
+
+    /// Initial deployment with model composition.
+    /// Orchestrates safety checks, infrastructure deployment, Lambda update, database init, and verification.
+    /// Uses model composition: calls own `deploy()` and `updateLambdaCode()` methods.
+    public func deployInit(options: DeployInitOptions) async throws {
+        guard state.canDeploy else { return }
+
+        let prior = state.snapshot
+        let startTime = Date()
+
+        do {
+            // Phase 1: Safety check - prevent accidental database deletion
+            try await checkDatabaseSafety(withPostgres: options.withPostgres)
+
+            // Phase 2: Deploy infrastructure (model composition - calls own deploy method)
+            let deployOptions = DeployUseCase.Options(
+                withPostgres: options.withPostgres,
+                withNATGateway: options.withNATGateway
+            )
+            await deploy(options: deployOptions)
+
+            // Check if deploy succeeded
+            guard let snapshot = state.snapshot, snapshot.isDeployed else {
+                throw DeployError.deploymentFailed(reason: "Infrastructure deployment did not complete successfully")
+            }
+
+            // Phase 3: Update Lambda code (model composition - calls own updateLambdaCode method)
+            try await updateLambdaCode(skipPush: options.skipPush)
+
+            // Phase 4: Initialize database if Postgres is included
+            if options.withPostgres, let apiUrl = state.snapshot?.apiGatewayUrl {
+                state = .operating(.initializingDatabase(UseCaseState.InitDatabaseProgress(
+                    step: .initializing,
+                    startTime: startTime
+                )), prior: prior)
+
+                let response = try await initializeDatabase(apiUrl: apiUrl)
+                state = .operating(.initializingDatabase(UseCaseState.InitDatabaseProgress(
+                    step: .completed,
+                    startTime: startTime,
+                    response: response
+                )), prior: prior)
+            }
+
+            // Phase 5: Verify deployment
+            if let apiUrl = state.snapshot?.apiGatewayUrl {
+                state = .operating(.verifyingDeployment(UseCaseState.VerifyProgress(
+                    step: .verifying,
+                    startTime: startTime
+                )), prior: prior)
+
+                let response = try await verifyDeployment(apiUrl: apiUrl)
+                state = .operating(.verifyingDeployment(UseCaseState.VerifyProgress(
+                    step: .completed,
+                    startTime: startTime,
+                    response: response
+                )), prior: prior)
+            }
+
+            // Complete - restore ready state with final snapshot
+            if let finalSnapshot = state.snapshot {
+                state = .ready(finalSnapshot)
+            }
+        } catch {
+            state = ModelState(error: error, preserving: prior)
+            throw error
+        }
+    }
+
+    // MARK: - Deploy Init Private Helpers
+
+    private func checkDatabaseSafety(withPostgres: Bool) async throws {
+        do {
+            let cfState = try await cfClient.queryState(stackName: stackName)
+
+            if case .deployed = cfState {
+                let resources = try await cfClient.describeStackResources(name: stackName)
+                let hasExistingDatabase = resources.contains {
+                    $0.logicalResourceId.contains("Database") && $0.resourceType.contains("RDS")
+                }
+
+                if hasExistingDatabase && !withPostgres {
+                    throw DeployError.invalidConfiguration(
+                        "Cannot remove database with deploy-init. Use 'tear-down' first if you want to remove the database."
+                    )
+                }
+            }
+        } catch let error as DeployError {
+            throw error
+        } catch {
+            // Stack doesn't exist or other error - safe to proceed
+        }
+    }
+
+    private func initializeDatabase(apiUrl: String) async throws -> String {
+        let curlCommand = Curl.Request.post(url: "\(apiUrl)api/database", silent: true)
+        let result = try await cliClient.executeForResult(curlCommand, printCommand: false)
+
+        if !result.isSuccess {
+            let errorOutput = result.stderr.isEmpty ? result.stdout : result.stderr
+            throw DeployError.commandFailed(
+                command: "curl POST /api/database",
+                exitCode: result.exitCode,
+                output: errorOutput
+            )
+        }
+
+        let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !response.contains("Database Initialized") {
+            throw DeployError.deploymentFailed(reason: "Unexpected database init response: \(response)")
+        }
+
+        return response
+    }
+
+    private func verifyDeployment(apiUrl: String) async throws -> String {
+        let healthCommand = Curl.Request.get(url: "\(apiUrl)api/health", silent: true)
+        let result = try await cliClient.executeForResult(healthCommand, printCommand: false)
+
+        if !result.isSuccess {
+            let errorOutput = result.stderr.isEmpty ? result.stdout : result.stderr
+            throw DeployError.testFailed(message: "Health check failed: \(errorOutput)")
+        }
+
+        let response = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if response.contains("error") || response.contains("Error") {
+            throw DeployError.testFailed(message: "Health check returned error: \(response)")
+        }
+
+        return response
+    }
+
     // MARK: - Nested Types
 
     /// Unified state machine for the deployment model.

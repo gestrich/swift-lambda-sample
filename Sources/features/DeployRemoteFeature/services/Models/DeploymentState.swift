@@ -121,6 +121,8 @@ public enum UseCaseState: Sendable, Equatable {
     case deploying(DeployProgress)
     case destroying(DestroyProgress)
     case updatingLambda(UpdateLambdaProgress)
+    case initializingDatabase(InitDatabaseProgress)
+    case verifyingDeployment(VerifyProgress)
     case completed(DeploymentSnapshot)
 
     // MARK: - Deploy Progress
@@ -186,6 +188,46 @@ public enum UseCaseState: Sendable, Equatable {
         }
     }
 
+    // MARK: - Initialize Database Progress
+
+    /// Progress info for database initialization operations
+    public struct InitDatabaseProgress: Sendable, Equatable {
+        public let step: Step
+        public let startTime: Date
+        public let response: String?
+
+        public enum Step: Sendable, Equatable {
+            case initializing
+            case completed
+        }
+
+        public init(step: Step, startTime: Date, response: String? = nil) {
+            self.step = step
+            self.startTime = startTime
+            self.response = response
+        }
+    }
+
+    // MARK: - Verify Deployment Progress
+
+    /// Progress info for deployment verification operations
+    public struct VerifyProgress: Sendable, Equatable {
+        public let step: Step
+        public let startTime: Date
+        public let response: String?
+
+        public enum Step: Sendable, Equatable {
+            case verifying
+            case completed
+        }
+
+        public init(step: Step, startTime: Date, response: String? = nil) {
+            self.step = step
+            self.startTime = startTime
+            self.response = response
+        }
+    }
+
     // MARK: - Convenience Accessors
 
     /// Start time extracted from any in-progress state
@@ -194,6 +236,8 @@ public enum UseCaseState: Sendable, Equatable {
         case .deploying(let p): return p.startTime
         case .destroying(let p): return p.startTime
         case .updatingLambda(let p): return p.startTime
+        case .initializingDatabase(let p): return p.startTime
+        case .verifyingDeployment(let p): return p.startTime
         case .completed: return nil
         }
     }

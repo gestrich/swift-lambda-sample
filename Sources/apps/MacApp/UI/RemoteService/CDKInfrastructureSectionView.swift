@@ -275,6 +275,30 @@ struct CDKInfrastructureSectionView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+            case .initializingDatabase:
+                HStack(spacing: 6) {
+                    Text("Initializing Database...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    if let elapsed = elapsedTimeString {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            case .verifyingDeployment:
+                HStack(spacing: 6) {
+                    Text("Verifying Deployment...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    if let elapsed = elapsedTimeString {
+                        Text(elapsed)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             case .completed:
                 Text("Complete")
                     .font(.subheadline)
@@ -374,7 +398,7 @@ struct CDKInfrastructureSectionView: View {
             return progress.detail ?? DeploymentProgress()
         case .destroying(let progress):
             return progress.detail ?? DeploymentProgress()
-        case .updatingLambda, .completed:
+        case .updatingLambda, .initializingDatabase, .verifyingDeployment, .completed:
             return DeploymentProgress()
         }
     }
@@ -461,6 +485,14 @@ struct CDKInfrastructureSectionView: View {
                             .foregroundColor(.secondary)
                     case .updatingLambda:
                         Text("Updating Lambda...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .initializingDatabase:
+                        Text("Initializing Database...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .verifyingDeployment:
+                        Text("Verifying Deployment...")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     case .completed:

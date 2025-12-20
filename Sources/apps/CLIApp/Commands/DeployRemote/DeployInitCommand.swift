@@ -152,7 +152,7 @@ extension DeployRemoteCommand {
                 }
             case .completed:
                 break
-            case .destroying, .updatingLambda:
+            case .destroying, .updatingLambda, .initializingDatabase, .verifyingDeployment:
                 break
             }
         }

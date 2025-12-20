@@ -89,7 +89,7 @@ extension DeployRemoteCommand {
                 case .completed:
                     break
 
-                case .deploying, .updatingLambda:
+                case .deploying, .updatingLambda, .initializingDatabase, .verifyingDeployment:
                     break
                 }
             }

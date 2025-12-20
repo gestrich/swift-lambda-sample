@@ -61,7 +61,7 @@ extension DeployRemoteCommand {
                 case .completed(let snapshot):
                     finalOutputs = snapshot.outputs
 
-                case .destroying, .updatingLambda:
+                case .destroying, .updatingLambda, .initializingDatabase, .verifyingDeployment:
                     break
                 }
             }

@@ -200,24 +200,40 @@ final class LinuxModel {
 
 ---
 
-## Phase 4: Remote Deploy Model Migration
+## Phase 4: Remote Deploy Model Migration ✅
 
 Migrate `DeployInitUseCase` composition to `RemoteDeployModel` calling child models/use cases appropriately.
 
 ### Tasks
 
-- [ ] **4.1** Analyze `DeployInitUseCase` orchestration (deploy + update-lambda + verify)
-- [ ] **4.2** Determine if `DeployUseCase` and `UpdateLambdaUseCase` need separate models or can remain as use cases owned by `RemoteDeployModel`
-- [ ] **4.3** If separate models needed, create `InfrastructureModel` and `LambdaCodeModel`
-- [ ] **4.4** Update `RemoteDeployModel.deployInit()` to call child models
-- [ ] **4.5** Simplify `DeployInitUseCase` to be a leaf operation or remove
-- [ ] **4.6** Update views accordingly
+- [x] **4.1** Analyze `DeployInitUseCase` orchestration (deploy + update-lambda + verify)
+- [x] **4.2** Determine if `DeployUseCase` and `UpdateLambdaUseCase` need separate models or can remain as use cases owned by `RemoteDeployModel`
+- [x] **4.3** If separate models needed, create `InfrastructureModel` and `LambdaCodeModel`
+- [x] **4.4** Update `RemoteDeployModel.deployInit()` to call child models
+- [x] **4.5** Simplify `DeployInitUseCase` to be a leaf operation or remove
+- [x] **4.6** Update views accordingly
 
-### Files to Modify
+### Technical Notes
 
-- `Sources/apps/MacApp/Models/RemoteDeployModel.swift`
-- `Sources/features/DeployRemoteFeature/usecases/DeployInitUseCase.swift`
-- Related views in MacApp
+- **Decision**: `DeployUseCase` and `UpdateLambdaUseCase` remain as leaf use cases owned by `DeployRemoteModel`. No separate models needed since they're already well-encapsulated.
+- `DeployRemoteModel.deployInit()` now uses **model composition**:
+  1. Performs safety check (prevent accidental database deletion) - inline in model
+  2. Calls `deploy(options:)` (model's own method for infrastructure)
+  3. Calls `updateLambdaCode()` (model's own method for Lambda)
+  4. Initializes database if Postgres is included (new inline operation)
+  5. Verifies deployment with health check (new inline operation)
+- Added new `UseCaseState` cases for deploy-init specific phases:
+  - `.initializingDatabase(InitDatabaseProgress)` - for database initialization step
+  - `.verifyingDeployment(VerifyProgress)` - for health check verification step
+- `DeployInitUseCase` remains available for CLI use (same pattern as `XcodeStartAllUseCase`)
+- Views updated to handle new use case states with appropriate status text
+
+### Files Modified
+
+- `Sources/apps/MacApp/Models/DeployRemoteModel.swift` - Added `deployInit()` method with model composition
+- `Sources/features/DeployRemoteFeature/services/Models/DeploymentState.swift` - Added new `UseCaseState` cases
+- `Sources/apps/MacApp/UI/RemoteService/CDKInfrastructureSectionView.swift` - Added UI for new states
+- `Sources/apps/CLIApp/Commands/DeployRemote/*.swift` - Updated switch statements for exhaustiveness
 
 ### Considerations
 
