@@ -18,8 +18,9 @@ public class DeployXcodeModel: LocalService {
     // Lambda configuration (for endpoint display)
     private let lambdaHostPort = 8080
 
-    // Working directory
+    // Working directory and paths
     private let workingDirectory: String
+    private let paths: LambdaPaths
 
     // MARK: - Unified State
 
@@ -159,6 +160,7 @@ public class DeployXcodeModel: LocalService {
 
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
         Task { await refresh() }
@@ -352,19 +354,7 @@ public class DeployXcodeModel: LocalService {
     }
 
     public func isLambdaBuilt() -> Bool {
-        // Check synchronously using a known path pattern
-        let debugDir = "\(workingDirectory)/.build"
-        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: debugDir) else {
-            return false
-        }
-
-        for item in contents {
-            let executablePath = "\(debugDir)/\(item)/debug/LambdaApp"
-            if FileManager.default.fileExists(atPath: executablePath) {
-                return true
-            }
-        }
-        return false
+        paths.isXcodeBuildComplete()
     }
 
     public func deleteBuild() async throws {

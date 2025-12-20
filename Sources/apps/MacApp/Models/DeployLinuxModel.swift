@@ -26,8 +26,9 @@ public class DeployLinuxModel: LocalService {
     private let dynamodbClient: DynamoDBClient
     private let config: LinuxContainerConfig
 
-    // Working directory
+    // Working directory and paths
     private let workingDirectory: String
+    private let paths: LambdaPaths
 
     // MARK: - Unified State
 
@@ -167,6 +168,7 @@ public class DeployLinuxModel: LocalService {
 
     public init(workingDirectory: String) {
         self.workingDirectory = workingDirectory
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.storageService = LocalStorageService()
         self.config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
@@ -380,13 +382,7 @@ public class DeployLinuxModel: LocalService {
     }
 
     public func isLambdaBuilt() -> Bool {
-        let lambdaDir = "\(workingDirectory)/lambda"
-        let bootstrapPath = "\(lambdaDir)/bootstrap"
-        let lambdaZipPath = "\(workingDirectory)/lambda.zip"
-
-        return FileManager.default.fileExists(atPath: lambdaDir) &&
-               FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: lambdaZipPath)
+        paths.isLinuxBuildComplete()
     }
 
     public func deleteBuild() async throws {

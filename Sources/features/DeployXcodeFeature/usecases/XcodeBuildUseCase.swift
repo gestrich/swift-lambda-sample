@@ -10,6 +10,7 @@ public struct XcodeBuildUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let workingDirectory: String
     private let lambdaProductName = "LambdaApp"
+    private let paths: LambdaPaths
 
     public init(
         cliClient: CLIClient,
@@ -17,6 +18,7 @@ public struct XcodeBuildUseCase: StreamingUseCase {
     ) {
         self.cliClient = cliClient
         self.workingDirectory = workingDirectory
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
     }
 
     /// Components needed for build operations.
@@ -154,18 +156,7 @@ public struct XcodeBuildUseCase: StreamingUseCase {
 
     /// Check if Lambda is already built (native macOS build)
     public func isLambdaBuilt() -> Bool {
-        let debugDir = "\(workingDirectory)/.build"
-        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: debugDir) else {
-            return false
-        }
-
-        for item in contents {
-            let executablePath = "\(debugDir)/\(item)/debug/\(lambdaProductName)"
-            if FileManager.default.fileExists(atPath: executablePath) {
-                return true
-            }
-        }
-        return false
+        paths.isXcodeBuildComplete()
     }
 
     /// Delete build artifacts

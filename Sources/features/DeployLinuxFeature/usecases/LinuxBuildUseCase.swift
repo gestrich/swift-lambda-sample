@@ -11,13 +11,7 @@ public struct LinuxBuildUseCase: StreamingUseCase {
     private let cliClient: CLIClient
     private let dockerClient: DockerClient
     private let workingDirectory: String
-
-    // Build artifact paths
-    private var lambdaDir: String { "\(workingDirectory)/lambda" }
-    private var lambdaZipPath: String { "\(workingDirectory)/lambda.zip" }
-    private var bootstrapPath: String { "\(lambdaDir)/bootstrap" }
-    private var awsSamBuildDir: String { ".aws-sam/build-SwiftLambda" }
-    private var buildArtifactPaths: [String] { ["lambda", "lambda.zip", awsSamBuildDir] }
+    private let paths: LambdaPaths
 
     public init(
         cliClient: CLIClient,
@@ -27,6 +21,7 @@ public struct LinuxBuildUseCase: StreamingUseCase {
         self.cliClient = cliClient
         self.dockerClient = dockerClient
         self.workingDirectory = workingDirectory
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
     }
 
     /// Components needed for build operations.
@@ -92,7 +87,7 @@ public struct LinuxBuildUseCase: StreamingUseCase {
         // Clean if requested
         if options.clean {
             continuation.yield(.building(LinuxUseCaseState.BuildProgress(step: .cleaning, startTime: startTime)))
-            let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
+            let rmCmd = Rm(recursive: true, force: true, paths: paths.linuxBuildArtifactRelativePaths)
             _ = try await cliClient.execute(rmCmd, workingDirectory: workingDirectory, printCommand: false)
         }
 
@@ -163,14 +158,12 @@ public struct LinuxBuildUseCase: StreamingUseCase {
 
     /// Check if Lambda is already built (Linux artifacts)
     public func isLambdaBuilt() -> Bool {
-        return FileManager.default.fileExists(atPath: lambdaDir) &&
-               FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: lambdaZipPath)
+        paths.isLinuxBuildComplete()
     }
 
     /// Delete build artifacts
     public func deleteBuild() async throws {
-        let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
+        let rmCmd = Rm(recursive: true, force: true, paths: paths.linuxBuildArtifactRelativePaths)
         _ = try await cliClient.execute(
             rmCmd,
             workingDirectory: workingDirectory,

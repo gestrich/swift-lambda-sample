@@ -17,6 +17,7 @@ public class LambdaBuildService {
     private let workingDirectory: String
     private let cliClient: CLIClient
     private var awsConfig: AWSAuthConfiguration?
+    private let paths: LambdaPaths
 
     /// Build state for tracking progress
     public var buildState = BuildState()
@@ -25,21 +26,13 @@ public class LambdaBuildService {
     public private(set) var uploadStatus: LambdaUploadStatus = .idle
     public private(set) var lastUploadTime: Date?
 
-    /// Lambda build artifact paths
-    private var lambdaDir: String { "\(workingDirectory)/lambda" }
-    private var lambdaZipPath: String { "\(workingDirectory)/lambda.zip" }
-    private var bootstrapPath: String { "\(lambdaDir)/bootstrap" }
-    private var awsSamBuildDir: String { ".aws-sam/build-SwiftLambda" }
-
-    /// Paths to clean when deleting build artifacts (relative to workingDirectory)
-    private var buildArtifactPaths: [String] { ["lambda", "lambda.zip", awsSamBuildDir] }
-
     private let functionName = "swift-lambda-sample"
 
     public init(workingDirectory: String, cliClient: CLIClient, awsConfig: AWSAuthConfiguration? = nil) {
         self.workingDirectory = workingDirectory
         self.cliClient = cliClient
         self.awsConfig = awsConfig
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
     }
 
     /// Convenience initializer that creates its own CLIClient
@@ -47,6 +40,7 @@ public class LambdaBuildService {
         self.workingDirectory = workingDirectory
         self.cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
         self.awsConfig = awsConfig
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
     }
 
     /// Convenience initializer that creates its own CLIClient
@@ -76,7 +70,7 @@ public class LambdaBuildService {
             buildState.appendOutput(cleanMsg)
             await output?.send(.stdout(commandID: .init(), text: cleanMsg))
             do {
-                let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
+                let rmCmd = Rm(recursive: true, force: true, paths: paths.linuxBuildArtifactRelativePaths)
                 _ = try await cliClient.execute(
                     rmCmd,
                     workingDirectory: workingDirectory,
@@ -125,14 +119,12 @@ public class LambdaBuildService {
 
     /// Check if Lambda is already built (Linux artifacts exist)
     public func isLambdaBuilt() -> Bool {
-        FileManager.default.fileExists(atPath: lambdaDir) &&
-        FileManager.default.fileExists(atPath: bootstrapPath) &&
-        FileManager.default.fileExists(atPath: lambdaZipPath)
+        paths.isLinuxBuildComplete()
     }
 
     /// Delete build artifacts and reset build state
     public func deleteBuild() async throws {
-        let rmCmd = Rm(recursive: true, force: true, paths: buildArtifactPaths)
+        let rmCmd = Rm(recursive: true, force: true, paths: paths.linuxBuildArtifactRelativePaths)
         _ = try await cliClient.execute(
             rmCmd,
             workingDirectory: workingDirectory,
@@ -155,14 +147,14 @@ public class LambdaBuildService {
 
         do {
             // Verify lambda.zip exists
-            guard FileManager.default.fileExists(atPath: lambdaZipPath) else {
-                throw LambdaUploadError.zipNotCreated(path: lambdaZipPath)
+            guard FileManager.default.fileExists(atPath: paths.lambdaZipPath) else {
+                throw LambdaUploadError.zipNotCreated(path: paths.lambdaZipPath)
             }
 
             // Build the AWS CLI command
             let command = Aws.Lambda.UpdateFunctionCode(
                 functionName: functionName,
-                zipFile: "fileb://\(lambdaZipPath)",
+                zipFile: "fileb://\(paths.lambdaZipPath)",
                 profile: awsConfig.profileName
             )
 

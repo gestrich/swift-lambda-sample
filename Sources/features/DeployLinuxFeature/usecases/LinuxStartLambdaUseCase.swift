@@ -20,11 +20,7 @@ public struct LinuxStartLambdaUseCase: StreamingUseCase {
     private let dynamodbClient: DynamoDBClient
     private let config: LinuxContainerConfig
     private let workingDirectory: String
-
-    // Build artifact paths
-    private var lambdaDir: String { "\(workingDirectory)/lambda" }
-    private var lambdaZipPath: String { "\(workingDirectory)/lambda.zip" }
-    private var bootstrapPath: String { "\(lambdaDir)/bootstrap" }
+    private let paths: LambdaPaths
 
     public init(
         cliClient: CLIClient,
@@ -42,6 +38,7 @@ public struct LinuxStartLambdaUseCase: StreamingUseCase {
         self.dynamodbClient = dynamodbClient
         self.config = config
         self.workingDirectory = workingDirectory
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
     }
 
     /// Components needed for Lambda start operations.
@@ -151,9 +148,7 @@ public struct LinuxStartLambdaUseCase: StreamingUseCase {
 
     /// Check if Lambda is already built (Linux artifacts)
     private func isLambdaBuilt() -> Bool {
-        return FileManager.default.fileExists(atPath: lambdaDir) &&
-               FileManager.default.fileExists(atPath: bootstrapPath) &&
-               FileManager.default.fileExists(atPath: lambdaZipPath)
+        paths.isLinuxBuildComplete()
     }
 
     /// Build Lambda using LinuxBuildUseCase
@@ -178,8 +173,8 @@ public struct LinuxStartLambdaUseCase: StreamingUseCase {
         continuation: AsyncThrowingStream<State, Error>.Continuation,
         startTime: Date
     ) async throws {
-        guard FileManager.default.fileExists(atPath: lambdaDir) else {
-            throw CLIClientError.invalidWorkingDirectory("lambda directory not found at \(lambdaDir)")
+        guard FileManager.default.fileExists(atPath: paths.lambdaDir) else {
+            throw CLIClientError.invalidWorkingDirectory("lambda directory not found at \(paths.lambdaDir)")
         }
 
         var options = DockerClient.RunOptions()
@@ -189,7 +184,7 @@ public struct LinuxStartLambdaUseCase: StreamingUseCase {
         options.platform = "linux/amd64"
         options.network = config.networkName
         options.ports = [(config.hostPort, config.containerPort)]
-        options.volumes = [(lambdaDir, "/var/task")]
+        options.volumes = [(paths.lambdaDir, "/var/task")]
         options.environment = getEnvironmentVariables()
 
         try await dockerClient.run(

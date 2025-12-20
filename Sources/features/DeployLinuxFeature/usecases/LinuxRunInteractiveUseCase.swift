@@ -4,6 +4,7 @@ import DockerCLISDK
 import PostgreSQLSDK
 import MinioSDK
 import DynamoDBSDK
+import LambdaBuildService
 import StorageService
 import DeployLocalService
 import Uniflow
@@ -17,9 +18,7 @@ public struct LinuxRunInteractiveUseCase: StreamingUseCase {
     private let dynamodbClient: DynamoDBClient
     private let config: LinuxContainerConfig
     private let workingDirectory: String
-
-    // Build artifact paths
-    private var lambdaDir: String { "\(workingDirectory)/lambda" }
+    private let paths: LambdaPaths
 
     public init(
         dockerClient: DockerClient,
@@ -35,6 +34,7 @@ public struct LinuxRunInteractiveUseCase: StreamingUseCase {
         self.dynamodbClient = dynamodbClient
         self.config = config
         self.workingDirectory = workingDirectory
+        self.paths = LambdaPaths(workingDirectory: workingDirectory)
     }
 
     /// Components needed for interactive operations.
@@ -148,7 +148,7 @@ public struct LinuxRunInteractiveUseCase: StreamingUseCase {
 
     /// Check if Lambda is already built (Linux artifacts)
     private func isLambdaBuilt() -> Bool {
-        FileManager.default.fileExists(atPath: lambdaDir)
+        FileManager.default.fileExists(atPath: paths.lambdaDir)
     }
 
     /// Get environment variables for Lambda container (Docker network)
@@ -163,7 +163,7 @@ public struct LinuxRunInteractiveUseCase: StreamingUseCase {
 
     /// Run Lambda in interactive container
     private func runInteractive() async throws {
-        guard FileManager.default.fileExists(atPath: lambdaDir) else {
+        guard FileManager.default.fileExists(atPath: paths.lambdaDir) else {
             throw CLIClientError.invalidWorkingDirectory("lambda directory not found")
         }
 
@@ -173,7 +173,7 @@ public struct LinuxRunInteractiveUseCase: StreamingUseCase {
         options.remove = true
         options.platform = "linux/amd64"
         options.network = config.networkName
-        options.volumes = [(lambdaDir, "/var/task")]
+        options.volumes = [(paths.lambdaDir, "/var/task")]
         options.ports = [(config.hostPort, config.containerPort)]
         options.environment = getEnvironmentVariables()
 
@@ -196,7 +196,7 @@ public struct LinuxRunInteractiveUseCase: StreamingUseCase {
             --network \(config.networkName) \\
             --name \(config.containerName) \\
             -p \(config.hostPort):\(config.containerPort) \\
-            -v \(lambdaDir):/var/task \\
+            -v \(paths.lambdaDir):/var/task \\
             \(envFlags) \\
             \(config.swiftImage) \\
             bash -c 'cd /var/task && chmod +x bootstrap && echo "✅ Lambda ready! Run: ./bootstrap" && bash'
