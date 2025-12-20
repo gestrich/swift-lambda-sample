@@ -440,7 +440,19 @@ This pattern keeps views simple—they observe state without triggering loads.
 
 #### CLI Commands
 
-CLI commands use use cases directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget:
+CLI commands use use cases directly without the `@Observable` wrapper. Use `stream()` for progress output, or `run()` for fire-and-forget.
+
+**CLI vs MacApp Composition Approaches:**
+
+| App | Approach | Example |
+|-----|----------|---------|
+| MacApp | Model composition | `DeployXcodeModel.startWithServices()` → `servicesModel.startAllServices()` |
+| CLI | Use case composition | `XcodeStartAllUseCase` → `StartServicesUseCase` + `XcodeStartLambdaUseCase` |
+
+Both approaches share the same leaf use cases, ensuring consistent behavior. The difference is in orchestration:
+
+- **MacApp** routes through models so each model can update its observable state
+- **CLI** uses composite use cases directly since there's no observable state to track
 
 ```swift
 struct DeployCommand: AsyncParsableCommand {

@@ -10,6 +10,7 @@ import CLISDK
 @testable import DeployRemoteFeature
 @testable import DeployLocalService
 @testable import DeployLinuxFeature
+@testable import LocalServicesFeature
 import Testing
 
 @Suite("Linux Lambda Container Integration Tests")
@@ -42,15 +43,15 @@ struct LinuxContainerIntegrationTests {
             Task {
                 print("🧹 Cleanup: Stopping Lambda container and services...")
 
-                // Stop Lambda container using workflow
-                let stopLambdaComponents = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
-                for try await _ in stopLambdaComponents.workflow.stream() {
+                // Stop Lambda container using use case
+                let stopLambdaComponents = LinuxStopLambdaUseCase.create(workingDirectory: workingDirectory)
+                for try await _ in stopLambdaComponents.useCase.stream() {
                     // Consume progress
                 }
 
-                // Stop services using workflow
-                let stopServicesComponents = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
-                for try await _ in stopServicesComponents.workflow.stream(options: .all) {
+                // Stop services using use case
+                let stopServicesComponents = StopServicesUseCase.create(workingDirectory: workingDirectory, configuration: .linux)
+                for try await _ in stopServicesComponents.useCase.stream(options: .all) {
                     // Consume progress
                 }
             }
@@ -58,8 +59,8 @@ struct LinuxContainerIntegrationTests {
 
         // Step 1: Start local services (PostgreSQL + MinIO) - do this first for debugging
         print("🚀 Step 1: Starting local services...")
-        let startServicesComponents = LinuxStartServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in startServicesComponents.workflow.stream(options: .all) {
+        let startServicesComponents = StartServicesUseCase.create(workingDirectory: workingDirectory, configuration: .linux)
+        for try await _ in startServicesComponents.useCase.stream(options: .all) {
             // Consume progress
         }
 
@@ -68,8 +69,8 @@ struct LinuxContainerIntegrationTests {
 
         // Setup Lambda network
         print("🔧 Step 2: Setting up Docker network...")
-        let setupNetworkComponents = LinuxSetupNetworkWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in setupNetworkComponents.workflow.stream() {
+        let setupNetworkComponents = LinuxSetupNetworkUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in setupNetworkComponents.useCase.stream() {
             // Consume progress
         }
 
@@ -77,13 +78,13 @@ struct LinuxContainerIntegrationTests {
 
         // Step 3: Build Lambda (skip if already built)
         print("🔨 Step 3: Checking Lambda build...")
-        let buildComponents = LinuxBuildWorkflow.create(workingDirectory: workingDirectory)
-        let isBuilt = buildComponents.workflow.isLambdaBuilt()
+        let buildComponents = LinuxBuildUseCase.create(workingDirectory: workingDirectory)
+        let isBuilt = buildComponents.useCase.isLambdaBuilt()
         if isBuilt {
             print("  ✅ Lambda already built, skipping build step")
         } else {
             print("  → Lambda not built, building now...")
-            for try await _ in buildComponents.workflow.stream(options: LinuxBuildWorkflow.Options(clean: false)) {
+            for try await _ in buildComponents.useCase.stream(options: LinuxBuildUseCase.Options(clean: false)) {
                 // Consume progress
             }
             // Give filesystem time to sync after build
@@ -93,10 +94,10 @@ struct LinuxContainerIntegrationTests {
         // Verify build artifacts exist
         try await verifyBuildArtifacts()
 
-        // Step 4: Start Lambda in container (background mode) using workflow
+        // Step 4: Start Lambda in container (background mode) using use case
         print("🚀 Step 4: Starting Lambda in Linux container...")
-        let startLambdaComponents = LinuxStartLambdaWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in startLambdaComponents.workflow.stream() {
+        let startLambdaComponents = LinuxStartLambdaUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in startLambdaComponents.useCase.stream() {
             // Consume progress
         }
 
@@ -111,17 +112,17 @@ struct LinuxContainerIntegrationTests {
         print("🧪 Step 6: Testing PostgreSQL database initialization...")
         try await testPostgresEndpoint()
 
-        // Step 7: Stop Lambda container using workflow
+        // Step 7: Stop Lambda container using use case
         print("🛑 Step 7: Stopping Lambda container...")
-        let stopLambdaComponents = LinuxStopLambdaWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in stopLambdaComponents.workflow.stream() {
+        let stopLambdaComponents2 = LinuxStopLambdaUseCase.create(workingDirectory: workingDirectory)
+        for try await _ in stopLambdaComponents2.useCase.stream() {
             // Consume progress
         }
 
-        // Step 8: Stop services using workflow
+        // Step 8: Stop services using use case
         print("🧹 Step 8: Stopping local services...")
-        let stopServicesComponents = LinuxStopServicesWorkflow.create(workingDirectory: workingDirectory)
-        for try await _ in stopServicesComponents.workflow.stream(options: .all) {
+        let stopServicesComponents2 = StopServicesUseCase.create(workingDirectory: workingDirectory, configuration: .linux)
+        for try await _ in stopServicesComponents2.useCase.stream(options: .all) {
             // Consume progress
         }
 
