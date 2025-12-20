@@ -1,10 +1,11 @@
 import Foundation
 import DeployCoreService
 import DeployLocalService
+import LocalServicesFeature
 import Uniflow
 
 /// Use case for starting Lambda with all services for Xcode development.
-/// Orchestrates XcodeStartServicesUseCase and XcodeStartLambdaUseCase.
+/// Orchestrates StartServicesUseCase (from LocalServicesFeature) and XcodeStartLambdaUseCase.
 public struct XcodeStartAllUseCase: StreamingUseCase {
     private let workingDirectory: String
     private let lambdaHostPort = 8080
@@ -50,18 +51,28 @@ public struct XcodeStartAllUseCase: StreamingUseCase {
     ) async throws {
         let startTime = Date()
 
-        // Start services first
+        // Start services first using unified StartServicesUseCase
         continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
             step: .starting,
             startTime: startTime
         )))
-        let servicesComponents = XcodeStartServicesUseCase.create(workingDirectory: workingDirectory)
+        let servicesComponents = StartServicesUseCase.create(
+            workingDirectory: workingDirectory,
+            configuration: .xcode
+        )
         for try await servicesState in servicesComponents.useCase.stream(options: .all) {
-            // Pass through non-completed states (sub-use case now yields XcodeUseCaseState)
-            if case .completed = servicesState {
-                // Skip sub-use case's completed state; we'll emit our own
-            } else {
-                continuation.yield(servicesState)
+            // Map LocalServicesUseCaseState to XcodeUseCaseState
+            switch servicesState {
+            case .starting(let progress):
+                continuation.yield(.startingServices(XcodeUseCaseState.ServicesProgress(
+                    step: mapServicesStep(progress.step),
+                    startTime: startTime,
+                    currentService: progress.currentService
+                )))
+            case .stopping, .checkingStatus:
+                break
+            case .completed:
+                break
             }
         }
 
@@ -93,5 +104,13 @@ public struct XcodeStartAllUseCase: StreamingUseCase {
         )
         continuation.yield(.completed(snapshot))
         continuation.finish()
+    }
+
+    private func mapServicesStep(_ step: LocalServicesUseCaseState.ServicesProgress.Step) -> XcodeUseCaseState.ServicesProgress.Step {
+        switch step {
+        case .starting: return .starting
+        case .stopping: return .stopping
+        case .creatingBucket: return .creatingBucket
+        }
     }
 }

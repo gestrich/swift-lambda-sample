@@ -260,17 +260,30 @@ public class DeployXcodeModel: LocalService {
 - Removed `storageService` property from both parent models - now managed by `LocalServicesModel`
 - Lambda-specific operations (build, start/stop Lambda, start/stop with services) remain in parent models since they differ between Xcode (native process) and Linux (Docker container)
 
-### Phase 4: Delete Duplicate Use Cases
+### Phase 4: Delete Duplicate Use Cases ✅ COMPLETED
 
 Remove the now-unused duplicate use cases:
 
-**Files to Delete:**
+**Files Replaced with Backwards-Compatible Wrappers:**
 - `Sources/features/DeployLinuxFeature/usecases/LinuxStartServicesUseCase.swift`
 - `Sources/features/DeployLinuxFeature/usecases/LinuxStopServicesUseCase.swift`
 - `Sources/features/DeployXcodeFeature/usecases/XcodeStartServicesUseCase.swift`
 - `Sources/features/DeployXcodeFeature/usecases/XcodeStopServicesUseCase.swift`
 
-Update references in remaining use cases (`LinuxStartAllUseCase`, `XcodeStartAllUseCase`, etc.) to use the new unified use cases.
+Updated references in remaining use cases (`LinuxStartAllUseCase`, `XcodeStartAllUseCase`, etc.) to use the new unified use cases.
+
+**Phase 4 Technical Notes:**
+
+- The "All" use cases (`XcodeStartAllUseCase`, `XcodeStopAllUseCase`, `LinuxStartAllUseCase`, `LinuxStopAllUseCase`) now import `LocalServicesFeature` and use `StartServicesUseCase`/`StopServicesUseCase` directly with the appropriate configuration (`.xcode` or `.linux`)
+- Added `LocalServicesFeature` as a dependency to both `DeployXcodeFeature` and `DeployLinuxFeature` in Package.swift
+- Added `.creatingBucket` case to `LinuxUseCaseState.ServicesProgress.Step` to match `XcodeUseCaseState.ServicesProgress.Step` for consistency
+- Each "All" use case includes a `mapServicesStep()` helper to convert `LocalServicesUseCaseState.ServicesProgress.Step` to the parent's state type
+- **Backwards-compatible wrappers**: Rather than deleting the old use case files, they were replaced with thin wrapper structs that:
+  - Maintain the old `.create(workingDirectory:)` API signature (without `configuration:` parameter)
+  - Delegate to the unified use cases with the appropriate configuration (`.xcode` or `.linux`)
+  - Adapt the stream output from `LocalServicesUseCaseState` to `XcodeUseCaseState` or `LinuxUseCaseState`
+  - This allows CLI commands to continue working unchanged until Phase 5
+- The wrappers include clear deprecation comments noting they will be removed in Phase 5
 
 ### Phase 5: Update CLI Commands
 
@@ -303,11 +316,19 @@ Update CLI commands to use the new unified use cases:
 - `Sources/apps/MacApp/Models/DeployLinuxModel.swift` - delegate to child model
 - `Package.swift` - add `LocalServicesFeature` target
 
-### Deleted Files (Phase 4)
-- `Sources/features/DeployLinuxFeature/usecases/LinuxStartServicesUseCase.swift`
-- `Sources/features/DeployLinuxFeature/usecases/LinuxStopServicesUseCase.swift`
-- `Sources/features/DeployXcodeFeature/usecases/XcodeStartServicesUseCase.swift`
-- `Sources/features/DeployXcodeFeature/usecases/XcodeStopServicesUseCase.swift`
+### Replaced Files (Phase 4) - Now Backwards-Compatible Wrappers
+- `Sources/features/DeployLinuxFeature/usecases/LinuxStartServicesUseCase.swift` - wrapper delegating to `StartServicesUseCase`
+- `Sources/features/DeployLinuxFeature/usecases/LinuxStopServicesUseCase.swift` - wrapper delegating to `StopServicesUseCase`
+- `Sources/features/DeployXcodeFeature/usecases/XcodeStartServicesUseCase.swift` - wrapper delegating to `StartServicesUseCase`
+- `Sources/features/DeployXcodeFeature/usecases/XcodeStopServicesUseCase.swift` - wrapper delegating to `StopServicesUseCase`
+
+### Modified Files (Phase 4)
+- `Sources/features/DeployXcodeFeature/usecases/XcodeStartAllUseCase.swift` - uses unified `StartServicesUseCase`
+- `Sources/features/DeployXcodeFeature/usecases/XcodeStopAllUseCase.swift` - uses unified `StopServicesUseCase`
+- `Sources/features/DeployLinuxFeature/usecases/LinuxStartAllUseCase.swift` - uses unified `StartServicesUseCase`
+- `Sources/features/DeployLinuxFeature/usecases/LinuxStopAllUseCase.swift` - uses unified `StopServicesUseCase`
+- `Sources/features/DeployLinuxFeature/services/Models/LinuxDeploymentState.swift` - added `.creatingBucket` to `ServicesProgress.Step`
+- `Package.swift` - added `LocalServicesFeature` dependency to `DeployXcodeFeature` and `DeployLinuxFeature`
 
 ### Modified Files (Phase 5)
 - CLI commands that use service use cases

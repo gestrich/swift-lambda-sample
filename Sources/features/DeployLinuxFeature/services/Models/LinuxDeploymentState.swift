@@ -158,6 +158,7 @@ public enum LinuxUseCaseState: Sendable, Equatable {
             case starting
             case stopping
             case checkingStatus
+            case creatingBucket
         }
 
         public init(step: Step, startTime: Date, currentService: LocalServiceType? = nil) {

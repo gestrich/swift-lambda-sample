@@ -2,10 +2,11 @@ import Foundation
 import CLISDK
 import DeployCoreService
 import DeployLocalService
+import LocalServicesFeature
 import Uniflow
 
 /// Use case for stopping Lambda and all services for Linux development.
-/// Orchestrates LinuxStopLambdaUseCase and LinuxStopServicesUseCase.
+/// Orchestrates LinuxStopLambdaUseCase and StopServicesUseCase (from LocalServicesFeature).
 public struct LinuxStopAllUseCase: StreamingUseCase {
     private let workingDirectory: String
 
@@ -70,24 +71,27 @@ public struct LinuxStopAllUseCase: StreamingUseCase {
             }
         }
 
-        // Then stop services
+        // Then stop services using unified StopServicesUseCase
         continuation.yield(.stoppingServices(LinuxUseCaseState.ServicesProgress(
             step: .stopping,
             startTime: startTime
         )))
-        let servicesComponents = LinuxStopServicesUseCase.create(workingDirectory: workingDirectory)
+        let servicesComponents = StopServicesUseCase.create(
+            workingDirectory: workingDirectory,
+            configuration: .linux
+        )
         for try await servicesState in servicesComponents.useCase.stream(options: .all) {
-            // Sub-use case now yields LinuxUseCaseState, forward relevant states
+            // Map LocalServicesUseCaseState to LinuxUseCaseState
             switch servicesState {
-            case .stoppingServices(let progress):
+            case .stopping(let progress):
                 continuation.yield(.stoppingServices(LinuxUseCaseState.ServicesProgress(
-                    step: .stopping,
+                    step: mapServicesStep(progress.step),
                     startTime: startTime,
                     currentService: progress.currentService
                 )))
-            case .completed:
+            case .starting, .checkingStatus:
                 break
-            default:
+            case .completed:
                 break
             }
         }
@@ -105,5 +109,13 @@ public struct LinuxStopAllUseCase: StreamingUseCase {
         )
         continuation.yield(.completed(snapshot))
         continuation.finish()
+    }
+
+    private func mapServicesStep(_ step: LocalServicesUseCaseState.ServicesProgress.Step) -> LinuxUseCaseState.ServicesProgress.Step {
+        switch step {
+        case .starting: return .starting
+        case .stopping: return .stopping
+        case .creatingBucket: return .creatingBucket
+        }
     }
 }

@@ -2,15 +2,11 @@ import Foundation
 import CLISDK
 import DeployCoreService
 import DeployLocalService
-import DockerCLISDK
-import DynamoDBSDK
-import MinioSDK
-import PostgreSQLSDK
-import StorageService
+import LocalServicesFeature
 import Uniflow
 
 /// Use case for starting Lambda with all services for Linux development.
-/// Orchestrates LinuxStartServicesUseCase, LinuxSetupNetworkUseCase, and LinuxStartLambdaUseCase.
+/// Orchestrates StartServicesUseCase (from LocalServicesFeature), LinuxSetupNetworkUseCase, and LinuxStartLambdaUseCase.
 public struct LinuxStartAllUseCase: StreamingUseCase {
     private let workingDirectory: String
 
@@ -56,24 +52,27 @@ public struct LinuxStartAllUseCase: StreamingUseCase {
     ) async throws {
         let startTime = Date()
 
-        // Start services first
+        // Start services first using unified StartServicesUseCase
         continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(
             step: .starting,
             startTime: startTime
         )))
-        let servicesComponents = LinuxStartServicesUseCase.create(workingDirectory: workingDirectory)
+        let servicesComponents = StartServicesUseCase.create(
+            workingDirectory: workingDirectory,
+            configuration: .linux
+        )
         for try await servicesState in servicesComponents.useCase.stream(options: .all) {
-            // Sub-use case now yields LinuxUseCaseState, forward relevant states
+            // Map LocalServicesUseCaseState to LinuxUseCaseState
             switch servicesState {
-            case .startingServices(let progress):
+            case .starting(let progress):
                 continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(
-                    step: .starting,
+                    step: mapServicesStep(progress.step),
                     startTime: startTime,
                     currentService: progress.currentService
                 )))
-            case .completed:
+            case .stopping, .checkingStatus:
                 break
-            default:
+            case .completed:
                 break
             }
         }
@@ -133,6 +132,14 @@ public struct LinuxStartAllUseCase: StreamingUseCase {
     }
 
     // MARK: - State Mapping Helpers
+
+    private func mapServicesStep(_ step: LocalServicesUseCaseState.ServicesProgress.Step) -> LinuxUseCaseState.ServicesProgress.Step {
+        switch step {
+        case .starting: return .starting
+        case .stopping: return .stopping
+        case .creatingBucket: return .creatingBucket
+        }
+    }
 
     private func mapNetworkStep(_ step: LinuxSetupNetworkUseCase.State.Step) -> LinuxUseCaseState.NetworkProgress.Step {
         switch step {

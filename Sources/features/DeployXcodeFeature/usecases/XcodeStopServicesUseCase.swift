@@ -1,104 +1,51 @@
 import Foundation
-import CLISDK
 import DeployCoreService
 import DeployLocalService
-import DockerCLISDK
-import DynamoDBSDK
-import MinioSDK
-import PostgreSQLSDK
-import StorageService
+import LocalServicesFeature
 import Uniflow
 
-/// Use case for stopping local services for Xcode development.
-/// Contains all service stop logic directly, using SDK clients.
+/// Backwards-compatible wrapper for XcodeStopServicesUseCase.
+/// This use case has been unified into StopServicesUseCase in LocalServicesFeature.
+/// Use StopServicesUseCase.create(workingDirectory:configuration:) with .xcode configuration instead.
+/// This wrapper will be removed in Phase 5 when CLI commands are updated.
 public struct XcodeStopServicesUseCase: StreamingUseCase {
-    private let postgresClient: PostgreSQLClient
-    private let minioClient: MinIOClient
-    private let dynamodbClient: DynamoDBClient
+    private let underlyingUseCase: StopServicesUseCase
 
-    public init(
-        postgresClient: PostgreSQLClient,
-        minioClient: MinIOClient,
-        dynamodbClient: DynamoDBClient
-    ) {
-        self.postgresClient = postgresClient
-        self.minioClient = minioClient
-        self.dynamodbClient = dynamodbClient
+    public init(underlyingUseCase: StopServicesUseCase) {
+        self.underlyingUseCase = underlyingUseCase
     }
 
-    /// Components needed for stopping services.
+    /// Backwards-compatible Components type.
     public struct Components: Sendable {
         public let useCase: XcodeStopServicesUseCase
-        public let postgresClient: PostgreSQLClient
-        public let minioClient: MinIOClient
-        public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a use case and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the use case
-    /// - Returns: Components containing the use case and clients
-    public static func create(workingDirectory: String) -> Components {
-        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        let dockerClient = DockerClient(cliClient: cliClient)
-        let storageService = LocalStorageService()
-
-        let postgresClient = PostgreSQLClient(
-            dockerClient: dockerClient,
-            config: .xcode,
-            dataDirectory: storageService.dataDirectory(for: PostgreSQLXcodeStorageKey.self)
-        )
-        let minioClient = MinIOClient(
-            dockerClient: dockerClient,
-            networkName: "lambda-xcode",
-            config: .xcode,
-            dataDirectory: storageService.dataDirectory(for: MinIOXcodeStorageKey.self)
-        )
-        let dynamodbClient = DynamoDBClient(
-            dockerClient: dockerClient,
-            config: .xcode,
-            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalXcodeStorageKey.self)
-        )
-
-        let useCase = XcodeStopServicesUseCase(
-            postgresClient: postgresClient,
-            minioClient: minioClient,
-            dynamodbClient: dynamodbClient
-        )
-
-        return Components(
-            useCase: useCase,
-            postgresClient: postgresClient,
-            minioClient: minioClient,
-            dynamodbClient: dynamodbClient
-        )
-    }
-
+    /// Backwards-compatible Options type.
+    public typealias Options = StopServicesUseCase.Options
     public typealias State = XcodeUseCaseState
     public typealias Result = XcodeUseCaseState
 
-    /// Options for the stop services use case.
-    public struct Options: Sendable {
-        public let services: Set<LocalServiceType>
-
-        public init(services: Set<LocalServiceType>) {
-            self.services = services
-        }
-
-        public static let all = Options(services: [.database, .s3, .dynamodb])
-
-        public static func only(_ services: LocalServiceType...) -> Options {
-            Options(services: Set(services))
-        }
+    /// Creates a use case with Xcode configuration.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
+    public static func create(workingDirectory: String) -> Components {
+        let underlyingComponents = StopServicesUseCase.create(
+            workingDirectory: workingDirectory,
+            configuration: .xcode
+        )
+        return Components(useCase: XcodeStopServicesUseCase(underlyingUseCase: underlyingComponents.useCase))
     }
 
-    /// Stream the stop services use case.
-    /// - Parameter options: Service options specifying which services to stop
-    /// - Returns: AsyncThrowingStream that yields XcodeUseCaseState updates
+    /// Stream the stop services use case, adapting LocalServicesUseCaseState to XcodeUseCaseState.
     public func stream(options: Options) -> AsyncThrowingStream<XcodeUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runUseCase(options: options, continuation: continuation)
+                    for try await state in underlyingUseCase.stream(options: options) {
+                        let mappedState = mapToXcodeState(state)
+                        continuation.yield(mappedState)
+                    }
+                    continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -106,48 +53,45 @@ public struct XcodeStopServicesUseCase: StreamingUseCase {
         }
     }
 
-    private func runUseCase(
-        options: Options,
-        continuation: AsyncThrowingStream<XcodeUseCaseState, Error>.Continuation
-    ) async throws {
-        let startTime = Date()
-
-        // Stop PostgreSQL
-        if options.services.contains(.database) {
-            continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
-                step: .stopping,
-                startTime: startTime,
-                currentService: .database
-            )))
-            try await postgresClient.stop()
+    private func mapToXcodeState(_ state: LocalServicesUseCaseState) -> XcodeUseCaseState {
+        switch state {
+        case .starting(let progress):
+            return .startingServices(XcodeUseCaseState.ServicesProgress(
+                step: mapStep(progress.step),
+                startTime: progress.startTime,
+                currentService: progress.currentService
+            ))
+        case .stopping(let progress):
+            return .stoppingServices(XcodeUseCaseState.ServicesProgress(
+                step: mapStep(progress.step),
+                startTime: progress.startTime,
+                currentService: progress.currentService
+            ))
+        case .checkingStatus(let progress):
+            return .checkingStatus(XcodeUseCaseState.StatusProgress(
+                step: .checkingS3,
+                startTime: progress.startTime,
+                serviceStatus: nil,
+                lambdaStatus: nil
+            ))
+        case .completed(let snapshot):
+            return .completed(XcodeSnapshot(
+                serviceStatus: DeploymentStatus(
+                    lambdaState: .stopped,
+                    s3State: snapshot.s3State,
+                    postgresState: snapshot.postgresState,
+                    dynamodbState: snapshot.dynamodbState
+                ),
+                buildStatus: .notBuilt
+            ))
         }
+    }
 
-        // Stop MinIO S3
-        if options.services.contains(.s3) {
-            continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
-                step: .stopping,
-                startTime: startTime,
-                currentService: .s3
-            )))
-            try await minioClient.stop()
+    private func mapStep(_ step: LocalServicesUseCaseState.ServicesProgress.Step) -> XcodeUseCaseState.ServicesProgress.Step {
+        switch step {
+        case .starting: return .starting
+        case .stopping: return .stopping
+        case .creatingBucket: return .creatingBucket
         }
-
-        // Stop DynamoDB Local
-        if options.services.contains(.dynamodb) {
-            continuation.yield(.stoppingServices(XcodeUseCaseState.ServicesProgress(
-                step: .stopping,
-                startTime: startTime,
-                currentService: .dynamodb
-            )))
-            try await dynamodbClient.stop()
-        }
-
-        // Completed - yield snapshot with services stopped
-        let snapshot = XcodeSnapshot(
-            serviceStatus: .stopped,
-            buildStatus: .notBuilt
-        )
-        continuation.yield(.completed(snapshot))
-        continuation.finish()
     }
 }

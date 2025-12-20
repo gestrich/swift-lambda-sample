@@ -1,113 +1,51 @@
 import Foundation
-import CLISDK
 import DeployCoreService
 import DeployLocalService
-import DockerCLISDK
-import DynamoDBSDK
-import MinioSDK
-import PostgreSQLSDK
-import StorageService
+import LocalServicesFeature
 import Uniflow
 
-/// Use case for starting local services for Linux development.
-/// Contains all service start logic directly, using SDK clients.
+/// Backwards-compatible wrapper for LinuxStartServicesUseCase.
+/// This use case has been unified into StartServicesUseCase in LocalServicesFeature.
+/// Use StartServicesUseCase.create(workingDirectory:configuration:) with .linux configuration instead.
+/// This wrapper will be removed in Phase 5 when CLI commands are updated.
 public struct LinuxStartServicesUseCase: StreamingUseCase {
-    private let cliClient: CLIClient
-    private let dockerClient: DockerClient
-    private let postgresClient: PostgreSQLClient
-    private let minioClient: MinIOClient
-    private let dynamodbClient: DynamoDBClient
+    private let underlyingUseCase: StartServicesUseCase
 
-    public init(
-        cliClient: CLIClient,
-        dockerClient: DockerClient,
-        postgresClient: PostgreSQLClient,
-        minioClient: MinIOClient,
-        dynamodbClient: DynamoDBClient
-    ) {
-        self.cliClient = cliClient
-        self.dockerClient = dockerClient
-        self.postgresClient = postgresClient
-        self.minioClient = minioClient
-        self.dynamodbClient = dynamodbClient
+    public init(underlyingUseCase: StartServicesUseCase) {
+        self.underlyingUseCase = underlyingUseCase
     }
 
-    /// Components needed for starting services.
+    /// Backwards-compatible Components type.
     public struct Components: Sendable {
         public let useCase: LinuxStartServicesUseCase
-        public let postgresClient: PostgreSQLClient
-        public let minioClient: MinIOClient
-        public let dynamodbClient: DynamoDBClient
     }
 
-    /// Creates a use case and associated components by instantiating required clients.
-    /// - Parameter workingDirectory: The working directory for the use case
-    /// - Returns: Components containing the use case and clients
-    public static func create(workingDirectory: String) -> Components {
-        let cliClient = CLIClient(defaultWorkingDirectory: workingDirectory)
-        let dockerClient = DockerClient(cliClient: cliClient)
-        let storageService = LocalStorageService()
-        let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
-
-        let postgresClient = PostgreSQLClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: PostgreSQLLinuxStorageKey.self)
-        )
-        let minioClient = MinIOClient(
-            dockerClient: dockerClient,
-            networkName: config.networkName,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: MinIOLinuxStorageKey.self)
-        )
-        let dynamodbClient = DynamoDBClient(
-            dockerClient: dockerClient,
-            config: .linux,
-            dataDirectory: storageService.dataDirectory(for: DynamoDBLocalLinuxStorageKey.self)
-        )
-
-        let useCase = LinuxStartServicesUseCase(
-            cliClient: cliClient,
-            dockerClient: dockerClient,
-            postgresClient: postgresClient,
-            minioClient: minioClient,
-            dynamodbClient: dynamodbClient
-        )
-
-        return Components(
-            useCase: useCase,
-            postgresClient: postgresClient,
-            minioClient: minioClient,
-            dynamodbClient: dynamodbClient
-        )
-    }
-
+    /// Backwards-compatible Options type.
+    public typealias Options = StartServicesUseCase.Options
     public typealias State = LinuxUseCaseState
-    public typealias Result = State
+    public typealias Result = LinuxUseCaseState
 
-    /// Options for the start services use case.
-    public struct Options: Sendable {
-        public let services: Set<LocalServiceType>
-
-        public init(services: Set<LocalServiceType>) {
-            self.services = services
-        }
-
-        public static let all = Options(services: [.database, .s3, .dynamodb])
-
-        public static func only(_ services: LocalServiceType...) -> Options {
-            Options(services: Set(services))
-        }
+    /// Creates a use case with Linux configuration.
+    /// - Parameter workingDirectory: The working directory for the use case
+    /// - Returns: Components containing the use case
+    public static func create(workingDirectory: String) -> Components {
+        let underlyingComponents = StartServicesUseCase.create(
+            workingDirectory: workingDirectory,
+            configuration: .linux
+        )
+        return Components(useCase: LinuxStartServicesUseCase(underlyingUseCase: underlyingComponents.useCase))
     }
 
-    /// Stream the start services use case.
-    /// - Parameter options: Service options specifying which services to start
-    /// - Returns: AsyncThrowingStream that yields LinuxUseCaseState updates
-    public func stream(options: Options) -> AsyncThrowingStream<State, Error> {
+    /// Stream the start services use case, adapting LocalServicesUseCaseState to LinuxUseCaseState.
+    public func stream(options: Options) -> AsyncThrowingStream<LinuxUseCaseState, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await runUseCase(options: options, continuation: continuation)
+                    for try await state in underlyingUseCase.stream(options: options) {
+                        let mappedState = mapToLinuxState(state)
+                        continuation.yield(mappedState)
+                    }
+                    continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -115,87 +53,45 @@ public struct LinuxStartServicesUseCase: StreamingUseCase {
         }
     }
 
-    private func runUseCase(
-        options: Options,
-        continuation: AsyncThrowingStream<State, Error>.Continuation
-    ) async throws {
-        let startTime = Date()
-
-        // Ensure Docker is running
-        if !(await dockerClient.isDockerRunning()) {
-            try await startDockerDesktop()
+    private func mapToLinuxState(_ state: LocalServicesUseCaseState) -> LinuxUseCaseState {
+        switch state {
+        case .starting(let progress):
+            return .startingServices(LinuxUseCaseState.ServicesProgress(
+                step: mapStep(progress.step),
+                startTime: progress.startTime,
+                currentService: progress.currentService
+            ))
+        case .stopping(let progress):
+            return .stoppingServices(LinuxUseCaseState.ServicesProgress(
+                step: mapStep(progress.step),
+                startTime: progress.startTime,
+                currentService: progress.currentService
+            ))
+        case .checkingStatus(let progress):
+            return .checkingStatus(LinuxUseCaseState.StatusProgress(
+                step: .checkingS3,
+                startTime: progress.startTime,
+                serviceStatus: nil,
+                lambdaStatus: nil
+            ))
+        case .completed(let snapshot):
+            return .completed(LinuxSnapshot(
+                serviceStatus: DeploymentStatus(
+                    lambdaState: .stopped,
+                    s3State: snapshot.s3State,
+                    postgresState: snapshot.postgresState,
+                    dynamodbState: snapshot.dynamodbState
+                ),
+                buildStatus: .notBuilt
+            ))
         }
-
-        // Track which services were started
-        var postgresState: ServiceState = .stopped
-        var s3State: ServiceState = .stopped
-        var dynamodbState: ServiceState = .stopped
-
-        // Start PostgreSQL
-        if options.services.contains(.database) {
-            continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(step: .starting, startTime: startTime, currentService: .database)))
-            try await postgresClient.start()
-            postgresState = .running
-        }
-
-        // Start MinIO S3
-        if options.services.contains(.s3) {
-            continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(step: .starting, startTime: startTime, currentService: .s3)))
-            try await minioClient.start()
-            s3State = .running
-
-            // Create bucket after S3 is running
-            try await minioClient.createBucket(bucketName: nil)
-        }
-
-        // Start DynamoDB Local
-        if options.services.contains(.dynamodb) {
-            continuation.yield(.startingServices(LinuxUseCaseState.ServicesProgress(step: .starting, startTime: startTime, currentService: .dynamodb)))
-            try await dynamodbClient.start()
-            dynamodbState = .running
-        }
-
-        // Build final snapshot
-        let snapshot = LinuxSnapshot(
-            serviceStatus: DeploymentStatus(
-                lambdaState: .stopped,
-                s3State: s3State,
-                postgresState: postgresState,
-                dynamodbState: dynamodbState
-            ),
-            buildStatus: .notBuilt
-        )
-        continuation.yield(.completed(snapshot))
-        continuation.finish()
     }
 
-    /// Start Docker Desktop application and wait for daemon to be ready
-    private func startDockerDesktop() async throws {
-        let result = try await cliClient.executeForResult(
-            Open(application: "Docker"),
-            printCommand: false
-        )
-
-        guard result.isSuccess else {
-            throw DeployError.commandFailed(
-                command: "open -a Docker",
-                exitCode: result.exitCode,
-                output: "Failed to start Docker Desktop. Is it installed?"
-            )
+    private func mapStep(_ step: LocalServicesUseCaseState.ServicesProgress.Step) -> LinuxUseCaseState.ServicesProgress.Step {
+        switch step {
+        case .starting: return .starting
+        case .stopping: return .stopping
+        case .creatingBucket: return .creatingBucket
         }
-
-        let maxAttempts = 60
-        for _ in 1...maxAttempts {
-            if await dockerClient.isDockerRunning() {
-                return
-            }
-            try await Task.sleep(for: .seconds(1))
-        }
-
-        throw DeployError.commandFailed(
-            command: "docker",
-            exitCode: 1,
-            output: "Docker Desktop started but daemon did not become ready within 60 seconds."
-        )
     }
 }

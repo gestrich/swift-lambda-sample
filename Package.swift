@@ -174,6 +174,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
+                .target(name: "LocalServicesFeature"),
                 .target(name: "CLISDK"),
                 .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
@@ -186,6 +187,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
+                .target(name: "LocalServicesFeature"),
                 .target(name: "CLISDK"),
             ],
             path: "Sources/features/DeployLinuxFeature"
