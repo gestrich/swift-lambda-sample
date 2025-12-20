@@ -244,23 +244,32 @@ Migrate `DeployInitUseCase` composition to `RemoteDeployModel` calling child mod
 
 ---
 
-## Phase 5: Refresh Use Case Migration
+## Phase 5: Refresh Use Case Migration ✅
 
 Migrate `RefreshUseCase` → `ResumeMonitoringUseCase` conditional delegation.
 
 ### Tasks
 
-- [ ] **5.1** Analyze `RefreshUseCase` conditional logic (only delegates for in-progress states)
-- [ ] **5.2** Determine if `ResumeMonitoringUseCase` needs its own model
-- [ ] **5.3** If monitoring is a sub-concern, create `MonitoringModel` or handle in `RemoteDeployModel`
-- [ ] **5.4** Update refresh logic to route through appropriate model
-- [ ] **5.5** Simplify or remove `RefreshUseCase` composition
+- [x] **5.1** Analyze `RefreshUseCase` conditional logic (only delegates for in-progress states)
+- [x] **5.2** Determine if `ResumeMonitoringUseCase` needs its own model
+- [x] **5.3** If monitoring is a sub-concern, create `MonitoringModel` or handle in `RemoteDeployModel`
+- [x] **5.4** Update refresh logic to route through appropriate model
+- [x] **5.5** Simplify or remove `RefreshUseCase` composition
 
-### Files to Modify
+### Technical Notes
 
-- `Sources/apps/MacApp/Models/RemoteDeployModel.swift`
-- `Sources/features/DeployRemoteFeature/usecases/RefreshUseCase.swift`
-- `Sources/features/DeployRemoteFeature/usecases/ResumeMonitoringUseCase.swift`
+- **Decision**: `ResumeMonitoringUseCase` does NOT need its own model. It's a leaf use case that monitors CloudFormation state.
+- The conditional logic (deciding whether to resume monitoring) moved from `RefreshUseCase` to `DeployRemoteModel.refresh()`.
+- `DeployRemoteModel.refresh()` now uses **model composition**:
+  1. Queries CloudFormation state directly via `cfClient.queryState()`
+  2. For stable states (deployed, notDeployed, failed): creates `DeploymentSnapshot` and sets `.ready()` state
+  3. For in-progress states (deploying, destroying): delegates to `ResumeMonitoringUseCase` to monitor completion
+- `RefreshUseCase` remains available for CLI use where models aren't needed, but is no longer called by the model.
+- `ResumeMonitoringUseCase` remains unchanged as a leaf use case.
+
+### Files Modified
+
+- `Sources/apps/MacApp/Models/DeployRemoteModel.swift` - Updated `refresh()` to use model composition
 
 ---
 

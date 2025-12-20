@@ -154,18 +154,36 @@ public class DeployRemoteModel {
     // MARK: - Refresh Operations
 
     /// Refresh deployment state from AWS
-    /// If an operation is in progress, automatically starts monitoring it via RefreshUseCase.
+    /// If an operation is in progress, automatically starts monitoring it.
+    ///
+    /// Uses model composition: queries CloudFormation state directly, then
+    /// delegates to `ResumeMonitoringUseCase` if an operation is in progress.
+    /// This replaces the previous approach where `RefreshUseCase` called
+    /// `ResumeMonitoringUseCase` (use case composition).
     public func refresh() async {
         guard state.isIdle else { return }
 
         let prior = state.snapshot
         state = .loading(prior: prior)
 
-        let useCase = RefreshUseCase(cfClient: cfClient, stackName: stackName)
-
         do {
-            for try await useCaseState in useCase.stream(options: ()) {
-                state = ModelState(from: useCaseState, prior: prior)
+            let cfState = try await cfClient.queryState(stackName: stackName)
+
+            switch cfState {
+            case .deploying, .destroying:
+                // Model composition: delegate to monitoring use case
+                let monitorUseCase = ResumeMonitoringUseCase(
+                    cfClient: cfClient,
+                    stackName: stackName
+                )
+                for try await useCaseState in monitorUseCase.run(initialState: cfState) {
+                    state = ModelState(from: useCaseState, prior: prior)
+                }
+
+            default:
+                // Stable state - yield completed immediately
+                let snapshot = DeploymentSnapshot.from(cfState)
+                state = .ready(snapshot)
             }
         } catch {
             state = ModelState(error: error, preserving: prior)
