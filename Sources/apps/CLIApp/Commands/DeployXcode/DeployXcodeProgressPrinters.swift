@@ -1,5 +1,6 @@
 import DeployLocalService
 import DeployXcodeFeature
+import LocalServicesFeature
 
 // MARK: - Xcode Progress Printers
 

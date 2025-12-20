@@ -214,6 +214,7 @@ let package = Package(
                 .target(name: "DeployRemoteFeature"),
                 .target(name: "DeployXcodeFeature"),
                 .target(name: "DeployLinuxFeature"),
+                .target(name: "LocalServicesFeature"),
                 .target(name: "DeployLocalService"),
                 .target(name: "DeployCoreService"),
                 .target(name: "AWSSDK"),

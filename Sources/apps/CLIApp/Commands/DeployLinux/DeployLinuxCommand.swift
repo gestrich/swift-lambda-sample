@@ -3,6 +3,7 @@ import Foundation
 import DeployLocalService
 import DeployCoreService
 import DeployLinuxFeature
+import LocalServicesFeature
 
 // MARK: - Deploy Linux Command (Container)
 
@@ -136,13 +137,14 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StartServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .linux
             )
-            let options = LinuxStartServicesUseCase.Options.only(.database)
+            let options = StartServicesUseCase.Options.only(.database)
 
             for try await progress in components.useCase.stream(options: options) {
-                printLinuxStartServicesProgress(progress)
+                printLocalServicesStartProgress(progress)
             }
         }
     }
@@ -155,13 +157,14 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StopServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .linux
             )
-            let options = LinuxStopServicesUseCase.Options.only(.database)
+            let options = StopServicesUseCase.Options.only(.database)
 
             for try await progress in components.useCase.stream(options: options) {
-                printLinuxStopServicesProgress(progress)
+                printLocalServicesStopProgress(progress)
             }
         }
     }
@@ -174,13 +177,14 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StartServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .linux
             )
-            let options = LinuxStartServicesUseCase.Options.only(.dynamodb)
+            let options = StartServicesUseCase.Options.only(.dynamodb)
 
             for try await progress in components.useCase.stream(options: options) {
-                printLinuxStartServicesProgress(progress)
+                printLocalServicesStartProgress(progress)
             }
         }
     }
@@ -193,13 +197,14 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StopServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .linux
             )
-            let options = LinuxStopServicesUseCase.Options.only(.dynamodb)
+            let options = StopServicesUseCase.Options.only(.dynamodb)
 
             for try await progress in components.useCase.stream(options: options) {
-                printLinuxStopServicesProgress(progress)
+                printLocalServicesStopProgress(progress)
             }
         }
     }
@@ -212,13 +217,14 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStartServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StartServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .linux
             )
-            let options = LinuxStartServicesUseCase.Options.only(.s3)
+            let options = StartServicesUseCase.Options.only(.s3)
 
             for try await progress in components.useCase.stream(options: options) {
-                printLinuxStartServicesProgress(progress)
+                printLocalServicesStartProgress(progress)
             }
         }
     }
@@ -231,13 +237,14 @@ extension DeployLinuxCommand {
         )
 
         func run() async throws {
-            let components = LinuxStopServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StopServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .linux
             )
-            let options = LinuxStopServicesUseCase.Options.only(.s3)
+            let options = StopServicesUseCase.Options.only(.s3)
 
             for try await progress in components.useCase.stream(options: options) {
-                printLinuxStopServicesProgress(progress)
+                printLocalServicesStopProgress(progress)
             }
         }
     }

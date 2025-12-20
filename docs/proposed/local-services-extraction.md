@@ -285,12 +285,25 @@ Updated references in remaining use cases (`LinuxStartAllUseCase`, `XcodeStartAl
   - This allows CLI commands to continue working unchanged until Phase 5
 - The wrappers include clear deprecation comments noting they will be removed in Phase 5
 
-### Phase 5: Update CLI Commands
+### Phase 5: Update CLI Commands ✅ COMPLETED
 
 Update CLI commands to use the new unified use cases:
 
 - `LinuxStartServicesCommand` → use `StartServicesUseCase` with `.linux` config
 - `XcodeStartServicesCommand` → use `StartServicesUseCase` with `.xcode` config
+
+**Phase 5 Technical Notes:**
+
+- Added `LocalServicesFeature` as a dependency to `CLIApp` in Package.swift
+- Updated all Linux service CLI commands (`StartDatabaseCommand`, `StopDatabaseCommand`, `StartDynamoDBCommand`, `StopDynamoDBCommand`, `StartS3Command`, `StopS3Command`) to use `StartServicesUseCase`/`StopServicesUseCase` with `.linux` configuration
+- Updated all Xcode service CLI commands (`StartDatabaseCommand`, `StopDatabaseCommand`, `StartDynamoDBCommand`, `StopDynamoDBCommand`, `StartS3Command`, `StopS3Command`) to use `StartServicesUseCase`/`StopServicesUseCase` with `.xcode` configuration
+- Added unified progress print functions (`printLocalServicesStartProgress`, `printLocalServicesStopProgress`) to handle `LocalServicesUseCaseState`
+- Deleted the backwards-compatible wrapper use cases that were added in Phase 4:
+  - `LinuxStartServicesUseCase.swift` (wrapper)
+  - `LinuxStopServicesUseCase.swift` (wrapper)
+  - `XcodeStartServicesUseCase.swift` (wrapper)
+  - `XcodeStopServicesUseCase.swift` (wrapper)
+- The "All" use cases (`LinuxStartAllUseCase`, `LinuxStopAllUseCase`, `XcodeStartAllUseCase`, `XcodeStopAllUseCase`) were already updated in Phase 4 to use unified use cases directly
 
 ## Benefits
 
@@ -316,11 +329,11 @@ Update CLI commands to use the new unified use cases:
 - `Sources/apps/MacApp/Models/DeployLinuxModel.swift` - delegate to child model
 - `Package.swift` - add `LocalServicesFeature` target
 
-### Replaced Files (Phase 4) - Now Backwards-Compatible Wrappers
-- `Sources/features/DeployLinuxFeature/usecases/LinuxStartServicesUseCase.swift` - wrapper delegating to `StartServicesUseCase`
-- `Sources/features/DeployLinuxFeature/usecases/LinuxStopServicesUseCase.swift` - wrapper delegating to `StopServicesUseCase`
-- `Sources/features/DeployXcodeFeature/usecases/XcodeStartServicesUseCase.swift` - wrapper delegating to `StartServicesUseCase`
-- `Sources/features/DeployXcodeFeature/usecases/XcodeStopServicesUseCase.swift` - wrapper delegating to `StopServicesUseCase`
+### Deleted Files (Phase 5)
+- `Sources/features/DeployLinuxFeature/usecases/LinuxStartServicesUseCase.swift` - replaced by unified `StartServicesUseCase`
+- `Sources/features/DeployLinuxFeature/usecases/LinuxStopServicesUseCase.swift` - replaced by unified `StopServicesUseCase`
+- `Sources/features/DeployXcodeFeature/usecases/XcodeStartServicesUseCase.swift` - replaced by unified `StartServicesUseCase`
+- `Sources/features/DeployXcodeFeature/usecases/XcodeStopServicesUseCase.swift` - replaced by unified `StopServicesUseCase`
 
 ### Modified Files (Phase 4)
 - `Sources/features/DeployXcodeFeature/usecases/XcodeStartAllUseCase.swift` - uses unified `StartServicesUseCase`
@@ -331,7 +344,11 @@ Update CLI commands to use the new unified use cases:
 - `Package.swift` - added `LocalServicesFeature` dependency to `DeployXcodeFeature` and `DeployLinuxFeature`
 
 ### Modified Files (Phase 5)
-- CLI commands that use service use cases
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxCommand.swift` - uses unified use cases with `.linux` configuration
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxProgressPrinters.swift` - added `printLocalServicesStartProgress` and `printLocalServicesStopProgress`
+- `Sources/apps/CLIApp/Commands/DeployXcode/DeployXcodeCommand.swift` - uses unified use cases with `.xcode` configuration
+- `Sources/apps/CLIApp/Commands/DeployXcode/DeployXcodeProgressPrinters.swift` - imports `LocalServicesFeature`
+- `Package.swift` - added `LocalServicesFeature` dependency to `CLIApp`
 
 ## Open Questions
 

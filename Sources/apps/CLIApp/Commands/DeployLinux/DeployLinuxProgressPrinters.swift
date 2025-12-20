@@ -1,5 +1,6 @@
 import DeployLocalService
 import DeployLinuxFeature
+import LocalServicesFeature
 
 // MARK: - Linux Progress Printers
 
@@ -83,6 +84,59 @@ func printLinuxStartServicesProgress(_ progress: LinuxUseCaseState) {
 func printLinuxStopServicesProgress(_ progress: LinuxUseCaseState) {
     switch progress {
     case .stoppingServices(let servicesProgress):
+        if let service = servicesProgress.currentService {
+            switch service {
+            case .database:
+                print("🐘 Stopping PostgreSQL...")
+            case .s3:
+                print("📦 Stopping MinIO S3...")
+            case .dynamodb:
+                print("⚡ Stopping DynamoDB...")
+            }
+        } else {
+            print("🔄 Stopping services...")
+        }
+    case .completed:
+        print("✅ All services stopped")
+    default:
+        break
+    }
+}
+
+// MARK: - Local Services Progress Printers (Unified)
+
+func printLocalServicesStartProgress(_ progress: LocalServicesUseCaseState) {
+    switch progress {
+    case .starting(let servicesProgress):
+        switch servicesProgress.step {
+        case .starting:
+            if let service = servicesProgress.currentService {
+                switch service {
+                case .database:
+                    print("🐘 Starting PostgreSQL...")
+                case .s3:
+                    print("📦 Starting MinIO S3...")
+                case .dynamodb:
+                    print("⚡ Starting DynamoDB...")
+                }
+            } else {
+                print("🔄 Starting services...")
+            }
+        case .creatingBucket:
+            print("🪣 Creating S3 bucket...")
+        case .stopping:
+            break
+        }
+    case .completed:
+        print("✅ All services started")
+    default:
+        break
+    }
+}
+
+func printLocalServicesStopProgress(_ progress: LocalServicesUseCaseState) {
+    switch progress {
+    case .stopping(let servicesProgress):
         if let service = servicesProgress.currentService {
             switch service {
             case .database:

@@ -3,6 +3,7 @@ import Foundation
 import DeployLocalService
 import DeployCoreService
 import DeployXcodeFeature
+import LocalServicesFeature
 
 // MARK: - Deploy Xcode Command (Native macOS)
 
@@ -133,13 +134,14 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StartServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .xcode
             )
-            let options = XcodeStartServicesUseCase.Options.only(.database)
+            let options = StartServicesUseCase.Options.only(.database)
 
             for try await progress in components.useCase.stream(options: options) {
-                printXcodeStartServicesProgress(progress)
+                printLocalServicesStartProgress(progress)
             }
         }
     }
@@ -152,13 +154,14 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StopServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .xcode
             )
-            let options = XcodeStopServicesUseCase.Options.only(.database)
+            let options = StopServicesUseCase.Options.only(.database)
 
             for try await progress in components.useCase.stream(options: options) {
-                printXcodeStopServicesProgress(progress)
+                printLocalServicesStopProgress(progress)
             }
         }
     }
@@ -171,13 +174,14 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StartServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .xcode
             )
-            let options = XcodeStartServicesUseCase.Options.only(.dynamodb)
+            let options = StartServicesUseCase.Options.only(.dynamodb)
 
             for try await progress in components.useCase.stream(options: options) {
-                printXcodeStartServicesProgress(progress)
+                printLocalServicesStartProgress(progress)
             }
         }
     }
@@ -190,13 +194,14 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StopServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .xcode
             )
-            let options = XcodeStopServicesUseCase.Options.only(.dynamodb)
+            let options = StopServicesUseCase.Options.only(.dynamodb)
 
             for try await progress in components.useCase.stream(options: options) {
-                printXcodeStopServicesProgress(progress)
+                printLocalServicesStopProgress(progress)
             }
         }
     }
@@ -209,13 +214,14 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStartServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StartServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .xcode
             )
-            let options = XcodeStartServicesUseCase.Options.only(.s3)
+            let options = StartServicesUseCase.Options.only(.s3)
 
             for try await progress in components.useCase.stream(options: options) {
-                printXcodeStartServicesProgress(progress)
+                printLocalServicesStartProgress(progress)
             }
         }
     }
@@ -228,13 +234,14 @@ extension DeployXcodeCommand {
         )
 
         func run() async throws {
-            let components = XcodeStopServicesUseCase.create(
-                workingDirectory: FileManager.default.currentDirectoryPath
+            let components = StopServicesUseCase.create(
+                workingDirectory: FileManager.default.currentDirectoryPath,
+                configuration: .xcode
             )
-            let options = XcodeStopServicesUseCase.Options.only(.s3)
+            let options = StopServicesUseCase.Options.only(.s3)
 
             for try await progress in components.useCase.stream(options: options) {
-                printXcodeStopServicesProgress(progress)
+                printLocalServicesStopProgress(progress)
             }
         }
     }
