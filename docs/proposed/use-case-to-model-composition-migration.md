@@ -273,28 +273,46 @@ Migrate `RefreshUseCase` → `ResumeMonitoringUseCase` conditional delegation.
 
 ---
 
-## Phase 6: CLI App Alignment
+## Phase 6: CLI App Alignment ✅
 
 Ensure CLI commands work with the new model-based composition (or use use cases directly since CLI doesn't need observable state).
 
 ### Tasks
 
-- [ ] **6.1** Review CLI commands that use composite use cases
-- [ ] **6.2** Decide: CLI uses models, or CLI uses use cases directly (both valid)
-- [ ] **6.3** If CLI uses use cases directly, ensure leaf use cases provide complete functionality
-- [ ] **6.4** Update CLI commands as needed
-- [ ] **6.5** Test CLI workflows after migration
+- [x] **6.1** Review CLI commands that use composite use cases
+- [x] **6.2** Decide: CLI uses models, or CLI uses use cases directly (both valid)
+- [x] **6.3** If CLI uses use cases directly, ensure leaf use cases provide complete functionality
+- [x] **6.4** Update CLI commands as needed
+- [x] **6.5** Test CLI workflows after migration
 
-### Files to Modify
+### Technical Notes
 
-- `Sources/apps/CLIApp/Commands/Local/` (Xcode and Linux commands)
-- `Sources/apps/CLIApp/Commands/AWS/` (deploy commands)
+- **Decision**: CLI continues to use composite use cases directly. No changes needed.
+- **Rationale**:
+  1. CLI doesn't need `@Observable` state tracking - no benefit from using models
+  2. Composite use cases (`XcodeStartAllUseCase`, `LinuxStartAllUseCase`, etc.) remain available and functional
+  3. These use cases internally call leaf use cases in the correct order, providing the orchestration CLI needs
+  4. This avoids wasteful model creation overhead in a CLI context
+- **Architecture**:
+  - MacApp uses **model composition** (`DeployXcodeModel` → `LocalServicesModel`)
+  - CLI uses **use case composition** (`XcodeStartAllUseCase` → `StartServicesUseCase` + `XcodeStartLambdaUseCase`)
+  - Both approaches share the same leaf use cases, ensuring consistent behavior
+- **Verified**:
+  - `swift build --target CLIApp` succeeds
+  - All CLI subcommands are accessible and documented via `--help`
+  - Commands: `deploy-xcode`, `deploy-linux`, `aws` with all subcommands
+
+### Files Reviewed (No Changes Needed)
+
+- `Sources/apps/CLIApp/Commands/DeployXcode/DeployXcodeCommand.swift` - Uses `XcodeStartAllUseCase`, `XcodeStopAllUseCase` directly
+- `Sources/apps/CLIApp/Commands/DeployLinux/DeployLinuxCommand.swift` - Uses `LinuxStartAllUseCase`, `LinuxStopAllUseCase` directly
+- `Sources/apps/CLIApp/Commands/DeployRemote/DeployInitCommand.swift` - Uses `DeployInitUseCase` directly
 
 ### Consideration
 
 CLI doesn't need `@Observable` state tracking. Options:
 1. CLI creates models but ignores observation (wasteful)
-2. CLI uses use cases directly (simpler, but use cases must be leaf operations)
+2. CLI uses use cases directly (simpler, but use cases must be leaf operations) ← **Chosen**
 3. CLI uses a thin coordination layer that mirrors model logic
 
 Recommendation: CLI uses use cases directly. Composite operations in CLI can call multiple use cases sequentially without needing model state management.
