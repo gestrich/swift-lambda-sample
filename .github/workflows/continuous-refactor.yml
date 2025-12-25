@@ -15,6 +15,7 @@ on:
         type: choice
         options:
           - doc-improvements
+          - import-sorting
 
   # Automatic: Trigger on PR merge for continuous refactoring
   pull_request:
