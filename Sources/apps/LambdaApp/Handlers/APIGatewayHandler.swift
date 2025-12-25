@@ -126,15 +126,26 @@ struct APIGWHandler {
                 // GET /api/files - list all files
                 // GET /api/files/{fileName} - download specific file
                 guard urlComponents.count > 1 else {
+                    // List all files in S3 bucket
+                    // Throws: LambdaDemoError.missingService if S3 data store is not initialized
+                    // Throws: S3 SDK errors if bucket access fails
                     let files = try await app.listS3Files()
                     return try files.apiGatewayOkResponse()
                 }
 
+                // Decode URL-encoded file name to handle special characters
                 let fileName = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
+
+                // Download file from S3 bucket
+                // Returns nil if file doesn't exist (not an error condition)
+                // Throws: LambdaDemoError.missingService if S3 data store is not initialized
+                // Throws: S3 SDK errors for bucket access issues
                 guard let fileData = try await app.downloadS3File(key: fileName) else {
+                    // Return 404 for non-existent files (expected scenario)
                     return try "File not found: \(fileName)".createAPIGatewayJSONResponse(statusCode: .notFound)
                 }
 
+                // Encode file data as base64 for JSON transport
                 let response = FileDownloadResponse(
                     fileName: fileName,
                     data: fileData.base64EncodedString()
@@ -143,26 +154,44 @@ struct APIGWHandler {
 
             case .post:
                 // POST /api/files - upload file
+
+                // Validate request body exists
                 guard let bodyString = event.body,
                       let bodyData = bodyString.data(using: .utf8) else {
                     throw APIGWHandlerError.general(description: "Missing body data")
                 }
 
+                // Parse JSON request body
+                // Throws: DecodingError if JSON structure is invalid
                 let uploadRequest = try JSONDecoder().decode(FileUploadRequest.self, from: bodyData)
+
+                // Decode base64-encoded file data
                 guard let fileData = Data(base64Encoded: uploadRequest.data) else {
+                    // Client sent invalid base64 - this is a client error
                     throw APIGWHandlerError.general(description: "Invalid base64 data")
                 }
 
+                // Upload file to S3 bucket
+                // Throws: LambdaDemoError.missingService if S3 data store is not initialized
+                // Throws: S3 SDK errors for upload failures (permissions, bucket not found, etc.)
                 try await app.uploadS3File(key: uploadRequest.fileName, data: fileData)
                 return try "File uploaded: \(uploadRequest.fileName)".apiGatewayOkResponse()
 
             case .delete:
                 // DELETE /api/files/{fileName} - delete file
+
+                // Validate file name is provided in URL path
                 guard urlComponents.count > 1 else {
                     throw APIGWHandlerError.general(description: "File name required for delete")
                 }
 
+                // Decode URL-encoded file name to handle special characters
                 let fileName = urlComponents[1].removingPercentEncoding ?? urlComponents[1]
+
+                // Delete file from S3 bucket
+                // Note: S3 delete is idempotent - deleting a non-existent file succeeds
+                // Throws: LambdaDemoError.missingService if S3 data store is not initialized
+                // Throws: S3 SDK errors for bucket access issues
                 try await app.deleteS3File(key: fileName)
                 return try "File deleted: \(fileName)".apiGatewayOkResponse()
 
