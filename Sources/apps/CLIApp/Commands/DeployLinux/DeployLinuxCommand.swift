@@ -1,8 +1,8 @@
 import ArgumentParser
-import Foundation
-import DeployLocalService
 import DeployCoreService
 import DeployLinuxFeature
+import DeployLocalService
+import Foundation
 import LocalServicesFeature
 
 // MARK: - Deploy Linux Command (Container)

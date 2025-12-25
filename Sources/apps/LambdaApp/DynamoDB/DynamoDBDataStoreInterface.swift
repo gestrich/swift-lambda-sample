@@ -5,8 +5,8 @@
 //  Created by Bill Gestrich on 12/6/25.
 //
 
-import Foundation
 import ClientService
+import Foundation
 
 public protocol DynamoDBDataStoreInterface: Sendable {
     func createReminder(_ request: CreateReminderRequest) async throws -> Reminder
