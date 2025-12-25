@@ -5,8 +5,8 @@
 //  App-specific persistence for AWSAuthConfiguration
 //
 
-import Foundation
 import AWSSDK
+import Foundation
 import StorageService
 
 // MARK: - Storage Keys

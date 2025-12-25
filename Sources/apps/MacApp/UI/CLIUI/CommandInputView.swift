@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// A command input field with autocomplete suggestions
 struct CommandInputView: View {

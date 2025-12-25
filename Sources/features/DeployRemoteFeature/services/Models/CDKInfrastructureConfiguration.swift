@@ -1,5 +1,5 @@
-import Foundation
 import AWSSDK
+import Foundation
 
 /// Detected infrastructure configuration from CloudFormation.
 /// Extends InfrastructureShape with additional detected properties.

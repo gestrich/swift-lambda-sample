@@ -5,9 +5,9 @@
 //  Shared environment for AWS CLI commands
 //
 
-import Foundation
 import AWSSDK
 import CLISDK
+import Foundation
 
 /// Shared environment for AWS CLI commands
 struct CLIAWSEnvironment {
