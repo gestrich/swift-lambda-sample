@@ -1,4 +1,4 @@
-name: Continuous AI Refactoring
+name: ClaudeStep
 
 on:
   # Run daily at 10 AM UTC
@@ -9,12 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       project:
-        description: 'Refactor project name'
+        description: 'Refactor project name (e.g., doc-improvements, import-sorting)'
         required: true
         default: 'doc-improvements'
-        type: choice
-        options:
-          - doc-improvements
+        type: string
 
   # Automatic: Trigger on PR merge for continuous refactoring
   pull_request:
@@ -37,9 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Continuous AI Refactoring
+      - name: Run ClaudeStep
         id: refactor
-        uses: gestrich/claude-refactor-chain@main
+        uses: gestrich/claude-step@main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
