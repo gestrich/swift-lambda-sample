@@ -9,13 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       project:
-        description: 'Refactor project name'
+        description: 'Refactor project name (e.g., doc-improvements, import-sorting)'
         required: true
         default: 'doc-improvements'
-        type: choice
-        options:
-          - doc-improvements
-          - import-sorting
+        type: string
 
   # Automatic: Trigger on PR merge for continuous refactoring
   pull_request:
