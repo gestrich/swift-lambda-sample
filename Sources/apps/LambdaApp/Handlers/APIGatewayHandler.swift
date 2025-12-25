@@ -15,6 +15,36 @@ struct APIGWHandler {
 
     //MARK: Handler
 
+    /// Handles incoming API Gateway requests and returns formatted responses.
+    ///
+    /// This is the main entry point for Lambda function invocations triggered by API Gateway.
+    /// It orchestrates the request lifecycle including service initialization, routing,
+    /// logging, and cleanup.
+    ///
+    /// - Parameter context: The Lambda execution context containing runtime information,
+    ///                      logger, and request metadata
+    /// - Parameter event: The API Gateway request event containing HTTP method, path,
+    ///                    headers, query parameters, and body
+    /// - Returns: An API Gateway response with status code, headers, and body
+    /// - Throws: APIGWHandlerError for routing and processing errors,
+    ///           or propagates errors from service initialization and routing
+    ///
+    /// # Request Flow
+    /// 1. Logs incoming request details for debugging and monitoring
+    /// 2. Initializes service dependencies (database connections, S3 client, etc.)
+    /// 3. Routes the request to the appropriate endpoint handler
+    /// 4. Ensures services are properly shut down even if errors occur
+    /// 5. Logs successful response metadata before returning
+    ///
+    /// # Error Handling
+    /// - Services are guaranteed to be shut down via `defer`-like error handling
+    /// - All errors are logged with request context before propagation
+    /// - Database connections and AWS service clients are cleaned up properly
+    ///
+    /// # Performance Note
+    /// Service initialization occurs on every request. For better performance,
+    /// consider using Lambda.InitializationContext to maintain persistent
+    /// connections across invocations.
     func handle(context: LambdaContext, event: APIGatewayRequest) async throws -> APIGatewayResponse {
 
         // Log every incoming request for debugging
@@ -26,10 +56,14 @@ struct APIGWHandler {
 
         //TODO: The Lambda.InitializationContext can hold resources that can be reused on every request.
         //It may be more performant to use that to hold onto our database connections.
+        // Initialize service dependencies (database, S3, configuration)
         let services = try await ServiceComposer()
 
         do {
+            // Route request to appropriate handler and get response
             let response = try await route(event: event, app: services.app)
+
+            // Clean up service resources (close database connections, etc.)
             try await services.shutdown()
 
             // Log successful responses
@@ -40,6 +74,7 @@ struct APIGWHandler {
 
             return response
         } catch {
+            // Ensure cleanup happens even on error to prevent resource leaks
             try await services.shutdown()
             throw error
         }
