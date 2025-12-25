@@ -37,30 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Determine project
-        id: project
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Use manual input
-            PROJECT="${{ github.event.inputs.project }}"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Extract from branch name: YYYY-MM-{project}-{index}
-            BRANCH="${{ github.head_ref }}"
-            PROJECT=$(echo "$BRANCH" | sed -E 's/^[0-9]{4}-[0-9]{2}-([^-]+)-[0-9]+$/\1/')
-          else
-            # Default for scheduled runs
-            PROJECT="doc-improvements"
-          fi
-          echo "name=$PROJECT" >> $GITHUB_OUTPUT
-          echo "Determined project: $PROJECT"
-
       - name: Run Continuous AI Refactoring
         id: refactor
         uses: gestrich/claude-refactor-chain@main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          project_name: ${{ steps.project.outputs.name }}
+          # For manual/scheduled runs, specify project name
+          project_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.project || (github.event_name == 'schedule' && 'doc-improvements' || '') }}
+          # For PR merge triggers, pass PR number to auto-detect project from labels
+          merged_pr_number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           base_branch: dev
 
       - name: Output summary
