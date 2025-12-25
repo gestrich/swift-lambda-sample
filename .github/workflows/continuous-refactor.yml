@@ -39,14 +39,37 @@ jobs:
 
       - name: Determine project
         id: project
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # Use manual input
             PROJECT="${{ github.event.inputs.project }}"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Extract from branch name: YYYY-MM-{project}-{index}
-            BRANCH="${{ github.head_ref }}"
-            PROJECT=$(echo "$BRANCH" | sed -E 's/^[0-9]{4}-[0-9]{2}-([^-]+)-[0-9]+$/\1/')
+            # Find project by matching PR label to project config
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+
+            # Get PR labels
+            PR_LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+
+            # Search refactor projects for matching label
+            PROJECT=""
+            for config_file in refactor/*/configuration.json; do
+              if [ -f "$config_file" ]; then
+                LABEL=$(python3 -c "import json; print(json.load(open('$config_file'))['label'])")
+                if echo "$PR_LABELS" | grep -q "^${LABEL}$"; then
+                  # Extract project name from path: refactor/{project}/configuration.json
+                  PROJECT=$(echo "$config_file" | sed -E 's|refactor/([^/]+)/configuration\.json|\1|')
+                  echo "Found matching project: $PROJECT (label: $LABEL)"
+                  break
+                fi
+              fi
+            done
+
+            if [ -z "$PROJECT" ]; then
+              echo "::error::No refactor project found with matching label"
+              exit 1
+            fi
           else
             # Default for scheduled runs
             PROJECT="doc-improvements"
