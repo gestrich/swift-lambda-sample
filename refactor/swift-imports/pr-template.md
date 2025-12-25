@@ -20,7 +20,7 @@ Please verify:
 
 If this PR has issues:
 1. Fix them directly in this PR
-2. Update `refactor/import-sorting/spec.md` with improved instructions
+2. Update `refactor/swift-imports/spec.md` with improved instructions
 3. This helps future PRs be even better!
 
 ---

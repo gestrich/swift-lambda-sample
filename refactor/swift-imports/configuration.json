@@ -1,0 +1,10 @@
+{
+  "label": "swift-imports",
+  "branchPrefix": "refactor/swift-imports",
+  "reviewers": [
+    {
+      "username": "gestrich",
+      "maxOpenPRs": 3
+    }
+  ]
+}
