@@ -1,0 +1,10 @@
+{
+  "label": "doc-improvements",
+  "branchPrefix": "refactor/doc-improvements",
+  "reviewers": [
+    {
+      "username": "gestrich",
+      "maxOpenPRs": 1
+    }
+  ]
+}
