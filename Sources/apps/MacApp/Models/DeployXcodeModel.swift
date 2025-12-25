@@ -1,12 +1,12 @@
-import CLISDK
 import ClientService
-import Foundation
-import StorageService
-import DeployLocalService
+import CLISDK
 import DeployCoreService
-import LambdaBuildService
+import DeployLocalService
 import DeployXcodeFeature
+import Foundation
+import LambdaBuildService
 import LocalServicesFeature
+import StorageService
 
 /// Observable model for native macOS Xcode development workflow
 /// Holds UI state and delegates operations to Xcode use cases

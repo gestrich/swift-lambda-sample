@@ -5,10 +5,10 @@
 //  Created by Bill Gestrich on 11/27/25.
 //
 
+import DynamoDBSDK
 import Foundation
 import MinioSDK
 import PostgreSQLSDK
-import DynamoDBSDK
 import StorageService
 
 /// Execution context for Lambda - determines how to connect to services

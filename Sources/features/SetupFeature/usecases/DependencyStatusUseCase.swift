@@ -1,9 +1,9 @@
-import CLISDK
-import BrewCLISDK
-import NodeCLISDK
-import DockerCLISDK
 import AWSSDK
+import BrewCLISDK
+import CLISDK
+import DockerCLISDK
 import GitHubSDK
+import NodeCLISDK
 import Uniflow
 
 /// Use case that checks all dependency statuses and yields progress

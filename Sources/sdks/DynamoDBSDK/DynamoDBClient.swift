@@ -1,5 +1,5 @@
-import Foundation
 import DockerCLISDK
+import Foundation
 
 /// Client for managing local DynamoDB via Docker
 public struct DynamoDBClient: Sendable {

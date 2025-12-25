@@ -1,6 +1,6 @@
-import Foundation
-import CLISDK
 import BrewCLISDK
+import CLISDK
+import Foundation
 import Uniflow
 
 /// Use case that installs a specific dependency

@@ -99,7 +99,7 @@ import LocalServicesFeature
   * CreateUserRequest.swift
   * Curl.swift
 
-- [ ] Sort imports in files D-F
+- [x] Sort imports in files D-F
   * DependencyInstallUseCase.swift
   * DependencySnapshot.swift
   * DependencyStatusModel.swift

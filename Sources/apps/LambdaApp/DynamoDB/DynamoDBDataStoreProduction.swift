@@ -5,8 +5,8 @@
 //  Created by Bill Gestrich on 12/6/25.
 //
 
-import Foundation
 import ClientService
+import Foundation
 
 public actor DynamoDBDataStoreProduction: DynamoDBDataStoreInterface, Sendable {
 

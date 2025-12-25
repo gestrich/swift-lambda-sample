@@ -1,7 +1,7 @@
 import CLISDK
-import SetupFeature
 import Foundation
 import Observation
+import SetupFeature
 
 /// Observable model for dependency installation status.
 /// Uses use cases from SetupFeature to check and install dependencies.

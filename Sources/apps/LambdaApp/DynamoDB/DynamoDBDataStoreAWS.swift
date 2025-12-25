@@ -5,9 +5,9 @@
 //  Created by Bill Gestrich on 12/6/25.
 //
 
+import ClientService
 import Foundation
 import SotoDynamoDB
-import ClientService
 
 public final class DynamoDBDataStoreAWS: DynamoDBDataStoreInterface, @unchecked Sendable {
 
