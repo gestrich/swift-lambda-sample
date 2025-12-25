@@ -61,6 +61,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           project_name: ${{ steps.project.outputs.name }}
+          base_branch: dev
 
       - name: Output summary
         if: steps.refactor.outputs.pr_number
