@@ -36,7 +36,7 @@ import LocalServicesFeature
 ## Checklist
 
 ### Files A-B
-- [ ] Sort imports in APIClient.swift
+- [x] Sort imports in APIClient.swift
 - [ ] Sort imports in APIGatewayHandler.swift
 - [ ] Sort imports in APIGatewayRequestWrapper.swift
 - [ ] Sort imports in APIGatewayResponseWrapper.swift
