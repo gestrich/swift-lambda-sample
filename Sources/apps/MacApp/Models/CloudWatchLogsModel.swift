@@ -1,8 +1,8 @@
 import AWSSDK
 import CLISDK
+import DeployRemoteFeature
 import Foundation
 import Observation
-import DeployRemoteFeature
 
 /// Observable model for CloudWatch logs viewing.
 /// Holds UI state and delegates operations to CloudWatchLogsUseCase.

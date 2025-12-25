@@ -1,6 +1,6 @@
-import Foundation
 import AWSSDK
 import CLISDK
+import Foundation
 import Uniflow
 
 /// Use case for streaming CloudWatch logs from Lambda.

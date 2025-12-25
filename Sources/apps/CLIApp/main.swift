@@ -1,6 +1,6 @@
 import ArgumentParser
-import Foundation
 import DeployRemoteFeature
+import Foundation
 
 @main
 struct FeatureDeployCLI: AsyncParsableCommand {
