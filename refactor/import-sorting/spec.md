@@ -37,7 +37,7 @@ import LocalServicesFeature
 
 ### Files A-B
 - [x] Sort imports in APIClient.swift
-- [ ] Sort imports in APIGatewayHandler.swift
+- [x] Sort imports in APIGatewayHandler.swift
 - [ ] Sort imports in APIGatewayRequestWrapper.swift
 - [ ] Sort imports in APIGatewayResponseWrapper.swift
 - [ ] Sort imports in AppModel.swift
