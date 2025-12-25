@@ -51,7 +51,7 @@ func processRequest(_ request: APIRequest) throws -> APIResponse {
 
 ## Checklist
 
-- [ ] Add documentation to APIGatewayHandler main processing function
+- [x] Add documentation to APIGatewayHandler main processing function
 - [ ] Document error handling in S3Handler
 - [ ] Add inline comments to complex DynamoDB query logic
 - [ ] Document the Lambda handler initialization process
