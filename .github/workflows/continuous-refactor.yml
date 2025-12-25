@@ -1,0 +1,71 @@
+name: Continuous AI Refactoring
+
+on:
+  # Run daily at 10 AM UTC
+  schedule:
+    - cron: '0 10 * * *'
+
+  # Allow manual triggering with project selection
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Refactor project name'
+        required: true
+        default: 'doc-improvements'
+        type: choice
+        options:
+          - doc-improvements
+
+  # Automatic: Trigger on PR merge for continuous refactoring
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    # Only run on merged PRs with matching label, or non-PR triggers
+    if: |
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.merged == true && startsWith(github.head_ref, '20'))
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine project
+        id: project
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Use manual input
+            PROJECT="${{ github.event.inputs.project }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Extract from branch name: YYYY-MM-{project}-{index}
+            BRANCH="${{ github.head_ref }}"
+            PROJECT=$(echo "$BRANCH" | sed -E 's/^[0-9]{4}-[0-9]{2}-([^-]+)-[0-9]+$/\1/')
+          else
+            # Default for scheduled runs
+            PROJECT="doc-improvements"
+          fi
+          echo "name=$PROJECT" >> $GITHUB_OUTPUT
+          echo "Determined project: $PROJECT"
+
+      - name: Run Continuous AI Refactoring
+        id: refactor
+        uses: gestrich/continuous-ai-refactor-chain@main
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          project_name: ${{ steps.project.outputs.name }}
+
+      - name: Output summary
+        if: steps.refactor.outputs.pr_number
+        run: |
+          echo "✅ **Refactoring PR Created**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR**: ${{ steps.refactor.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reviewer**: @${{ steps.refactor.outputs.reviewer }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Task**: ${{ steps.refactor.outputs.task_completed }}" >> $GITHUB_STEP_SUMMARY
