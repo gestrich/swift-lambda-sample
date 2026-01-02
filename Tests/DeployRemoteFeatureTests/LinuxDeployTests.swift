@@ -152,8 +152,7 @@ struct LinuxContainerIntegrationTests {
         print("  ✅ All build artifacts present")
     }
 
-
-    private func testS3Endpoint() async throws {
+    func testS3Endpoint() async throws {
         let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
         let endpoint = "http://localhost:\(config.hostPort)/invoke"
 
@@ -188,7 +187,7 @@ struct LinuxContainerIntegrationTests {
         print("  ✅ S3 test passed")
     }
 
-    private func testPostgresEndpoint() async throws {
+    func testPostgresEndpoint() async throws {
         let config = LinuxContainerConfig.default(workingDirectory: workingDirectory)
         let endpoint = "http://localhost:\(config.hostPort)/invoke"
 
