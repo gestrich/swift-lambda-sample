@@ -9,6 +9,6 @@ struct SdkCliMacrosPlugin: CompilerPlugin {
         FlagMacro.self,
         OptionMacro.self,
         PositionalMacro.self,
-        PrefixOptionMacro.self,
+        PrefixOptionMacro.self
     ]
 }
