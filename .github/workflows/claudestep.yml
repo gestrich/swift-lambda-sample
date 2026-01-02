@@ -37,6 +37,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install SwiftLint
+        run: |
+          brew install swiftlint
       - uses: gestrich/claude-step@main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
