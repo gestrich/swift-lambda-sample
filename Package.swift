@@ -25,7 +25,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", "2.2.0"..<"3.0.0"),
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", "4.0.0"..<"5.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0")
     ],
     targets: [
         // MARK: - Uniflow
@@ -38,14 +38,14 @@ let package = Package(
             name: "CLIMacrosSDK",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
             ],
             path: "Sources/sdks/CLIMacrosSDK"
         ),
         .target(
             name: "CLISDK",
             dependencies: [
-                .target(name: "CLIMacrosSDK"),
+                .target(name: "CLIMacrosSDK")
             ],
             path: "Sources/sdks/CLISDK",
             exclude: ["README.md"]
@@ -54,56 +54,56 @@ let package = Package(
             name: "AWSSDK",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "NodeCLISDK"),
+                .target(name: "NodeCLISDK")
             ],
             path: "Sources/sdks/AWSSDK"
         ),
         .target(
             name: "GitHubSDK",
             dependencies: [
-                .target(name: "CLISDK"),
+                .target(name: "CLISDK")
             ],
             path: "Sources/sdks/GitHubSDK"
         ),
         .target(
             name: "DockerCLISDK",
             dependencies: [
-                .target(name: "CLISDK"),
+                .target(name: "CLISDK")
             ],
             path: "Sources/sdks/DockerCLISDK"
         ),
         .target(
             name: "MinioSDK",
             dependencies: [
-                .target(name: "DockerCLISDK"),
+                .target(name: "DockerCLISDK")
             ],
             path: "Sources/sdks/MinioSDK"
         ),
         .target(
             name: "PostgreSQLSDK",
             dependencies: [
-                .target(name: "DockerCLISDK"),
+                .target(name: "DockerCLISDK")
             ],
             path: "Sources/sdks/PostgreSQLSDK"
         ),
         .target(
             name: "DynamoDBSDK",
             dependencies: [
-                .target(name: "DockerCLISDK"),
+                .target(name: "DockerCLISDK")
             ],
             path: "Sources/sdks/DynamoDBSDK"
         ),
         .target(
             name: "BrewCLISDK",
             dependencies: [
-                .target(name: "CLISDK"),
+                .target(name: "CLISDK")
             ],
             path: "Sources/sdks/BrewCLISDK"
         ),
         .target(
             name: "NodeCLISDK",
             dependencies: [
-                .target(name: "CLISDK"),
+                .target(name: "CLISDK")
             ],
             path: "Sources/sdks/NodeCLISDK"
         ),
@@ -120,7 +120,7 @@ let package = Package(
                 .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
-                .target(name: "GitHubSDK"),
+                .target(name: "GitHubSDK")
             ],
             path: "Sources/features/SetupFeature"
         ),
@@ -128,7 +128,7 @@ let package = Package(
             name: "DeployCoreService",
             dependencies: [
                 .target(name: "CLISDK"),
-                .target(name: "ClientService"),
+                .target(name: "ClientService")
             ],
             path: "Sources/services/DeployCoreService"
         ),
@@ -143,14 +143,14 @@ let package = Package(
                 .target(name: "ClientService"),
                 .target(name: "StorageService"),
                 .target(name: "LambdaBuildService"),
-                .target(name: "DeployCoreService"),
+                .target(name: "DeployCoreService")
             ],
             path: "Sources/services/DeployLocalService"
         ),
         .target(
             name: "LambdaBuildService",
             dependencies: [
-                .target(name: "CLISDK"),
+                .target(name: "CLISDK")
             ],
             path: "Sources/services/LambdaBuildService"
         ),
@@ -165,7 +165,7 @@ let package = Package(
                 .target(name: "ClientService"),
                 .target(name: "StorageService"),
                 .target(name: "LambdaBuildService"),
-                .target(name: "DeployCoreService"),
+                .target(name: "DeployCoreService")
             ],
             path: "Sources/features/DeployRemoteFeature"
         ),
@@ -178,7 +178,7 @@ let package = Package(
                 .target(name: "CLISDK"),
                 .target(name: "DeployCoreService"),
                 .target(name: "LambdaBuildService"),
-                .target(name: "ClientService"),
+                .target(name: "ClientService")
             ],
             path: "Sources/features/DeployXcodeFeature"
         ),
@@ -188,7 +188,7 @@ let package = Package(
                 .target(name: "Uniflow"),
                 .target(name: "DeployLocalService"),
                 .target(name: "LocalServicesFeature"),
-                .target(name: "CLISDK"),
+                .target(name: "CLISDK")
             ],
             path: "Sources/features/DeployLinuxFeature"
         ),
@@ -203,7 +203,7 @@ let package = Package(
                 .target(name: "DynamoDBSDK"),
                 .target(name: "StorageService"),
                 .target(name: "DeployLocalService"),
-                .target(name: "DeployCoreService"),
+                .target(name: "DeployCoreService")
             ],
             path: "Sources/features/LocalServicesFeature"
         ),
@@ -219,7 +219,7 @@ let package = Package(
                 .target(name: "DeployCoreService"),
                 .target(name: "AWSSDK"),
                 .target(name: "CLISDK"),
-                .target(name: "GitHubSDK"),
+                .target(name: "GitHubSDK")
             ],
             path: "Sources/apps/CLIApp",
             swiftSettings: [
@@ -258,7 +258,7 @@ let package = Package(
                 .target(name: "NodeCLISDK"),
                 .target(name: "DockerCLISDK"),
                 .target(name: "AWSSDK"),
-                .target(name: "GitHubSDK"),
+                .target(name: "GitHubSDK")
             ],
             path: "Sources/apps/MacApp",
             swiftSettings: [
@@ -278,7 +278,7 @@ let package = Package(
                 .target(name: "LambdaBuildService"),
                 .target(name: "GitHubSDK"),
                 .target(name: "DockerCLISDK"),
-                .target(name: "NodeCLISDK"),
+                .target(name: "NodeCLISDK")
             ],
             path: "Tests/DeployRemoteFeatureTests"
         ),
@@ -287,7 +287,7 @@ let package = Package(
             dependencies: [
                 .target(name: "CLISDK"),
                 .target(name: "CLIMacrosSDK"),
-                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
             ],
             path: "Tests/CLISDKTests"
         )
