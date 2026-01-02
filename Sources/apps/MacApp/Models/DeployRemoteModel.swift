@@ -38,7 +38,7 @@ public class DeployRemoteModel {
 
     /// GitHub configuration (exposed for auxiliary services)
     public let githubConfig: GitHubActionsConfiguration?
-    
+
     // MARK: - SDK Clients
 
     private let cdkClient: CDKClient
@@ -118,7 +118,7 @@ public class DeployRemoteModel {
             githubConfig: githubConfig
         )
     }
-    
+
     // MARK: - Derived State (Convenience Accessors)
 
     /// Whether any use case is currently active
