@@ -186,7 +186,7 @@ struct StreamingTextView: View {
         Color(red: 0.9, green: 0.7, blue: 0.4),   // Warm orange
         Color(red: 0.8, green: 0.5, blue: 0.7),   // Muted pink
         Color(red: 0.5, green: 0.7, blue: 0.8),   // Teal
-        Color(red: 0.7, green: 0.6, blue: 0.9),   // Soft purple
+        Color(red: 0.7, green: 0.6, blue: 0.9)   // Soft purple
     ]
 
     /// Get a consistent color for a command block based on its position
