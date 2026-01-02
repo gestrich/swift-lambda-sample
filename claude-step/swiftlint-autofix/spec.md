@@ -18,7 +18,7 @@ The following rules are auto-fixable:
 
 ## Tasks
 
-- [ ] Run `swiftlint --fix --path "Package.swift"` to fix 23 trailing_comma violations
+- [x] Run `swiftlint --fix --path "Package.swift"` to fix 23 trailing_comma violations
 - [ ] Run `swiftlint --fix --path "Sources/apps/LambdaApp/Postgres/User.swift"` to fix 14 trailing_whitespace violations
 - [ ] Run `swiftlint --fix --path "Sources/apps/LambdaApp/Postgres/PostgresModelStore.swift"` to fix trailing_whitespace and trailing_comma violations
 - [ ] Run `swiftlint --fix --path "Sources/apps/LambdaApp/SwiftServerApp.swift"` to fix trailing_whitespace and vertical_whitespace violations
