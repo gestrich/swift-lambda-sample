@@ -25,7 +25,7 @@ For each task:
 
 - [x] Run `swiftlint lint --fix "Package.swift"`
 - [x] Run `swiftlint lint --fix "Sources/apps/LambdaApp/Postgres/User.swift"`
-- [ ] Run `swiftlint lint --fix "Sources/apps/LambdaApp/Postgres/PostgresModelStore.swift"`
+- [x] Run `swiftlint lint --fix "Sources/apps/LambdaApp/Postgres/PostgresModelStore.swift"`
 - [ ] Run `swiftlint lint --fix "Sources/apps/LambdaApp/SwiftServerApp.swift"`
 - [ ] Run `swiftlint lint --fix "Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift"`
 - [ ] Run `swiftlint lint --fix "Sources/apps/MacApp/Models/DeployRemoteModel.swift"`
