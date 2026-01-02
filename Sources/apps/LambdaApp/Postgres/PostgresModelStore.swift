@@ -25,7 +25,7 @@ public actor PostgresModelStore: PostgresModelStoreInterface {
 
     public init(eventLoop: EventLoop, configuration: PostgresConfiguration) async throws {
 
-        //Database Setup
+        // Database Setup
         let threadPool: NIOThreadPool = NIOThreadPool(numberOfThreads: System.coreCount)
         let databases: Databases = Databases(threadPool: threadPool, on: eventLoop)
 
@@ -66,13 +66,13 @@ public actor PostgresModelStore: PostgresModelStoreInterface {
 
     public func createTables() async throws {
         for migration in allMigrations() {
-            let _ = try await migration.prepare(on: database)
+            _ = try await migration.prepare(on: database)
         }
     }
 
     public func deleteTables() async {
         for migration in allMigrations().reversed() {
-            //Ignore errors as this occurs when tables do not exist
+            // Ignore errors as this occurs when tables do not exist
             do {
                 try await migration.revert(on: database)
             } catch {
@@ -83,32 +83,32 @@ public actor PostgresModelStore: PostgresModelStoreInterface {
 
     public func allMigrations() -> [AsyncMigration] {
         return [
-            CreatePostgresUser(),
+            CreatePostgresUser()
         ]
     }
 
     public func shutdown() async throws {
         await databases.shutdownAsync()
-        let _ = try? await threadPool.shutdownGracefully()
+        _ = try? await threadPool.shutdownGracefully()
     }
-    
-    //MARK: User CRUD
-    
+
+    // MARK: User CRUD
+
     public func getUser(id: UUID) async throws -> User? {
         let matches = try await User.query(on: database)
             .filter(\.$id == id)
             .all()
         return matches.first
     }
-    
+
     public func getUsers() async throws -> [User] {
         return try await User.query(on: database).all()
     }
-    
-    public func createUser(_ user: User) async throws{
+
+    public func createUser(_ user: User) async throws {
         try await user.create(on: database)
     }
-    
+
     public func updateUser(_ user: User) async throws -> User {
         guard let id = user.id else {
             throw PostgresModelStoreError.updateUserError("Missing user id")
@@ -121,7 +121,7 @@ public actor PostgresModelStore: PostgresModelStoreInterface {
         return result
     }
 
-    public func deleteUser(_ user : User) async throws {
+    public func deleteUser(_ user: User) async throws {
         try await user.delete(on: database)
     }
 }
