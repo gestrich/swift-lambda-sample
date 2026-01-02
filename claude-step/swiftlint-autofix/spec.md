@@ -34,4 +34,4 @@ For each task:
 - [x] Run `swiftlint lint --fix "Sources/apps/MacApp/UI/CLIUI/StreamingTextView.swift"`
 - [x] Run `swiftlint lint --fix "Sources/sdks/CLIMacrosSDK/Plugin.swift"`
 - [x] Run `swiftlint lint --fix "Sources/services/StorageService/ProjectPathResolver.swift"`
-- [ ] Run `swiftlint lint --fix "Tests/DeployRemoteFeatureTests/LinuxDeployTests.swift"`
+- [x] Run `swiftlint lint --fix "Tests/DeployRemoteFeatureTests/LinuxDeployTests.swift"`
