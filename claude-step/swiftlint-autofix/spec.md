@@ -29,7 +29,7 @@ For each task:
 - [x] Run `swiftlint lint --fix "Sources/apps/LambdaApp/SwiftServerApp.swift"`
 - [x] Run `swiftlint lint --fix "Sources/apps/LambdaApp/Handlers/APIGatewayHandler.swift"`
 - [x] Run `swiftlint lint --fix "Sources/apps/MacApp/Models/DeployRemoteModel.swift"`
-- [ ] Run `swiftlint lint --fix "Sources/apps/MacApp/UI/Client/UserFormView.swift"`
+- [x] Run `swiftlint lint --fix "Sources/apps/MacApp/UI/Client/UserFormView.swift"`
 - [ ] Run `swiftlint lint --fix "Sources/apps/MacApp/UI/CLIUI/CommandInputView.swift"`
 - [ ] Run `swiftlint lint --fix "Sources/apps/MacApp/UI/CLIUI/StreamingTextView.swift"`
 - [ ] Run `swiftlint lint --fix "Sources/sdks/CLIMacrosSDK/Plugin.swift"`
