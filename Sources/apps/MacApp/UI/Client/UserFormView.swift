@@ -40,7 +40,7 @@ struct UserFormView: View {
         self.mode = mode
         self.onComplete = onComplete
         self.apiClient = apiClient
-        
+
         if case .edit(let user) = mode {
             _email = State(initialValue: user.email)
             _firstName = State(initialValue: user.firstName)
