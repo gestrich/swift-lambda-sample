@@ -9,9 +9,9 @@ import Foundation
 public struct ProjectPathResolver {
 
     // MARK: - Public
-    
+
     public init() {
-        
+
     }
 
     public func resolveProjectRoot() throws -> URL {
