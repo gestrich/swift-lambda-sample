@@ -16,7 +16,7 @@ Just print the count. No other action is needed.
 ## Tasks
 
 - [x] `wc -l "Sources/apps/MacApp/UI/SetupViews.swift"`
-- [ ] `wc -l "Sources/sdks/CLISDK/CLIClient.swift"`
+- [x] `wc -l "Sources/sdks/CLISDK/CLIClient.swift"`
 - [ ] `wc -l "Sources/apps/MacApp/UI/RemoteService/CDKInfrastructureSectionView.swift"`
 - [ ] `wc -l "Sources/apps/MacApp/Models/DeployLinuxModel.swift"`
 - [ ] `wc -l "Sources/apps/MacApp/Models/DeployXcodeModel.swift"`
