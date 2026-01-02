@@ -13,7 +13,7 @@ import HTTPTypes
 
 struct APIGWHandler {
 
-    //MARK: Handler
+    // MARK: Handler
 
     /// Handles incoming API Gateway requests and returns formatted responses.
     ///
@@ -54,8 +54,8 @@ struct APIGWHandler {
             "requestId": .string(context.requestID)
         ])
 
-        //TODO: The Lambda.InitializationContext can hold resources that can be reused on every request.
-        //It may be more performant to use that to hold onto our database connections.
+        // TODO: The Lambda.InitializationContext can hold resources that can be reused on every request.
+        // It may be more performant to use that to hold onto our database connections.
         // Initialize service dependencies (database, S3, configuration)
         let services = try await ServiceComposer()
 
@@ -261,7 +261,7 @@ struct APIGWHandler {
         case "users":
             switch event.httpMethod {
             case .get:
-                
+
                 guard urlComponents.count > 1 else {
                     return try await app.getUsers().apiGatewayOkResponse()
                 }
@@ -338,7 +338,7 @@ enum APIGWHandlerError: LocalizedError {
 }
 
 extension Encodable {
-    //TODO: There is some overlap in the swift-server-utilities method name.
+    // TODO: There is some overlap in the swift-server-utilities method name.
     func apiGatewayOkResponse() throws -> APIGatewayResponse {
         return try createAPIGatewayJSONResponse(statusCode: .ok)
     }
