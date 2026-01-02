@@ -20,15 +20,14 @@ public struct SwiftServerApp {
         self.postgresModelStore = postgresModelStore
         self.dynamoDBDataStore = dynamoDBDataStore
     }
-    
-    
-    //MARK: Database Service
+
+    // MARK: Database Service
 
     public func initializeDatabase() async throws {
         guard let postgresModelStore else {
             throw LambdaDemoError.missingService(name: "postgresModelStore")
         }
-        //TODO: This should not delete the database contents.
+        // TODO: This should not delete the database contents.
         try await postgresModelStore.wipeAndInitialize()
     }
 
@@ -40,8 +39,7 @@ public struct SwiftServerApp {
         try await postgresModelStore.wipeAndInitialize()
     }
 
-    
-    //MARK: User Service
+    // MARK: User Service
 
     public func createUser(_ createUserRequest: CreateUser) async throws -> User {
         guard let postgresModelStore else {
@@ -90,8 +88,7 @@ public struct SwiftServerApp {
         try await postgresModelStore.deleteUser(user)
     }
 
-    
-    //MARK: S3 Service
+    // MARK: S3 Service
 
     public func uploadAndDownloadS3File() async throws -> String {
         guard let s3DataStore else {
@@ -150,8 +147,7 @@ public struct SwiftServerApp {
         try await s3DataStore.deleteFile(key: key)
     }
 
-
-    //MARK: DynamoDB Reminders Service
+    // MARK: DynamoDB Reminders Service
 
     public func createReminder(_ request: CreateReminderRequest) async throws -> Reminder {
         guard let dynamoDBDataStore else {
@@ -187,7 +183,6 @@ public struct SwiftServerApp {
         }
         try await dynamoDBDataStore.deleteReminder(id: id)
     }
-
 
     enum LambdaDemoError: LocalizedError {
         case missingService(name: String)
