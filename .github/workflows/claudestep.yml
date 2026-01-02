@@ -9,8 +9,9 @@
 #
 # Trigger modes:
 # - workflow_dispatch: Manual trigger with project_name input
-# - push: Continues processing after PR merge (or direct push)
+# - pull_request (closed): Continues processing after PR merge
 #
+# Note: PRs must have the 'claudestep' label and be merged to trigger processing.
 # Security: workflow_dispatch requires repository write access.
 
 name: ClaudeStep
@@ -23,9 +24,12 @@ on:
         required: true
         type: string
 
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - dev
+    paths:
+      - 'claude-step/**'
 
 permissions:
   contents: write       # Commit and push changes
