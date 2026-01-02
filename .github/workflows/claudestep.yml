@@ -1,0 +1,48 @@
+# ClaudeStep Workflow
+#
+# This workflow handles all event types automatically by passing the GitHub
+# event context to the action. The action determines:
+# - Whether to execute or skip
+# - Which ref to checkout
+# - The project name (from branch pattern or input)
+# - The base branch for PR creation (from project config or default)
+#
+# Trigger modes:
+# - workflow_dispatch: Manual trigger with project_name input
+# - push: Continues processing after PR merge (or direct push)
+#
+# Security: workflow_dispatch requires repository write access.
+
+name: ClaudeStep
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Project name (folder under claude-step/)'
+        required: true
+        type: string
+
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write       # Commit and push changes
+  pull-requests: write  # Create PRs
+  issues: write         # Create labels
+
+jobs:
+  run-claudestep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gestrich/claude-step@main
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_event: ${{ toJson(github.event) }}
+          event_name: ${{ github.event_name }}
+          project_name: ${{ github.event.inputs.project_name || '' }}
+          claude_model: 'claude-3-haiku-20240307'
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

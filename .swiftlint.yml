@@ -1,0 +1,3 @@
+excluded:
+  - .build
+  - .aws-sam
