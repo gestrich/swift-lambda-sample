@@ -42,7 +42,7 @@ struct CommandInputView: View {
         ("curl", "Transfer data", [["-s"], ["-I"], ["-X", "GET"]]),
         ("git", "Version control", [["status"], ["log", "--oneline"], ["branch"], ["diff"]]),
         ("swift", "Swift compiler", [["--version"], ["build"], ["test"]]),
-        ("docker", "Container platform", [["ps"], ["images"], ["ps", "-a"]]),
+        ("docker", "Container platform", [["ps"], ["images"], ["ps", "-a"]])
     ]
 
     /// Current suggestions based on input
@@ -285,7 +285,6 @@ private class CustomNSTextField: NSTextField {
     var onEscape: (() -> Void)?
     var onReturn: (() -> Void)?
 }
-
 
 #Preview {
     struct PreviewWrapper: View {
