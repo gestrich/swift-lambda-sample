@@ -1,4 +1,0 @@
-reviewers:
-  - username: gestrich
-    maxOpenPRs: 1
-baseBranch: dev
