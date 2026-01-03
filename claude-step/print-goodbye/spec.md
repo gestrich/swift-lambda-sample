@@ -15,6 +15,6 @@ echo "Goodbye World!"
 
 - [x] `echo "Goodbye World!"`
 - [x] `echo "Goodbye World!!"`
-- [ ] `echo "Goodbye World!!!"`
+- [x] `echo "Goodbye World!!!"`
 - [ ] `echo "Goodbye World!!!!"`
 - [ ] `echo "Goodbye World!!!!!"`
