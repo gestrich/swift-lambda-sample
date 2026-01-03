@@ -13,7 +13,7 @@ echo "Goodbye World!"
 
 ## Tasks
 
-- [ ] `echo "Goodbye World!"`
+- [x] `echo "Goodbye World!"`
 - [ ] `echo "Goodbye World!!"`
 - [ ] `echo "Goodbye World!!!"`
 - [ ] `echo "Goodbye World!!!!"`
