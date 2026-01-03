@@ -26,5 +26,6 @@ jobs:
       - uses: gestrich/claude-step/statistics@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          base_branch: dev
           days_back: 7
           slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
