@@ -14,7 +14,7 @@ echo "Hello World!"
 ## Tasks
 
 - [x] `echo "Hello World!"`
-- [ ] `echo "Hello World!!"`
+- [x] `echo "Hello World!!"`
 - [ ] `echo "Hello World!!!"`
 - [ ] `echo "Hello World!!!!"`
 - [ ] `echo "Hello World!!!!!"`
