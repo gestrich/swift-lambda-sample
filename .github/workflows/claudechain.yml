@@ -1,4 +1,4 @@
-# ClaudeStep Workflow
+# ClaudeChain Workflow
 #
 # This workflow handles all event types automatically by passing the GitHub
 # event context to the action. The action determines:
@@ -11,16 +11,16 @@
 # - workflow_dispatch: Manual trigger with project_name input
 # - pull_request (closed): Continues processing after PR merge
 #
-# Note: PRs must have the 'claudestep' label and be merged to trigger processing.
+# Note: PRs must have the 'claudechain' label and be merged to trigger processing.
 # Security: workflow_dispatch requires repository write access.
 
-name: ClaudeStep
+name: ClaudeChain
 
 on:
   workflow_dispatch:
     inputs:
       project_name:
-        description: 'Project name (folder under claude-step/)'
+        description: 'Project name (folder under claude-chain/)'
         required: true
         type: string
 
@@ -29,7 +29,7 @@ on:
     branches:
       - dev
     paths:
-      - 'claude-step/**'
+      - 'claude-chain/**'
 
 permissions:
   contents: write       # Commit and push changes
@@ -37,13 +37,13 @@ permissions:
   issues: write         # Create labels
 
 jobs:
-  run-claudestep:
+  run-claudechain:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install SwiftLint
         run: brew install swiftlint
-      - uses: gestrich/claude-step@main
+      - uses: gestrich/claude-chain@main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

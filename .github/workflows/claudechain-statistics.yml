@@ -1,13 +1,13 @@
-# ClaudeStep Statistics Workflow
+# ClaudeChain Statistics Workflow
 #
-# Generates daily statistics reports for ClaudeStep projects.
+# Generates daily statistics reports for ClaudeChain projects.
 # Posts results to Slack and GitHub Actions summary.
 #
 # Triggers:
 # - Daily at 9 AM UTC
 # - Manual trigger via workflow_dispatch
 
-name: ClaudeStep Statistics
+name: ClaudeChain Statistics
 
 on:
   schedule:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: gestrich/claude-step/statistics@main
+      - uses: gestrich/claude-chain/statistics@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: dev
