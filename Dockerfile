@@ -3,18 +3,18 @@
 # Build image
 # ================================
 
-FROM swift:6.2.0-amazonlinux2 as build
-  
- RUN yum -y install \
+FROM swift:6.3.1-amazonlinux2023 as build
+
+ RUN dnf -y install \
      git \
      libuuid-devel \
-     libicu-devel \
+     libicu \
      libedit-devel \
      libxml2-devel \
      sqlite-devel \
-     python-devel \
+     python3-devel \
      ncurses-devel \
-     curl-devel \
+     libcurl-devel \
      openssl-devel \
      tzdata \
      libtool \
