@@ -26,7 +26,7 @@ This CDK application deploys a complete AWS infrastructure stack with the follow
 - Encrypted data at rest (S3, RDS)
 
 ### Compute & Processing
-- Swift Lambda runtime (`provided.al2`)
+- Swift Lambda runtime (`provided.al2023`)
 - Configurable memory (up to 10GB) and timeout settings
 - SQS event source mapping for message processing
 - Async invocation configuration with retry logic
@@ -420,7 +420,7 @@ test('Lambda function created with correct runtime', () => {
   const template = Template.fromStack(stack);
 
   template.hasResourceProperties('AWS::Lambda::Function', {
-    Runtime: 'provided.al2',
+    Runtime: 'provided.al2023',
     MemorySize: 10240,
     Timeout: 900
   });
